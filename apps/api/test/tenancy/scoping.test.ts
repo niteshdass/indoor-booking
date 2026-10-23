@@ -55,6 +55,18 @@ describe('tenantScoped plugin', () => {
     for (const p of attempts) await expect(p).rejects.toThrow('Tenant filter missing');
   });
 
+  it('distinct, estimatedDocumentCount and unscoped bulkWrite throw', async () => {
+    await Widget.create({ ownerId: A, name: 'a' });
+    await expect(Widget.distinct('name').exec()).rejects.toThrow('Tenant filter missing');
+    await expect(Widget.estimatedDocumentCount().exec()).rejects.toThrow('Tenant filter missing');
+    await expect(Widget.bulkWrite([{ updateMany: { filter: {}, update: { name: 'x' } } }])).rejects.toThrow('Tenant filter missing');
+    await expect(Widget.bulkWrite([{ deleteOne: { filter: { name: 'a' } } }])).rejects.toThrow('Tenant filter missing');
+    expect((await Widget.findOne({ ownerId: A }))?.name).toBe('a');
+    await expect(Widget.distinct('name', { ownerId: A })).resolves.toEqual(['a']);
+    const ok = await Widget.bulkWrite([{ updateOne: { filter: { ownerId: A, name: 'a' }, update: { name: 'b' } } }]);
+    expect(ok.modifiedCount).toBe(1);
+  });
+
   it('crossTenant opt-out works', async () => {
     await expect(Widget.find({}).setOptions({ crossTenant: true })).resolves.toEqual([]);
   });

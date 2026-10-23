@@ -97,7 +97,13 @@ async function findOrCreateUser(input: { name: string; email?: string; phone?: s
     ? { email: normalizeEmail(input.email) }
     : { phone: normalizePhone(input.phone!) };
   const existing = await User.findOne(key);
-  if (existing) return existing;
+  if (existing) {
+    // A self-registered account whose email nobody proved could belong to anyone.
+    if (input.email !== undefined && existing.passwordHash && !existing.emailVerified && !existing.googleSub) {
+      throw new AppError(409, 'email_unverified', 'That account has not verified its email yet');
+    }
+    return existing;
+  }
   try {
     return await User.create({ name: input.name, ...key });
   } catch (err) {

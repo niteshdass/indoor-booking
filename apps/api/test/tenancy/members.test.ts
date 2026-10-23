@@ -55,6 +55,7 @@ const PHONE = '+8801712345678';
 describe('members API', () => {
   it('adds an existing user by email', async () => {
     const reg = await api().post('/api/v1/auth/register').send({ name: 'Ana', email: ' Ana@X.com ', password: 'secret123' });
+    await User.updateOne({ _id: reg.body.user.id }, { emailVerified: true });
     const before = await User.countDocuments();
     const res = await add(a.token, { name: 'Whoever', email: 'ana@x.com', roleId: staffRoleId, venueIds: 'all' });
     expect(res.status).toBe(201);
@@ -65,6 +66,14 @@ describe('members API', () => {
       status: 'active',
     });
     expect(await User.countDocuments()).toBe(before);
+  });
+
+  it('refuses to attach an unverified email account → 409 email_unverified', async () => {
+    const mallory = await api().post('/api/v1/auth/register').send({ name: 'Mallory', email: 'staff@arena.com', password: 'secret123' });
+    const res = await add(a.token, { name: 'Real Staff', email: 'staff@arena.com', roleId: staffRoleId, venueIds: 'all' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('email_unverified');
+    expect(await Membership.exists({ ownerId: a.ownerId, userId: mallory.body.user.id })).toBeNull();
   });
 
   it('adds a new person by phone (stub user) who can then sign in', async () => {

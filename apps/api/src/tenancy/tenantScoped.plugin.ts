@@ -1,4 +1,4 @@
-import type { Aggregate, Schema } from 'mongoose';
+import type { AnyBulkWriteOperation, Aggregate, Schema } from 'mongoose';
 
 const QUERY_OPS = [
   'find',
@@ -12,6 +12,7 @@ const QUERY_OPS = [
   'deleteOne',
   'deleteMany',
   'countDocuments',
+  'distinct',
 ] as const;
 
 const hasOwnerId = (obj: unknown): boolean =>
@@ -22,6 +23,9 @@ const hasOwnerId = (obj: unknown): boolean =>
  * explicitly with `.setOptions({ crossTenant: true })`. Document saves rely on ownerId being
  * `required` in the schema instead (Role leaves it optional for system roles).
  *
+ * `estimatedDocumentCount` has no filter, so it always needs the opt-out. `bulkWrite` checks each
+ * operation's filter (or, for insertOne, its document).
+ *
  * Document-level `doc.updateOne()` / `doc.deleteOne()` are rejected: Mongoose adds their `_id`
  * filter after schema hooks run. Use `doc.save()` or the tenantRepo methods instead.
  */
@@ -30,6 +34,21 @@ export function tenantScoped(schema: Schema): void {
     if (hasOwnerId(this.getFilter()) || this.getOptions().crossTenant === true) return;
     const op = (this as unknown as { op?: string }).op;
     throw new Error(`Tenant filter missing: ${this.model.modelName}.${op}`);
+  });
+
+  schema.pre('estimatedDocumentCount', function () {
+    if (this.getOptions().crossTenant === true) return;
+    throw new Error(`Tenant filter missing: ${this.model.modelName}.estimatedDocumentCount`);
+  });
+
+  schema.pre('bulkWrite', function (next, ops: AnyBulkWriteOperation[]) {
+    for (const op of ops) {
+      const body = Object.values(op)[0] as { filter?: unknown; document?: unknown };
+      if (body.document !== undefined ? !hasOwnerId(body.document) : !hasOwnerId(body.filter)) {
+        throw new Error(`Tenant filter missing: ${this.modelName}.bulkWrite`);
+      }
+    }
+    next();
   });
 
   schema.pre('aggregate', function (this: Aggregate<unknown>) {

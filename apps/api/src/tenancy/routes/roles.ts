@@ -61,6 +61,20 @@ async function editableRole(t: TenantContext, roleId: string) {
   if (await Role.exists({ _id: roleId, ownerId: null, system: true })) throw readonly();
   const role = await Role.findOne({ _id: roleId, ownerId: t.ownerId });
   if (!role) throw roleNotFound();
+  // Editing a role changes what its holders can do, so the actor must cover both the role's
+  // permissions and every venue its holders work at.
+  assertCanGrant(t, role.permissions.filter(isPermission));
+  if (t.venueIds !== 'all') {
+    const ids = t.venueIds.map((id) => new mongoose.Types.ObjectId(id));
+    const outside = await Membership.exists({
+      ownerId: t.ownerId,
+      roleId: role._id,
+      $or: [{ allVenues: true }, { venueIds: { $elemMatch: { $nin: ids } } }],
+    });
+    if (outside) {
+      throw new AppError(403, 'privilege_escalation', 'This role is held by staff outside your venues');
+    }
+  }
   return role;
 }
 

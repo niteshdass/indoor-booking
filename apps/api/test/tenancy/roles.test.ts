@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
+import mongoose from 'mongoose';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { addMember, bearer, seedOwner } from '../helpers/tenancy';
@@ -95,6 +96,32 @@ describe('roles API', () => {
     expect(logged?.after).toEqual({ name: 'Till', permissions: ['booking.view', 'payment.mark_cash'] });
     const empty = await api().patch(url(a.ownerId, `/${created.body.role.id}`)).set(...bearer(a.token)).send({});
     expect(empty.status).toBe(400);
+  });
+
+  it('cannot edit a role that holds permissions you lack', async () => {
+    const hr = await Role.create({ ownerId: a.ownerId, name: 'HR', permissions: ['staff.manage', 'booking.view'] });
+    const m = await addMember(ctx.services, a.ownerId, { roleId: String(hr._id) });
+    const acct = await createRole(a.token, { name: 'Accountant', permissions: ['refund.issue', 'reports.view'] });
+    const patch = await api().patch(url(a.ownerId, `/${acct.body.role.id}`)).set(...bearer(m.token)).send({ permissions: ['booking.view'] });
+    expect(patch.status).toBe(403);
+    expect(patch.body.error.code).toBe('privilege_escalation');
+    const del = await api().delete(url(a.ownerId, `/${acct.body.role.id}`)).set(...bearer(m.token));
+    expect(del.status).toBe(403);
+  });
+
+  it('venue-limited actor cannot edit a role held outside their venues', async () => {
+    const v1 = new mongoose.Types.ObjectId().toString();
+    const hr = await Role.create({ ownerId: a.ownerId, name: 'HR', permissions: ['staff.manage', 'booking.view', 'booking.create'] });
+    const m = await addMember(ctx.services, a.ownerId, { roleId: String(hr._id), venueIds: [v1] });
+    const desk = await createRole(a.token, { name: 'Desk', permissions: ['booking.view'] });
+    await addMember(ctx.services, a.ownerId, { roleId: desk.body.role.id, venueIds: 'all' });
+    const patch = await api().patch(url(a.ownerId, `/${desk.body.role.id}`)).set(...bearer(m.token)).send({ permissions: ['booking.view', 'booking.create'] });
+    expect(patch.status).toBe(403);
+    expect(patch.body.error.code).toBe('privilege_escalation');
+    const own = await createRole(m.token, { name: 'Mine', permissions: ['booking.view'] });
+    await addMember(ctx.services, a.ownerId, { roleId: own.body.role.id, venueIds: [v1] });
+    const ok = await api().patch(url(a.ownerId, `/${own.body.role.id}`)).set(...bearer(m.token)).send({ permissions: ['booking.view', 'booking.create'] });
+    expect(ok.status).toBe(200);
   });
 
   it('system roles are read-only', async () => {

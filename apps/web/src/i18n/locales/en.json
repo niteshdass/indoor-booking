@@ -1,4 +1,4 @@
 {
   "home": { "title": "Book your next game", "apiStatus": "API: {{status}}" },
-  "language": { "label": "Language", "en": "English", "bn": "বাংলা" }
+  "language": { "label": "Language", "en": "English", "ru": "Русский" }
 }

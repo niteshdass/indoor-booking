@@ -1,0 +1,4 @@
+{
+  "home": { "title": "Забронируйте следующую игру", "apiStatus": "API: {{status}}" },
+  "language": { "label": "Язык", "en": "English", "ru": "Русский" }
+}

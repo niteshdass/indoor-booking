@@ -4,6 +4,7 @@ import { runInTransaction } from '../db';
 import { Owner, type OwnerDoc } from './owner.model';
 import { Membership, type MembershipDoc } from './membership.model';
 import { systemRole } from './role.model';
+import { logActivity } from './activityLog.model';
 
 export type CreateOwnerInput = {
   userId: string;
@@ -32,7 +33,7 @@ function validate(input: CreateOwnerInput): void {
 /** Creates an owner and the owner's own membership (owner role, all venues) in one transaction. */
 export async function createOwner(
   input: CreateOwnerInput,
-  _now: Date,
+  now: Date,
 ): Promise<{ owner: OwnerDoc; membership: MembershipDoc }> {
   validate(input);
   const role = await systemRole('owner');
@@ -51,6 +52,18 @@ export async function createOwner(
     const [membership] = await Membership.create(
       [{ ownerId: owner!._id, userId: input.userId, roleId: role._id, allVenues: true }],
       { session },
+    );
+    const ownerId = owner!.id as string;
+    await logActivity(
+      { ownerId, userId: input.userId },
+      {
+        action: 'owner.create',
+        entity: 'owner',
+        entityId: ownerId,
+        after: { name: owner!.name, country: owner!.country, defaultCurrency: owner!.defaultCurrency },
+      },
+      now,
+      session,
     );
     return { owner: owner!, membership: membership! };
   });

@@ -21,10 +21,24 @@ export type AppDeps = {
   extraRoutes?: (router: express.Router) => void;
 };
 
+function authLimiter(limit: number): express.RequestHandler {
+  return rateLimit({
+    windowMs: 15 * 60_000,
+    limit,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_req, _res, next) => {
+      next(new AppError(429, 'rate_limited', 'Too many requests; try again later'));
+    },
+  });
+}
+
 export function createApp(deps: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors({ origin: deps.config.corsOrigin }));
+  if (deps.config.trustProxy !== undefined) app.set('trust proxy', deps.config.trustProxy);
+  // credentials: the web app sends the httpOnly refresh cookie cross-origin.
+  app.use(cors({ origin: deps.config.corsOrigin, credentials: true }));
   app.use(express.json());
   app.use(cookieParser());
 
@@ -33,20 +47,11 @@ export function createApp(deps: AppDeps): express.Express {
 
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();
-  if (deps.rateLimit ?? deps.config.nodeEnv !== 'test') {
-    auth.use(
-      rateLimit({
-        windowMs: 15 * 60_000,
-        limit: 20,
-        standardHeaders: 'draft-8',
-        legacyHeaders: false,
-        handler: (_req, _res, next) => {
-          next(new AppError(429, 'rate_limited', 'Too many requests; try again later'));
-        },
-      }),
-    );
-  }
+  const limited = deps.rateLimit ?? deps.config.nodeEnv !== 'test';
+  // Refresh runs on every page load and token expiry, so it gets its own, looser bucket.
+  if (limited) auth.use('/refresh', authLimiter(120));
   auth.use(sessionRouter(authDeps));
+  if (limited) auth.use(authLimiter(20));
   auth.use(emailAuthRouter(authDeps));
   auth.use(phoneAuthRouter(authDeps));
   auth.use(googleAuthRouter(authDeps));

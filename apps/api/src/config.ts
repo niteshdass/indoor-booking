@@ -8,6 +8,8 @@ export type Config = {
   jwtSecret: string;
   googleClientId?: string;
   appUrl: string;
+  /** Express `trust proxy` value; unset means the socket address is the client. */
+  trustProxy?: boolean | number | string;
 };
 
 export class ConfigError extends Error {
@@ -25,7 +27,14 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
   GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   APP_URL: z.string().url().default('http://localhost:5173'),
+  TRUST_PROXY: z.string().min(1).optional(),
 });
+
+function parseTrustProxy(raw: string): boolean | number | string {
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  return /^\d+$/.test(raw) ? Number(raw) : raw;
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv): Config {
   // Treat empty strings as unset so `MONGODB_URI=` fails like a missing key.
@@ -45,5 +54,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     appUrl: e.APP_URL,
   };
   if (e.GOOGLE_CLIENT_ID) config.googleClientId = e.GOOGLE_CLIENT_ID;
+  if (e.TRUST_PROXY) config.trustProxy = parseTrustProxy(e.TRUST_PROXY);
   return config;
 }

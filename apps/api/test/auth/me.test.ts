@@ -4,17 +4,18 @@ import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { User } from '../../src/auth/user.model';
 import { OtpCode } from '../../src/auth/otp.model';
+import { OtpThrottle } from '../../src/auth/otpThrottle.model';
 import { RefreshToken } from '../../src/auth/refreshToken.model';
 
 beforeAll(async () => {
   await startTestDb();
-  await Promise.all([User.init(), OtpCode.init(), RefreshToken.init()]);
+  await Promise.all([User.init(), OtpCode.init(), OtpThrottle.init(), RefreshToken.init()]);
 });
 afterAll(stopTestDb);
 
 let ctx: ReturnType<typeof buildTestApp>;
 beforeEach(async () => {
-  await Promise.all([User.deleteMany({}), OtpCode.deleteMany({}), RefreshToken.deleteMany({})]);
+  await Promise.all([User.deleteMany({}), OtpCode.deleteMany({}), OtpThrottle.deleteMany({}), RefreshToken.deleteMany({})]);
   ctx = buildTestApp();
   ctx.services.google.register('tok-1', { sub: 'g1', email: 'ana@gmail.com', emailVerified: true, name: 'Ana' });
 });

@@ -3,6 +3,8 @@ import { AppError } from '../errors';
 import type { AppServices } from '../services';
 import { sha256 } from './crypto';
 import { OtpCode, type OTP_PURPOSES } from './otp.model';
+import { OtpThrottle } from './otpThrottle.model';
+import { isDuplicateKeyError } from '../db';
 
 export type OtpPurpose = (typeof OTP_PURPOSES)[number];
 
@@ -22,22 +24,7 @@ export async function requestOtp(
   services: AppServices,
 ): Promise<{ expiresInSec: number; resendInSec: number }> {
   const now = services.now();
-  const last = await OtpCode.findOne({ phone, purpose }).sort({ createdAt: -1 });
-  if (last) {
-    const waitMs = last.createdAt.getTime() + RESEND_SEC * 1000 - now.getTime();
-    if (waitMs > 0) {
-      throw new AppError(429, 'otp_cooldown', 'Please wait before requesting another code', {
-        retryInSec: Math.ceil(waitMs / 1000),
-      });
-    }
-  }
-  const lastHour = await OtpCode.countDocuments({
-    phone,
-    createdAt: { $gt: new Date(now.getTime() - 3600_000) },
-  });
-  if (lastHour >= MAX_PER_HOUR) {
-    throw new AppError(429, 'otp_rate_limited', 'Too many codes requested; try again later');
-  }
+  await reserveSend(phone, now);
   const code = (services.otpCode ?? defaultCode)();
   await OtpCode.create({
     phone,
@@ -58,7 +45,7 @@ export async function verifyOtp(
   services: AppServices,
 ): Promise<void> {
   const now = services.now();
-  const latest = await OtpCode.findOne({ phone, purpose }).sort({ createdAt: -1 });
+  const latest = await OtpCode.findOne({ phone, purpose }).sort({ createdAt: -1, _id: -1 });
   if (!latest || latest.consumedAt) throw invalid();
   if (latest.expiresAt <= now) throw new AppError(400, 'otp_expired', 'Verification code expired');
   const counted = await OtpCode.findOneAndUpdate(
@@ -74,4 +61,36 @@ export async function verifyOtp(
     { $set: { consumedAt: now } },
   );
   if (consumed.modifiedCount !== 1) throw invalid();
+}
+
+/**
+ * Records a send for `phone`, or throws if the 60 s cooldown or hourly cap would be broken.
+ * One conditional upsert, so concurrent requests cannot both pass the check.
+ */
+async function reserveSend(phone: string, now: Date): Promise<void> {
+  const cooldownStart = new Date(now.getTime() - RESEND_SEC * 1000);
+  const hourStart = new Date(now.getTime() - 3600_000);
+  try {
+    await OtpThrottle.findOneAndUpdate(
+      {
+        phone,
+        'recent.0': { $not: { $gt: cooldownStart } },
+        [`recent.${MAX_PER_HOUR - 1}`]: { $not: { $gt: hourStart } },
+      },
+      { $push: { recent: { $each: [now], $position: 0, $slice: MAX_PER_HOUR } } },
+      { upsert: true },
+    );
+    return;
+  } catch (err) {
+    // The filter missed an existing doc, so the upsert collided with it: throttled.
+    if (!isDuplicateKeyError(err)) throw err;
+  }
+  const doc = await OtpThrottle.findOne({ phone }).lean<{ recent: Date[] }>();
+  const newest = doc?.recent[0];
+  if (newest && newest > cooldownStart) {
+    throw new AppError(429, 'otp_cooldown', 'Please wait before requesting another code', {
+      retryInSec: Math.ceil((newest.getTime() - cooldownStart.getTime()) / 1000),
+    });
+  }
+  throw new AppError(429, 'otp_rate_limited', 'Too many codes requested; try again later');
 }

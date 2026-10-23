@@ -37,6 +37,8 @@ async function saveLinked(user: UserDoc): Promise<void> {
 }
 
 export function meRouter({ config, services }: AuthDeps): Router {
+  const phoneAlreadySet = () =>
+    new AppError(409, 'phone_already_set', 'A different phone number is already linked');
   const router = Router();
   router.use('/me', requireAuth(config, services));
 
@@ -54,6 +56,9 @@ export function meRouter({ config, services }: AuthDeps): Router {
 
   router.post('/me/link/phone/request', async (req, res) => {
     const phone = normalizePhone(phoneSchema.parse(req.body).phone);
+    // Changing a verified phone is not linking; that needs its own flow (Plan 10+).
+    const user = await currentUser(req);
+    if (user.phone && user.phone !== phone) throw phoneAlreadySet();
     // Fail before sending an SMS when the number is someone else's.
     if (await User.exists({ phone, _id: { $ne: req.auth?.userId } })) throw identityInUse();
     res.status(202).json(await requestOtp(phone, 'link', services));
@@ -64,6 +69,7 @@ export function meRouter({ config, services }: AuthDeps): Router {
     const phone = normalizePhone(input.phone);
     await verifyOtp(phone, 'link', input.code, services);
     const user = await currentUser(req);
+    if (user.phone && user.phone !== phone) throw phoneAlreadySet();
     user.phone = phone;
     user.phoneVerified = true;
     await saveLinked(user);

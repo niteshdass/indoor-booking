@@ -4,16 +4,17 @@ import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { User } from '../../src/auth/user.model';
 import { OtpCode } from '../../src/auth/otp.model';
+import { OtpThrottle } from '../../src/auth/otpThrottle.model';
 
 beforeAll(async () => {
   await startTestDb();
-  await Promise.all([User.init(), OtpCode.init()]);
+  await Promise.all([User.init(), OtpCode.init(), OtpThrottle.init()]);
 });
 afterAll(stopTestDb);
 
 let ctx: ReturnType<typeof buildTestApp>;
 beforeEach(async () => {
-  await Promise.all([User.deleteMany({}), OtpCode.deleteMany({})]);
+  await Promise.all([User.deleteMany({}), OtpCode.deleteMany({}), OtpThrottle.deleteMany({})]);
   ctx = buildTestApp();
 });
 

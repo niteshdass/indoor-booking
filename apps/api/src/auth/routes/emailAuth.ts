@@ -87,7 +87,8 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
     if (!reset) throw new AppError(400, 'invalid_reset_token', 'Reset link is invalid or expired');
     await User.updateOne(
       { _id: reset.userId },
-      { $set: { passwordHash: await hashPassword(input.password) } },
+      // Receiving the reset email proves ownership of the address.
+      { $set: { passwordHash: await hashPassword(input.password), emailVerified: true } },
     );
     await revokeAllForUser(String(reset.userId), now);
     res.status(204).end();

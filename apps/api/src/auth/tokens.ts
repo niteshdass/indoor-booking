@@ -16,6 +16,9 @@ export type Tokens = { accessToken: string; refreshToken: string };
 const invalidRefresh = () =>
   new AppError(401, 'invalid_refresh_token', 'Invalid or expired refresh token');
 
+const tokenReused = () =>
+  new AppError(401, 'token_reused', 'Refresh token already used; please sign in again');
+
 export async function issueTokens(
   userId: string,
   services: AppServices,
@@ -37,7 +40,8 @@ export async function issueTokens(
 /**
  * Marks the presented token used (atomically, so two concurrent refreshes cannot both win)
  * and issues a successor in the same family. Presenting an already-used token revokes the
- * whole family: someone else holds a copy.
+ * whole family: someone else holds a copy. The family is re-checked after issuing, so a
+ * successor born during a concurrent reuse revocation is revoked too.
  */
 export async function rotateRefreshToken(
   raw: string,
@@ -57,9 +61,10 @@ export async function rotateRefreshToken(
   );
   if (!current) {
     const known = await RefreshToken.findOne({ tokenHash });
-    if (known?.usedAt && !known.revokedAt) {
+    // Revoke even when already revoked: a concurrent loser may race the winner's successor.
+    if (known?.usedAt) {
       await revokeFamily(known.familyId, now);
-      throw new AppError(401, 'token_reused', 'Refresh token already used; please sign in again');
+      throw tokenReused();
     }
     throw invalidRefresh();
   }
@@ -67,6 +72,11 @@ export async function rotateRefreshToken(
   if (!user) throw invalidRefresh();
   assertActive(user);
   const tokens = await issueTokens(user.id as string, services, config, current.familyId);
+  // A reuse detected while we were issuing revoked the family before our successor existed.
+  if (await RefreshToken.exists({ familyId: current.familyId, revokedAt: { $exists: true } })) {
+    await revokeFamily(current.familyId, now);
+    throw tokenReused();
+  }
   return { user, ...tokens };
 }
 

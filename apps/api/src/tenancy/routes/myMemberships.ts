@@ -16,9 +16,10 @@ export function myMembershipsRouter({ config, services }: AuthDeps): Router {
       .lean();
     const [owners, roles] = await Promise.all([
       Owner.find({ _id: { $in: memberships.map((m) => m.ownerId) } }).lean(),
-      Role.find({ _id: { $in: memberships.map((m) => m.roleId) } })
-        .setOptions({ crossTenant: true })
-        .lean(),
+      Role.find({
+        _id: { $in: memberships.map((m) => m.roleId) },
+        ownerId: { $in: [null, ...memberships.map((m) => m.ownerId)] },
+      }).lean(),
     ]);
     const ownerById = new Map(owners.map((o) => [String(o._id), o]));
     const roleById = new Map(roles.map((r) => [String(r._id), r]));

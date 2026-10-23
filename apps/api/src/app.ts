@@ -11,6 +11,8 @@ import { emailAuthRouter } from './auth/routes/emailAuth';
 import { phoneAuthRouter } from './auth/routes/phoneAuth';
 import { googleAuthRouter } from './auth/routes/googleAuth';
 import { meRouter } from './auth/routes/me';
+import { ownerRouter } from './tenancy/routes/owner';
+import { myMembershipsRouter } from './tenancy/routes/myMemberships';
 
 export type AppDeps = {
   config: Config;
@@ -57,6 +59,8 @@ export function createApp(deps: AppDeps): express.Express {
   auth.use(googleAuthRouter(authDeps));
   api.use('/auth', auth);
   api.use(meRouter(authDeps));
+  api.use(myMembershipsRouter(authDeps));
+  api.use('/owners/:ownerId', ownerRouter(authDeps));
 
   deps.extraRoutes?.(api);
   app.use('/api/v1', api);

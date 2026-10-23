@@ -6,6 +6,7 @@ import { Owner } from '../owner.model';
 import { Role } from '../role.model';
 import { activityRouter } from './activity';
 import { rolesRouter } from './roles';
+import { membersRouter } from './members';
 
 /** Everything under /owners/:ownerId; later plans mount their routers on the returned router. */
 export function ownerRouter({ config, services }: AuthDeps): Router {
@@ -38,6 +39,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
 
   router.use(activityRouter());
   router.use(rolesRouter(services));
+  router.use(membersRouter(services));
 
   return router;
 }

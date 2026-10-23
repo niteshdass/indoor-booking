@@ -16,12 +16,40 @@ export class InvalidMoneyError extends Error {
 
 const SUPPORTED_CURRENCIES = new Set(Intl.supportedValuesOf('currency'));
 
+// ISO 4217 minor-unit exponents that differ from the default of 2. Kept explicit so stored
+// amounts never depend on the runtime's ICU data (which e.g. reports 0 digits for IDR/HUF).
+const ISO_4217_EXPONENTS: Readonly<Record<string, number>> = {
+  BIF: 0,
+  CLP: 0,
+  DJF: 0,
+  GNF: 0,
+  ISK: 0,
+  JPY: 0,
+  KMF: 0,
+  KRW: 0,
+  PYG: 0,
+  RWF: 0,
+  UGX: 0,
+  UYI: 0,
+  VND: 0,
+  VUV: 0,
+  XAF: 0,
+  XOF: 0,
+  XPF: 0,
+  BHD: 3,
+  IQD: 3,
+  JOD: 3,
+  KWD: 3,
+  LYD: 3,
+  OMR: 3,
+  TND: 3,
+};
+
 export function currencyExponent(currency: string): number {
   if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CURRENCIES.has(currency)) {
     throw new InvalidCurrencyError(currency);
   }
-  return new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions()
-    .maximumFractionDigits as number;
+  return ISO_4217_EXPONENTS[currency] ?? 2;
 }
 
 export function assertMinor(value: number): void {
@@ -52,11 +80,18 @@ export function formatMoney(minor: number, currency: string, locale?: string): s
   );
 }
 
-/** Percentage of a minor-unit amount, rounded half up to a whole minor unit. */
+/**
+ * Percentage (0..100, at most 2 decimals) of a minor-unit amount, rounded half up to a whole
+ * minor unit. Computed in integer basis points so fractional percents are exact.
+ */
 export function percentOf(minor: number, percent: number): number {
   assertMinor(minor);
   if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
     throw new InvalidMoneyError(`Percent must be between 0 and 100, got ${percent}`);
   }
-  return Math.round((minor * percent) / 100);
+  const basisPoints = Math.round(percent * 100);
+  if (Math.abs(basisPoints - percent * 100) > 1e-6) {
+    throw new InvalidMoneyError(`Percent allows at most 2 decimal places, got ${percent}`);
+  }
+  return Number((BigInt(minor) * BigInt(basisPoints) + 5000n) / 10000n);
 }

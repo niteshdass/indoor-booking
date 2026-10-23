@@ -16,6 +16,13 @@ describe('currencyExponent', () => {
     expect(currencyExponent('JPY')).toBe(0);
     expect(currencyExponent('KWD')).toBe(3);
   });
+  it('uses ISO 4217 exponents, not runtime Intl digits', () => {
+    expect(currencyExponent('IDR')).toBe(2);
+    expect(currencyExponent('HUF')).toBe(2);
+    expect(currencyExponent('ISK')).toBe(0);
+    expect(currencyExponent('KRW')).toBe(0);
+    expect(currencyExponent('OMR')).toBe(3);
+  });
   it.each(['XYZ', 'usd', '', 'US'])('rejects %s', (c) => {
     expect(() => currencyExponent(c)).toThrow(InvalidCurrencyError);
   });
@@ -47,6 +54,15 @@ describe('percentOf', () => {
     expect(percentOf(999, 50)).toBe(500);
     expect(percentOf(1000, 0)).toBe(0);
     expect(percentOf(1000, 100)).toBe(1000);
+  });
+  it('is exact for fractional percents (no float drift)', () => {
+    expect(percentOf(750, 8.2)).toBe(62);
+    expect(percentOf(1500, 2.3)).toBe(35);
+    expect(percentOf(1500, 4.1)).toBe(62);
+    expect(percentOf(10000, 12.5)).toBe(1250);
+  });
+  it('rejects percents with more than 2 decimals', () => {
+    expect(() => percentOf(1000, 12.345)).toThrow(InvalidMoneyError);
   });
   it('rejects percent outside 0..100', () => {
     expect(() => percentOf(1000, -1)).toThrow(InvalidMoneyError);

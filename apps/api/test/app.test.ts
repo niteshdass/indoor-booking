@@ -60,6 +60,22 @@ describe('app', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('invalid_json');
   });
+  it('oversized JSON body → 413 payload_too_large, not 500', async () => {
+    const res = await request(app)
+      .post('/api/v1/__test/echo')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ n: 1, pad: 'x'.repeat(200_000) }));
+    expect(res.status).toBe(413);
+    expect(res.body.error.code).toBe('payload_too_large');
+  });
+  it('unsupported charset → 415 unsupported_media_type, not 500', async () => {
+    const res = await request(app)
+      .post('/api/v1/__test/echo')
+      .set('Content-Type', 'application/json; charset=bogus')
+      .send('{"n":1}');
+    expect(res.status).toBe(415);
+    expect(res.body.error.code).toBe('unsupported_media_type');
+  });
   it('ZodError → 400 validation_error with issues in details', async () => {
     const res = await request(app).post('/api/v1/__test/echo').send({ n: 'x' });
     expect(res.status).toBe(400);

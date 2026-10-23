@@ -10,6 +10,7 @@ import { sessionRouter } from './auth/routes/session';
 import { emailAuthRouter } from './auth/routes/emailAuth';
 import { phoneAuthRouter } from './auth/routes/phoneAuth';
 import { googleAuthRouter } from './auth/routes/googleAuth';
+import { meRouter } from './auth/routes/me';
 
 export type AppDeps = {
   config: Config;
@@ -50,6 +51,7 @@ export function createApp(deps: AppDeps): express.Express {
   auth.use(phoneAuthRouter(authDeps));
   auth.use(googleAuthRouter(authDeps));
   api.use('/auth', auth);
+  api.use(meRouter(authDeps));
 
   deps.extraRoutes?.(api);
   app.use('/api/v1', api);

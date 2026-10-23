@@ -27,3 +27,8 @@ export async function runInTransaction<T>(
     await session.endSession();
   }
 }
+
+/** True for a MongoDB unique-index violation (E11000). */
+export function isDuplicateKeyError(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 11000;
+}

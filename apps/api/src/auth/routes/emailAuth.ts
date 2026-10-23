@@ -1,0 +1,99 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { AppError } from '../../errors';
+import { isDuplicateKeyError } from '../../db';
+import type { AuthDeps } from '../deps';
+import { hashPassword, randomToken, sha256, verifyPassword } from '../crypto';
+import { normalizeEmail } from '../normalize';
+import { PasswordReset } from '../passwordReset.model';
+import { issueTokens, revokeAllForUser, sendAuthResponse } from '../tokens';
+import { User } from '../user.model';
+
+const RESET_TTL_MS = 60 * 60_000;
+
+export const nameSchema = z.string().trim().min(1).max(80);
+export const passwordSchema = z.string().min(8).max(128);
+
+const registerSchema = z.object({ name: nameSchema, email: z.string(), password: passwordSchema });
+const loginSchema = z.object({ email: z.string(), password: z.string().min(1).max(128) });
+const forgotSchema = z.object({ email: z.string() });
+const resetSchema = z.object({ token: z.string().min(1), password: passwordSchema });
+
+// Compared against when the email is unknown, so both failure paths cost one scrypt.
+const DUMMY_HASH = hashPassword('dummy-password-for-timing');
+
+const invalidCredentials = () =>
+  new AppError(401, 'invalid_credentials', 'Email or password is incorrect');
+
+export function emailAuthRouter({ config, services }: AuthDeps): Router {
+  const router = Router();
+
+  router.post('/register', async (req, res) => {
+    const input = registerSchema.parse(req.body);
+    const email = normalizeEmail(input.email);
+    let user;
+    try {
+      user = await User.create({
+        name: input.name,
+        email,
+        passwordHash: await hashPassword(input.password),
+      });
+    } catch (err) {
+      if (isDuplicateKeyError(err)) {
+        throw new AppError(409, 'email_in_use', 'An account with this email already exists');
+      }
+      throw err;
+    }
+    sendAuthResponse(res, 201, user, await issueTokens(user.id, services, config), config);
+  });
+
+  router.post('/login', async (req, res) => {
+    const input = loginSchema.parse(req.body);
+    const email = normalizeEmail(input.email);
+    const user = await User.findOne({ email });
+    const ok = await verifyPassword(input.password, user?.passwordHash ?? (await DUMMY_HASH));
+    if (!user?.passwordHash || !ok) throw invalidCredentials();
+    if (user.status === 'disabled') {
+      throw new AppError(403, 'account_disabled', 'Account is disabled');
+    }
+    sendAuthResponse(res, 200, user, await issueTokens(user.id, services, config), config);
+  });
+
+  router.post('/password/forgot', async (req, res) => {
+    const email = normalizeEmail(forgotSchema.parse(req.body).email);
+    const user = await User.findOne({ email, status: 'active' });
+    if (user) {
+      const token = randomToken();
+      await PasswordReset.create({
+        userId: user._id,
+        tokenHash: sha256(token),
+        expiresAt: new Date(services.now().getTime() + RESET_TTL_MS),
+      });
+      const link = `${config.appUrl}/reset-password?token=${token}`;
+      await services.email.send({
+        to: email,
+        subject: 'Reset your password',
+        text: `Reset your password: ${link}\nThis link expires in 1 hour. If you did not ask for this, ignore this email.`,
+      });
+    }
+    res.status(202).json({});
+  });
+
+  router.post('/password/reset', async (req, res) => {
+    const input = resetSchema.parse(req.body);
+    const now = services.now();
+    const reset = await PasswordReset.findOneAndUpdate(
+      { tokenHash: sha256(input.token), usedAt: { $exists: false }, expiresAt: { $gt: now } },
+      { $set: { usedAt: now } },
+    );
+    if (!reset) throw new AppError(400, 'invalid_reset_token', 'Reset link is invalid or expired');
+    await User.updateOne(
+      { _id: reset.userId },
+      { $set: { passwordHash: await hashPassword(input.password) } },
+    );
+    await revokeAllForUser(String(reset.userId), now);
+    res.status(204).end();
+  });
+
+  return router;
+}

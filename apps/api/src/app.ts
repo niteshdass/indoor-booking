@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { rateLimit } from 'express-rate-limit';
 import type { Config } from './config';
 import type { AppServices } from './services';
-import { errorHandler, notFound } from './errors';
+import { AppError, errorHandler, notFound } from './errors';
 import { healthRouter } from './routes/health';
 import { sessionRouter } from './auth/routes/session';
+import { emailAuthRouter } from './auth/routes/emailAuth';
 
 export type AppDeps = {
   config: Config;
@@ -28,7 +30,21 @@ export function createApp(deps: AppDeps): express.Express {
 
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();
+  if (deps.rateLimit ?? deps.config.nodeEnv !== 'test') {
+    auth.use(
+      rateLimit({
+        windowMs: 15 * 60_000,
+        limit: 20,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        handler: (_req, _res, next) => {
+          next(new AppError(429, 'rate_limited', 'Too many requests; try again later'));
+        },
+      }),
+    );
+  }
   auth.use(sessionRouter(authDeps));
+  auth.use(emailAuthRouter(authDeps));
   api.use('/auth', auth);
 
   deps.extraRoutes?.(api);

@@ -59,8 +59,7 @@ export function tenantOf(req: Request): TenantContext {
 /** Requires every listed permission. */
 export function requirePermission(...perms: Permission[]): RequestHandler {
   return (req, _res, next) => {
-    const t = tenantOf(req);
-    if (!perms.every((p) => t.permissions.has(p))) {
+    if (!permissionsCover(tenantOf(req), perms)) {
       throw new AppError(403, 'forbidden', 'You do not have permission to do this');
     }
     next();
@@ -74,4 +73,15 @@ export function hasVenueAccess(t: TenantContext, venueId: string): boolean {
 /** Venues outside the member's scope look missing, like other owners' data. */
 export function assertVenueAccess(t: TenantContext, venueId: string): void {
   if (!hasVenueAccess(t, venueId)) throw new AppError(404, 'not_found', 'Venue not found');
+}
+
+/** True when the member holds every one of perms — the ceiling for what they may grant. */
+export function permissionsCover(t: TenantContext, perms: readonly Permission[]): boolean {
+  return perms.every((p) => t.permissions.has(p));
+}
+
+export function assertCanGrant(t: TenantContext, perms: readonly Permission[]): void {
+  if (!permissionsCover(t, perms)) {
+    throw new AppError(403, 'privilege_escalation', 'You cannot grant permissions you do not have');
+  }
 }

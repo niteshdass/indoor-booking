@@ -28,3 +28,9 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const SLOT_STATUSES = ['available', 'pending', 'booked', 'blocked', 'past'] as const;
 export type SlotStatus = (typeof SLOT_STATUSES)[number];
+
+export const OWNER_STATUSES = ['active', 'pending_approval', 'suspended'] as const;
+export type OwnerStatus = (typeof OWNER_STATUSES)[number];
+
+export const MEMBERSHIP_STATUSES = ['active', 'disabled'] as const;
+export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];

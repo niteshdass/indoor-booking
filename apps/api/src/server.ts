@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { ConfigError, loadConfig, type Config } from './config';
 import { connectDb, dbState } from './db';
 import { defaultServices } from './services';
+import { ensureSystemRoles } from './tenancy/role.model';
 
 function readConfig(): Config {
   try {
@@ -17,6 +18,7 @@ function readConfig(): Config {
 
 const config = readConfig();
 await connectDb(config.mongodbUri);
+await ensureSystemRoles();
 createApp({ config, dbState, services: defaultServices(config) }).listen(config.port, () => {
   console.log(`API listening on http://localhost:${config.port}/api/v1`);
 });

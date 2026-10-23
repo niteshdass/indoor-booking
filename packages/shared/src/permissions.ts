@@ -25,6 +25,14 @@ export const SYSTEM_ROLES: Record<'owner' | 'manager' | 'staff', readonly Permis
   staff: ['booking.view', 'booking.create', 'booking.checkin', 'payment.mark_cash'],
 };
 
+export type SystemRoleKey = keyof typeof SYSTEM_ROLES;
+
+export const SYSTEM_ROLE_NAMES: Record<SystemRoleKey, string> = {
+  owner: 'Owner',
+  manager: 'Manager',
+  staff: 'Staff',
+};
+
 const PERMISSION_SET: ReadonlySet<string> = new Set(PERMISSIONS);
 
 export function isPermission(value: string): value is Permission {

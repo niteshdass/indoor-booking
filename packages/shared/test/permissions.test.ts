@@ -25,3 +25,14 @@ describe('system roles', () => {
     expect(isPermission('booking.delete_all')).toBe(false);
   });
 });
+
+describe('role names and locales', () => {
+  it('every system role has a display name', async () => {
+    const { SYSTEM_ROLE_NAMES } = await import('../src/permissions');
+    expect(Object.keys(SYSTEM_ROLE_NAMES).sort()).toEqual(Object.keys(SYSTEM_ROLES).sort());
+  });
+  it('supports English and Russian', async () => {
+    const { LOCALES } = await import('../src/locales');
+    expect(LOCALES).toEqual(['en', 'ru']);
+  });
+});

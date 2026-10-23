@@ -1,12 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import type { Config } from './config';
+import type { AppServices } from './services';
 import { errorHandler, notFound } from './errors';
 import { healthRouter } from './routes/health';
 
 export type AppDeps = {
   config: Config;
   dbState: () => 'up' | 'down';
+  services: AppServices;
+  /** Rate-limit /auth; defaults to on outside tests. */
+  rateLimit?: boolean;
   extraRoutes?: (router: express.Router) => void;
 };
 

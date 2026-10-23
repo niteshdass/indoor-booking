@@ -4,17 +4,21 @@ import { z } from 'zod';
 import { createApp } from '../src/app';
 import { AppError } from '../src/errors';
 import type { Config } from '../src/config';
+import { makeTestServices } from './helpers/testServices';
 
 const config: Config = {
   nodeEnv: 'test',
   port: 0,
   mongodbUri: 'mongodb://unused',
   corsOrigin: 'http://localhost:5173',
+  jwtSecret: 'x'.repeat(32),
+  appUrl: 'http://localhost:5173',
 };
 
 const app = createApp({
   config,
   dbState: () => 'up',
+  services: makeTestServices(),
   extraRoutes: (router) => {
     router.get('/__test/conflict', () => {
       throw new AppError(409, 'slot_taken', 'Slot taken');

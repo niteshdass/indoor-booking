@@ -5,7 +5,7 @@ import type { AppServices } from '../services';
 import { randomToken, sha256 } from './crypto';
 import { signAccessToken } from './jwt';
 import { RefreshToken } from './refreshToken.model';
-import { User, toPublicUser, type UserDoc } from './user.model';
+import { User, assertActive, toPublicUser, type UserDoc } from './user.model';
 
 const REFRESH_TTL_MS = 30 * 24 * 3600_000;
 export const REFRESH_COOKIE = 'rt';
@@ -65,9 +65,7 @@ export async function rotateRefreshToken(
   }
   const user = await User.findById(current.userId);
   if (!user) throw invalidRefresh();
-  if (user.status === 'disabled') {
-    throw new AppError(403, 'account_disabled', 'Account is disabled');
-  }
+  assertActive(user);
   const tokens = await issueTokens(user.id as string, services, config, current.familyId);
   return { user, ...tokens };
 }

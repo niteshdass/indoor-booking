@@ -4,7 +4,7 @@ import type { Config } from '../config';
 import { AppError } from '../errors';
 import type { AppServices } from '../services';
 import { verifyAccessToken } from './jwt';
-import { User } from './user.model';
+import { User, assertActive } from './user.model';
 
 export function requireAuth(config: Config, services: AppServices): RequestHandler {
   return async (req, _res, next) => {
@@ -16,9 +16,7 @@ export function requireAuth(config: Config, services: AppServices): RequestHandl
       ? await User.findById(userId, { status: 1 }).lean()
       : null;
     if (!user) throw new AppError(401, 'invalid_token', 'Invalid or expired access token');
-    if (user.status === 'disabled') {
-      throw new AppError(403, 'account_disabled', 'Account is disabled');
-    }
+    assertActive(user);
     req.auth = { userId };
     next();
   };

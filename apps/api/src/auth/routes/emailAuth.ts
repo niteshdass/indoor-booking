@@ -7,7 +7,7 @@ import { hashPassword, randomToken, sha256, verifyPassword } from '../crypto';
 import { normalizeEmail } from '../normalize';
 import { PasswordReset } from '../passwordReset.model';
 import { issueTokens, revokeAllForUser, sendAuthResponse } from '../tokens';
-import { User } from '../user.model';
+import { User, assertActive } from '../user.model';
 
 const RESET_TTL_MS = 60 * 60_000;
 
@@ -53,9 +53,7 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
     const user = await User.findOne({ email });
     const ok = await verifyPassword(input.password, user?.passwordHash ?? (await DUMMY_HASH));
     if (!user?.passwordHash || !ok) throw invalidCredentials();
-    if (user.status === 'disabled') {
-      throw new AppError(403, 'account_disabled', 'Account is disabled');
-    }
+    assertActive(user);
     sendAuthResponse(res, 200, user, await issueTokens(user.id, services, config), config);
   });
 

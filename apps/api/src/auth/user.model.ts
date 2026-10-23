@@ -1,4 +1,5 @@
 import mongoose, { type HydratedDocument, type InferSchemaType } from 'mongoose';
+import { AppError } from '../errors';
 
 /** Unique only among documents where the field is a string, so many users may lack it. */
 const uniqueWhenSet = (field: string) => ({
@@ -47,4 +48,8 @@ export function toPublicUser(doc: UserDoc): PublicUser {
     hasPassword: Boolean(doc.passwordHash),
     hasGoogle: Boolean(doc.googleSub),
   };
+}
+
+export function assertActive(user: { status: string }): void {
+  if (user.status === 'disabled') throw new AppError(403, 'account_disabled', 'Account is disabled');
 }

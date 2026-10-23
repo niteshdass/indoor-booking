@@ -8,6 +8,7 @@ import { AppError, errorHandler, notFound } from './errors';
 import { healthRouter } from './routes/health';
 import { sessionRouter } from './auth/routes/session';
 import { emailAuthRouter } from './auth/routes/emailAuth';
+import { phoneAuthRouter } from './auth/routes/phoneAuth';
 
 export type AppDeps = {
   config: Config;
@@ -45,6 +46,7 @@ export function createApp(deps: AppDeps): express.Express {
   }
   auth.use(sessionRouter(authDeps));
   auth.use(emailAuthRouter(authDeps));
+  auth.use(phoneAuthRouter(authDeps));
   api.use('/auth', auth);
 
   deps.extraRoutes?.(api);

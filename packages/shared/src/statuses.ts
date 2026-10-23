@@ -1,0 +1,30 @@
+export const BOOKING_STATUSES = [
+  'awaiting_payment',
+  'pending',
+  'confirmed',
+  'rejected',
+  'cancelled',
+  'expired',
+  'completed',
+  'no_show',
+] as const;
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+
+/** Statuses in which a booking keeps its slots locked. */
+export const SLOT_HOLDING_STATUSES: readonly BookingStatus[] = [
+  'awaiting_payment',
+  'pending',
+  'confirmed',
+];
+
+export const PAYMENT_STATUSES = [
+  'unpaid',
+  'partially_paid',
+  'paid',
+  'refunded',
+  'partially_refunded',
+] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+export const SLOT_STATUSES = ['available', 'pending', 'booked', 'blocked', 'past'] as const;
+export type SlotStatus = (typeof SLOT_STATUSES)[number];

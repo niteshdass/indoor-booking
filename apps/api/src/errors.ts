@@ -1,0 +1,43 @@
+import type { ErrorRequestHandler, RequestHandler } from 'express';
+import { ZodError } from 'zod';
+
+export class AppError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'AppError';
+  }
+}
+
+export const notFound: RequestHandler = (_req, _res, next) => {
+  next(new AppError(404, 'not_found', 'Route not found'));
+};
+
+function isJsonParseError(err: unknown): boolean {
+  return err instanceof SyntaxError && (err as { type?: string }).type === 'entity.parse.failed';
+}
+
+export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  if (err instanceof AppError) {
+    const body: Record<string, unknown> = { code: err.code, message: err.message };
+    if (err.details !== undefined) body.details = err.details;
+    res.status(err.status).json({ error: body });
+    return;
+  }
+  if (err instanceof ZodError) {
+    res.status(400).json({
+      error: { code: 'validation_error', message: 'Invalid request', details: err.issues },
+    });
+    return;
+  }
+  if (isJsonParseError(err)) {
+    res.status(400).json({ error: { code: 'invalid_json', message: 'Malformed JSON body' } });
+    return;
+  }
+  console.error(err);
+  res.status(500).json({ error: { code: 'internal_error', message: 'Internal server error' } });
+};

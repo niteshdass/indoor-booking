@@ -12,12 +12,15 @@ import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
 import { expireHold, paymentsUnavailable, startLink } from '../../payments/intent';
 import { loadGateway } from '../../payments/gateway.model';
+import { Refund } from '../../payments/refund.model';
+import { refundJson } from '../../payments/refunds';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { permissionsCover, requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Booking, bookingJson } from '../booking.model';
+import { cancelBooking, previewCancellation } from '../cancel';
 import { createBooking } from '../create';
 import { Payment, type PaymentDoc } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
@@ -56,6 +59,7 @@ const walkinSchema = z
   .strict();
 
 const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
+const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 const cashSchema = z.object({ amount: z.number().int().optional() }).strict();
 
 const invalidAmount = (max: number) =>
@@ -100,7 +104,21 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const t = tenantOf(req);
     const booking = await scopedBooking(t, req.params.bookingId as string);
     const payments = await Payment.find({ ownerId: t.ownerId, bookingId: booking._id }).sort({ _id: 1 });
-    res.json({ booking: bookingJson(booking), payments: payments.map(paymentJson) });
+    const refunds = await Refund.find({ ownerId: t.ownerId, bookingId: booking._id }).sort({ _id: 1 });
+    res.json({ booking: bookingJson(booking), payments: payments.map(paymentJson), refunds: refunds.map(refundJson) });
+  });
+
+  router.get('/bookings/:bookingId/cancellation', requirePermission('booking.view'), async (req, res) => {
+    const booking = await scopedBooking(tenantOf(req), req.params.bookingId as string);
+    res.json({ preview: await previewCancellation(booking, 'staff', services.now()) });
+  });
+
+  router.post('/bookings/:bookingId/cancel', requirePermission('booking.cancel'), async (req, res) => {
+    const t = tenantOf(req);
+    const { reason } = cancelSchema.parse(req.body ?? {});
+    const booking = await scopedBooking(t, req.params.bookingId as string);
+    const out = await cancelBooking(booking, { kind: 'staff', t }, { reason: reason || undefined }, { config, services });
+    res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
   router.post('/venues/:venueId/turfs/:turfId/bookings', requirePermission('booking.create'), async (req, res) => {

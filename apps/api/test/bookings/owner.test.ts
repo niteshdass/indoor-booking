@@ -20,6 +20,7 @@ import { AddonAssignment } from '../../src/addons/assignment.model';
 import { Booking } from '../../src/bookings/booking.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
 import { Payment } from '../../src/bookings/payment.model';
+import { Refund } from '../../src/payments/refund.model';
 import { createBooking } from '../../src/bookings/create';
 
 beforeAll(async () => {
@@ -27,7 +28,7 @@ beforeAll(async () => {
   await Promise.all([
     User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Turf.init(),
     Closure.init(), SlotOverride.init(), Addon.init(), AddonAssignment.init(), Booking.init(), SlotLock.init(),
-    Payment.init(),
+    Payment.init(), Refund.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -54,7 +55,7 @@ beforeEach(async () => {
   await Promise.all([
     User.deleteMany({}), Owner.deleteMany({}),
     Membership.deleteMany({ ownerId: { $exists: true } }),
-    ...[ActivityLog, Venue, Turf, Closure, SlotOverride, Addon, AddonAssignment, Booking, SlotLock, Payment].map((m) =>
+    ...[ActivityLog, Venue, Turf, Closure, SlotOverride, Addon, AddonAssignment, Booking, SlotLock, Payment, Refund].map((m) =>
       (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true }),
     ),
   ]);
@@ -408,5 +409,54 @@ describe('tenancy', () => {
       expect(bodies[2]).toEqual(bodies[0]);
     }
     expect((await Booking.findOne({ _id: foreign }).setOptions({ crossTenant: true }))!.status).toBe('pending');
+  });
+});
+
+describe('staff cancellation', () => {
+  /** A confirmed walk-in at `venueId` with 3000 taken in cash. */
+  async function paidWalkin(venueId = v1, turfId = t1) {
+    const res = await walkin(a.token, { payment: { method: 'cash' } }, venueId, turfId);
+    expect(res.status).toBe(201);
+    return res.body.booking.id as string;
+  }
+
+  it('staff preview shows a 100% refund', async () => {
+    const id = await paidWalkin();
+    const res = await get(`/bookings/${id}/cancellation`, manager.token);
+    expect(res.status).toBe(200);
+    expect(res.body.preview).toMatchObject({ percent: 100, amount: 3000, amountPaid: 3000, amountRefunded: 0, card: 0, cash: 3000 });
+  });
+
+  it('staff cancel needs booking.cancel', async () => {
+    const id = await paidWalkin();
+    const res = await post(`/bookings/${id}/cancel`, staff.token);
+    expect(res.status).toBe(403);
+    expect((await Booking.findById(id).setOptions({ crossTenant: true }))!.status).toBe('confirmed');
+  });
+
+  it('staff cancel returns the booking and its refunds', async () => {
+    const id = await paidWalkin();
+    const res = await post(`/bookings/${id}/cancel`, manager.token, { reason: '  rain  ' });
+    expect(res.status).toBe(200);
+    expect(res.body.booking).toMatchObject({ id, status: 'cancelled', paymentStatus: 'refunded', amountRefunded: 3000, cancelledBy: 'staff', cancelReason: 'rain' });
+    expect(res.body.refunds).toHaveLength(1);
+    expect(res.body.refunds[0]).toMatchObject({ method: 'cash', status: 'pending', amount: 3000, reason: 'cancellation', ruleApplied: { minHoursBefore: null, percent: 100 } });
+    expect((await post(`/bookings/${id}/cancel`, manager.token, { nope: 1 })).status).toBe(400);
+  });
+
+  it('booking detail lists refunds', async () => {
+    const id = await paidWalkin();
+    expect((await get(`/bookings/${id}`, manager.token)).body.refunds).toEqual([]);
+    const cancelled = await post(`/bookings/${id}/cancel`, manager.token);
+    const res = await get(`/bookings/${id}`, manager.token);
+    expect(res.body.refunds).toEqual(cancelled.body.refunds);
+    expect(res.body.refunds).toHaveLength(1);
+  });
+
+  it('a manager limited to another venue gets 404', async () => {
+    const id = await paidWalkin(v2, t2);
+    expect((await get(`/bookings/${id}/cancellation`, manager.token)).status).toBe(404);
+    expect((await post(`/bookings/${id}/cancel`, manager.token)).status).toBe(404);
+    expect((await Booking.findById(id).setOptions({ crossTenant: true }))!.status).toBe('confirmed');
   });
 });

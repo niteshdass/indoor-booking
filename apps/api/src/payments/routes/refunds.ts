@@ -72,11 +72,16 @@ export function refundsRouter(config: Config, services: AppServices): Router {
     const t = tenantOf(req);
     const old = await scopedRefund(req);
     if (old.status !== 'failed' || old.method !== 'card') throw invalid();
-    if (!config.paymentsKey || !gatewayFor(services, old.gateway!)) {
-      throw new AppError(503, 'payments_unconfigured', 'Payments are not configured on this server');
-    }
+    const unconfigured = () => new AppError(503, 'payments_unconfigured', 'Payments are not configured on this server');
+    if (!config.paymentsKey || !gatewayFor(services, old.gateway!)) throw unconfigured();
     // The payment was taken at one account; if it has been replaced, the money cannot go back through it.
-    const loaded = await loadGateway(t.ownerId, old.gateway!, config, services);
+    let loaded: Awaited<ReturnType<typeof loadGateway>>;
+    try {
+      loaded = await loadGateway(t.ownerId, old.gateway!, config, services);
+    } catch (err) {
+      console.error(`[refunds] retry of ${String(old._id)} could not load the ${old.gateway!} gateway`, err);
+      throw unconfigured();
+    }
     if (!loaded || loaded.row.accountId !== old.gatewayAccountId) throw invalid();
 
     const now = services.now();

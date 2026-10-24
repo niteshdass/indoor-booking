@@ -189,6 +189,20 @@ describe('retry edge cases', () => {
     expect(await rows()).toHaveLength(1);
   });
 
+  it('answers 503 when the gateway credentials cannot be decrypted', async () => {
+    const { refund } = await failed();
+    await PaymentGatewayAccount.updateMany({ ownerId: owner.ownerId }, { $set: { credentialsEncrypted: 'corrupt' } });
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const res = await post(`/refunds/${refund._id}/retry`);
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('payments_unconfigured');
+    } finally {
+      spy.mockRestore();
+    }
+    expect(await rows()).toHaveLength(1);
+  });
+
   it('refuses the wrong kind of row', async () => {
     const pendingCard = await cancelled('card');
     const cash = await failed('cash');

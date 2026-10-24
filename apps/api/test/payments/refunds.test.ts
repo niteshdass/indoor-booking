@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import mongoose from 'mongoose';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
@@ -258,6 +258,35 @@ describe('refund service', () => {
     expect(await refundOf(refund._id)).toMatchObject({ status: 'failed', failureCode: 'gateway_unreachable' });
     expect((await paymentOf(payment._id)).refundedAmount).toBe(0);
     expect(createCalls()).toHaveLength(0);
+  });
+
+  it('treats undecryptable gateway credentials as retryable', async () => {
+    const { refund } = await reserved();
+    await PaymentGatewayAccount.updateMany({ ownerId: owner.ownerId }, { $set: { credentialsEncrypted: 'corrupt' } });
+    ctx.services.clock.advance(11 * MIN);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await dispatchRefund(String(refund._id), owner.ownerId, deps())).toBe(true);
+      expect(spy).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+    const row = await refundOf(refund._id);
+    expect(row).toMatchObject({ status: 'pending', attempts: 1 });
+    expect(row.updatedAt).toEqual(ctx.services.now());
+    expect(createCalls()).toHaveLength(0);
+  });
+
+  it('reconcile moves a row the gateway still reports pending to the back of the queue', async () => {
+    const { refund } = await reserved();
+    ctx.services.stripe.refundStatus = 'pending';
+    await dispatchRefund(String(refund._id), owner.ownerId, deps());
+    ctx.services.clock.advance(11 * MIN);
+    await reconcileRefunds(ctx.services.now(), deps());
+    const row = await refundOf(refund._id);
+    expect(row.status).toBe('pending');
+    expect(row.updatedAt).toEqual(ctx.services.now());
+    expect(createCalls()).toHaveLength(1);
   });
 
   it('counts a failed lookup as an attempt and gives up eventually', async () => {

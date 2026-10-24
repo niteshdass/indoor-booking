@@ -234,7 +234,14 @@ export async function dispatchRefund(
 
   // No key or adapter is a deployment problem that a later run may fix; only a missing or replaced account is final.
   if (!deps.config.paymentsKey || !gatewayFor(deps.services, refund.gateway!)) return retryLater();
-  const loaded = await loadGateway(ownerId, refund.gateway!, deps.config, deps.services);
+  let loaded: Awaited<ReturnType<typeof loadGateway>>;
+  try {
+    loaded = await loadGateway(ownerId, refund.gateway!, deps.config, deps.services);
+  } catch (err) {
+    // Credentials that will not decrypt (e.g. a rotated key) are fixable too: retry later.
+    console.error(`[refunds] could not load the ${refund.gateway!} gateway for refund ${String(refund._id)}`, err);
+    return retryLater();
+  }
   if (!loaded || loaded.row.accountId !== refund.gatewayAccountId) {
     // Once dispatched, the money may have moved at the old account.
     await settle({ status: 'failed', failureCode: refund.dispatchedAt ? 'account_changed_after_dispatch' : 'account_changed' });
@@ -300,6 +307,12 @@ export async function reconcileRefunds(
     } catch (err) {
       console.error(`[refunds] reconcile of ${String(row._id)} failed`, err);
     }
+    // A visit that changed nothing (the gateway still reports it pending) sends the row to the back of the queue.
+    await Refund.updateOne(
+      { ownerId: row.ownerId, _id: row._id, status: 'pending', updatedAt: row.updatedAt },
+      { $set: { updatedAt: now } },
+      { timestamps: false },
+    ).catch((err: unknown) => console.error(`[refunds] reconcile of ${String(row._id)} could not requeue it`, err));
   }
   return { dispatched };
 }

@@ -24,3 +24,4 @@ paymentSchema.index({ ownerId: 1, bookingId: 1 });
 paymentSchema.plugin(tenantScoped);
 
 export const Payment = mongoose.model('Payment', paymentSchema);
+export type PaymentDoc = InstanceType<typeof Payment>;

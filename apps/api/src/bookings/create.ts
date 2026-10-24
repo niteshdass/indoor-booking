@@ -24,7 +24,7 @@ import { lockTurf } from '../venues/guards';
 import type { TurfDoc } from '../venues/turf.model';
 import type { VenueDoc } from '../venues/venue.model';
 import { Booking, holdingFilter, type BookingDoc } from './booking.model';
-import { Payment } from './payment.model';
+import { Payment, type PaymentDoc } from './payment.model';
 import { newReference } from './reference';
 import { SlotLock } from './slotLock.model';
 
@@ -40,7 +40,10 @@ type QuoteInput = {
 
 export type CreateBookingInput = QuoteInput & {
   who: { playerId: string | null; guest: { name: string; phone: string } | null; createdBy: string | null };
-  cash?: { amount: number; recordedBy: string };
+  /** Cash taken at creation; an omitted amount means the whole total. */
+  cash?: { amount?: number; recordedBy: string };
+  /** Runs inside the creating transaction after the inserts, e.g. to log activity atomically. */
+  afterInsert?: (session: ClientSession, booking: BookingDoc, payment: PaymentDoc | null) => Promise<void>;
 };
 
 const REFERENCE_ATTEMPTS = 5;
@@ -116,7 +119,7 @@ export async function quoteFor(
  * sees the winner. Does not log activity; staff routes do that.
  */
 export async function createBooking(input: CreateBookingInput): Promise<BookingDoc> {
-  const { venue, turf, selection, source, now, who, cash } = input;
+  const { venue, turf, selection, source, now, who, cash, afterInsert } = input;
   let prepared: Awaited<ReturnType<typeof prepare>>;
   try {
     prepared = await prepare(input);
@@ -158,11 +161,11 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
       const status = initialStatus({ source, guest: who.guest !== null, advanceRequired: quote.advanceRequired });
       let amountPaid = 0;
       if (cash) {
-        assertMinor(cash.amount);
-        if (cash.amount < 1 || cash.amount > quote.total) {
+        amountPaid = cash.amount ?? quote.total;
+        assertMinor(amountPaid);
+        if (amountPaid < 1 || amountPaid > quote.total) {
           throw new InvalidMoneyError(`Cash must be between 1 and ${quote.total}`);
         }
-        amountPaid = cash.amount;
       }
 
       const [booking] = await Booking.create(
@@ -199,15 +202,16 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
         quote.slots.map((s) => ({ ownerId, turfId: turf._id, startAt: s.startAt, bookingId: booking!._id })),
         { session, ordered: true },
       );
+      let payment: PaymentDoc | null = null;
       if (cash) {
-        await Payment.create(
+        const [created] = await Payment.create(
           [
             {
               ownerId,
               venueId: venue._id,
               bookingId: booking!._id,
               method: 'cash',
-              amount: cash.amount,
+              amount: amountPaid,
               currency: venue.currency,
               status: 'succeeded',
               recordedBy: cash.recordedBy,
@@ -215,7 +219,9 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
           ],
           { session },
         );
+        payment = created as unknown as PaymentDoc;
       }
+      await afterInsert?.(session, booking!, payment);
       return booking!;
     });
 

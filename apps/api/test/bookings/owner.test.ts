@@ -20,6 +20,7 @@ import { AddonAssignment } from '../../src/addons/assignment.model';
 import { Booking } from '../../src/bookings/booking.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
 import { Payment } from '../../src/bookings/payment.model';
+import { createBooking } from '../../src/bookings/create';
 
 beforeAll(async () => {
   await startTestDb();
@@ -163,6 +164,36 @@ describe('walk-in with cash', () => {
   });
 });
 
+describe('walk-in atomicity and permissions', () => {
+  it('a failing afterInsert hook leaves no booking, lock or payment', async () => {
+    const venue = (await Venue.findOne({ ownerId: a.ownerId, _id: v1 }))!;
+    const turf = (await Turf.findOne({ ownerId: a.ownerId, _id: t1 }))!;
+    await expect(
+      createBooking({
+        venue, turf, date: D, startAts: [at('18:00')], selection: [], source: 'walkin', now: ctx.services.now(),
+        who: { playerId: null, guest: { name: 'W', phone: PHONE }, createdBy: staff.userId },
+        cash: { recordedBy: staff.userId },
+        afterInsert: async () => {
+          throw new Error('log failed');
+        },
+      }),
+    ).rejects.toThrow('log failed');
+    for (const m of [Booking, SlotLock, Payment]) {
+      expect(await (m as typeof Booking).countDocuments({}).setOptions({ crossTenant: true })).toBe(0);
+    }
+  });
+
+  it('cash walk-in also needs payment.mark_cash', async () => {
+    const role = await Role.create({ ownerId: a.ownerId, name: 'Desk', permissions: ['booking.view', 'booking.create'] });
+    const desk = await addMember(ctx.services, a.ownerId, { roleId: String(role._id) });
+    const cash = await walkin(desk.token, { payment: { method: 'cash' } });
+    expect(cash.status).toBe(403);
+    expect(cash.body.error.code).toBe('forbidden');
+    expect(await Booking.countDocuments({}).setOptions({ crossTenant: true })).toBe(0);
+    expect((await walkin(desk.token)).status).toBe(201);
+  });
+});
+
 describe('walk-in unpaid, then cash later', () => {
   it('walks through partial, remaining, already_paid and invalid amounts', async () => {
     const res = await walkin(staff.token);
@@ -229,6 +260,15 @@ describe('confirm and reject a pending guest booking', () => {
     expect(await SlotLock.countDocuments({ bookingId: other }).setOptions({ crossTenant: true })).toBe(0);
     expect((await gridSlot('20:00')).status).toBe('available');
     expect((await post(`/bookings/${other}/reject`, a.token)).status).toBe(409);
+  });
+
+  it('confirm is pending-only: an awaiting_payment hold is refused', async () => {
+    const id = await pendingBooking();
+    await Booking.updateOne({ ownerId: a.ownerId, _id: id }, { status: 'awaiting_payment', holdExpiresAt: new Date('2027-01-01') });
+    const res = await post(`/bookings/${id}/confirm`, a.token);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('invalid_transition');
+    expect((await Booking.findOne({ ownerId: a.ownerId, _id: id }))!.status).toBe('awaiting_payment');
   });
 
   it('rejects a too-long reason', async () => {

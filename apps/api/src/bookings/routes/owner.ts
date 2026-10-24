@@ -10,12 +10,12 @@ import { AppError } from '../../errors';
 import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
 import { logActivity } from '../../tenancy/activityLog.model';
-import { requirePermission, tenantOf } from '../../tenancy/context';
+import { permissionsCover, requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Booking, bookingJson } from '../booking.model';
-import { createBooking, quoteFor } from '../create';
+import { createBooking } from '../create';
 import { Payment } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
 import { addonsSchema, startAtsSchema } from './public';
@@ -114,49 +114,44 @@ export function ownerBookingsRouter(services: AppServices): Router {
     const now = services.now();
     const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'walkin' as const, now };
 
-    let cash: { amount: number; recordedBy: string } | undefined;
-    if (input.payment.method === 'cash') {
-      const { total } = (await quoteFor(base)).quote;
-      const amount = input.payment.amount ?? total;
-      if (amount < 1 || amount > total) throw invalidAmount(total);
-      cash = { amount, recordedBy: t.userId };
+    const cash = input.payment.method === 'cash' ? { amount: input.payment.amount, recordedBy: t.userId } : undefined;
+    if (cash && !permissionsCover(t, ['payment.mark_cash'])) {
+      throw new AppError(403, 'forbidden', 'You do not have permission to do this');
     }
     const booking = await createBooking({
       ...base,
       who: { playerId, guest: { name: input.customer.name, phone }, createdBy: t.userId },
       cash,
-    });
-
-    // createBooking owns its transaction and never logs, so the log follows in its own.
-    await runInTransaction(async (session) => {
-      const venueId = String(booking.venueId);
-      await logActivity(
-        t,
-        {
-          action: 'booking.create',
-          entity: 'booking',
-          entityId: booking.id as string,
-          venueId,
-          after: { reference: booking.reference, status: booking.status, total: booking.total },
-        },
-        now,
-        session,
-      );
-      if (cash) {
-        const payment = await Payment.findOne({ ownerId: t.ownerId, bookingId: booking._id }).session(session);
+      // Same transaction as the inserts: the booking and its log commit or fail together.
+      afterInsert: async (session, created, payment) => {
+        const venueId = String(created.venueId);
         await logActivity(
           t,
           {
-            action: 'payment.cash',
-            entity: 'payment',
-            entityId: payment!.id as string,
+            action: 'booking.create',
+            entity: 'booking',
+            entityId: created.id as string,
             venueId,
-            after: { bookingId: booking.id, amount: cash.amount },
+            after: { reference: created.reference, status: created.status, total: created.total },
           },
           now,
           session,
         );
-      }
+        if (payment) {
+          await logActivity(
+            t,
+            {
+              action: 'payment.cash',
+              entity: 'payment',
+              entityId: payment.id as string,
+              venueId,
+              after: { bookingId: created.id, amount: payment.amount },
+            },
+            now,
+            session,
+          );
+        }
+      },
     });
     res.status(201).json({ booking: bookingJson(booking) });
   });
@@ -164,6 +159,8 @@ export function ownerBookingsRouter(services: AppServices): Router {
   router.post('/bookings/:bookingId/confirm', requirePermission('booking.confirm'), async (req, res) => {
     const t = tenantOf(req);
     const booking = await scopedBooking(t, req.params.bookingId as string);
+    // Staff confirm only pending guest bookings; an awaiting_payment hold confirms by payment.
+    if (booking.status !== 'pending') throw invalidTransition(booking.status);
     const updated = await runInTransaction((session) =>
       transition(t, booking, 'confirmed', services.now(), session),
     );

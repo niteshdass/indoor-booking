@@ -6,6 +6,7 @@ import { AppError } from '../../errors';
 import type { AppServices } from '../../services';
 import { applyEvent } from '../apply';
 import { loadGateway } from '../gateway.model';
+import { dispatchRefund } from '../refunds';
 import { WebhookEvent } from '../webhookEvent.model';
 
 /** Only a repeat of this event; any other unique violation is a failed effect that Stripe must retry. */
@@ -29,19 +30,23 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
     const event = gateway.handleWebhook(creds, rawBody, req.get('stripe-signature'));
 
     const now = services.now();
+    let refundIds: string[] = [];
     try {
-      await runInTransaction(async (session) => {
+      refundIds = await runInTransaction(async (session) => {
         const [row] = await WebhookEvent.create(
           [{ ownerId, gateway: gateway.key, eventId: event.id, type: event.type, at: now }],
           { session },
         );
-        const outcome = await applyEvent(ownerId, event, { gateway, creds, now }, session);
+        const { outcome, refundIds } = await applyEvent(ownerId, event, { now }, session);
         await WebhookEvent.updateOne({ ownerId, _id: row!._id }, { $set: { outcome } }, { session });
+        return refundIds;
       });
     } catch (err) {
       // Already processed: the first delivery's transaction committed the event row.
       if (!isDuplicateEvent(err)) throw err;
     }
+    // Committed: send the refunds now. A gateway outage leaves them pending for reconcile, never for Stripe's retry.
+    for (const id of refundIds) await dispatchRefund(id, ownerId, { config, services });
     res.json({ received: true });
   });
 

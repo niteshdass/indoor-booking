@@ -6,15 +6,20 @@ import { Booking, holdingFilter, type BookingDoc } from '../bookings/booking.mod
 import { expireStaleHolds, limited, stockInUse } from '../bookings/create';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { SlotLock } from '../bookings/slotLock.model';
-import { ActivityLog, logSystemActivity } from '../tenancy/activityLog.model';
+import { logSystemActivity } from '../tenancy/activityLog.model';
 import { lockTurf } from '../venues/guards';
 import { Turf } from '../venues/turf.model';
 import { Venue } from '../venues/venue.model';
-import type { GatewayCredentials, GatewayEvent, PaymentGateway } from './gateway';
+import type { GatewayEvent } from './gateway';
 import { Refund } from './refund.model';
+import { reserveRefunds, settleRefund } from './refunds';
 import type { WebhookOutcome } from './webhookEvent.model';
 
-export type ApplyContext = { gateway: PaymentGateway; creds: GatewayCredentials; now: Date };
+export type ApplyContext = { now: Date };
+
+export type ApplyResult = { outcome: WebhookOutcome; refundIds: string[] };
+
+const done = (outcome: WebhookOutcome, refundIds: string[] = []): ApplyResult => ({ outcome, refundIds });
 
 /** Thrown when a guarded write misses inside the transaction; aborts it so the webhook is retried. */
 const changedUnderneath = () => new Error('Payment or booking changed while applying a webhook');
@@ -28,40 +33,41 @@ export async function applyEvent(
   event: GatewayEvent,
   ctx: ApplyContext,
   session: ClientSession,
-): Promise<WebhookOutcome> {
-  // refund_updated is handled by the refund service (Task 5).
-  if (event.kind === 'ignored' || event.kind === 'refund_updated') return 'ignored';
+): Promise<ApplyResult> {
+  if (event.kind === 'ignored') return done('ignored');
+  if (event.kind === 'refund_updated') return done(await refundUpdated(ownerId, event, ctx, session));
   const payment =
     event.paymentId && mongoose.isValidObjectId(event.paymentId)
       ? await Payment.findOne({ ownerId, _id: event.paymentId }).session(session)
       : null;
-  if (!payment) return 'unmatched';
+  if (!payment) return done('unmatched');
   const pending = { ownerId, _id: payment._id, status: 'pending' };
 
   if (event.kind === 'attempt_failed') {
     const res = await Payment.updateOne(pending, { $set: { failureCode: event.failureCode } }, { session });
-    return res.matchedCount === 1 ? 'applied' : 'ignored';
+    return done(res.matchedCount === 1 ? 'applied' : 'ignored');
   }
   if (event.kind === 'closed') {
     const res = await Payment.updateOne(pending, { $set: { status: 'failed' } }, { session });
-    return res.matchedCount === 1 ? 'applied' : 'ignored';
+    return done(res.matchedCount === 1 ? 'applied' : 'ignored');
   }
 
-  if (payment.status !== 'pending') return 'ignored';
-  if (event.amount !== payment.amount || event.currency !== payment.currency) return 'mismatch';
-
+  if (payment.status !== 'pending') return done('ignored');
   const booking = await Booking.findOne({ ownerId, _id: payment.bookingId }).session(session);
-  if (!booking) return 'ignored';
+  if (event.amount !== payment.amount || event.currency !== payment.currency) {
+    return mismatch({ ownerId, event, payment, booking, ctx, session });
+  }
+  if (!booking) return done('ignored');
   await lockTurf({ ownerId }, String(booking.turfId), ctx.now, session);
 
   const succeeded = { ownerId, event, payment, booking, ctx, session };
   const holding = booking.status === 'awaiting_payment' && booking.holdExpiresAt != null && booking.holdExpiresAt > ctx.now;
   // A live hold still has its slots and stock, even once a walk-in's in-progress slot has ended;
   // a lapsed or expired one gets them back only if nobody took them and the slot is not over.
-  if (holding) return confirm(succeeded);
+  if (holding) return done(await confirm(succeeded));
   const lapsed = booking.status === 'awaiting_payment' && !holding;
   if ((lapsed || booking.status === 'expired') && (await stillFree(ownerId, booking, ctx.now, session))) {
-    return confirm(succeeded);
+    return done(await confirm(succeeded));
   }
   return refund(succeeded);
 }
@@ -75,7 +81,70 @@ type Succeeded = {
   session: ClientSession;
 };
 
-const pendingOf = (s: Succeeded) => ({ ownerId: s.ownerId, _id: s.payment._id, status: 'pending' });
+/** The gateway took a different amount or currency than the payment asked for: fail it and give the money back. */
+async function mismatch(s: Omit<Succeeded, 'booking'> & { booking: BookingDoc | null }): Promise<ApplyResult> {
+  const { ownerId, event, payment, booking, ctx, session } = s;
+  const failed = await Payment.updateOne(
+    pendingOf(s),
+    { $set: { status: 'failed', failureCode: 'amount_mismatch', gatewayRef: event.gatewayRef } },
+    { session },
+  );
+  if (failed.matchedCount !== 1) throw changedUnderneath();
+  if (!booking) {
+    // Nothing to attach a refund to; staff will see the failed payment and this log.
+    console.error(`[payments] mismatched payment ${String(payment._id)} has no booking; not refunded`);
+    return done('mismatch');
+  }
+  const [row] = await reserveRefunds(
+    {
+      booking,
+      parts: [{ paymentId: payment._id, method: 'card', amount: event.amount }],
+      reason: 'amount_mismatch',
+      ruleApplied: null,
+      by: null,
+      now: ctx.now,
+      currency: event.currency,
+    },
+    session,
+  );
+  await logSystemActivity(
+    ownerId,
+    {
+      action: 'payment.mismatch',
+      entity: 'payment',
+      entityId: String(payment._id),
+      venueId: String(booking.venueId),
+      after: {
+        expected: { amount: payment.amount, currency: payment.currency },
+        received: { amount: event.amount, currency: event.currency },
+      },
+    },
+    ctx.now,
+    session,
+  );
+  return done('mismatch', [String(row!._id)]);
+}
+
+/** A gateway report on a refund we recorded; a failure releases (or, after the fact, reverses) its reservation. */
+async function refundUpdated(
+  ownerId: string,
+  event: Extract<GatewayEvent, { kind: 'refund_updated' }>,
+  ctx: ApplyContext,
+  session: ClientSession,
+): Promise<WebhookOutcome> {
+  const row = await Refund.findOne({ ownerId, gatewayRef: event.refundRef }).session(session);
+  if (!row) return 'unmatched';
+  const changed = await settleRefund(
+    ownerId,
+    row._id,
+    { status: event.status, failureCode: event.failureCode, allowFromSucceeded: event.status === 'failed' },
+    ctx.now,
+    session,
+  );
+  return changed ? 'applied' : 'ignored';
+}
+
+const pendingOf = (s: Pick<Succeeded, 'ownerId' | 'payment'>) => ({ ownerId: s.ownerId, _id: s.payment._id, status: 'pending' });
 
 /** Whether an expired or lapsed booking can have its slots and stock-limited add-ons back. */
 async function stillFree(ownerId: string, booking: BookingDoc, now: Date, session: ClientSession): Promise<boolean> {
@@ -157,13 +226,12 @@ async function confirm(s: Succeeded): Promise<WebhookOutcome> {
 }
 
 /**
- * Refunds a payment its booking can no longer use, through the account that took it. Every write
- * that records the decision lands before the gateway call, which is the last step: a gateway error
- * aborts it all, and the idempotency key makes a retried transaction or webhook replay the refund.
+ * Refunds a payment its booking can no longer use. Only records the decision: the refund is
+ * reserved pending here and sent to the gateway by the webhook route once this transaction commits.
  */
-async function refund(s: Succeeded): Promise<WebhookOutcome> {
+async function refund(s: Succeeded): Promise<ApplyResult> {
   const { ownerId, event, payment, booking, ctx, session } = s;
-  const reason = booking.status === 'confirmed' ? 'duplicate_payment' : 'late_payment';
+  const reason = ['confirmed', 'completed', 'no_show'].includes(booking.status) ? 'duplicate_payment' : 'late_payment';
 
   if (booking.status === 'awaiting_payment') {
     // A hold that cannot be confirmed is over: expire it and free its slots.
@@ -181,60 +249,17 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
     { session },
   );
   if (paid.matchedCount !== 1) throw changedUnderneath();
-  const [row] = await Refund.create(
-    [
-      {
-        ownerId,
-        venueId: booking.venueId,
-        bookingId: booking._id,
-        paymentId: payment._id,
-        amount: event.amount,
-        currency: payment.currency,
-        reason,
-        method: 'card',
-        gateway: payment.gateway ?? ctx.gateway.key,
-        gatewayAccountId: payment.gatewayAccountId,
-        status: 'pending',
-        by: null,
-      },
-    ],
-    { session },
-  );
-  await logSystemActivity(
-    ownerId,
+  // The payment is now succeeded with its amount reserved, so no allocation offers it again.
+  const [row] = await reserveRefunds(
     {
-      action: 'payment.refund',
-      entity: 'payment',
-      entityId: String(payment._id),
-      venueId: String(booking.venueId),
-      after: { bookingId: String(booking._id), refundId: String(row!._id), amount: event.amount, reason, status: 'pending' },
+      booking,
+      parts: [{ paymentId: payment._id, method: 'card', amount: event.amount }],
+      reason,
+      ruleApplied: null,
+      by: null,
+      now: ctx.now,
     },
-    ctx.now,
     session,
   );
-
-  let result: Awaited<ReturnType<PaymentGateway['refund']>>;
-  try {
-    result = await ctx.gateway.refund(ctx.creds, {
-      gatewayRef: event.gatewayRef,
-      amount: event.amount,
-      idempotencyKey: `refund_${String(payment._id)}`,
-      refundId: String(row!._id),
-    });
-  } catch {
-    // Not a GatewayError: the route must answer 500 so the gateway retries the webhook.
-    throw new Error('Refund failed while applying a webhook');
-  }
-
-  // Only the outcome remains; a declined refund stays on record (status failed) for staff to settle.
-  await Refund.updateOne({ ownerId, _id: row!._id }, { $set: { status: result.status, gatewayRef: result.refundRef, failureCode: result.failureCode } }, { session });
-  await ActivityLog.updateOne(
-    { ownerId, entityId: payment._id, action: 'payment.refund', 'after.refundId': String(row!._id) },
-    { $set: { 'after.status': result.status } },
-    { session },
-  );
-  if (result.status !== 'failed') {
-    await Payment.updateOne({ ownerId, _id: payment._id }, { $set: { refundedAmount: event.amount } }, { session });
-  }
-  return 'applied';
+  return done('applied', [String(row!._id)]);
 }

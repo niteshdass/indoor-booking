@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import { BOOKING_TRANSITIONS, hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -22,6 +22,7 @@ import { Payment } from '../../src/bookings/payment.model';
 import { PaymentGatewayAccount } from '../../src/payments/gateway.model';
 import { WebhookEvent } from '../../src/payments/webhookEvent.model';
 import { Refund } from '../../src/payments/refund.model';
+import { reconcileRefunds } from '../../src/payments/refunds';
 
 beforeAll(async () => {
   await startTestDb();
@@ -124,7 +125,6 @@ async function expectRefunded(payment: { _id: unknown; amount: number; gatewayRe
   expect(calls[0]!.params).toEqual({
     payment_intent: payment.gatewayRef, amount: payment.amount, metadata: { refundId: expect.any(String) },
   });
-  expect(calls[0]!.idempotencyKey).toBe(`refund_${String(payment._id)}`);
   const intentCall = ctx.services.stripe.calls.find((c) => c.method === 'paymentIntents.create')!;
   expect(calls[0]!.secretKey).toBe(intentCall.secretKey);
 
@@ -139,17 +139,20 @@ async function expectRefunded(payment: { _id: unknown; amount: number; gatewayRe
     status: 'succeeded',
     by: null,
   });
+  expect(calls[0]!.idempotencyKey).toBe(`refund_${String(rows[0]!._id)}`);
   expect(accountId).toMatch(/^acct_test_/);
   expect(String(rows[0]!.paymentId)).toBe(String(payment._id));
   expect(String(rows[0]!.venueId)).toBe(venueId);
   expect(rows[0]!.gatewayRef).toEqual(expect.any(String));
 
   expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: payment.amount });
-  const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'payment.refund' }).lean();
+  expect(await ActivityLog.countDocuments({ ownerId: owner.ownerId, action: 'payment.refund' })).toBe(0);
+  const logs = await ActivityLog.find({ ownerId: owner.ownerId, entity: 'refund', action: 'refund.created' }).lean();
   expect(logs).toHaveLength(1);
   expect(logs[0]!.actorId).toBeNull();
-  expect(String(logs[0]!.entityId)).toBe(String(payment._id));
+  expect(String(logs[0]!.entityId)).toBe(String(rows[0]!._id));
   expect(logs[0]!.after).toMatchObject({ amount: payment.amount, reason });
+  expect(await ActivityLog.countDocuments({ ownerId: owner.ownerId, action: 'refund.succeeded' })).toBe(1);
   expect(JSON.stringify(logs[0])).not.toMatch(/sk_test|whsec_/);
   expect(JSON.stringify(rows[0])).not.toMatch(/sk_test|whsec_/);
 }
@@ -300,63 +303,46 @@ describe('late payment for a lapsed hold', () => {
       await expectRefunded(second, 'duplicate_payment');
     });
 
-    it('answers 500 on a Stripe refund error and refunds once on redelivery', async () => {
+    it('answers 200 on a Stripe refund error and leaves the refund pending for reconcile', async () => {
       const { bookingId, payment } = await paidHold();
       ctx.services.clock.advance(LAPSE);
       expect((await book(await newPlayer(), [at('18:00')])).status).toBe(201);
 
       ctx.services.stripe.fail('refunds.create', 'api');
       const event = piSucceeded(payment);
-      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-      try {
-        const res = await post(event);
-        expect(res.status).toBe(500);
-        expect(JSON.stringify(res.body)).not.toMatch(/sk_test/);
-      } finally {
-        logged.mockRestore();
-      }
-      expect(await WebhookEvent.countDocuments({}).setOptions(cross)).toBe(0);
-      expect(await refunds()).toHaveLength(0);
-      expect(await paymentOf(payment._id)).toMatchObject({ status: 'pending', refundedAmount: 0 });
-
       expect((await post(event)).status).toBe(200);
-      const calls = refundCalls();
-      expect(calls).toHaveLength(2);
-      expect(calls.map((c) => c.idempotencyKey)).toEqual([`refund_${String(payment._id)}`, `refund_${String(payment._id)}`]);
       expect(await refunds()).toHaveLength(1);
-      expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 600 });
+      expect((await refunds())[0]).toMatchObject({ status: 'pending', amount: 600 });
       expect((await bookingOf(bookingId)).status).toBe('expired');
+      expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 600 });
+      const callsAfterFailure = refundCalls().length;
+
+      // The payment is no longer pending, so a redelivery changes nothing and sends nothing.
+      expect((await post(event)).status).toBe(200);
+      expect(refundCalls()).toHaveLength(callsAfterFailure);
+      expect((await WebhookEvent.find({}).setOptions(cross).lean()).map((e) => e.outcome)).toEqual(['applied']);
+      expect(await refunds()).toHaveLength(1);
+
+      ctx.services.clock.advance(LAPSE);
+      expect(await reconcileRefunds(ctx.services.now(), { config: ctx.config, services: ctx.services })).toEqual({ dispatched: 1 });
+      expect((await refunds())[0]).toMatchObject({ status: 'succeeded' });
+      expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 600 });
     });
 
-    it('calls the gateway only after every database write', async () => {
-      // Slot over: the refund path itself expires the hold and frees its locks.
-      const { bookingId, payment } = await paidHold();
-      const b = await bookingOf(bookingId);
-      ctx.services.clock.advance(b.endAt.getTime() - ctx.services.now().getTime() + 60_000);
+    it('calls the gateway only after the webhook transaction commits', async () => {
+      const { payment } = await paidHold();
+      ctx.services.clock.advance(LAPSE);
+      expect((await book(await newPlayer(), [at('18:00')])).status).toBe(201);
 
-      // How many refund calls had been made when each write ran: all must be 0 except the result patch.
-      const seen: Record<string, number> = {};
-      const watch = <T extends object>(model: T, method: keyof T & string, label: string): { mockRestore(): void } => {
-        const orig = (model[method] as (...a: unknown[]) => unknown).bind(model);
-        const spy = vi.spyOn(model as Record<string, (...a: unknown[]) => unknown>, method);
-        return spy.mockImplementation((...args: unknown[]) => {
-          seen[label] ??= refundCalls().length;
-          return orig(...args);
-        });
+      // Read with no session: only committed data is visible.
+      const seen: { status?: string; paymentStatus?: string }[] = [];
+      ctx.services.stripe.onRefundCreate = async () => {
+        const row = await Refund.findOne({ ownerId: owner.ownerId });
+        const paid = await Payment.findOne({ ownerId: owner.ownerId, _id: payment._id });
+        seen.push({ status: row?.status, paymentStatus: paid?.status });
       };
-      const spies = [
-        watch(Refund, 'create', 'refund row'),
-        watch(ActivityLog, 'create', 'activity'),
-        watch(Booking, 'updateOne', 'booking'),
-        watch(SlotLock, 'deleteMany', 'locks'),
-      ];
-      try {
-        expect((await post(piSucceeded(payment))).status).toBe(200);
-      } finally {
-        for (const s of spies) s.mockRestore();
-      }
-      expect(seen).toEqual({ 'refund row': 0, activity: 0, booking: 0, locks: 0 });
-      expect(refundCalls()).toHaveLength(1);
+      expect((await post(piSucceeded(payment))).status).toBe(200);
+      expect(seen).toEqual([{ status: 'pending', paymentStatus: 'succeeded' }]);
       await expectRefunded(payment, 'late_payment');
     });
 
@@ -374,7 +360,7 @@ describe('late payment for a lapsed hold', () => {
       expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 0 });
       expect((await bookingOf(bookingId)).status).toBe('expired');
       expect(await locksOf(bookingId)).toBe(0);
-      const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'payment.refund' }).lean();
+      const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'refund.failed' }).lean();
       expect(logs).toHaveLength(1);
       expect(logs[0]!.after).toMatchObject({ status: 'failed' });
       expect((await WebhookEvent.find({}).setOptions(cross).lean())[0]!.outcome).toBe('applied');
@@ -382,6 +368,87 @@ describe('late payment for a lapsed hold', () => {
       expect((await post(event)).status).toBe(200);
       expect(refundCalls()).toHaveLength(1);
       expect(await refunds()).toHaveLength(1);
+    });
+
+    for (const status of ['completed', 'no_show'] as const) {
+      it(`tags a payment on a ${status} booking as duplicate_payment`, async () => {
+        const { bookingId, payment } = await paidHold();
+        expect((await post(piSucceeded(payment))).status).toBe(200);
+        await Booking.updateOne({ ownerId: owner.ownerId, _id: bookingId }, { $set: { status } });
+        const second = await Payment.create({
+          ownerId: owner.ownerId, venueId, bookingId, method: 'card', kind: 'intent', amount: 600, currency: 'BDT',
+          status: 'pending', gateway: 'stripe', gatewayAccountId: accountId, gatewayRef: 'pi_dup_2',
+        });
+        expect((await post(piSucceeded(second))).status).toBe(200);
+        expect(await bookingOf(bookingId)).toMatchObject({ status, amountPaid: 600 });
+        await expectRefunded(second, 'duplicate_payment');
+      });
+    }
+
+    it('refunds a mismatched payment and logs it', async () => {
+      const { bookingId, payment } = await paidHold();
+      const res = await post(piSucceeded(payment, { amount: 700, currency: 'usd' }));
+      expect(res.status).toBe(200);
+      expect((await WebhookEvent.find({}).setOptions(cross).lean())[0]!.outcome).toBe('mismatch');
+      expect(await paymentOf(payment._id)).toMatchObject({
+        status: 'failed', failureCode: 'amount_mismatch', gatewayRef: payment.gatewayRef, refundedAmount: 700,
+      });
+      expect(await bookingOf(bookingId)).toMatchObject({ status: 'awaiting_payment', amountPaid: 0 });
+      const rows = await refunds();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ reason: 'amount_mismatch', amount: 700, currency: 'USD', status: 'succeeded', method: 'card' });
+      expect(refundCalls()).toHaveLength(1);
+      expect(refundCalls()[0]!.params).toMatchObject({ amount: 700 });
+      const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'payment.mismatch' }).lean();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]!.after).toEqual({
+        expected: { amount: 600, currency: 'BDT' },
+        received: { amount: 700, currency: 'USD' },
+      });
+    });
+
+    describe('refund webhooks', () => {
+      const refundEvent = (type: string, ref: string, status: string, failure?: string) => ({
+        id: `evt_r_${Math.random()}`,
+        object: 'event',
+        type,
+        data: { object: { id: ref, object: 'refund', status, failure_reason: failure ?? null } },
+      });
+
+      async function refundedLate() {
+        const { payment } = await paidHold();
+        ctx.services.clock.advance(LAPSE);
+        expect((await book(await newPlayer(), [at('18:00')])).status).toBe(201);
+        expect((await post(piSucceeded(payment))).status).toBe(200);
+        const [row] = await refunds();
+        return { payment, row: row! };
+      }
+
+      it('refund.failed on a succeeded refund reverses it', async () => {
+        const { payment, row } = await refundedLate();
+        expect(row.status).toBe('succeeded');
+        expect((await paymentOf(payment._id)).refundedAmount).toBe(600);
+
+        const res = await post(refundEvent('refund.failed', row.gatewayRef!, 'failed', 'expired_or_canceled_card'));
+        expect(res.status).toBe(200);
+        expect((await refunds())[0]).toMatchObject({ status: 'failed', failureCode: 'expired_or_canceled_card' });
+        expect((await paymentOf(payment._id)).refundedAmount).toBe(0);
+        const outcomes = (await WebhookEvent.find({}).setOptions(cross).sort({ at: 1, _id: 1 }).lean()).map((e) => e.outcome);
+        expect(outcomes.at(-1)).toBe('applied');
+      });
+
+      it('ignores a refund update that changes nothing', async () => {
+        const { row } = await refundedLate();
+        expect((await post(refundEvent('refund.updated', row.gatewayRef!, 'succeeded'))).status).toBe(200);
+        const outcomes = (await WebhookEvent.find({}).setOptions(cross).lean()).map((e) => e.outcome);
+        expect(outcomes.at(-1)).toBe('ignored');
+        expect((await refunds())[0]!.status).toBe('succeeded');
+      });
+
+      it('refund.updated for an unknown refund is unmatched', async () => {
+        expect((await post(refundEvent('refund.updated', 're_unknown', 'succeeded'))).status).toBe(200);
+        expect((await WebhookEvent.find({}).setOptions(cross).lean())[0]!.outcome).toBe('unmatched');
+      });
     });
   });
 

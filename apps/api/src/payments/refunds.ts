@@ -69,7 +69,9 @@ export async function reserveRefunds(
   const rows: RefundDoc[] = [];
   for (const part of parts) {
     const payment = await Payment.findOne({ ownerId, _id: part.paymentId }).session(session);
-    if (!payment || part.amount > payment.amount - payment.refundedAmount) throw new Error('Refund exceeds what was paid');
+    // A mismatched charge may have taken more than the payment row says; the gateway holds the received amount.
+    const room = reason === 'amount_mismatch' || (payment != null && part.amount <= payment.amount - payment.refundedAmount);
+    if (!payment || !room) throw new Error('Refund exceeds what was paid');
     if (part.method === 'card' && payment.method !== 'card') throw new Error('A card refund needs a card payment');
     const reserved = await Payment.updateOne(
       { ownerId, _id: payment._id, refundedAmount: payment.refundedAmount },

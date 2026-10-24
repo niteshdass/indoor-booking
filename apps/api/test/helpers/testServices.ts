@@ -9,6 +9,8 @@ export type FakeStripe = StripeFactory & {
   calls: StripeCall[];
   /** Makes the next call to `method` (e.g. 'paymentIntents.create') throw a Stripe auth or API error. */
   fail(method: string, kind: 'auth' | 'api' | 'invalid_request', code?: string): void;
+  /** Awaited at the start of every refunds.create, before the call is recorded. */
+  onRefundCreate?: () => Promise<void>;
   /** Status the fake gives new refunds; 'failed' mimics a refund Stripe declines. */
   refundStatus: 'succeeded' | 'pending' | 'failed';
   /** Status of a PaymentIntent or Checkout Session the fake created. */
@@ -121,6 +123,7 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
       },
       refunds: {
         async create(params, o) {
+          await factory.onRefundCreate?.();
           return call('refunds.create', params, o.idempotencyKey, () => {
             const refund = { id: nextId('re'), status: factory.refundStatus, metadata: params.metadata ?? null };
             refundsByIntent.set(params.payment_intent, [...(refundsByIntent.get(params.payment_intent) ?? []), refund]);

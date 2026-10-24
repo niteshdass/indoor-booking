@@ -44,16 +44,22 @@ describe('DateStrip', () => {
     expect(chips[0]).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('date strip starts at venue-local today', async () => {
-    vi.setSystemTime(new Date('2026-01-01T20:00:00Z'));
+  // Each case differs from both the UTC date and the dates of machines in far-east/far-west zones.
+  it.each([
+    ['Asia/Dhaka', '2026-01-01T20:00:00Z', 'Jan 2'],
+    ['America/Los_Angeles', '2026-01-02T03:00:00Z', 'Jan 1'],
+    ['Pacific/Kiritimati', '2026-01-01T12:00:00Z', 'Jan 2'],
+    ['Pacific/Pago_Pago', '2026-01-02T03:00:00Z', 'Jan 1'],
+  ])('date strip starts at venue-local today (%s)', async (timezone, now, label) => {
+    vi.setSystemTime(new Date(now));
     const venue: PublicVenue = {
       slug: 'a',
       name: 'Arena',
       address: 'Road 1',
-      city: 'Dhaka',
+      city: 'X',
       country: 'BD',
       currency: 'BDT',
-      timezone: 'Asia/Dhaka',
+      timezone,
       location: { lat: 1, lng: 2 },
       photos: [],
       amenities: [],
@@ -63,7 +69,8 @@ describe('DateStrip', () => {
     renderApp('/venues/a');
     const strip = await screen.findByRole('group', { name: /date/i });
     const first = within(strip).getAllByRole('button')[0]!;
-    expect(first).toHaveTextContent('Jan 2');
+    expect(first).toHaveTextContent(label);
     expect(first).toHaveAttribute('aria-current', 'date');
+    expect(first).toHaveAttribute('aria-pressed', 'true');
   });
 });

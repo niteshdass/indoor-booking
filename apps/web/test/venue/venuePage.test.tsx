@@ -48,6 +48,7 @@ describe('VenuePage', () => {
     await user.click(await screen.findByRole('tab', { name: /Court B/ }));
     await waitFor(() => expect(location().search).toContain('turf=t2'));
     expect(location().search).toContain('date=2026-10-25');
+    expect(location().navType).toBe('REPLACE');
     expect(screen.getByRole('tab', { name: /Court B/ })).toHaveAttribute('aria-selected', 'true');
     await user.keyboard('{ArrowLeft}');
     await waitFor(() => expect(location().search).toContain('turf=t1'));
@@ -55,8 +56,23 @@ describe('VenuePage', () => {
 
   it('unknown turf falls back to the first; malformed date to today', async () => {
     mockApi([{ path: '/venues/arena-one', body: { venue } }]);
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     renderApp('/venues/arena-one?turf=nope&date=garbage');
     expect(await screen.findByRole('tab', { name: /Court A/ })).toHaveAttribute('aria-selected', 'true');
+    const today = screen.getAllByRole('button').find((b) => b.getAttribute('aria-current') === 'date')!;
+    expect(today).toHaveTextContent('Oct 24');
+    expect(today).toHaveAttribute('aria-pressed', 'true');
+    vi.useRealTimers();
+  });
+
+  it('changing the date keeps turf and replaces history', async () => {
+    mockApi([{ path: '/venues/arena-one', body: { venue } }]);
+    const { user, location } = renderApp('/venues/arena-one?turf=t2&date=2026-10-25');
+    await user.click(await screen.findByRole('button', { name: /Oct 27/ }));
+    await waitFor(() => expect(location().search).toContain('date=2026-10-27'));
+    expect(location().search).toContain('turf=t2');
+    expect(location().navType).toBe('REPLACE');
+    expect(screen.getByRole('button', { name: /Oct 27/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('unknown slug shows not found', async () => {

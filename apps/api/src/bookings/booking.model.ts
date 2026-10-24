@@ -70,6 +70,10 @@ bookingSchema.index({ ownerId: 1, turfId: 1, startAt: 1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, businessDate: 1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, startAt: 1, endAt: 1 });
 bookingSchema.index({ playerId: 1, startAt: -1 });
+// Cross-tenant lifecycle sweeps (jobs/sweeps.ts).
+bookingSchema.index({ status: 1, holdExpiresAt: 1 });
+bookingSchema.index({ status: 1, startAt: 1 });
+bookingSchema.index({ status: 1, endAt: 1 });
 bookingSchema.plugin(tenantScoped);
 
 export type BookingDoc = HydratedDocument<InferSchemaType<typeof bookingSchema>>;

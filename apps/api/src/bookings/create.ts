@@ -233,6 +233,8 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             guest: who.guest,
             policySnapshot: { paymentPolicy: settings.paymentPolicy, refundRules: settings.refundRules },
             createdBy: who.createdBy,
+            // The app clock, not the wall clock: the reminder sweep compares it with startAt.
+            createdAt: now,
           },
         ],
         { session },

@@ -112,6 +112,23 @@ describe('owner slots', () => {
     expect(fri).toMatchObject({ closed: true, closedReason: 'Eid', slots: [] });
   });
 
+  it('the earlier business day wins a slot both days reach', async () => {
+    const hours = { tue: { open: '10:00', close: '12:00' }, wed: { open: '00:00', close: '02:00' } };
+    const t2 = (await seedTurf(a.ownerId, v1, { slotLengthMin: 60, settings: { hours } })).id as string;
+    // Stored directly: the API would reject this add for overlapping Wednesday's 00:00 slot.
+    await SlotOverride.create({
+      ownerId: a.ownerId, venueId: v1, turfId: t2, date: '2026-11-03', type: 'add', start: '23:00', end: '01:00',
+    });
+    const tue = (await getOwner('?date=2026-11-03', a.token, v1, t2)).body.day.slots;
+    expect(tue.map((s: { localStart: string; source: string }) => [s.localStart, s.source])).toEqual([
+      ['10:00', 'hours'],
+      ['11:00', 'hours'],
+      ['23:00', 'add'],
+    ]);
+    const wed = (await getOwner('?date=2026-11-04', a.token, v1, t2)).body.day.slots;
+    expect(wed.map((s: { localStart: string }) => s.localStart)).toEqual(['01:00']);
+  });
+
   it('includes inactive turfs and reports inWindow false outside the window', async () => {
     const off = (await seedTurf(a.ownerId, v1, { active: false })).id as string;
     expect((await getOwner(`?date=${day}`, a.token, v1, off)).status).toBe(200);

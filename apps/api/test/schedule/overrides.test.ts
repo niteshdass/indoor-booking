@@ -136,26 +136,75 @@ describe('slot overrides', () => {
     expect(clash.body.error.code).toBe('override_overlap');
     expect((await post({ date: day, type: 'add', start: '02:00', end: '03:00' }, a.token, v1, t3)).status).toBe(201);
 
-    // 16:00-22:00: 23:00-01:30 is free, and 01:00-02:00 (minute 1500) overlaps it.
+    // 16:00-22:00: 23:00-01:30 is free; on that day 01:00-02:00 is the morning, but on the next
+    // date it overlaps the extra running past midnight.
     expect((await post({ date: day, type: 'add', start: '23:00', end: '01:30' })).status).toBe(201);
-    const extra = await post({ date: day, type: 'add', start: '01:00', end: '02:00' });
+    expect((await post({ date: day, type: 'add', start: '01:00', end: '02:00' })).status).toBe(201);
+    const extra = await post({ date: '2026-10-31', type: 'add', start: '01:00', end: '02:00' });
     expect(extra.status).toBe(409);
     expect(extra.body.error.code).toBe('override_overlap');
   });
 
-  it('an override must end before the next business day opens', async () => {
+  it('a night spilling into a closed day: block is free, an add on the next date overlaps the night', async () => {
+    const week = Object.fromEntries(WEEKDAYS.map((d) => [d, 'closed']));
+    const t3 = (
+      await seedTurf(a.ownerId, v1, { slotLengthMin: 60, settings: { hours: { ...week, sun: { open: '16:00', close: '02:00' } } } })
+    ).id as string;
+    expect((await post({ date: '2026-11-01', type: 'block', start: '00:00', end: '02:00' }, a.token, v1, t3)).status).toBe(201);
+    const mon = await post({ date: '2026-11-02', type: 'add', start: '01:00', end: '02:00' }, a.token, v1, t3);
+    expect(mon.status).toBe(409);
+    expect(mon.body.error.code).toBe('override_overlap');
+  });
+
+  it('a pre-open add is that morning', async () => {
+    const t3 = (
+      await seedTurf(a.ownerId, v1, {
+        slotLengthMin: 60,
+        settings: { hours: { mon: { open: '10:00', close: '22:00' }, tue: { open: '10:00', close: '22:00' } } },
+      })
+    ).id as string;
+    const tue = '2026-11-03';
+    expect((await post({ date: tue, type: 'add', start: '08:00', end: '09:00' }, a.token, v1, t3)).status).toBe(201);
+    const slots = await api()
+      .get(`/api/v1/owners/${a.ownerId}/venues/${v1}/turfs/${t3}/slots?date=${tue}`)
+      .set(...bearer(a.token));
+    expect(slots.status).toBe(200);
+    expect(slots.body.day.slots[0]).toMatchObject({
+      startAt: '2026-11-03T02:00:00.000Z', // 08:00 Dhaka
+      localStart: '08:00',
+      source: 'add',
+    });
+  });
+
+  it('overlap is checked against the neighbour days', async () => {
     const early = Object.fromEntries(WEEKDAYS.map((d) => [d, { open: '06:00', close: '02:00' }]));
     const t3 = (await seedTurf(a.ownerId, v1, { slotLengthMin: 60, settings: { hours: early } })).id as string;
     const spill = await post({ date: day, type: 'add', start: '05:30', end: '06:30' }, a.token, v1, t3);
-    expect(spill.status).toBe(400);
-    expect(spill.body.error).toMatchObject({ code: 'validation_error', message: 'Override must end before the next day opens' });
+    expect(spill.status).toBe(409);
+    expect(spill.body.error.code).toBe('override_overlap');
     expect((await post({ date: day, type: 'add', start: '02:00', end: '05:00' }, a.token, v1, t3)).status).toBe(201);
 
+    // 16:00-22:00 daily: 23:00-17:00 reaches Saturday's 16:00 slot.
     const long = await post({ date: day, type: 'add', start: '23:00', end: '17:00' });
-    expect(long.status).toBe(400);
-    expect(long.body.error.code).toBe('validation_error');
+    expect(long.status).toBe(409);
+    expect(long.body.error.code).toBe('override_overlap');
+    expect((await post({ date: day, type: 'add', start: '23:00', end: '01:00' })).status).toBe(201);
+    const sat = await post({ date: '2026-10-31', type: 'add', start: '00:30', end: '01:30' });
+    expect(sat.status).toBe(409);
+    expect(sat.body.error.code).toBe('override_overlap');
+    // The same pair with recurrences: a Saturday recurrence meets the Friday one a day later.
+    const fri = { recurrence: { weekdays: ['fri'], from: '2026-11-01' }, type: 'add', start: '23:00', end: '01:00' };
+    expect((await post(fri)).status).toBe(201);
+    const satRec = await post({ recurrence: { weekdays: ['sat'], from: '2026-11-07' }, type: 'add', start: '00:30', end: '01:30' });
+    expect(satRec.status).toBe(409);
+    // Ending before the Friday recurrence starts, it never follows one.
+    const before = { weekdays: ['sat'], from: '2026-10-01', until: '2026-10-24' };
+    expect((await post({ recurrence: before, type: 'add', start: '00:30', end: '01:30' })).status).toBe(201);
+  });
+
+  it('blocks have no bound or overlap check', async () => {
     const block = await post({ recurrence: { weekdays: ['fri'], from: '2026-10-01' }, type: 'block', start: '23:00', end: '17:00' });
-    expect(block.status).toBe(400);
+    expect(block.status).toBe(201);
   });
 
   it('validation', async () => {

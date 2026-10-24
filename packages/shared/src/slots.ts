@@ -60,13 +60,14 @@ export function generatedRanges(hours: DayHours, slotLengthMin: number): [number
 }
 
 /**
- * An override range on the business day's timeline: a start before opening time is after
- * midnight (so 01:00 on a 16:00-02:00 night is minute 1500). Closed hours anchor at 00:00.
+ * An override range on the business day's timeline. Times are on that calendar day, except that
+ * on a night session (close <= open) a start before close is after midnight, so 01:00 on a
+ * 16:00-02:00 night is minute 1500 while 02:00 or 08:00 is that morning.
  */
 export function overrideMinutes(range: TimeRange, hours: DayHours): [number, number] {
-  const anchor = hours === 'closed' ? 0 : hmToMin(hours.open);
   const [rs, re] = rangeMinutes(range);
-  const s = rs < anchor ? rs + 1440 : rs;
+  const night = hours !== 'closed' && hmToMin(hours.close) <= hmToMin(hours.open);
+  const s = night && rs < hmToMin(hours.close) ? rs + 1440 : rs;
   return [s, s + (re - rs)];
 }
 
@@ -116,10 +117,11 @@ export function computeSlots(input: {
   };
 
   // 2. Modifies, then adds, in input order; one overlapping an extra already kept is dropped,
-  // so the output never overlaps. A kept modify replaces its first matching generated slot.
+  // so the output never overlaps. So is one with endAt <= startAt (its start fell in a
+  // spring-forward gap). A kept modify replaces its first matching generated slot.
   const extra: Draft[] = [];
   const keep = (d: Draft) => {
-    if (extra.some((x) => overlaps(x, d))) return false;
+    if (d.endAt <= d.startAt || extra.some((x) => overlaps(x, d))) return false;
     extra.push(d);
     return true;
   };

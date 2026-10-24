@@ -226,6 +226,11 @@ describe('overrideMinutes', () => {
     expect(overrideMinutes({ start: '17:00', end: '18:30' }, night)).toEqual([1020, 1110]);
     expect(overrideMinutes({ start: '00:30', end: '01:30' }, 'closed')).toEqual([30, 90]);
     expect(overrideMinutes({ start: '23:30', end: '00:30' }, { open: '08:00', close: '22:00' })).toEqual([1410, 1470]);
+    // Only a night session pulls times before its close past midnight; otherwise times are that calendar day.
+    expect(overrideMinutes({ start: '08:00', end: '09:00' }, { open: '10:00', close: '12:00' })).toEqual([480, 540]);
+    expect(overrideMinutes({ start: '02:00', end: '03:00' }, night)).toEqual([120, 180]);
+    expect(overrideMinutes({ start: '05:00', end: '07:00' }, { open: '06:00', close: '06:00' })).toEqual([1740, 1860]);
+    expect(overrideMinutes({ start: '01:00', end: '01:00' }, 'closed')).toEqual([60, 1500]);
   });
 });
 
@@ -252,18 +257,58 @@ describe('computeSlots past-midnight overrides', () => {
     expect(r.slots.filter((s) => s.status === 'blocked').map((s) => s.localStart)).toEqual(['23:00', '00:00']);
   });
 
-  it('add after close lands after midnight of the business night', () => {
+  it('an add at or after close of a night session is that calendar morning', () => {
     const r = computeSlots(input({ overrides: [{ type: 'add', start: '02:00', end: '03:00' }] }));
-    expect(iso(r).at(-1)).toEqual(['2026-10-30T20:00:00.000Z', 'add', 'available']);
+    expect(iso(r)[0]).toEqual(['2026-10-29T20:00:00.000Z', 'add', 'available']);
   });
 
-  it('a past-midnight add is priced by its business-day minute', () => {
+  it('an add after close of a day session wraps past midnight and is priced by its business-day minute', () => {
     const r = computeSlots(
-      input({ hours: { open: '16:00', close: '20:00' }, overrides: [{ type: 'add', start: '01:00', end: '02:00' }] }),
+      input({ hours: { open: '16:00', close: '20:00' }, overrides: [{ type: 'add', start: '23:00', end: '01:00' }] }),
     );
     const add = r.slots.find((s) => s.source === 'add')!;
-    expect(add.startAt.toISOString()).toBe('2026-10-30T19:00:00.000Z');
+    expect(add.startAt.toISOString()).toBe('2026-10-30T17:00:00.000Z');
+    expect(add.endAt.toISOString()).toBe('2026-10-30T19:00:00.000Z');
     expect(add.price).toBe(1200);
+  });
+
+  it('an early add on a day session is that morning, listed in that day', () => {
+    const r = computeSlots(
+      input({
+        businessDate: '2026-10-27',
+        hours: { open: '10:00', close: '12:00' },
+        overrides: [{ type: 'add', start: '08:00', end: '09:00' }],
+      }),
+    );
+    expect(r.businessDate).toBe('2026-10-27');
+    expect(iso(r)[0]).toEqual(['2026-10-27T02:00:00.000Z', 'add', 'available']);
+  });
+
+  it('a block before opening blocks the slots it reaches', () => {
+    const r = computeSlots(
+      input({ hours: { open: '10:00', close: '13:00' }, overrides: [{ type: 'block', start: '09:00', end: '11:00' }] }),
+    );
+    expect(r.slots.filter((s) => s.status === 'blocked').map((s) => s.localStart)).toEqual(['10:00']);
+  });
+
+  it('a block 00:00-02:00 on a night session blocks the 00:00 and 01:00 slots', () => {
+    const r = computeSlots(input({ overrides: [{ type: 'block', start: '00:00', end: '02:00' }] }));
+    expect(r.slots.filter((s) => s.status === 'blocked').map((s) => s.localStart)).toEqual(['00:00', '01:00']);
+  });
+
+  it('spring-forward: an add in the skipped hour gives no inverted slot', () => {
+    for (const close of ['01:00', '02:00']) {
+      const r = computeSlots(
+        input({
+          timezone: 'Europe/London',
+          businessDate: '2026-03-28',
+          hours: { open: '16:00', close },
+          overrides: [{ type: 'add', start: '01:30', end: '02:00' }],
+        }),
+      );
+      expect(r.slots.length).toBeGreaterThan(0);
+      expect(r.slots.every((s) => s.endAt > s.startAt), close).toBe(true);
+    }
   });
 
   it('never returns overlapping slots: the first of two overlapping adds wins', () => {

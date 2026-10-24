@@ -5,7 +5,12 @@ import { effectiveForTurf } from '../venues/effective';
 import { closureFor } from './closure.model';
 import { overridesFor } from './slotOverride.model';
 
-/** One business day of a turf: effective settings, closure, overrides, then computeSlots. Plan 07 adds `taken`. */
+/**
+ * One business day of a turf: effective settings, closure, overrides, then computeSlots. The day
+ * before is computed too, and its slots win: a slot of this day overlapping one of the day before
+ * (a night session or extra running past midnight) is dropped, so no instant is offered twice.
+ * Plan 07 adds `taken`.
+ */
 export async function loadDay(
   ownerId: string,
   venue: VenueDoc,
@@ -13,15 +18,31 @@ export async function loadDay(
   businessDate: string,
   now: Date,
 ): Promise<{ day: DaySlots; settings: EffectiveSettings }> {
+  const settings = await effectiveForTurf(ownerId, venue, turf);
+  const [day, before] = await Promise.all([
+    computeDay(ownerId, venue, turf, settings, businessDate, now),
+    computeDay(ownerId, venue, turf, settings, addDays(businessDate, -1), now),
+  ]);
+  const slots = day.slots.filter((s) => !before.slots.some((b) => s.startAt < b.endAt && b.startAt < s.endAt));
+  return { day: { ...day, slots }, settings };
+}
+
+async function computeDay(
+  ownerId: string,
+  venue: VenueDoc,
+  turf: TurfDoc,
+  settings: EffectiveSettings,
+  businessDate: string,
+  now: Date,
+): Promise<DaySlots> {
   const venueId = venue.id as string;
   const turfId = turf.id as string;
-  const settings = await effectiveForTurf(ownerId, venue, turf);
   const weekday = weekdayOf(businessDate);
   const [closure, overrides] = await Promise.all([
     closureFor(ownerId, venueId, turfId, businessDate),
     overridesFor(ownerId, turfId, businessDate),
   ]);
-  const day = computeSlots({
+  return computeSlots({
     businessDate,
     timezone: venue.timezone,
     hours: settings.hours[weekday],
@@ -32,7 +53,6 @@ export async function loadDay(
     closure,
     now,
   });
-  return { day, settings };
 }
 
 /** localToday - 1 <= d <= localToday + bookingWindowDays; the -1 keeps last night's past-midnight session bookable. */

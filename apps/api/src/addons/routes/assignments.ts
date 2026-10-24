@@ -42,6 +42,9 @@ export function assignmentsRouter(services: AppServices): Router {
       const now = services.now();
       await lockAddon(t, addonId, now, session);
       const addon = (await Addon.findOne({ ownerId: t.ownerId, _id: addonId }).session(session))!;
+      if (addon.autoApply && stock !== null) {
+        throw new AppError(400, 'validation_error', 'Auto-apply add-ons have unlimited stock');
+      }
       if (input.enabled) {
         const venueLevel =
           tg.turfId === null

@@ -60,11 +60,19 @@ export function catalogueRouter(services: AppServices): Router {
         const now = services.now();
         await lockAddon(t, addonId, now, session);
         const current = (await Addon.findOne({ ownerId: t.ownerId, _id: addonId }).session(session))!;
+        const autoApply = patch.autoApply !== undefined ? patch.autoApply : current.autoApply ?? null;
         addonMergedSchema.parse({
           pricingType: patch.pricingType ?? current.pricingType,
           stock: patch.stock !== undefined ? patch.stock : current.stock ?? null,
-          autoApply: patch.autoApply !== undefined ? patch.autoApply : current.autoApply ?? null,
+          autoApply,
         });
+        if (autoApply && (await AddonAssignment.exists({ ownerId: t.ownerId, addonId, stock: { $ne: null } }).session(session))) {
+          throw new AppError(
+            400,
+            'validation_error',
+            'Remove the stock limits set for venues and turfs before turning on auto-apply',
+          );
+        }
         const before = addonJson(current) as Record<string, unknown>;
         current.set(patch);
         await current.save({ session });

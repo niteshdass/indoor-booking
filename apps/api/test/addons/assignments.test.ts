@@ -167,6 +167,16 @@ describe('assignment writes', () => {
     expect(again.body.error.message).toBe('Assignment not found');
   });
 
+  it('refuses a stock limit on an auto-apply add-on', async () => {
+    const id = await mk({ ...towel, autoApply: { outdoorOnly: false } });
+    const res = await putV(v1, id, { enabled: true, stock: 2 });
+    expect(res.status, JSON.stringify(res.body)).toBe(400);
+    expect(res.body.error.code).toBe('validation_error');
+    expect(await AddonAssignment.countDocuments({ ownerId: a.ownerId, addonId: id })).toBe(0);
+    const ok = await putV(v1, id, { enabled: true, stock: null });
+    expect(ok.status, JSON.stringify(ok.body)).toBe(200);
+  });
+
   it('GET lists venue and turf assignments', async () => {
     const id = await mk(towel);
     await putV(v1, id, { enabled: true });

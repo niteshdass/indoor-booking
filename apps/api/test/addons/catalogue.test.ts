@@ -11,11 +11,12 @@ import { Membership } from '../../src/tenancy/membership.model';
 import { ActivityLog } from '../../src/tenancy/activityLog.model';
 import { Venue } from '../../src/venues/venue.model';
 import { Addon } from '../../src/addons/addon.model';
+import { AddonAssignment } from '../../src/addons/assignment.model';
 
 beforeAll(async () => {
   await startTestDb();
   await Promise.all([
-    User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Addon.init(),
+    User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Addon.init(), AddonAssignment.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -32,6 +33,7 @@ beforeEach(async () => {
     ActivityLog.deleteMany({}).setOptions({ crossTenant: true }),
     Venue.deleteMany({}).setOptions({ crossTenant: true }),
     Addon.deleteMany({}).setOptions({ crossTenant: true }),
+    AddonAssignment.deleteMany({}).setOptions({ crossTenant: true }),
   ]);
   ctx = buildTestApp();
   a = await seedOwner(ctx.services);
@@ -106,6 +108,20 @@ describe('add-on catalogue', () => {
     const empty = await patch(id, {});
     expect(empty.status).toBe(400);
     expect(empty.body.error.code).toBe('validation_error');
+  });
+
+  it('refuses auto-apply while venues limit stock', async () => {
+    const id = (await post(towel)).body.addon.id as string;
+    const putVenue = (body: object) =>
+      api().put(`${base()}/${id}`.replace('/addons/', `/venues/${v1}/addons/`)).set(...bearer(a.token)).send(body);
+    expect((await putVenue({ enabled: true, stock: 2 })).status).toBe(200);
+    const auto = { autoApply: { outdoorOnly: true } };
+    const res = await patch(id, auto);
+    expect(res.status, JSON.stringify(res.body)).toBe(400);
+    expect(res.body.error.code).toBe('validation_error');
+    expect((await list()).body.addons[0].autoApply).toBeNull();
+    expect((await putVenue({ enabled: true, stock: null })).status).toBe(200);
+    expect((await patch(id, auto)).status).toBe(200);
   });
 
   it('name is unique per owner, case-insensitive', async () => {

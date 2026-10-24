@@ -52,6 +52,27 @@ describe('notification templates', () => {
     expect(renderNotice('booking_rejected', 'en', { ...data, reason: 'Pitch flooded' }, appUrl).text).toContain('Pitch flooded');
   });
 
+  it('an auto-reject says the venue did not confirm in time, with no reason line', () => {
+    const auto = { ...data, autoRejected: true };
+    const en = renderNotice('booking_rejected', 'en', auto, appUrl);
+    expect(en.text).toContain('The venue did not confirm your request in time.');
+    for (const s of [en.subject, en.text, en.sms]) expect(s).not.toMatch(/declined/i);
+    expect(en.text).not.toContain('Reason');
+    expect(renderNotice('booking_rejected', 'ru', auto, appUrl).text).toContain('Площадка не подтвердила заявку вовремя.');
+  });
+
+  it('a ru auto-reject has no Latin text besides the reference and link', () => {
+    // Venue and turf names are the owner's own text; give them Russian ones here.
+    const auto = { ...data, venueName: 'Арена', turfName: 'Корт 1', autoRejected: true };
+    const ru = renderNotice('booking_rejected', 'ru', auto, appUrl);
+    for (const s of [ru.subject, ru.text, ru.sms]) {
+      const rest = s.replaceAll(`${appUrl}/b/${data.reference}`, '').replaceAll(data.reference, '');
+      expect(rest).not.toMatch(/[A-Za-z]/);
+    }
+    expect(ru.text).not.toContain('Причина');
+    expect(ru.text).not.toContain('отклонила');
+  });
+
   it('staff notice links to the dashboard, others to the booking page', () => {
     expect(renderNotice('staff_new_pending', 'en', data, appUrl).text).toContain('https://app.test/dashboard/bookings/b1');
     expect(renderNotice('booking_confirmed', 'en', data, appUrl).text).toContain('https://app.test/b/BK7Q2M');

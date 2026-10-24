@@ -214,7 +214,9 @@ describe('autoRejectPending', () => {
     const rejected = await notices('booking_rejected');
     expect(rejected).toHaveLength(1);
     expect(String(rejected[0]!.bookingId)).toBe(booking.id);
-    expect(rejected[0]!.data).toMatchObject({ reason: 'Not confirmed in time' });
+    // The notice carries a flag the template localizes, not the staff-facing English reason.
+    expect(rejected[0]!.data).toMatchObject({ autoRejected: true });
+    expect(rejected[0]!.data).not.toHaveProperty('reason');
     const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'booking.rejected' }).lean();
     expect(logs).toHaveLength(1);
     expect(logs[0]!.actorId).toBeNull();

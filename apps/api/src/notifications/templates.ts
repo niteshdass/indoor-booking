@@ -25,6 +25,8 @@ export type NoticeData = {
   /** Refund amount for refund_issued, or the amount being refunded for booking_cancelled (0 or absent: no refund line). */
   amount?: number;
   reason?: string | null;
+  /** booking_rejected by the auto-reject sweep, not by staff: the template words it itself and shows no reason. */
+  autoRejected?: boolean;
   customerName?: string;
   holdExpiresAt?: string;
 };
@@ -70,18 +72,32 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
     }),
   },
   booking_rejected: {
-    en: ({ d }) => ({
-      subject: `Booking declined (${d.reference})`,
-      lead: 'Sorry, the venue declined your booking request.',
-      extra: d.reason ? `Reason: ${d.reason}` : undefined,
-      sms: `Booking declined by the venue. ${d.reference}`,
-    }),
-    ru: ({ d }) => ({
-      subject: `Бронирование отклонено (${d.reference})`,
-      lead: 'К сожалению, площадка отклонила вашу заявку на бронирование.',
-      extra: d.reason ? `Причина: ${d.reason}` : undefined,
-      sms: `Площадка отклонила бронирование. ${d.reference}`,
-    }),
+    en: ({ d }) =>
+      d.autoRejected
+        ? {
+            subject: `Booking request not confirmed (${d.reference})`,
+            lead: 'The venue did not confirm your request in time.',
+            sms: `The venue did not confirm your request in time. ${d.reference}`,
+          }
+        : {
+            subject: `Booking declined (${d.reference})`,
+            lead: 'Sorry, the venue declined your booking request.',
+            extra: d.reason ? `Reason: ${d.reason}` : undefined,
+            sms: `Booking declined by the venue. ${d.reference}`,
+          },
+    ru: ({ d }) =>
+      d.autoRejected
+        ? {
+            subject: `Заявка на бронирование не подтверждена (${d.reference})`,
+            lead: 'Площадка не подтвердила заявку вовремя.',
+            sms: `Площадка не подтвердила заявку вовремя. ${d.reference}`,
+          }
+        : {
+            subject: `Бронирование отклонено (${d.reference})`,
+            lead: 'К сожалению, площадка отклонила вашу заявку на бронирование.',
+            extra: d.reason ? `Причина: ${d.reason}` : undefined,
+            sms: `Площадка отклонила бронирование. ${d.reference}`,
+          },
   },
   booking_cancelled: {
     en: ({ d, money }) => ({

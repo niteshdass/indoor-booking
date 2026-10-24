@@ -13,6 +13,7 @@ export const SWEEP_BATCH = 200;
 export const sweepConfig = { batch: SWEEP_BATCH };
 export const REMINDER_LEAD_MINUTES = 120;
 export const HOLD_WARNING_MINUTES = 10;
+/** Stored on the booking for staff; the customer's notice is worded by its template, per locale. */
 const AUTO_REJECT_REASON = 'Not confirmed in time';
 /** pendingAutoRejectHours is at most 72, so nothing starting later can be due. */
 const AUTO_REJECT_MAX_HOURS = 72;
@@ -106,7 +107,7 @@ export async function autoRejectPending(now: Date): Promise<number> {
     'startAt',
     async (b, session) => {
       const moved = await transition(system(b), b, 'rejected', now, session, { rejectReason: AUTO_REJECT_REASON });
-      await noticeBooking('booking_rejected', moved, now, session, { reason: AUTO_REJECT_REASON });
+      await noticeBooking('booking_rejected', moved, now, session, { autoRejected: true });
       return true;
     },
     due,

@@ -58,7 +58,7 @@ export async function noticeBooking(
   booking: BookingDoc,
   now: Date,
   session: ClientSession,
-  extra: { amount?: number; reason?: string | null; refundId?: string } = {},
+  extra: { amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string } = {},
 ): Promise<number> {
   const ownerId = String(booking.ownerId);
   // One at a time: a transaction session cannot run operations in parallel.
@@ -79,6 +79,7 @@ export async function noticeBooking(
     currency: booking.currency,
     ...(extra.amount === undefined ? {} : { amount: extra.amount }),
     ...(extra.reason === undefined ? {} : { reason: extra.reason }),
+    ...(extra.autoRejected ? { autoRejected: true } : {}),
     customerName: booking.guest?.name ?? player?.name ?? undefined,
     ...(booking.holdExpiresAt ? { holdExpiresAt: booking.holdExpiresAt.toISOString() } : {}),
   };

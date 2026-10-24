@@ -21,11 +21,13 @@ export type CancelDialogProps = {
   onCancelled(b: BookingJson, refunds: RefundJson[]): void;
   /** Extra fields shown above the buttons (the guest flow puts its OTP field here). */
   extra?: ReactNode;
+  /** False blocks the confirm button (the guest flow waits for its OTP). */
+  canConfirm?: boolean;
 };
 
 type Load = { status: 'loading' } | { status: 'ready'; preview: CancellationPreview } | { status: 'error'; error: unknown };
 
-export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, extra }: CancelDialogProps) {
+export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, extra, canConfirm: allowed = true }: CancelDialogProps) {
   const { t, i18n } = useTranslation();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [reason, setReason] = useState('');
@@ -33,11 +35,15 @@ export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, 
   const [submitError, setSubmitError] = useState<unknown>(null);
   const busy = useRef(false);
   const reasonId = useId();
+  const counterId = `${reasonId}-count`;
   const loader = useRef(loadPreview);
   loader.current = loadPreview;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setLoad({ status: 'loading' });
+      return;
+    }
     let live = true;
     setLoad({ status: 'loading' });
     setSubmitError(null);
@@ -72,7 +78,7 @@ export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, 
   const canConfirm = load.status === 'ready' && !FINAL_ERRORS.has(errorCode(submitError));
 
   return (
-    <Dialog open={open} onClose={onClose} title={t('cancel.title')}>
+    <Dialog open={open} onClose={() => !busy.current && onClose()} title={t('cancel.title')}>
       {open && (
         <div className={styles.body}>
           {load.status === 'loading' && (
@@ -93,9 +99,10 @@ export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, 
                   className={styles.textarea}
                   maxLength={REASON_MAX}
                   value={reason}
+                  aria-describedby={counterId}
                   onChange={(e) => setReason(e.target.value)}
                 />
-                <span className={styles.counter}>
+                <span id={counterId} className={styles.counter}>
                   {reason.length} / {REASON_MAX}
                 </span>
               </div>
@@ -104,11 +111,11 @@ export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, 
           )}
           {submitError !== null && <Alert tone="danger">{errorMessage(submitError, t)}</Alert>}
           <div className={styles.actions}>
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" disabled={submitting} onClick={onClose}>
               {t('cancel.keep')}
             </Button>
             {canConfirm && (
-              <Button variant="danger" loading={submitting} disabled={submitting} onClick={() => void confirm()}>
+              <Button variant="danger" loading={submitting} disabled={submitting || !allowed} onClick={() => void confirm()}>
                 {t('cancel.confirm')}
               </Button>
             )}
@@ -123,6 +130,7 @@ function PreviewBody({ preview, lang }: { preview: CancellationPreview; lang: st
   const { t } = useTranslation();
   const fmt = (n: number) => money(n, preview.currency, lang);
   const paid = preview.amountPaid - preview.amountRefunded;
+  if (paid <= 0) return <p className={styles.note}>{t('cancel.nothingPaid')}</p>;
   return (
     <>
       <dl className={styles.rows}>

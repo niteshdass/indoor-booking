@@ -361,6 +361,7 @@
       "pending": "Pending",
       "succeeded": "Refunded",
       "failed": "Failed"
-    }
+    },
+    "nothingPaid": "Nothing has been paid yet, so there is nothing to refund."
   }
 }

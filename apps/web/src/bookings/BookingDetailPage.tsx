@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
@@ -36,6 +36,8 @@ export function BookingDetailPage() {
   const [epoch, setEpoch] = useState(0);
   const [refunds, setRefunds] = useState<RefundJson[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const [cancelledAt, setCancelledAt] = useState(0);
   const path = `/me/bookings/${encodeURIComponent(id)}`;
 
   useEffect(() => {
@@ -85,6 +87,10 @@ export function BookingDetailPage() {
     };
   }, [polling, epoch, path]);
 
+  useEffect(() => {
+    if (cancelledAt > 0) headingRef.current?.focus();
+  }, [cancelledAt]);
+
   const refresh = useCallback(() => {
     setSlow(false);
     setEpoch((n) => n + 1);
@@ -96,7 +102,7 @@ export function BookingDetailPage() {
 
   return (
     <main className={styles.page}>
-      <h1 className={[styles.title, isNew || paid ? styles.success : ''].filter(Boolean).join(' ')}>{heading}</h1>
+      <h1 ref={headingRef} tabIndex={-1} className={[styles.title, isNew || paid ? styles.success : ''].filter(Boolean).join(' ')}>{heading}</h1>
       {state.status === 'loading' && (
         <div className={styles.loading}>
           <Spinner label={t('common.loading')} />
@@ -162,6 +168,7 @@ export function BookingDetailPage() {
                   setState({ status: 'ready', booking: b });
                   setRefunds(rs);
                   setCancelOpen(false);
+                  setCancelledAt((n) => n + 1);
                 }}
               />
             </>

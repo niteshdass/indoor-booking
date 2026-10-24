@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { CancelDialog } from '../../src/bookings/CancelDialog';
 import i18n from '../../src/i18n';
 import en from '../../src/i18n/locales/en.json';
 import { mockApi } from '../helpers/api';
@@ -160,5 +162,68 @@ describe('cancel dialog', () => {
     await user.click(within(dialog).getByRole('button', { name: en.cancel.keep }));
     expect(m.calls.some((c) => c.method === 'POST')).toBe(false);
     expect(dialog).not.toHaveAttribute('open');
+  });
+
+  it('nothing paid shows only a short note', async () => {
+    setup({ preview: { preview: preview({ percent: 0, amount: 0, rule: null, amountPaid: 0, card: 0, cash: 0 }) } });
+    const { dialog } = await openDialog();
+    expect(await within(dialog).findByText(en.cancel.nothingPaid)).toBeInTheDocument();
+    expect(within(dialog).queryByText(en.cancel.noRefund)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(en.cancel.noRule)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(en.cancel.paid)).not.toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: en.cancel.confirm })).toBeInTheDocument();
+  });
+
+  it('paid so far subtracts earlier refunds', async () => {
+    setup({ preview: { preview: preview({ amountRefunded: 200, amount: 475, card: 475 }) } });
+    const { dialog } = await openDialog();
+    expect(await within(dialog).findByText(sp(money(950, 'BDT', 'en')))).toBeInTheDocument();
+    expect(within(dialog).queryByText(sp(money(1150, 'BDT', 'en')))).not.toBeInTheDocument();
+  });
+
+  it('focus moves to the heading after cancelling', async () => {
+    setup();
+    const { dialog, user } = await openDialog();
+    await within(dialog).findByText(sp(money(575, 'BDT', 'en')));
+    await user.click(within(dialog).getByRole('button', { name: en.cancel.confirm }));
+    await screen.findByText(en.status.cancelled);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
+  });
+});
+
+describe('cancel dialog (standalone)', () => {
+  const base = () => ({
+    open: true,
+    onClose: vi.fn(),
+    loadPreview: () => Promise.resolve(preview()),
+    onCancelled: vi.fn(),
+  });
+
+  it('ignores Escape and Keep while submitting', async () => {
+    let resolve!: (v: { booking: BookingJson; refunds: [] }) => void;
+    const cancel = vi.fn(() => new Promise<{ booking: BookingJson; refunds: [] }>((r) => (resolve = r)));
+    const props = base();
+    const user = userEvent.setup();
+    render(<CancelDialog {...props} cancel={cancel} />);
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(sp(money(575, 'BDT', 'en')));
+    await user.click(within(dialog).getByRole('button', { name: en.cancel.confirm }));
+    expect(cancel).toHaveBeenCalledTimes(1);
+    await user.keyboard('{Escape}');
+    expect(props.onClose).not.toHaveBeenCalled();
+    expect(within(dialog).getByRole('button', { name: en.cancel.keep })).toBeDisabled();
+    resolve({ booking: booking({ status: 'cancelled' }), refunds: [] });
+    await vi.waitFor(() => expect(props.onCancelled).toHaveBeenCalled());
+  });
+
+  it('canConfirm false disables confirm; counter is described', async () => {
+    const props = base();
+    render(<CancelDialog {...props} cancel={vi.fn()} canConfirm={false} />);
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(sp(money(575, 'BDT', 'en')));
+    expect(within(dialog).getByRole('button', { name: en.cancel.confirm })).toBeDisabled();
+    const ta = within(dialog).getByRole('textbox');
+    const id = ta.getAttribute('aria-describedby')!;
+    expect(document.getElementById(id)).toHaveTextContent('0 / 300');
   });
 });

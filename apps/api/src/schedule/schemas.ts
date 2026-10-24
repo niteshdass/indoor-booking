@@ -7,7 +7,7 @@ export { timeSchema };
 /** A real calendar date, YYYY-MM-DD. */
 export const isoDateSchema = z.string().refine(isIsoDate, 'Use a real date as YYYY-MM-DD');
 
-const minorSchema = z
+export const minorSchema = z
   .number()
   .int()
   .min(0)

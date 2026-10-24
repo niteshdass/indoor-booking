@@ -17,6 +17,8 @@ import { publicVenueBySlug } from '../../venues/routes/public';
 import { Turf } from '../../venues/turf.model';
 import { Booking, bookingJson } from '../booking.model';
 import { createBooking, quoteFor } from '../create';
+import { startIntent } from '../../payments/intent';
+import { invalidTransition } from '../transition';
 
 export const startAtsSchema = z
   .array(z.string().datetime({ offset: true }))
@@ -179,6 +181,27 @@ export function publicBookingsRouter(
       : null;
     if (!booking) throw bookingNotFound();
     res.json({ booking: bookingJson(booking) });
+  });
+
+  router.post('/bookings/:bookingId/payment', requireAuth(config, services), async (req, res) => {
+    const { bookingId } = req.params;
+    const booking = mongoose.isValidObjectId(bookingId)
+      ? await Booking.findOne({ _id: bookingId, playerId: req.auth!.userId }).setOptions({ crossTenant: true })
+      : null;
+    if (!booking) throw bookingNotFound();
+    if (booking.status !== 'awaiting_payment') throw invalidTransition(booking.status);
+    const { payment, clientSecret, publishableKey } = await startIntent(booking, { config, services });
+    res.json({
+      payment: {
+        id: String(payment._id),
+        amount: payment.amount,
+        currency: payment.currency,
+        gateway: 'stripe',
+        clientSecret,
+        publishableKey,
+      },
+      holdExpiresAt: booking.holdExpiresAt!.toISOString(),
+    });
   });
 
   return router;

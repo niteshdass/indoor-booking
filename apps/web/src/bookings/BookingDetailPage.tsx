@@ -29,6 +29,9 @@ export function BookingDetailPage() {
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const paid = params.get('paid') === '1';
+  // Stripe appends redirect_status to the return URL; a declined/cancelled redirect method comes back as failed.
+  const redirectStatus = params.get('redirect_status');
+  const redirectFailed = paid && redirectStatus !== null && redirectStatus !== 'succeeded' && redirectStatus !== 'processing';
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [slow, setSlow] = useState(false);
@@ -56,7 +59,7 @@ export function BookingDetailPage() {
   }, [path, attempt]);
 
   const booking = state.status === 'ready' ? state.booking : null;
-  const polling = paid && booking?.status === 'awaiting_payment' && !slow;
+  const polling = paid && !redirectFailed && booking?.status === 'awaiting_payment' && !slow;
 
   useEffect(() => {
     if (!polling) return;
@@ -97,11 +100,15 @@ export function BookingDetailPage() {
 
   if (state.status === 'not_found') return <NotFoundPage />;
 
-  const heading = isNew ? t('booking.received') : paid ? t('booking.paymentReceived') : t('booking.title');
+  const holdLive = !booking?.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();
+  const showPayNow = booking?.status === 'awaiting_payment' && holdLive && (!paid || redirectFailed || slow);
+  const received =
+    paid && !redirectFailed && !!booking && (booking.status === 'pending' || booking.status === 'confirmed' || polling);
+  const heading = isNew ? t('booking.received') : received ? t('booking.paymentReceived') : t('booking.title');
 
   return (
     <main className={styles.page}>
-      <h1 ref={headingRef} tabIndex={-1} className={[styles.title, isNew || paid ? styles.success : ''].filter(Boolean).join(' ')}>{heading}</h1>
+      <h1 ref={headingRef} tabIndex={-1} className={[styles.title, isNew || received ? styles.success : ''].filter(Boolean).join(' ')}>{heading}</h1>
       {state.status === 'loading' && (
         <div className={styles.loading}>
           <Spinner label={t('common.loading')} />
@@ -117,13 +124,18 @@ export function BookingDetailPage() {
       )}
       {booking && (
         <>
+          {redirectFailed && booking.status === 'awaiting_payment' && (
+            <Alert tone="danger" className={styles.alert}>
+              <span>{t('payment.redirectFailed')}</span>
+            </Alert>
+          )}
           {polling && (
             <Alert tone="info" className={styles.alert}>
               <Spinner label={t('common.loading')} />
               <span>{t('booking.processing')}</span>
             </Alert>
           )}
-          {paid && slow && booking.status === 'awaiting_payment' && (
+          {paid && !redirectFailed && slow && booking.status === 'awaiting_payment' && (
             <Alert tone="warning" className={styles.alert}>
               <span>{t('booking.processingSlow')}</span>
               <Button size="sm" variant="secondary" onClick={refresh}>
@@ -132,7 +144,7 @@ export function BookingDetailPage() {
             </Alert>
           )}
           <BookingFacts booking={booking} />
-          {booking.status === 'awaiting_payment' && !paid && (
+          {showPayNow && (
             <Button to={`${path}/pay`} variant="brand" size="lg" block>
               {t('booking.payNow')}
             </Button>

@@ -116,6 +116,51 @@ describe('booking detail', () => {
     expect(m.calls.length).toBeGreaterThan(n);
   });
 
+  it('failed Stripe redirect shows an error, Pay now, and does not poll', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const m = api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0 }));
+    renderApp('/me/bookings/b1?paid=1&redirect_status=failed', { user: player });
+    expect(await screen.findByText(en.payment.redirectFailed)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.booking.payNow })).toHaveAttribute('href', '/me/bookings/b1/pay');
+    expect(screen.queryByText(en.booking.processing)).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: en.booking.paymentReceived })).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    expect(m.calls).toHaveLength(1);
+  });
+
+  it('canceled Stripe redirect is treated as a failure', async () => {
+    api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0 }));
+    renderApp('/me/bookings/b1?paid=1&redirect_status=canceled', { user: player });
+    expect(await screen.findByText(en.payment.redirectFailed)).toBeInTheDocument();
+  });
+
+  it('redirect_status=succeeded still polls with the received heading', async () => {
+    api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid' }));
+    renderApp('/me/bookings/b1?paid=1&redirect_status=succeeded', { user: player });
+    expect(await screen.findByText(en.booking.processing)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: en.booking.paymentReceived })).toBeInTheDocument();
+    expect(screen.queryByText(en.payment.redirectFailed)).not.toBeInTheDocument();
+  });
+
+  it('expired booking with ?paid=1 does not claim payment was received', async () => {
+    api(() => booking({ status: 'expired', paymentStatus: 'unpaid', amountPaid: 0 }));
+    renderApp('/me/bookings/b1?paid=1', { user: player });
+    expect(await screen.findByText(en.status.expired)).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: en.booking.paymentReceived })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: en.booking.title })).toBeInTheDocument();
+  });
+
+  it('slow polling state still offers Pay now', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid' }));
+    renderApp('/me/bookings/b1?paid=1', { user: player });
+    await screen.findByText(en.booking.processing);
+    expect(screen.queryByRole('link', { name: en.booking.payNow })).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(61_000));
+    expect(screen.getByText(en.booking.processingSlow)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.booking.payNow })).toBeInTheDocument();
+  });
+
   it('russian status labels', async () => {
     await i18n.changeLanguage('ru');
     api(() => booking({ status: 'no_show', paymentStatus: 'partially_refunded', amountRefunded: 500 }));

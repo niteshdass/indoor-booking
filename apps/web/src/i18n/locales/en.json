@@ -295,6 +295,7 @@
     "durationHM": "{{hours}} h {{minutes}} min"
   },
   "payment": {
+    "redirectFailed": "The payment didn't go through. Your slots are still held, so you can try again.",
     "title": "Payment",
     "payNow": "Pay {{amount}} now",
     "pay": "Pay",

@@ -66,6 +66,7 @@ Cool gray light ramp + navy-tinted dark.
 | text-default | #2b303b | #cacfd8 |
 | text-muted | #525866 | #99a0ae |
 | text-subtle | #99a0ae | #717784 |
+| overlay (modal scrim) | rgba(10,13,20,.5) | rgba(0,0,0,.6) |
 | primary / hover / fg | #19283a / #2b3a4d / #fff | #f0f3f5 / #cacfd8 / #0e121b |
 
 Radius: sm 4 (tag, checkbox) · md 8 (button, input, slot cell) · lg 12 (card) · xl 16 (modal) · full (badge, avatar).

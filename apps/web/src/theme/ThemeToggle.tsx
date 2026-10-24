@@ -9,6 +9,7 @@ export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   return (
     <Select
+      size="lg"
       label={t('theme.label')}
       value={theme}
       onChange={(e) => setTheme(e.target.value as Theme)}

@@ -9,8 +9,7 @@
 }
 
 .dialog::backdrop {
-  background: var(--text-strong);
-  opacity: 0.4;
+  background: var(--overlay);
 }
 
 .title {

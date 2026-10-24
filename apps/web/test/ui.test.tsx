@@ -19,10 +19,13 @@ function Harness() {
 }
 
 describe('ui', () => {
-  it('loading button is disabled and shows a spinner', () => {
+  it('loading button is disabled, busy, shows a spinner and ignores clicks', async () => {
     const onClick = vi.fn();
     render(<Button loading onClick={onClick}>Save</Button>);
+    await userEvent.click(screen.getByRole('button'));
+    expect(onClick).not.toHaveBeenCalled();
     expect(screen.getByRole('button')).toBeDisabled();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true');
     expect(screen.getByRole('status')).toBeInTheDocument();
   });
 

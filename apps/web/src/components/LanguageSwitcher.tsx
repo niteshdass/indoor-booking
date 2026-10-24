@@ -6,6 +6,7 @@ export function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
   return (
     <Select
+      size="lg"
       label={t('language.label')}
       value={i18n.language}
       onChange={(e) => void i18n.changeLanguage(e.target.value)}

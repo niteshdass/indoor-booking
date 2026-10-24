@@ -295,12 +295,14 @@ describe('late payment for a lapsed hold', () => {
         // A transaction session cannot run operations in parallel: flag any session query that starts while another is in flight.
         let inFlight = 0;
         let overlaps = 0;
-        const track = <M extends typeof Venue | typeof Turf>(model: M) => {
-          const real = model.findOne.bind(model);
-          return vi.spyOn(model, 'findOne').mockImplementation(((...args: Parameters<M['findOne']>) => {
-            const q = (real as (...a: unknown[]) => ReturnType<M['findOne']>)(...args);
+        type Q = { exec: () => Promise<unknown>; getOptions: () => { session?: unknown } };
+        const track = (model: typeof Venue | typeof Turf) => {
+          const m = model as unknown as { findOne: (...a: unknown[]) => Q };
+          const real = m.findOne.bind(m);
+          return vi.spyOn(m, 'findOne').mockImplementation((...args) => {
+            const q = real(...args);
             const exec = q.exec.bind(q);
-            q.exec = (async () => {
+            q.exec = async () => {
               if (!q.getOptions().session) return exec();
               if (inFlight > 0) overlaps += 1;
               inFlight += 1;
@@ -309,9 +311,9 @@ describe('late payment for a lapsed hold', () => {
               } finally {
                 inFlight -= 1;
               }
-            }) as typeof q.exec;
+            };
             return q;
-          }) as unknown as M['findOne']);
+          });
         };
         const spies = [track(Venue), track(Turf)];
         let called: number[];

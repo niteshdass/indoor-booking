@@ -9,6 +9,7 @@
   font-weight: var(--weight-medium);
   line-height: var(--leading-heading);
   text-align: center;
+  text-decoration: none;
   cursor: pointer;
   padding-inline: var(--space-4);
   padding-block: var(--space-1);

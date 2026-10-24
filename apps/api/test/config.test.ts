@@ -65,4 +65,37 @@ describe('loadConfig', () => {
       expect(loadConfig({ ...base, API_URL: 'https://api.example' }).apiUrl).toBe('https://api.example');
     });
   });
+  describe('notification senders', () => {
+    const base = { MONGODB_URI: 'mongodb://x', JWT_SECRET: 's'.repeat(32) };
+    const email = { SMTP_URL: 'smtp://mail.example:587', EMAIL_FROM: 'no-reply@example.com' };
+    const sms = {
+      TWILIO_ACCOUNT_SID: 'AC1',
+      TWILIO_AUTH_TOKEN: 'tok',
+      TWILIO_FROM: '+15550001111',
+    };
+    it('rejects a partial email group naming the missing key', () => {
+      const env = { ...base, SMTP_URL: email.SMTP_URL };
+      expect(() => loadConfig(env)).toThrow(ConfigError);
+      expect(() => loadConfig(env)).toThrow(/EMAIL_FROM/);
+    });
+    it('rejects a partial sms group naming the missing keys', () => {
+      expect(() => loadConfig({ ...base, TWILIO_ACCOUNT_SID: 'AC1' })).toThrow(/TWILIO_AUTH_TOKEN/);
+    });
+    it('requires both groups in production', () => {
+      const prod = {
+        ...base,
+        NODE_ENV: 'production',
+        PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      };
+      expect(() => loadConfig({ ...prod, ...email })).toThrow(/TWILIO_ACCOUNT_SID/);
+      expect(() => loadConfig({ ...prod, ...sms })).toThrow(/SMTP_URL/);
+      expect(loadConfig({ ...prod, ...email, ...sms }).nodeEnv).toBe('production');
+    });
+    it('parses both groups when set', () => {
+      const c = loadConfig({ ...base, ...email, ...sms });
+      expect(c.email).toEqual({ smtpUrl: 'smtp://mail.example:587', from: 'no-reply@example.com' });
+      expect(c.sms).toEqual({ accountSid: 'AC1', authToken: 'tok', from: '+15550001111' });
+      expect(loadConfig(base).email).toBeUndefined();
+    });
+  });
 });

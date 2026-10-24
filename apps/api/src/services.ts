@@ -1,5 +1,6 @@
 import type { Config } from './config';
 import { createGoogleVerifier } from './auth/google';
+import { smtpEmailSender, twilioSmsSender } from './notifications/senders';
 import { realStripe, type StripeFactory } from './payments/stripe';
 
 export interface SmsSender {
@@ -29,20 +30,24 @@ export type AppServices = {
   stripe: StripeFactory;
 };
 
-/** Console senders until real SMS/email providers arrive (Plan 10). */
+/** Real SMTP/Twilio senders when configured; console senders otherwise (dev and tests). */
 export function defaultServices(config: Config): AppServices {
   return {
     now: () => new Date(),
-    sms: {
-      async send(to, text) {
-        console.log(`[sms] to=${to}: ${text}`);
-      },
-    },
-    email: {
-      async send(msg) {
-        console.log(`[email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
-      },
-    },
+    sms: config.sms
+      ? twilioSmsSender(config.sms)
+      : {
+          async send(to, text) {
+            console.log(`[sms] to=${to}: ${text}`);
+          },
+        },
+    email: config.email
+      ? smtpEmailSender({ url: config.email.smtpUrl, from: config.email.from })
+      : {
+          async send(msg) {
+            console.log(`[email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
+          },
+        },
     google: createGoogleVerifier(config.googleClientId),
     stripe: realStripe,
   };

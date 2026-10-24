@@ -37,7 +37,7 @@ export function AddonPicker({ offered, quoteLines, value, onChange, currency }: 
           return (
             <li key={a.id} className={styles.item}>
               <div className={styles.text}>
-                {a.pricingType === 'per_booking' ? (
+                {a.pricingType !== 'per_unit' ? (
                   <label className={styles.check}>
                     <input type="checkbox" checked={q > 0} onChange={(e) => set(a.id, e.target.checked ? 1 : 0)} />
                     <span className={styles.name}>{a.name}</span>
@@ -48,7 +48,7 @@ export function AddonPicker({ offered, quoteLines, value, onChange, currency }: 
                 <span className={styles.unit}>{unit}</span>
                 {line && <span className={styles.line}>{money(line.total, currency, i18n.language)}</span>}
               </div>
-              {a.pricingType !== 'per_booking' && (
+              {a.pricingType === 'per_unit' && (
                 <div className={styles.stepper} role="group" aria-label={a.name}>
                   <button
                     type="button"

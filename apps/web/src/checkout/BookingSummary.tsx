@@ -1,8 +1,24 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import type { AddonLine } from '@booking/shared';
 import { formatDate, formatTime, money } from '../lib/format';
 import type { PublicTurf, PublicVenue, QuoteJson } from '../lib/types';
 import styles from './BookingSummary.module.css';
+
+function duration(minutes: number, t: TFunction): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return t('checkout.durationM', { minutes: rest });
+  if (rest === 0) return t('checkout.durationH', { hours });
+  return t('checkout.durationHM', { hours, minutes: rest });
+}
+
+function addonLabel(a: AddonLine, t: TFunction): string {
+  if (a.pricingType === 'per_unit') return `${a.name} × ${a.quantity}`;
+  if (a.pricingType === 'per_hour' && a.minutes) return `${a.name} · ${duration(a.minutes, t)}`;
+  return a.name;
+}
 
 type Props = { venue: PublicVenue; turf: PublicTurf; date: string; quote: QuoteJson; busy?: boolean; children?: ReactNode };
 
@@ -33,7 +49,7 @@ export function BookingSummary({ venue, turf, date, quote, busy = false, childre
         {quote.addons.map((a) => (
           <div key={`${a.addonId}-${a.auto}`} className={styles.row}>
             <dt>
-              {a.name} × {a.quantity}
+              {addonLabel(a, t)}
               {a.auto && <span className={styles.auto}>{t('checkout.autoAdded')}</span>}
             </dt>
             <dd>{fmt(a.total)}</dd>

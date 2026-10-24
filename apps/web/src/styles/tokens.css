@@ -46,6 +46,8 @@
   --photo-width: 18rem;
   --side-card-width: 20rem;
   --focus-width: 2px;
+  --opacity-muted: 0.55;
+  --duration-fast: 150ms;
 
   --radius-sm: 4px;
   --radius-md: 8px;

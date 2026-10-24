@@ -36,11 +36,11 @@
   gap: var(--space-2);
   margin: 0;
   font-variant-numeric: tabular-nums;
-  transition: opacity 0.15s;
+  transition: opacity var(--duration-fast);
 }
 
 .busy {
-  opacity: 0.55;
+  opacity: var(--opacity-muted);
 }
 
 .row {

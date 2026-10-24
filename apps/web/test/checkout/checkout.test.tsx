@@ -30,6 +30,7 @@ const PATH = `/venues/arena-one/checkout?turf=t1&date=2026-01-01&slots=${encodeU
 const offered: OfferedAddonJson[] = [
   { id: 'a1', name: 'Shoes', pricingType: 'per_unit', unitPrice: 150, maxQuantity: 3, autoApply: null },
   { id: 'a2', name: 'Ball', pricingType: 'per_booking', unitPrice: 100, maxQuantity: 1, autoApply: null },
+  { id: 'a4', name: 'Racket', pricingType: 'per_hour', unitPrice: 50, maxQuantity: 5, autoApply: null },
   { id: 'a3', name: 'Floodlights', pricingType: 'per_hour', unitPrice: 200, maxQuantity: 1, autoApply: { outdoorOnly: false } },
 ];
 
@@ -236,6 +237,92 @@ describe('CheckoutPage', () => {
     expect(screen.queryByRole('button', { name: en.checkout.book })).not.toBeInTheDocument();
   });
 
+  it('per-hour add-on is a checkbox sending quantity 1, not a stepper', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { calls } = api(() => qr(quote()));
+    const { user } = renderApp(PATH, { user: player });
+    const box = await screen.findByRole('checkbox', { name: /Racket/ });
+    expect(screen.queryByRole('button', { name: 'Increase Racket' })).not.toBeInTheDocument();
+    await user.click(box);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    await waitFor(() => expect(quoteCalls(calls)).toHaveLength(2));
+    expect(quoteCalls(calls).at(-1)!.body).toMatchObject({ addons: [{ addonId: 'a4', quantity: 1 }] });
+  });
+
+  it('sends the first quote immediately, without the debounce', async () => {
+    vi.useFakeTimers();
+    const { calls } = api(() => qr(quote()));
+    renderApp(PATH, { user: player });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(quoteCalls(calls)).toHaveLength(1);
+  });
+
+  it('add-ons fetch failure shows a notice and booking still works', async () => {
+    mockApi([
+      { path: '/venues/arena-one', body: { venue } },
+      { path: '/venues/arena-one/turfs/t1/addons', status: 500, body: { error: { code: 'internal', message: 'x' } } },
+      { method: 'POST', path: '/venues/arena-one/turfs/t1/quote', body: qr(quote()) },
+    ]);
+    renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.checkout.addonsUnavailable)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: en.checkout.book })).toBeInTheDocument();
+  });
+
+  it('disables the CTA while a re-quote is pending', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api(() => qr(quote()));
+    const { user } = renderApp(PATH, { user: player });
+    const book = await screen.findByRole('button', { name: en.checkout.book });
+    await waitFor(() => expect(book).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Increase Shoes' }));
+    expect(screen.getByRole('button', { name: en.checkout.book })).toBeDisabled();
+    expect(screen.getByRole('button', { name: en.checkout.book })).toHaveAttribute('aria-disabled', 'true');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: en.checkout.book })).toBeEnabled());
+  });
+
+  it('signed out, guests disabled, no advance → neutral account message', async () => {
+    api(() => qr(quote({ advanceRequired: 0 }), false));
+    renderApp(PATH);
+    expect(await screen.findByText(en.checkout.accountRequired)).toBeInTheDocument();
+    expect(screen.queryByText(en.checkout.signInRequired)).not.toBeInTheDocument();
+  });
+
+  it('per-hour line shows billed duration; per-booking has no multiplier', async () => {
+    const lines = [
+      { addonId: 'a4', name: 'Racket', pricingType: 'per_hour' as const, unitPrice: 50, quantity: 1, minutes: 90, total: 75, auto: false },
+      { addonId: 'a2', name: 'Ball', pricingType: 'per_booking' as const, unitPrice: 100, quantity: 1, minutes: null, total: 100, auto: false },
+    ];
+    api(() => qr(quote({ addons: lines, addonsTotal: 175, total: 2175 })));
+    renderApp(PATH, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    expect(await within(summary).findByText(/Racket · 1 h 30 min/)).toBeInTheDocument();
+    expect(within(summary).getByText('Ball')).toBeInTheDocument();
+    expect(within(summary).queryByText(/×/)).not.toBeInTheDocument();
+  });
+
+  it('unknown venue shows not found', async () => {
+    mockApi([{ path: '/venues/arena-one', status: 404, body: { error: { code: 'not_found', message: 'x' } } }, { path: /.*/, body: {} }]);
+    renderApp(PATH, { user: player });
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+    expect(screen.queryByRole('region', { name: en.checkout.summary })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: en.checkout.title })).not.toBeInTheDocument();
+  });
+
+  it('invalid_quantity keeps the picker usable', async () => {
+    api(() => ({ status: 422, body: { error: { code: 'invalid_quantity', message: 'x' } } }));
+    renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.errors.invalid_quantity)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Increase Shoes' })).toBeEnabled();
+    expect(screen.queryByRole('link', { name: en.checkout.chooseOtherSlots })).not.toBeInTheDocument();
+  });
+
   it('malformed params → alert', async () => {
     const { unmatched } = api(() => qr(quote()));
     renderApp('/venues/arena-one/checkout?turf=t1&date=nope&slots=x');
@@ -245,6 +332,10 @@ describe('CheckoutPage', () => {
   });
 
   it('has the new strings in ru too', () => {
+    expect(Object.keys(ru.addons).sort()).toEqual(Object.keys(en.addons).sort());
+    for (const k of ['addon_unavailable', 'addon_auto', 'invalid_quantity', 'addon_out_of_stock', 'too_many_slots']) {
+      expect(ru.errors).toHaveProperty(k);
+    }
     const keys = Object.keys(en.checkout).sort();
     expect(Object.keys(ru.checkout).filter((k) => !/_(one|few|many|other)$/.test(k)).sort()).toEqual(keys.filter((k) => !/_(one|few|many|other)$/.test(k)));
   });

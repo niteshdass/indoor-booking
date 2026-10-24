@@ -36,6 +36,7 @@ Map height token: `--map-height` 32rem (results map; same in light and dark).
 Tab underline token: `--tab-underline` 2px (active turf tab underline on the venue page, drawn with `--brand`; not themed).
 Photo strip tokens: `--photo-height` 12rem and `--photo-width` 18rem (venue page photo strip tiles; not themed).
 Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
+Disabled and busy token: `--opacity-muted` 0.55 (disabled buttons, a summary that is re-quoting; not themed). Motion token: `--duration-fast` 150ms (short opacity transitions; not themed).
 
 ## Breakpoints (fixed, mobile-first `min-width`)
 sm 640 · md 768 · lg 1024 · xl 1280. Owner portal sidebar becomes a drawer below lg. Public pages are designed phone-first; mobile apps will reuse the same API later.

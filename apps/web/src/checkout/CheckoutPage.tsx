@@ -39,7 +39,8 @@ export function CheckoutPage() {
   const [offered, setOffered] = useState<OfferedAddonJson[]>([]);
   const [selection, setSelection] = useState<AddonSelection[]>([]);
   const [quote, setQuote] = useState<QuoteState>({ data: null, error: null, busy: true });
-  const first = useRef(true);
+  const quotedKey = useRef<string | null>(null);
+  const [addonsFailed, setAddonsFailed] = useState(false);
 
   const turfId = parsed?.turfId;
   const date = parsed?.date;
@@ -58,8 +59,16 @@ export function CheckoutPage() {
       },
     );
     apiGet<{ addons: OfferedAddonJson[] }>(`${base}/turfs/${encodeURIComponent(turfId)}/addons`).then(
-      (r) => live && setOffered(r.addons),
-      () => live && setOffered([]),
+      (r) => {
+        if (!live) return;
+        setOffered(r.addons);
+        setAddonsFailed(false);
+      },
+      () => {
+        if (!live) return;
+        setOffered([]);
+        setAddonsFailed(true);
+      },
     );
     return () => {
       live = false;
@@ -70,6 +79,7 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!turfId || !date || !startKey) return;
     let live = true;
+    const key = `${turfId}|${date}|${startKey}`;
     setQuote((q) => ({ ...q, busy: true }));
     const body = {
       date,
@@ -78,18 +88,16 @@ export function CheckoutPage() {
     };
     const run = () =>
       apiPost<QuoteResponse>(`/venues/${encodeURIComponent(slug)}/turfs/${encodeURIComponent(turfId)}/quote`, body).then(
-        (data) => live && setQuote({ data, error: null, busy: false }),
+        (data) => {
+          if (!live) return;
+          quotedKey.current = key;
+          setQuote({ data, error: null, busy: false });
+        },
         (error: unknown) =>
           live && setQuote((q) => ({ data: isAddonError(error) ? q.data : null, error, busy: false })),
       );
-    if (first.current) {
-      first.current = false;
-      void run();
-      return () => {
-        live = false;
-      };
-    }
-    const timer = setTimeout(() => void run(), DEBOUNCE_MS);
+    // Debounce only add-on edits; with no quote yet for this key (first mount, remount, new slots) go straight away.
+    const timer = setTimeout(() => void run(), quotedKey.current === key ? DEBOUNCE_MS : 0);
     return () => {
       live = false;
       clearTimeout(timer);
@@ -159,7 +167,7 @@ export function CheckoutPage() {
   if (q && data && !failed) {
     if (auth === 'signedIn') {
       cta = (
-        <Button variant="brand" size="lg" block>
+        <Button variant="brand" size="lg" block disabled={quote.busy} aria-disabled={quote.busy}>
           {q.advanceRequired > 0
             ? t('checkout.bookAndPay', { amount: money(q.advanceRequired, q.currency, i18n.language) })
             : t('checkout.book')}
@@ -175,7 +183,7 @@ export function CheckoutPage() {
         </>
       ) : (
         <>
-          <p className={styles.note}>{t('checkout.signInRequired')}</p>
+          <p className={styles.note}>{q.advanceRequired > 0 ? t('checkout.signInRequired') : t('checkout.accountRequired')}</p>
           <Button to={`/login?next=${next}`} variant="brand" size="lg" block>
             {t('checkout.signIn')}
           </Button>
@@ -202,6 +210,7 @@ export function CheckoutPage() {
       )}
       <div className={styles.layout}>
         <div className={styles.main}>
+          {addonsFailed && <Alert tone="warning">{t('checkout.addonsUnavailable')}</Alert>}
           <AddonPicker
             offered={offered}
             quoteLines={q?.addons ?? []}

@@ -101,13 +101,13 @@ describe('slot overrides', () => {
   });
 
   it('recurring modify needs the slot on every listed weekday', async () => {
-    await Turf.updateOne({ ownerId: a.ownerId, _id: t1 }, { $set: { 'settings.hours.sat': { open: '18:00', close: '22:00' } } });
+    await Turf.updateOne({ ownerId: a.ownerId, _id: t1 }, { $set: { 'settings.hours.sat': { open: '16:00', close: '20:00' } } });
     const res = await post({
       recurrence: { weekdays: ['fri', 'sat'], from: '2026-10-01' },
       type: 'modify',
-      slotStart: '16:00',
-      start: '16:00',
-      end: '16:30',
+      slotStart: '21:00',
+      start: '21:00',
+      end: '21:30',
     });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('slot_not_found');
@@ -128,6 +128,36 @@ describe('slot overrides', () => {
     expect(await SlotOverride.countDocuments({ ownerId: a.ownerId })).toBe(1);
   });
 
+  it('past-midnight ranges sit on the business day timeline', async () => {
+    const late = Object.fromEntries(WEEKDAYS.map((d) => [d, { open: '16:00', close: '02:00' }]));
+    const t3 = (await seedTurf(a.ownerId, v1, { slotLengthMin: 60, settings: { hours: late } })).id as string;
+    const clash = await post({ date: day, type: 'add', start: '01:00', end: '02:00' }, a.token, v1, t3);
+    expect(clash.status).toBe(409);
+    expect(clash.body.error.code).toBe('override_overlap');
+    expect((await post({ date: day, type: 'add', start: '02:00', end: '03:00' }, a.token, v1, t3)).status).toBe(201);
+
+    // 16:00-22:00: 23:00-01:30 is free, and 01:00-02:00 (minute 1500) overlaps it.
+    expect((await post({ date: day, type: 'add', start: '23:00', end: '01:30' })).status).toBe(201);
+    const extra = await post({ date: day, type: 'add', start: '01:00', end: '02:00' });
+    expect(extra.status).toBe(409);
+    expect(extra.body.error.code).toBe('override_overlap');
+  });
+
+  it('an override must end before the next business day opens', async () => {
+    const early = Object.fromEntries(WEEKDAYS.map((d) => [d, { open: '06:00', close: '02:00' }]));
+    const t3 = (await seedTurf(a.ownerId, v1, { slotLengthMin: 60, settings: { hours: early } })).id as string;
+    const spill = await post({ date: day, type: 'add', start: '05:30', end: '06:30' }, a.token, v1, t3);
+    expect(spill.status).toBe(400);
+    expect(spill.body.error).toMatchObject({ code: 'validation_error', message: 'Override must end before the next day opens' });
+    expect((await post({ date: day, type: 'add', start: '02:00', end: '05:00' }, a.token, v1, t3)).status).toBe(201);
+
+    const long = await post({ date: day, type: 'add', start: '23:00', end: '17:00' });
+    expect(long.status).toBe(400);
+    expect(long.body.error.code).toBe('validation_error');
+    const block = await post({ recurrence: { weekdays: ['fri'], from: '2026-10-01' }, type: 'block', start: '23:00', end: '17:00' });
+    expect(block.status).toBe(400);
+  });
+
   it('validation', async () => {
     const add = { type: 'add', start: '22:00', end: '23:00' };
     const rec = { weekdays: ['fri'], from: '2026-10-01' };
@@ -141,6 +171,7 @@ describe('slot overrides', () => {
       { ...add, recurrence: { weekdays: ['fri', 'fri'], from: '2026-10-01' } },
       { date: day, type: 'close', start: '16:00' },
       { date: day, type: 'add', start: '22:00' },
+      { ...add, recurrence: { weekdays: ['mon'], from: '2026-10-30', until: '2026-10-31' } },
     ];
     for (const body of bad) {
       const res = await post(body);

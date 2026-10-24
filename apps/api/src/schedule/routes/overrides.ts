@@ -4,6 +4,7 @@ import {
   WEEKDAYS,
   addDays,
   generatedRanges,
+  hmToMin,
   overrideAppliesOn,
   overrideDatesIntersect,
   overrideMinutes,
@@ -44,6 +45,20 @@ function byWeekday(w: OverrideWhen): [Weekday, OverrideWhen][] {
     d,
     { recurrence: { ...w.recurrence, weekdays: [d] } },
   ]);
+}
+
+/**
+ * A range may run past midnight but not into the next business day: on each weekday it applies,
+ * it must end by the next weekday's opening minute (00:00 when closed), as overrideMinutes anchors it.
+ */
+function checkWithinDay(o: Extract<SlotOverrideLike, { start: string }>, hours: WeeklyHours): void {
+  for (const [day] of byWeekday(o)) {
+    const next = hours[WEEKDAYS[(WEEKDAYS.indexOf(day) + 1) % 7]!];
+    const nextAnchor = next === 'closed' ? 0 : hmToMin(next.open);
+    if (overrideMinutes(o, hours[day])[1] > 1440 + nextAnchor) {
+      throw new AppError(400, 'validation_error', 'Override must end before the next day opens');
+    }
+  }
 }
 
 const intersects = (a: [number, number], b: [number, number]) => a[0] < b[1] && b[0] < a[1];
@@ -106,6 +121,7 @@ export function overridesRouter(services: AppServices): Router {
     const { reason, ...rest } = input;
     const like = rest as SlotOverrideLike;
     const { hours } = await effectiveForTurf(t.ownerId, venue, turf);
+    if (like.type !== 'close') checkWithinDay(like, hours);
 
     const created = await runInTransaction(async (session) => {
       // Lock first so a concurrent create on this turf conflicts (and retries) or sees this one.

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WEEKDAYS, assertMinor, isIsoDate, pricingConflict, type PricingRule } from '@booking/shared';
+import { WEEKDAYS, addDays, assertMinor, isIsoDate, pricingConflict, weekdayOf, type PricingRule } from '@booking/shared';
 import { timeSchema } from '../venues/settingsSchema';
 
 export { timeSchema };
@@ -68,7 +68,18 @@ const recurrenceSchema = z
     until: isoDateSchema.optional(),
   })
   .strict()
-  .refine((r) => r.until === undefined || r.until >= r.from, { path: ['until'], message: 'until must not be before from' });
+  .refine((r) => r.until === undefined || r.until >= r.from, { path: ['until'], message: 'until must not be before from' })
+  .refine(
+    (r) => {
+      for (let i = 0; i < 7; i++) {
+        const d = addDays(r.from, i);
+        if (r.until !== undefined && d > r.until) return false;
+        if (r.weekdays.includes(weekdayOf(d))) return true;
+      }
+      return false;
+    },
+    { path: ['weekdays'], message: 'No listed weekday falls between from and until' },
+  );
 
 /** When an override applies; exactly one of date / recurrence is checked below. */
 const when = {

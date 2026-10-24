@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
+import { GatewayError } from './payments/gateway';
 import { AddonQuoteError, BookingQuoteError, InvalidMoneyError } from '@booking/shared';
 
 export class AppError extends Error {
@@ -67,6 +68,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   }
   if (err instanceof InvalidMoneyError) {
     res.status(400).json({ error: { code: 'invalid_amount', message: err.message } });
+    return;
+  }
+  if (err instanceof GatewayError) {
+    res.status(err.code === 'gateway_error' ? 502 : 400).json({ error: { code: err.code, message: err.message } });
     return;
   }
   if (isJsonParseError(err)) {

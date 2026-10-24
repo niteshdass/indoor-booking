@@ -1,5 +1,6 @@
 import type { Config } from './config';
 import { createGoogleVerifier } from './auth/google';
+import { realStripe, type StripeFactory } from './payments/stripe';
 
 export interface SmsSender {
   send(to: string, text: string): Promise<void>;
@@ -24,6 +25,8 @@ export type AppServices = {
   google: GoogleVerifier;
   /** Generates a 6-digit OTP code; defaults to crypto.randomInt. */
   otpCode?: () => string;
+  /** Builds a Stripe client for an owner's secret key. */
+  stripe: StripeFactory;
 };
 
 /** Console senders until real SMS/email providers arrive (Plan 10). */
@@ -41,5 +44,6 @@ export function defaultServices(config: Config): AppServices {
       },
     },
     google: createGoogleVerifier(config.googleClientId),
+    stripe: realStripe,
   };
 }

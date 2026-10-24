@@ -1,8 +1,8 @@
-import { createContext, useCallback, useRef, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
-import { apiPost, setAccessToken, setRefreshHandler } from '../lib/apiClient';
+import { createContext, useCallback, useEffect, useRef, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { ApiError, apiPost, setAccessToken, setRefreshHandler } from '../lib/apiClient';
 import type { AuthResponse, PublicUser } from '../lib/types';
 
-type Status = 'loading' | 'signedIn' | 'signedOut';
+type Status = 'loading' | 'signedIn' | 'signedOut' | 'offline';
 
 export type AuthContextValue = {
   status: Status;
@@ -10,6 +10,8 @@ export type AuthContextValue = {
   signIn(res: AuthResponse): void;
   setUser(u: PublicUser): void;
   signOut(): Promise<void>;
+  /** Re-attempts the session refresh after a transient boot failure (status 'offline'). */
+  retry(): void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -49,8 +51,15 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
         setAccessToken(res.accessToken);
         setSession({ status: 'signedIn', user: res.user });
         return res.accessToken;
-      } catch {
-        if (generation.current === gen) clear();
+      } catch (err) {
+        if (generation.current !== gen) return null;
+        if (err instanceof ApiError && err.status === 401) {
+          clear();
+        } else {
+          // Network error, 5xx or 429: the refresh token may well still be valid, so keep what we have.
+          // At boot there is no session yet, so surface 'offline' instead of pretending the player is signed out.
+          setSession((s) => (s.status === 'loading' || s.status === 'offline' ? { status: 'offline', user: null } : s));
+        }
         return null;
       }
     };
@@ -78,6 +87,18 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
     // initialUser is only meaningful at mount.
   }, [refresh]);
 
+  const retry = useCallback(() => {
+    setSession((s) => (s.status === 'offline' ? { status: 'loading', user: null } : s));
+    void refresh();
+  }, [refresh]);
+
+  const offline = session.status === 'offline';
+  useEffect(() => {
+    if (!offline) return;
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, [offline, retry]);
+
   const signIn = useCallback((res: AuthResponse) => {
     generation.current += 1;
     setAccessToken(res.accessToken);
@@ -97,8 +118,8 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
   }, [clear]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...session, signIn, setUser, signOut }),
-    [session, signIn, setUser, signOut],
+    () => ({ ...session, signIn, setUser, signOut, retry }),
+    [session, signIn, setUser, signOut, retry],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

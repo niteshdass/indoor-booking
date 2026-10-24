@@ -15,6 +15,8 @@
     "profile": "Profile"
   },
   "auth": {
+    "offline": "We can't reach the server to check your session. Check your connection.",
+    "retry": "Try again",
     "email": "Email address",
     "password": "Password",
     "name": "Name",

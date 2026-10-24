@@ -181,10 +181,9 @@ async function stillFree(ownerId: string, booking: BookingDoc, now: Date, sessio
 
   const lines = booking.addons as AddonLine[];
   if (lines.length === 0) return true;
-  const [venue, turf] = await Promise.all([
-    Venue.findOne({ ownerId, _id: booking.venueId }).session(session),
-    Turf.findOne({ ownerId, _id: booking.turfId }).session(session),
-  ]);
+  // One at a time: a transaction session cannot run operations in parallel.
+  const venue = await Venue.findOne({ ownerId, _id: booking.venueId }).session(session);
+  const turf = await Turf.findOne({ ownerId, _id: booking.turfId }).session(session);
   if (!venue || !turf) return false;
   const offered = await offeredAddons(ownerId, venue, turf);
   const stocked = [...new Set(limited(offered, lines))].sort();

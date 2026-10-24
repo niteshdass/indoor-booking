@@ -287,6 +287,44 @@ describe('late payment for a lapsed hold', () => {
         expect((await bookingOf(bookingId)).status).toBe('confirmed');
         expect(refundCalls()).toHaveLength(0);
       });
+
+      it('reads venue and turf one at a time on the transaction session while reviving', async () => {
+        const { addons } = await withRacket();
+        const { player, bookingId, payment } = await paidHold({ addons });
+        await expireHold(player, bookingId);
+        // A transaction session cannot run operations in parallel: flag any session query that starts while another is in flight.
+        let inFlight = 0;
+        let overlaps = 0;
+        const track = <M extends typeof Venue | typeof Turf>(model: M) => {
+          const real = model.findOne.bind(model);
+          return vi.spyOn(model, 'findOne').mockImplementation(((...args: Parameters<M['findOne']>) => {
+            const q = (real as (...a: unknown[]) => ReturnType<M['findOne']>)(...args);
+            const exec = q.exec.bind(q);
+            q.exec = (async () => {
+              if (!q.getOptions().session) return exec();
+              if (inFlight > 0) overlaps += 1;
+              inFlight += 1;
+              try {
+                return await exec();
+              } finally {
+                inFlight -= 1;
+              }
+            }) as typeof q.exec;
+            return q;
+          }) as unknown as M['findOne']);
+        };
+        const spies = [track(Venue), track(Turf)];
+        let called: number[];
+        try {
+          expect((await post(piSucceeded(payment))).status).toBe(200);
+        } finally {
+          called = spies.map((s) => s.mock.calls.length);
+          for (const s of spies) s.mockRestore();
+        }
+        expect((await bookingOf(bookingId)).status).toBe('confirmed');
+        expect(called.every((n) => n > 0)).toBe(true);
+        expect(overlaps).toBe(0);
+      });
     });
 
     it('refunds a second payment on an already confirmed booking as a duplicate', async () => {

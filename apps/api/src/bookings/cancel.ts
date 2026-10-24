@@ -5,6 +5,7 @@ import { AppError } from '../errors';
 import { loadGateway } from '../payments/gateway.model';
 import { Refund, type RefundDoc } from '../payments/refund.model';
 import { allocateRefund, dispatchRefund, reserveRefunds } from '../payments/refunds';
+import { noticeBooking } from '../notifications/outbox';
 import type { AppServices } from '../services';
 import type { TenantContext } from '../tenancy/context';
 import { Booking, type BookingDoc } from './booking.model';
@@ -116,7 +117,7 @@ export async function cancelBooking(
     const current = await Booking.findOne({ ownerId, _id: booking._id }).session(session);
     if (!current) throw new AppError(404, 'not_found', 'Booking not found');
     const { percent, amount, rule } = refundFor(current, kind, now);
-    await transition(
+    const cancelled = await transition(
       actorOf(by),
       current,
       'cancelled',
@@ -130,21 +131,27 @@ export async function cancelBooking(
       },
       { refund: { amount, percent, rule } },
     );
-    if (amount === 0) return [];
-    const payments = await Payment.find({ ownerId, bookingId: current._id }).session(session);
-    const userId = kind === 'staff' ? by.t.userId : kind === 'player' ? by.userId : null;
-    return reserveRefunds(
-      {
-        booking: current,
-        parts: allocateRefund(payments, amount),
-        reason: 'cancellation',
-        // Staff refund in full whatever tier matched, so no rule applied.
-        ruleApplied: { minHoursBefore: kind === 'staff' ? null : (rule?.minHoursBefore ?? null), percent },
-        by: userId,
-        now,
-      },
-      session,
-    );
+    let reserved: RefundDoc[] = [];
+    if (amount > 0) {
+      const payments = await Payment.find({ ownerId, bookingId: current._id }).session(session);
+      const userId = kind === 'staff' ? by.t.userId : kind === 'player' ? by.userId : null;
+      reserved = await reserveRefunds(
+        {
+          booking: current,
+          parts: allocateRefund(payments, amount),
+          reason: 'cancellation',
+          // Staff refund in full whatever tier matched, so no rule applied.
+          ruleApplied: { minHoursBefore: kind === 'staff' ? null : (rule?.minHoursBefore ?? null), percent },
+          by: userId,
+          now,
+        },
+        session,
+      );
+    }
+    await noticeBooking('booking_cancelled', cancelled, now, session, {
+      amount: reserved.reduce((sum, r) => sum + r.amount, 0),
+    });
+    return reserved;
   });
 
   // Committed: send the card refunds now. A gateway outage leaves them pending for reconcile.

@@ -23,6 +23,7 @@ import { inWindow, loadDay } from '../schedule/load';
 import { lockTurf } from '../venues/guards';
 import type { TurfDoc } from '../venues/turf.model';
 import type { VenueDoc } from '../venues/venue.model';
+import { noticeBooking } from '../notifications/outbox';
 import { Booking, holdingFilter, type BookingDoc } from './booking.model';
 import { Payment, type PaymentDoc } from './payment.model';
 import { newReference } from './reference';
@@ -259,6 +260,13 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
           { session },
         );
         payment = created as unknown as PaymentDoc;
+      }
+      // A hold says nothing until its payment confirms it.
+      if (status === 'pending') {
+        await noticeBooking('booking_pending', booking!, now, session);
+        await noticeBooking('staff_new_pending', booking!, now, session);
+      } else if (status === 'confirmed') {
+        await noticeBooking('booking_confirmed', booking!, now, session);
       }
       await afterInsert?.(session, booking!, payment);
       return booking!;

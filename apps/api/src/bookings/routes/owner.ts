@@ -17,6 +17,7 @@ import { refundJson } from '../../payments/refunds';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { permissionsCover, requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
+import { noticeBooking } from '../../notifications/outbox';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Booking, bookingJson } from '../booking.model';
@@ -223,9 +224,12 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const booking = await scopedBooking(t, req.params.bookingId as string);
     // Staff confirm only pending guest bookings; an awaiting_payment hold confirms by payment.
     if (booking.status !== 'pending') throw invalidTransition(booking.status);
-    const updated = await runInTransaction((session) =>
-      transition(t, booking, 'confirmed', services.now(), session),
-    );
+    const updated = await runInTransaction(async (session) => {
+      const now = services.now();
+      const moved = await transition(t, booking, 'confirmed', now, session);
+      await noticeBooking('booking_confirmed', moved, now, session);
+      return moved;
+    });
     res.json({ booking: bookingJson(updated) });
   });
 
@@ -233,9 +237,12 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const t = tenantOf(req);
     const { reason } = rejectSchema.parse(req.body ?? {});
     const booking = await scopedBooking(t, req.params.bookingId as string);
-    const updated = await runInTransaction((session) =>
-      transition(t, booking, 'rejected', services.now(), session, { rejectReason: reason || null }),
-    );
+    const updated = await runInTransaction(async (session) => {
+      const now = services.now();
+      const moved = await transition(t, booking, 'rejected', now, session, { rejectReason: reason || null });
+      await noticeBooking('booking_rejected', moved, now, session, { reason: reason || null });
+      return moved;
+    });
     res.json({ booking: bookingJson(updated) });
   });
 

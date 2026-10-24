@@ -4,6 +4,7 @@ import type { Config } from '../config';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { runInTransaction } from '../db';
+import { noticeBooking } from '../notifications/outbox';
 import type { AppServices } from '../services';
 import { logActivity, logSystemActivity, type ActivityEntry } from '../tenancy/activityLog.model';
 import { GatewayError, gatewayFor } from './gateway';
@@ -200,6 +201,12 @@ export async function settleRefund(
     session,
     actor,
   );
+  if (outcome.status === 'succeeded') {
+    const booking = await Booking.findOne({ ownerId, _id: before.bookingId }).session(session);
+    if (booking) {
+      await noticeBooking('refund_issued', booking, now, session, { amount: before.amount, refundId: String(before._id) });
+    }
+  }
   return true;
 }
 

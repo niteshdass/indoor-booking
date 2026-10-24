@@ -6,6 +6,7 @@ import { Booking, holdingFilter, type BookingDoc } from '../bookings/booking.mod
 import { expireStaleHolds, limited, stockInUse } from '../bookings/create';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { SlotLock } from '../bookings/slotLock.model';
+import { noticeBooking } from '../notifications/outbox';
 import { logSystemActivity } from '../tenancy/activityLog.model';
 import { lockTurf } from '../venues/guards';
 import { Turf } from '../venues/turf.model';
@@ -239,6 +240,8 @@ async function confirm(s: Succeeded): Promise<WebhookOutcome> {
     ctx.now,
     session,
   );
+  const confirmedNow = await Booking.findOne({ ownerId, _id: booking._id }).session(session);
+  await noticeBooking('booking_confirmed', confirmedNow!, ctx.now, session);
   return 'applied';
 }
 

@@ -55,8 +55,9 @@ export async function applyEvent(
 
   const succeeded = { ownerId, event, payment, booking, ctx, session };
   const holding = booking.status === 'awaiting_payment' && booking.holdExpiresAt != null && booking.holdExpiresAt > ctx.now;
-  // A live hold still has its slots and stock; a lapsed or expired one gets them back only if nobody took them.
-  if (holding && booking.endAt > ctx.now) return confirm(succeeded);
+  // A live hold still has its slots and stock, even once a walk-in's in-progress slot has ended;
+  // a lapsed or expired one gets them back only if nobody took them and the slot is not over.
+  if (holding) return confirm(succeeded);
   const lapsed = booking.status === 'awaiting_payment' && !holding;
   if ((lapsed || booking.status === 'expired') && (await stillFree(ownerId, booking, ctx.now, session))) {
     return confirm(succeeded);

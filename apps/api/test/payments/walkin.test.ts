@@ -221,6 +221,24 @@ describe('walk-in with a payment link', () => {
     expect(payment).toMatchObject({ status: 'succeeded', gatewayRef: 'pi_link_1' });
   });
 
+  it('confirms a live link hold paid after its in-progress slot ended, without a refund', async () => {
+    const { webhookSecret } = await connectStripe(ctx.app, owner);
+    ctx.services.clock.advance(Date.parse(at('18:30')) - ctx.services.now().getTime());
+    const token = await signAccessToken(owner.userId, ctx.config.jwtSecret, ctx.services.now());
+    const res = await walkin(token, { method: 'link' });
+    expect(res.status).toBe(201);
+    // 19:01: the 18:00-19:00 slot is over, the hold (until 19:02) is not.
+    ctx.services.clock.advance(31 * 60_000);
+    const paymentId = res.body.payment.id as string;
+    const event = piSucceeded({ _id: paymentId, amount: 3000, currency: 'BDT', gatewayRef: 'pi_link_late' });
+    expect((await postEvent(ctx.app, owner.ownerId, webhookSecret, event)).status).toBe(200);
+    const booking = (await Booking.findById(res.body.booking.id).setOptions(cross))!;
+    expect(booking).toMatchObject({ status: 'confirmed', amountPaid: 3000, paymentStatus: 'paid' });
+    expect(await SlotLock.countDocuments({ bookingId: booking._id }).setOptions(cross)).toBe(1);
+    expect(ctx.services.stripe.calls.filter((c) => c.method === 'refunds.create')).toHaveLength(0);
+    expect((await Payment.findById(paymentId).setOptions(cross))!.status).toBe('succeeded');
+  });
+
   it('a pending payment of the other kind is a clean 409, not a duplicate-key error', async () => {
     const { accountId } = await connectStripe(ctx.app, owner);
     const res = await walkin(owner.token, { method: 'link' });

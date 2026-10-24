@@ -11,6 +11,10 @@ export type FakeStripe = StripeFactory & {
   fail(method: string, kind: 'auth' | 'api'): void;
   /** Status the fake gives new refunds; 'failed' mimics a refund Stripe declines. */
   refundStatus: 'succeeded' | 'pending' | 'failed';
+  /** Status of a PaymentIntent or Checkout Session the fake created. */
+  statusOf(id: string): string | undefined;
+  /** Moves an object on, e.g. a PaymentIntent to 'succeeded' or a session to 'complete'. */
+  settle(id: string, status: string): void;
 };
 
 /** Stripe Checkout: `expires_at` must be at least 30 minutes after the session is created. */
@@ -27,6 +31,8 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   const failures = new Map<string, 'auth' | 'api'>();
   const replays = new Map<string, unknown>();
   const counters: Record<string, number> = {};
+  /** Created intents and sessions: status and the key (account) that owns them. */
+  const objects = new Map<string, { status: string; secretKey: string }>();
   const nextId = (prefix: string) => `${prefix}_test_${(counters[prefix] = (counters[prefix] ?? 0) + 1)}`;
 
   const factory = ((secretKey: string): StripeApi => {
@@ -44,6 +50,21 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
       if (!replays.has(key)) replays.set(key, make());
       return replays.get(key) as T;
     }
+    /** Like Stripe: another account's object is missing, a final one cannot move. */
+    function transition(id: string, from: string[], to: string) {
+      const obj = objects.get(id);
+      if (!obj || obj.secretKey !== secretKey) {
+        throw new Stripe.errors.StripeInvalidRequestError({ type: 'invalid_request_error', message: `No such object: '${id}'`, code: 'resource_missing' });
+      }
+      if (!from.includes(obj.status)) {
+        throw new Stripe.errors.StripeInvalidRequestError({
+          type: 'invalid_request_error',
+          message: `You cannot move this object because it has a status of ${obj.status}.`,
+        });
+      }
+      obj.status = to;
+      return { id, status: to };
+    }
     return {
       accounts: {
         async retrieve() {
@@ -54,8 +75,14 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
         async create(params, o) {
           return call('paymentIntents.create', params, o.idempotencyKey, () => {
             const id = nextId('pi');
+            objects.set(id, { status: 'requires_payment_method', secretKey });
             return { id, client_secret: `${id}_secret_x` };
           });
+        },
+        async cancel(id) {
+          return call('paymentIntents.cancel', { id }, undefined, () =>
+            transition(id, ['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing'], 'canceled'),
+          );
         },
       },
       checkout: {
@@ -73,8 +100,12 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
                 });
               }
               const id = nextId('cs');
+              objects.set(id, { status: 'open', secretKey });
               return { id, url: `https://checkout.stripe.test/${id}` };
             });
+          },
+          async expire(id) {
+            return call('checkout.sessions.expire', { id }, undefined, () => transition(id, ['open'], 'expired'));
           },
         },
       },
@@ -88,6 +119,8 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   factory.calls = calls;
   factory.fail = (method, kind) => void failures.set(method, kind);
   factory.refundStatus = 'succeeded';
+  factory.statusOf = (id) => objects.get(id)?.status;
+  factory.settle = (id, status) => void (objects.get(id)!.status = status);
   return factory;
 }
 

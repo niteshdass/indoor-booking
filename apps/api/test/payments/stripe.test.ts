@@ -173,6 +173,33 @@ describe('refund', () => {
   });
 });
 
+describe('cancelPayment', () => {
+  const create = (kind: 'intent' | 'link') =>
+    gw.createPayment(creds, { kind, amount: 100, currency: 'BDT', metadata: meta, description: 'd', idempotencyKey: `k_${kind}` });
+
+  it('cancels a PaymentIntent and expires a Checkout Session', async () => {
+    const pi = await create('intent');
+    await gw.cancelPayment(creds, { kind: 'intent', gatewayRef: pi.gatewayRef, linkRef: null });
+    expect(services.stripe.statusOf(pi.gatewayRef!)).toBe('canceled');
+    const cs = await create('link');
+    await gw.cancelPayment(creds, { kind: 'link', gatewayRef: null, linkRef: cs.linkRef });
+    expect(services.stripe.statusOf(cs.linkRef!)).toBe('expired');
+  });
+
+  it('wraps a refusal (already succeeded) in a fixed-message GatewayError', async () => {
+    const pi = await create('intent');
+    services.stripe.settle(pi.gatewayRef!, 'succeeded');
+    const err = await gw.cancelPayment(creds, { kind: 'intent', gatewayRef: pi.gatewayRef, linkRef: null }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GatewayError);
+    expect(err).toMatchObject({ code: 'gateway_error', message: 'The payment gateway could not complete the request' });
+  });
+
+  it('makes no call when the payment never reached Stripe', async () => {
+    await gw.cancelPayment(creds, { kind: 'intent', gatewayRef: null, linkRef: null });
+    expect(services.stripe.calls).toHaveLength(0);
+  });
+});
+
 describe('verifyCredentials', () => {
   it('returns the account id', async () => {
     expect(await gw.verifyCredentials(creds)).toEqual({ accountId: 'acct_test_123456' });

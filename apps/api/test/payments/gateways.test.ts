@@ -183,13 +183,16 @@ describe('owner gateway settings', () => {
         gateway: 'stripe', gatewayAccountId: accountId, kind: 'intent',
       });
 
-    it('409 gateway_account_in_use while the old account has a pending card payment', async () => {
+    it('fails a pending card payment that never reached Stripe and has no live hold, without a Stripe call', async () => {
       const { accountId } = await connectStripe(ctx.app, a, { secretKey: 'sk_test_first1' });
-      await pendingCard(accountId);
+      const p = await pendingCard(accountId);
       const res = await put({ ...valid, secretKey: 'sk_test_second' });
-      expect(res.status).toBe(409);
-      expect(res.body.error.code).toBe('gateway_account_in_use');
-      expect((await PaymentGatewayAccount.findOne({ ownerId: a.ownerId }))!.accountId).toBe(accountId);
+      expect(res.status).toBe(200);
+      expect((await PaymentGatewayAccount.findOne({ ownerId: a.ownerId }))!.accountId).toBe('acct_test_second');
+      expect(await Payment.findById(p._id).setOptions({ crossTenant: true })).toMatchObject({
+        status: 'failed', failureCode: 'account_switched',
+      });
+      expect(ctx.services.stripe.calls.filter((c) => /cancel|expire/.test(c.method))).toHaveLength(0);
     });
 
     it('same account again is allowed with a pending payment', async () => {

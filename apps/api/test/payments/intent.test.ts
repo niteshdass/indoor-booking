@@ -84,6 +84,63 @@ const pay = (id: string, token = player.token) =>
 
 const partial = { type: 'partial_percent', percent: 20 };
 
+describe('switching Stripe accounts', () => {
+  const switchTo = (secretKey: string) =>
+    request(ctx.app)
+      .put(`/api/v1/owners/${owner.ownerId}/payment-gateways/stripe`)
+      .set(...bearer(owner.token))
+      .send({ secretKey, publishableKey: 'pk_test_new', webhookSecret: 'whsec_new' });
+  const cancels = () => ctx.services.stripe.calls.filter((c) => c.method === 'paymentIntents.cancel');
+  const accountNow = async () => (await PaymentGatewayAccount.findOne({ ownerId: owner.ownerId }))!.accountId;
+  const paymentNow = async () => (await Payment.findOne({ ownerId: owner.ownerId }))!;
+
+  it("cancels a lapsed hold's intent on the old account, fails the payment and switches", async () => {
+    await setup(partial);
+    await connectStripe(ctx.app, owner, { secretKey: 'sk_test_first1' });
+    const b = await hold();
+    expect((await pay(b.id)).status).toBe(200);
+    ctx.services.clock.advance(10 * 60_000);
+
+    const res = await switchTo('sk_test_second');
+    expect(res.status).toBe(200);
+    expect(res.body.gateway.accountId).toBe('acct_test_second');
+    expect(await accountNow()).toBe('acct_test_second');
+    expect(cancels()).toEqual([{ method: 'paymentIntents.cancel', secretKey: 'sk_test_first1', params: { id: 'pi_test_1' } }]);
+    expect(ctx.services.stripe.statusOf('pi_test_1')).toBe('canceled');
+    expect(await paymentNow()).toMatchObject({ status: 'failed', failureCode: 'account_switched' });
+  });
+
+  it('409 gateway_account_in_use while a live hold is paying on the old account', async () => {
+    await setup(partial);
+    const { accountId } = await connectStripe(ctx.app, owner, { secretKey: 'sk_test_first1' });
+    const b = await hold();
+    expect((await pay(b.id)).status).toBe(200);
+
+    const res = await switchTo('sk_test_second');
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('gateway_account_in_use');
+    expect(cancels()).toHaveLength(0);
+    expect(await accountNow()).toBe(accountId);
+    expect(await paymentNow()).toMatchObject({ status: 'pending', failureCode: null });
+  });
+
+  it('409 and no switch when the lapsed intent already succeeded at Stripe', async () => {
+    await setup(partial);
+    const { accountId } = await connectStripe(ctx.app, owner, { secretKey: 'sk_test_first1' });
+    const b = await hold();
+    expect((await pay(b.id)).status).toBe(200);
+    ctx.services.stripe.settle('pi_test_1', 'succeeded');
+    ctx.services.clock.advance(10 * 60_000);
+
+    const res = await switchTo('sk_test_second');
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('gateway_account_in_use');
+    expect(cancels()).toHaveLength(1);
+    expect(await accountNow()).toBe(accountId);
+    expect(await paymentNow()).toMatchObject({ status: 'pending' });
+  });
+});
+
 describe('POST /bookings/:id/payment', () => {
   it('creates a PaymentIntent for the advance', async () => {
     await setup(partial);

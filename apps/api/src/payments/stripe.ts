@@ -7,9 +7,13 @@ export type StripeApi = {
   accounts: { retrieve(): Promise<{ id: string }> };
   paymentIntents: {
     create(p: object, o: { idempotencyKey: string }): Promise<{ id: string; client_secret: string | null }>;
+    cancel(id: string): Promise<{ id: string; status: string }>;
   };
   checkout: {
-    sessions: { create(p: object, o: { idempotencyKey: string }): Promise<{ id: string; url: string | null }> };
+    sessions: {
+      create(p: object, o: { idempotencyKey: string }): Promise<{ id: string; url: string | null }>;
+      expire(id: string): Promise<{ id: string; status: string | null }>;
+    };
   };
   refunds: {
     create(
@@ -134,6 +138,19 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
           return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object) };
         default:
           return { ...base, kind: 'ignored' };
+      }
+    },
+
+    async cancelPayment(c, input) {
+      const ref = input.kind === 'intent' ? input.gatewayRef : input.linkRef;
+      if (!ref) return;
+      const stripe = factory(c.secretKey);
+      try {
+        // Refused once the object has succeeded or completed: its webhook is on the way.
+        if (input.kind === 'intent') await stripe.paymentIntents.cancel(ref);
+        else await stripe.checkout.sessions.expire(ref);
+      } catch {
+        throw new GatewayError('gateway_error');
       }
     },
 

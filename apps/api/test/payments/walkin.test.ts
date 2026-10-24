@@ -239,6 +239,21 @@ describe('walk-in with a payment link', () => {
     expect((await Payment.findById(paymentId).setOptions(cross))!.status).toBe('succeeded');
   });
 
+  it("expires a lapsed link's Checkout Session on the old account when switching accounts", async () => {
+    await connectStripe(ctx.app, owner, { secretKey: 'sk_test_first1' });
+    const res = await walkin(owner.token, { method: 'link' });
+    ctx.services.clock.advance(HOLD_MS + 60_000);
+    const token = await signAccessToken(owner.userId, ctx.config.jwtSecret, ctx.services.now());
+    const put = await request(ctx.app)
+      .put(ownerUrl('/payment-gateways/stripe'))
+      .set(...bearer(token))
+      .send({ secretKey: 'sk_test_second', publishableKey: 'pk_test_new', webhookSecret: 'whsec_new' });
+    expect(put.status).toBe(200);
+    const expires = ctx.services.stripe.calls.filter((c) => c.method === 'checkout.sessions.expire');
+    expect(expires).toEqual([{ method: 'checkout.sessions.expire', secretKey: 'sk_test_first1', params: { id: 'cs_test_1' } }]);
+    expect(await Payment.findById(res.body.payment.id).setOptions(cross)).toMatchObject({ status: 'failed', failureCode: 'account_switched' });
+  });
+
   it('a pending payment of the other kind is a clean 409, not a duplicate-key error', async () => {
     const { accountId } = await connectStripe(ctx.app, owner);
     const res = await walkin(owner.token, { method: 'link' });

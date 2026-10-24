@@ -1,14 +1,16 @@
+import type { ClientSession } from 'mongoose';
 import { Router } from 'express';
 import { z } from 'zod';
 import { AppError } from '../../errors';
 import { runInTransaction } from '../../db';
 import type { Config } from '../../config';
 import type { AppServices } from '../../services';
+import { Booking } from '../../bookings/booking.model';
 import { Payment } from '../../bookings/payment.model';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { gatewayFor } from '../gateway';
-import { PaymentGatewayAccount, credentialsAad, type PaymentGatewayAccountDoc } from '../gateway.model';
+import { PaymentGatewayAccount, credentialsAad, loadGateway, type PaymentGatewayAccountDoc } from '../gateway.model';
 import { seal } from '../secretBox';
 
 const GATEWAYS = ['stripe'] as const;
@@ -48,6 +50,52 @@ const publicState = (row: { gateway: string; mode: string; accountId: string; en
   enabled: row.enabled,
 });
 
+const accountInUse = () =>
+  new AppError(409, 'gateway_account_in_use', 'A card payment is still pending on the current account');
+
+/** Pending card payments on `accountId`, and whether any belongs to a live hold (may still be paid). */
+async function pendingOn(ownerId: string, accountId: string, now: Date, session: ClientSession | null = null) {
+  const pending = await Payment.find({ ownerId, method: 'card', status: 'pending', gatewayAccountId: accountId }).session(session);
+  const live =
+    pending.length > 0 &&
+    !!(await Booking.exists({
+      ownerId,
+      _id: { $in: pending.map((p) => p.bookingId) },
+      status: 'awaiting_payment',
+      holdExpiresAt: { $gt: now },
+    }).session(session));
+  return { pending, live };
+}
+
+/**
+ * Clears the old account before a switch. A live hold may still be paid there, so it blocks; every
+ * other pending card payment is cancelled at the gateway with the old credentials, then failed. A
+ * refused cancel (already paid, webhook on the way) blocks too. Runs outside the transaction, which can rerun.
+ */
+async function releaseAccount(
+  ownerId: string,
+  old: NonNullable<Awaited<ReturnType<typeof loadGateway>>>,
+  now: Date,
+): Promise<void> {
+  const { pending, live } = await pendingOn(ownerId, old.row.accountId, now);
+  if (live) throw accountInUse();
+  for (const p of pending) {
+    try {
+      await old.gateway.cancelPayment(old.creds, {
+        kind: p.kind ?? 'intent',
+        gatewayRef: p.gatewayRef ?? null,
+        linkRef: p.linkRef ?? null,
+      });
+    } catch {
+      throw accountInUse();
+    }
+    await Payment.updateOne(
+      { ownerId, _id: p._id, status: 'pending' },
+      { $set: { status: 'failed', failureCode: 'account_switched' } },
+    );
+  }
+}
+
 /** Owner payment-gateway settings; mounted on ownerRouter. Credentials go in sealed and never come back out. */
 export function gatewaysRouter(config: Config, services: AppServices): Router {
   const router = Router({ mergeParams: true });
@@ -68,19 +116,14 @@ export function gatewaysRouter(config: Config, services: AppServices): Router {
     const { accountId } = await gateway.verifyCredentials(creds);
     const mode = body.secretKey.split('_')[1] as 'test' | 'live';
     const sealed = seal(JSON.stringify(creds), config.paymentsKey, credentialsAad(t.ownerId, gateway.key));
+    const old = await loadGateway(t.ownerId, gateway.key, config, services);
+    if (old && old.row.accountId !== accountId) await releaseAccount(t.ownerId, old, services.now());
 
     const row = await runInTransaction(async (session) => {
       const existing = await PaymentGatewayAccount.findOne({ ownerId: t.ownerId, gateway: gateway.key }).session(session);
+      // A hold may have started paying on the old account since releaseAccount.
       if (existing && existing.accountId !== accountId) {
-        const pending = await Payment.exists({
-          ownerId: t.ownerId,
-          method: 'card',
-          status: 'pending',
-          gatewayAccountId: existing.accountId,
-        }).session(session);
-        if (pending) {
-          throw new AppError(409, 'gateway_account_in_use', 'A card payment is still pending on the current account');
-        }
+        if ((await pendingOn(t.ownerId, existing.accountId, services.now(), session)).live) throw accountInUse();
       }
       const saved = (await PaymentGatewayAccount.findOneAndUpdate(
         { ownerId: t.ownerId, gateway: gateway.key },

@@ -31,6 +31,11 @@ export interface PaymentGateway {
   ): Promise<{ gatewayRef: string | null; linkRef: string | null; clientSecret: string | null; url: string | null }>;
   /** Verifies the signature and normalizes the event; throws GatewayError('invalid_signature'). */
   handleWebhook(c: GatewayCredentials, rawBody: Buffer, signature: string | undefined): GatewayEvent;
+  /** Cancels an open intent or expires an open link; no call when it never reached the gateway. */
+  cancelPayment(
+    c: GatewayCredentials,
+    input: { kind: 'intent' | 'link'; gatewayRef: string | null; linkRef: string | null },
+  ): Promise<void>;
   refund(
     c: GatewayCredentials,
     input: { gatewayRef: string; amount: number; idempotencyKey: string },

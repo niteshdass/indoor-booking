@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import mongoose from 'mongoose';
 import request from 'supertest';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
@@ -64,17 +65,17 @@ const bookingOf = async (id: unknown) => (await Booking.findById(id).setOptions(
 const rows = () => Refund.find({ ownerId: owner.ownerId }).sort({ _id: 1 }).lean();
 
 /** A cancelled 3000 booking whose only payment is a `method` payment, with a 3000 cancellation refund reserved. */
-async function cancelled(method: 'card' | 'cash') {
+async function cancelled(method: 'card' | 'cash', venue = venueId) {
   const startAt = new Date('2026-01-02T12:00:00Z');
   const endAt = new Date(startAt.getTime() + 3600_000);
   const booking: BookingDoc = await Booking.create({
-    ownerId: owner.ownerId, venueId, turfId, reference: newReference(), businessDate: '2026-01-02', startAt, endAt,
+    ownerId: owner.ownerId, venueId: venue, turfId, reference: newReference(), businessDate: '2026-01-02', startAt, endAt,
     slots: [{ startAt, endAt, price: 3000 }], addons: [], currency: 'BDT', subtotal: 3000, addonsTotal: 0,
     total: 3000, advanceRequired: 0, amountPaid: 3000, status: 'cancelled', paymentStatus: 'paid', source: 'online',
     policySnapshot: { paymentPolicy: null, refundRules: [] },
   });
   const payment = await Payment.create({
-    ownerId: owner.ownerId, venueId, bookingId: booking._id, method, amount: 3000, currency: 'BDT', status: 'succeeded',
+    ownerId: owner.ownerId, venueId: venue, bookingId: booking._id, method, amount: 3000, currency: 'BDT', status: 'succeeded',
     ...(method === 'card' ? { gateway: 'stripe', gatewayAccountId: accountId, gatewayRef: 'pi_1' } : {}),
   });
   const [refund] = await runInTransaction((s) =>
@@ -91,8 +92,8 @@ async function cancelled(method: 'card' | 'cash') {
 }
 
 /** `cancelled(...)` with the refund then failed, which releases the reservation. */
-async function failed(method: 'card' | 'cash' = 'card') {
-  const c = await cancelled(method);
+async function failed(method: 'card' | 'cash' = 'card', venue = venueId) {
+  const c = await cancelled(method, venue);
   await runInTransaction((s) => settleRefund(owner.ownerId, c.refund._id, { status: 'failed', failureCode: 'card_declined' }, ctx.services.now(), s));
   return c;
 }
@@ -142,6 +143,70 @@ describe('retry', () => {
   });
 });
 
+describe('retry edge cases', () => {
+  it('a dispatch failure still answers 201 and leaves the row pending for reconcile', async () => {
+    const { payment, refund } = await failed();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // The claim goes through; settling the gateway's answer then fails with a non-gateway error.
+    const real = Refund.findOneAndUpdate.bind(Refund);
+    let calls = 0;
+    const claim = vi.spyOn(Refund, 'findOneAndUpdate').mockImplementation(((...args: Parameters<typeof real>) => {
+      calls += 1;
+      return calls === 1 ? real(...args) : Promise.reject(new Error('boom'));
+    }) as unknown as typeof Refund.findOneAndUpdate);
+    try {
+      const res = await post(`/refunds/${refund._id}/retry`);
+      expect(res.status).toBe(201);
+      expect(res.body.refund).toMatchObject({ status: 'pending', retryOf: String(refund._id) });
+      expect(spy.mock.calls.some((c) => String(c[0]).startsWith('[refunds] dispatch of'))).toBe(true);
+    } finally {
+      claim.mockRestore();
+      spy.mockRestore();
+    }
+    expect(await paymentOf(payment._id)).toMatchObject({ refundedAmount: 3000 });
+  });
+
+  it('refuses when the released room has been used elsewhere', async () => {
+    const { payment, refund } = await failed();
+    await Payment.updateOne({ _id: payment._id }, { $set: { refundedAmount: 1000 } }).setOptions(cross);
+    for (const path of ['retry', 'record-cash']) {
+      const res = await post(`/refunds/${refund._id}/${path}`);
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('invalid_transition');
+    }
+    expect(await rows()).toHaveLength(1);
+    expect(await paymentOf(payment._id)).toMatchObject({ refundedAmount: 1000 });
+  });
+
+  it('answers 503 when payments are not configured on the server', async () => {
+    const { refund } = await failed();
+    const bare = buildTestApp({ services: ctx.services, config: { paymentsKey: undefined } });
+    const res = await request(bare.app)
+      .post(`/api/v1/owners/${owner.ownerId}/refunds/${refund._id}/retry`)
+      .set(...bearer(owner.token))
+      .send({});
+    expect(res.status).toBe(503);
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it('refuses the wrong kind of row', async () => {
+    const pendingCard = await cancelled('card');
+    const cash = await failed('cash');
+    const cases: [string, unknown][] = [
+      ['record-cash', pendingCard.refund._id],
+      ['retry', pendingCard.refund._id],
+      ['retry', cash.refund._id],
+    ];
+    for (const [path, id] of cases) {
+      const res = await post(`/refunds/${id}/${path}`);
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('invalid_transition');
+    }
+    expect(await rows()).toHaveLength(2);
+    expect(await refundOf(pendingCard.refund._id)).toMatchObject({ status: 'pending' });
+  });
+});
+
 describe('record-cash', () => {
   it('settles a pending cash refund', async () => {
     const { booking, refund } = await cancelled('cash');
@@ -181,6 +246,23 @@ describe('record-cash', () => {
     expect((await post(`/refunds/${f.refund._id}/record-cash`)).status).toBe(409);
     expect(await rows()).toHaveLength(3);
     expect(await paymentOf(f.payment._id)).toMatchObject({ refundedAmount: 3000 });
+  });
+});
+
+describe('venue scope', () => {
+  it('a manager limited to another venue gets 404 and nothing changes', async () => {
+    const other = (await seedVenue(owner.ownerId, { published: true, slug: 'other' })).id as string;
+    const manager = await addMember(ctx.services, owner.ownerId, { roleKey: 'manager', venueIds: [venueId] });
+    const card = await failed('card', other);
+    const cash = await cancelled('cash', other);
+    for (const [path, id] of [['retry', card.refund._id], ['record-cash', card.refund._id], ['record-cash', cash.refund._id]] as const) {
+      expect((await post(`/refunds/${id}/${path}`, manager.token)).status).toBe(404);
+    }
+    expect((await post(`/refunds/${new mongoose.Types.ObjectId()}/retry`)).status).toBe(404);
+    expect((await post(`/refunds/${new mongoose.Types.ObjectId()}/record-cash`)).status).toBe(404);
+    expect(await rows()).toHaveLength(2);
+    expect(await refundOf(cash.refund._id)).toMatchObject({ status: 'pending' });
+    expect(await refundOf(card.refund._id)).toMatchObject({ status: 'failed' });
   });
 });
 

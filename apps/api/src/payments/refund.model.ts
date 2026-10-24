@@ -45,6 +45,8 @@ const refundSchema = new mongoose.Schema(
 );
 refundSchema.index({ ownerId: 1, bookingId: 1 });
 refundSchema.index({ ownerId: 1, gatewayRef: 1 });
+/** A failed refund has at most one successor. */
+refundSchema.index({ ownerId: 1, retryOf: 1 }, { unique: true, partialFilterExpression: { retryOf: { $type: 'objectId' } } });
 refundSchema.index({ status: 1, method: 1, updatedAt: 1 });
 refundSchema.plugin(tenantScoped);
 

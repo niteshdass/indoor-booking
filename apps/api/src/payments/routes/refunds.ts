@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { bookingPaymentStatus } from '@booking/shared';
 import type { Config } from '../../config';
 import { Booking } from '../../bookings/booking.model';
+import { Payment } from '../../bookings/payment.model';
 import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
 import type { AppServices } from '../../services';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
+import { gatewayFor } from '../gateway';
 import { loadGateway } from '../gateway.model';
 import { Refund, type RefundDoc } from '../refund.model';
 import { dispatchRefund, refundJson, reserveRefunds, settleRefund } from '../refunds';
@@ -38,6 +40,9 @@ export function refundsRouter(config: Config, services: AppServices): Router {
     const current = await Refund.findOne({ ownerId, _id: old._id }).session(session);
     const child = await Refund.exists({ ownerId, retryOf: old._id }).session(session);
     if (current?.status !== 'failed' || child) throw invalid();
+    // Something else may have used the room the failed refund released.
+    const payment = await Payment.findOne({ ownerId, _id: old.paymentId }).session(session);
+    if (!payment || payment.amount - payment.refundedAmount < old.amount) throw invalid();
     const booking = await Booking.findOne({ ownerId, _id: old.bookingId }).session(session);
     if (!booking) throw new AppError(404, 'not_found', 'Booking not found');
     const [row] = await reserveRefunds(
@@ -67,6 +72,9 @@ export function refundsRouter(config: Config, services: AppServices): Router {
     const t = tenantOf(req);
     const old = await scopedRefund(req);
     if (old.status !== 'failed' || old.method !== 'card') throw invalid();
+    if (!config.paymentsKey || !gatewayFor(services, old.gateway!)) {
+      throw new AppError(503, 'payments_unconfigured', 'Payments are not configured on this server');
+    }
     // The payment was taken at one account; if it has been replaced, the money cannot go back through it.
     const loaded = await loadGateway(t.ownerId, old.gateway!, config, services);
     if (!loaded || loaded.row.accountId !== old.gatewayAccountId) throw invalid();

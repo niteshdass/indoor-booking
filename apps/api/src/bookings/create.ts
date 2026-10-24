@@ -90,6 +90,35 @@ export async function stockInUse(
   return inUse;
 }
 
+/**
+ * Lazy expiry: lapsed holds overlapping `range` on the turf become expired and free their slot
+ * locks. Call under lockTurf. `except` keeps one booking out of the sweep.
+ */
+export async function expireStaleHolds(
+  ownerId: string,
+  turfId: unknown,
+  range: Range,
+  now: Date,
+  session: ClientSession,
+  except?: unknown,
+): Promise<void> {
+  const stale = await Booking.find(
+    {
+      ownerId,
+      turfId,
+      ...overlapping(range),
+      ...(except === undefined ? {} : { _id: { $ne: except } }),
+      status: 'awaiting_payment',
+      holdExpiresAt: { $lte: now },
+    },
+    { _id: 1 },
+  ).session(session);
+  if (stale.length === 0) return;
+  const ids = stale.map((b) => b._id);
+  await Booking.updateMany({ ownerId, _id: { $in: ids } }, { $set: { status: 'expired' } }, { session });
+  await SlotLock.deleteMany({ ownerId, bookingId: { $in: ids } }, { session });
+}
+
 async function prepare(input: QuoteInput) {
   const { venue, turf, date, startAts, selection, source, now } = input;
   const ownerId = String(venue.ownerId);
@@ -140,16 +169,8 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
     runInTransaction(async (session) => {
       await lockTurf(lockOwner, turf.id as string, now, session);
 
+      await expireStaleHolds(ownerId, turf._id, range, now, session);
       const turfRange = { ownerId, turfId: turf._id, ...overlapping(range) };
-      const stale = await Booking.find(
-        { ...turfRange, status: 'awaiting_payment', holdExpiresAt: { $lte: now } },
-        { _id: 1 },
-      ).session(session);
-      if (stale.length > 0) {
-        const ids = stale.map((b) => b._id);
-        await Booking.updateMany({ ownerId, _id: { $in: ids } }, { $set: { status: 'expired' } }, { session });
-        await SlotLock.deleteMany({ ownerId, bookingId: { $in: ids } }, { session });
-      }
 
       if (await Booking.exists({ ...turfRange, ...holdingFilter(now) }).session(session)) throw slotTaken();
 

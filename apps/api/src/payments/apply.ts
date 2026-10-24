@@ -3,10 +3,10 @@ import { paymentStatusFor, type AddonLine } from '@booking/shared';
 import { lockAddon } from '../addons/guards';
 import { offeredAddons } from '../addons/offered';
 import { Booking, holdingFilter, type BookingDoc } from '../bookings/booking.model';
-import { limited, stockInUse } from '../bookings/create';
+import { expireStaleHolds, limited, stockInUse } from '../bookings/create';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { SlotLock } from '../bookings/slotLock.model';
-import { logSystemActivity } from '../tenancy/activityLog.model';
+import { ActivityLog, logSystemActivity } from '../tenancy/activityLog.model';
 import { lockTurf } from '../venues/guards';
 import { Turf } from '../venues/turf.model';
 import { Venue } from '../venues/venue.model';
@@ -78,6 +78,8 @@ const pendingOf = (s: Succeeded) => ({ ownerId: s.ownerId, _id: s.payment._id, s
 /** Whether an expired or lapsed booking can have its slots and stock-limited add-ons back. */
 async function stillFree(ownerId: string, booking: BookingDoc, now: Date, session: ClientSession): Promise<boolean> {
   if (booking.endAt <= now) return false;
+  // A lapsed hold of someone else's still owns its locks; free them as createBooking would.
+  await expireStaleHolds(ownerId, booking.turfId, booking, now, session, booking._id);
   const taken = await Booking.exists({
     ownerId,
     turfId: booking.turfId,
@@ -153,8 +155,9 @@ async function confirm(s: Succeeded): Promise<WebhookOutcome> {
 }
 
 /**
- * Refunds a payment its booking can no longer use, through the account that took it. Runs inside
- * the transaction: the idempotency key makes a retried transaction or webhook replay the same refund.
+ * Refunds a payment its booking can no longer use, through the account that took it. Every write
+ * that records the decision lands before the gateway call, which is the last step: a gateway error
+ * aborts it all, and the idempotency key makes a retried transaction or webhook replay the refund.
  */
 async function refund(s: Succeeded): Promise<WebhookOutcome> {
   const { ownerId, event, payment, booking, ctx, session } = s;
@@ -170,23 +173,9 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
     if (expired.matchedCount !== 1) throw changedUnderneath();
     await SlotLock.deleteMany({ ownerId, bookingId: booking._id }, { session });
   }
-
-  let result: Awaited<ReturnType<PaymentGateway['refund']>>;
-  try {
-    result = await ctx.gateway.refund(ctx.creds, {
-      gatewayRef: event.gatewayRef,
-      amount: event.amount,
-      idempotencyKey: `refund_${String(payment._id)}`,
-    });
-  } catch {
-    // Not a GatewayError: the route must answer 500 so the gateway retries the webhook.
-    throw new Error('Refund failed while applying a webhook');
-  }
-  const refundedAmount = result.status === 'failed' ? 0 : event.amount;
-
   const paid = await Payment.updateOne(
     pendingOf(s),
-    { $set: { status: 'succeeded', gatewayRef: event.gatewayRef, refundedAmount } },
+    { $set: { status: 'succeeded', gatewayRef: event.gatewayRef } },
     { session },
   );
   if (paid.matchedCount !== 1) throw changedUnderneath();
@@ -202,14 +191,12 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
         reason,
         gateway: payment.gateway ?? ctx.gateway.key,
         gatewayAccountId: payment.gatewayAccountId,
-        gatewayRef: result.refundRef,
-        status: result.status,
+        status: 'pending',
         by: null,
       },
     ],
     { session },
   );
-
   await logSystemActivity(
     ownerId,
     {
@@ -217,10 +204,33 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
       entity: 'payment',
       entityId: String(payment._id),
       venueId: String(booking.venueId),
-      after: { bookingId: String(booking._id), refundId: String(row!._id), amount: event.amount, reason, status: result.status },
+      after: { bookingId: String(booking._id), refundId: String(row!._id), amount: event.amount, reason, status: 'pending' },
     },
     ctx.now,
     session,
   );
+
+  let result: Awaited<ReturnType<PaymentGateway['refund']>>;
+  try {
+    result = await ctx.gateway.refund(ctx.creds, {
+      gatewayRef: event.gatewayRef,
+      amount: event.amount,
+      idempotencyKey: `refund_${String(payment._id)}`,
+    });
+  } catch {
+    // Not a GatewayError: the route must answer 500 so the gateway retries the webhook.
+    throw new Error('Refund failed while applying a webhook');
+  }
+
+  // Only the outcome remains; a declined refund stays on record (status failed) for staff to settle.
+  await Refund.updateOne({ ownerId, _id: row!._id }, { $set: { status: result.status, gatewayRef: result.refundRef } }, { session });
+  await ActivityLog.updateOne(
+    { ownerId, entityId: payment._id, action: 'payment.refund', 'after.refundId': String(row!._id) },
+    { $set: { 'after.status': result.status } },
+    { session },
+  );
+  if (result.status !== 'failed') {
+    await Payment.updateOne({ ownerId, _id: payment._id }, { $set: { refundedAmount: event.amount } }, { session });
+  }
   return 'applied';
 }

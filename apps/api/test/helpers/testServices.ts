@@ -9,6 +9,8 @@ export type FakeStripe = StripeFactory & {
   calls: StripeCall[];
   /** Makes the next call to `method` (e.g. 'paymentIntents.create') throw a Stripe auth or API error. */
   fail(method: string, kind: 'auth' | 'api'): void;
+  /** Status the fake gives new refunds; 'failed' mimics a refund Stripe declines. */
+  refundStatus: 'succeeded' | 'pending' | 'failed';
 };
 
 /** In-memory Stripe: records calls, replays a repeated idempotency key, hands out sequential ids. */
@@ -60,13 +62,14 @@ export function makeFakeStripe(): FakeStripe {
       },
       refunds: {
         async create(params, o) {
-          return call('refunds.create', params, o.idempotencyKey, () => ({ id: nextId('re'), status: 'succeeded' }));
+          return call('refunds.create', params, o.idempotencyKey, () => ({ id: nextId('re'), status: factory.refundStatus }));
         },
       },
     };
   }) as FakeStripe;
   factory.calls = calls;
   factory.fail = (method, kind) => void failures.set(method, kind);
+  factory.refundStatus = 'succeeded';
   return factory;
 }
 

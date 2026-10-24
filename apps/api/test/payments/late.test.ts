@@ -325,5 +325,83 @@ describe('late payment for a lapsed hold', () => {
       expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 600 });
       expect((await bookingOf(bookingId)).status).toBe('expired');
     });
+
+    it('calls the gateway only after every database write', async () => {
+      // Slot over: the refund path itself expires the hold and frees its locks.
+      const { bookingId, payment } = await paidHold();
+      const b = await bookingOf(bookingId);
+      ctx.services.clock.advance(b.endAt.getTime() - ctx.services.now().getTime() + 60_000);
+
+      // How many refund calls had been made when each write ran: all must be 0 except the result patch.
+      const seen: Record<string, number> = {};
+      const watch = <T extends object>(model: T, method: keyof T & string, label: string): { mockRestore(): void } => {
+        const orig = (model[method] as (...a: unknown[]) => unknown).bind(model);
+        const spy = vi.spyOn(model as Record<string, (...a: unknown[]) => unknown>, method);
+        return spy.mockImplementation((...args: unknown[]) => {
+          seen[label] ??= refundCalls().length;
+          return orig(...args);
+        });
+      };
+      const spies = [
+        watch(Refund, 'create', 'refund row'),
+        watch(ActivityLog, 'create', 'activity'),
+        watch(Booking, 'updateOne', 'booking'),
+        watch(SlotLock, 'deleteMany', 'locks'),
+      ];
+      try {
+        expect((await post(piSucceeded(payment))).status).toBe(200);
+      } finally {
+        for (const s of spies) s.mockRestore();
+      }
+      expect(seen).toEqual({ 'refund row': 0, activity: 0, booking: 0, locks: 0 });
+      expect(refundCalls()).toHaveLength(1);
+      await expectRefunded(payment, 'late_payment');
+    });
+
+    it('records a refund the gateway declines and does not retry it', async () => {
+      const { bookingId, payment } = await paidHold();
+      ctx.services.clock.advance(LAPSE);
+      expect((await book(await newPlayer(), [at('18:00')])).status).toBe(201);
+
+      ctx.services.stripe.refundStatus = 'failed';
+      const event = piSucceeded(payment);
+      expect((await post(event)).status).toBe(200);
+      const rows = await refunds();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: 'failed', amount: 600, reason: 'late_payment', gatewayAccountId: accountId });
+      expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 0 });
+      expect((await bookingOf(bookingId)).status).toBe('expired');
+      expect(await locksOf(bookingId)).toBe(0);
+      const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'payment.refund' }).lean();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]!.after).toMatchObject({ status: 'failed' });
+      expect((await WebhookEvent.find({}).setOptions(cross).lean())[0]!.outcome).toBe('applied');
+
+      expect((await post(event)).status).toBe(200);
+      expect(refundCalls()).toHaveLength(1);
+      expect(await refunds()).toHaveLength(1);
+    });
+  });
+
+  describe('stale holds', () => {
+    it("revives over another player's lapsed hold, expiring that hold", async () => {
+      const { player, bookingId, payment } = await paidHold();
+      await expireHold(player, bookingId);
+      const other = await book(await newPlayer(), [at('18:00')]);
+      expect(other.status).toBe(201);
+      const otherId = other.body.booking.id as string;
+      ctx.services.clock.advance(LAPSE);
+      expect(await locksOf(otherId)).toBe(1);
+
+      const res = await post(piSucceeded(payment));
+      expect(res.status).toBe(200);
+      const b = await bookingOf(bookingId);
+      expect(b).toMatchObject({ status: 'confirmed', amountPaid: 600 });
+      expect(await locksOf(bookingId)).toBe(b.slots.length);
+      expect((await bookingOf(otherId)).status).toBe('expired');
+      expect(await locksOf(otherId)).toBe(0);
+      expect(refundCalls()).toHaveLength(0);
+      expect(await refunds()).toHaveLength(0);
+    });
   });
 });

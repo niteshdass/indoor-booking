@@ -18,8 +18,8 @@ const refundSchema = new mongoose.Schema(
     reason: { type: String, enum: REFUND_REASONS, required: true },
     gateway: { type: String, required: true },
     gatewayAccountId: { type: String, required: true },
-    /** The gateway's id for this refund. */
-    gatewayRef: { type: String, required: true },
+    /** The gateway's id for this refund; null until the gateway has answered. */
+    gatewayRef: { type: String, default: null },
     status: { type: String, enum: ['pending', 'succeeded', 'failed'], required: true },
     /** The staff member who issued it; null when the system did. */
     by: { type: ObjectId, ref: 'User', default: null },

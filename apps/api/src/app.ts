@@ -13,6 +13,7 @@ import { googleAuthRouter } from './auth/routes/googleAuth';
 import { meRouter } from './auth/routes/me';
 import { ownerRouter } from './tenancy/routes/owner';
 import { myMembershipsRouter } from './tenancy/routes/myMemberships';
+import { publicVenuesRouter } from './venues/routes/public';
 
 export type AppDeps = {
   config: Config;
@@ -60,6 +61,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use('/auth', auth);
   api.use(meRouter(authDeps));
   api.use(myMembershipsRouter(authDeps));
+  api.use(publicVenuesRouter());
   api.use('/owners/:ownerId', ownerRouter(authDeps));
 
   deps.extraRoutes?.(api);

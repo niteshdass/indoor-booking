@@ -1,0 +1,276 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import request from 'supertest';
+import { hmToMin, localToUtc } from '@booking/shared';
+import { startTestDb, stopTestDb } from '../helpers/testDb';
+import { buildTestApp } from '../helpers/testApp';
+import { signAccessToken } from '../../src/auth/jwt';
+import { seedOwner, bearer } from '../helpers/tenancy';
+import { seedTurf, seedVenue } from '../helpers/venues';
+import { User } from '../../src/auth/user.model';
+import { OtpCode } from '../../src/auth/otp.model';
+import { OtpThrottle } from '../../src/auth/otpThrottle.model';
+import { Owner } from '../../src/tenancy/owner.model';
+import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
+import { Membership } from '../../src/tenancy/membership.model';
+import { Venue } from '../../src/venues/venue.model';
+import { Turf } from '../../src/venues/turf.model';
+import { Closure } from '../../src/schedule/closure.model';
+import { SlotOverride } from '../../src/schedule/slotOverride.model';
+import { Addon } from '../../src/addons/addon.model';
+import { AddonAssignment } from '../../src/addons/assignment.model';
+import { Booking } from '../../src/bookings/booking.model';
+import { SlotLock } from '../../src/bookings/slotLock.model';
+import { Payment } from '../../src/bookings/payment.model';
+
+beforeAll(async () => {
+  await startTestDb();
+  await Promise.all([
+    User.init(), Owner.init(), Role.init(), Membership.init(), Venue.init(), Turf.init(), Closure.init(),
+    SlotOverride.init(), Addon.init(), AddonAssignment.init(), Booking.init(), SlotLock.init(), Payment.init(),
+    OtpCode.init(), OtpThrottle.init(),
+  ]);
+  await ensureSystemRoles();
+});
+afterAll(stopTestDb);
+
+const TZ = 'Asia/Dhaka';
+const D = '2026-01-10';
+const HOURS = Object.fromEntries(
+  ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { open: '08:00', close: '23:00' }]),
+);
+const at = (hm: string) => localToUtc(D, hmToMin(hm), TZ).toISOString();
+const PHONE = '+8801711111111';
+
+let ctx: ReturnType<typeof buildTestApp>;
+let ownerId: string;
+let slug: string;
+let turfId: string;
+
+beforeEach(async () => {
+  await Promise.all([
+    User.deleteMany({}), Owner.deleteMany({}), OtpCode.deleteMany({}), OtpThrottle.deleteMany({}),
+    Membership.deleteMany({ ownerId: { $exists: true } }),
+    ...[Venue, Turf, Closure, SlotOverride, Addon, AddonAssignment, Booking, SlotLock, Payment].map((m) =>
+      (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true }),
+    ),
+  ]);
+  ctx = buildTestApp();
+  ({ ownerId } = await seedOwner(ctx.services));
+  await setup();
+});
+
+async function setup(settings: Record<string, unknown> = {}, published = true) {
+  const venue = await seedVenue(ownerId, {
+    published,
+    slug: `arena-${Math.random().toString(36).slice(2, 8)}`,
+    timezone: TZ,
+    settings: { hours: HOURS, bookingWindowDays: 365, ...settings },
+  });
+  const turf = await seedTurf(ownerId, venue.id as string, { pricing: { base: 1500, rules: [] } });
+  slug = venue.slug;
+  turfId = turf.id as string;
+  return { venue, turf };
+}
+
+const base = () => `/api/v1/venues/${slug}/turfs/${turfId}`;
+const post = (path: string, body: unknown, auth?: string) => {
+  const r = request(ctx.app).post(path);
+  if (auth) r.set(...bearer(auth));
+  return r.send(body as object);
+};
+const guestBody = (over: Record<string, unknown> = {}, hms = ['18:00']) => ({
+  date: D,
+  startAts: hms.map(at),
+  guest: { name: 'Иван Петров', phone: PHONE, otpCode: '123456' },
+  ...over,
+});
+async function newPlayer() {
+  const u = await User.create({ name: 'Player', email: `p${Math.random()}@test.local` });
+  return { userId: u.id as string, token: await signAccessToken(u.id as string, ctx.config.jwtSecret, ctx.services.now()) };
+}
+const requestOtpFor = () => post(`/api/v1/venues/${slug}/bookings/otp`, { phone: PHONE });
+
+describe('quote', () => {
+  it('prices two slots plus a towel', async () => {
+    const towel = await Addon.create({ ownerId, name: 'Towel', pricingType: 'per_booking', price: 50, currency: 'BDT' });
+    await AddonAssignment.create({ ownerId, addonId: towel._id, venueId: (await Venue.findOne({ slug }).setOptions({ crossTenant: true }))!._id, turfId: null, enabled: true });
+    const res = await post(`${base()}/quote`, { date: D, startAts: [at('18:00'), at('19:00')], addons: [{ addonId: towel.id }] });
+    expect(res.status).toBe(200);
+    expect(res.body.quote).toMatchObject({ currency: 'BDT', subtotal: 3000, addonsTotal: 50, total: 3050, advanceRequired: 0 });
+    expect(res.body.quote.slots[0].startAt).toBe(at('18:00'));
+    expect(res.body.guestAllowed).toBe(true);
+    expect(res.body.guestOtpRequired).toBe(true);
+  });
+
+  it('404s for unknown slug, unpublished venue, inactive turf', async () => {
+    const body = { date: D, startAts: [at('18:00')] };
+    expect((await post(`/api/v1/venues/nope/turfs/${turfId}/quote`, body)).status).toBe(404);
+    expect((await post(`/api/v1/venues/${slug}/turfs/000000000000000000000000/quote`, body)).status).toBe(404);
+    await Turf.updateOne({ ownerId, _id: turfId }, { active: false });
+    expect((await post(`${base()}/quote`, body)).status).toBe(404);
+    await Venue.updateOne({ ownerId, slug }, { published: false });
+    expect((await post(`${base()}/quote`, body)).status).toBe(404);
+  });
+});
+
+describe('registered booking', () => {
+  it('confirms, lists, hides from others, rejects a bad token', async () => {
+    const { userId, token } = await newPlayer();
+    const res = await post(`${base()}/bookings`, { date: D, startAts: [at('18:00')] }, token);
+    expect(res.status).toBe(201);
+    expect(res.body.booking).toMatchObject({ status: 'confirmed', playerId: userId, guest: null });
+
+    const list = await request(ctx.app).get('/api/v1/me/bookings').set(...bearer(token));
+    expect(list.body.bookings.map((b: { id: string }) => b.id)).toEqual([res.body.booking.id]);
+    const one = await request(ctx.app).get(`/api/v1/me/bookings/${res.body.booking.id}`).set(...bearer(token));
+    expect(one.status).toBe(200);
+
+    const other = await newPlayer();
+    const hidden = await request(ctx.app).get(`/api/v1/me/bookings/${res.body.booking.id}`).set(...bearer(other.token));
+    expect(hidden.status).toBe(404);
+    expect((await request(ctx.app).get('/api/v1/me/bookings')).status).toBe(401);
+
+    const bad = await post(`${base()}/bookings`, guestBody(), 'garbage');
+    expect(bad.status).toBe(401);
+    expect(bad.body.error.code).toBe('invalid_token');
+    expect(await Booking.countDocuments({}).setOptions({ crossTenant: true })).toBe(1);
+  });
+
+  it('rejects a guest object from a signed-in player', async () => {
+    const { token } = await newPlayer();
+    expect((await post(`${base()}/bookings`, guestBody(), token)).status).toBe(400);
+  });
+});
+
+describe('guest booking with OTP', () => {
+  it('books after an OTP request', async () => {
+    const otp = await requestOtpFor();
+    expect(otp.status).toBe(200);
+    expect(otp.body).toEqual({ expiresInSec: 300, resendInSec: 60 });
+    expect(ctx.services.sms.sent).toHaveLength(1);
+    const res = await post(`${base()}/bookings`, guestBody({ guest: { name: 'Иван Петров', phone: '+880 1711-111111', otpCode: '123456' } }));
+    expect(res.status).toBe(201);
+    expect(res.body.booking).toMatchObject({ status: 'pending', playerId: null, guest: { name: 'Иван Петров', phone: PHONE } });
+    expect(res.body.booking.reference).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
+  });
+
+  it('wrong code, missing code, and requireOtp false', async () => {
+    await requestOtpFor();
+    const wrong = await post(`${base()}/bookings`, guestBody({ guest: { name: 'A', phone: PHONE, otpCode: '000000' } }));
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.error.code).toBe('otp_invalid');
+    const none = await post(`${base()}/bookings`, guestBody({ guest: { name: 'A', phone: PHONE } }));
+    expect(none.body.error.code).toBe('otp_required');
+    expect(none.status).toBe(400);
+    expect(await Booking.countDocuments({}).setOptions({ crossTenant: true })).toBe(0);
+
+    await setup({ guestBooking: { allowed: true, requireOtp: false } });
+    const q = await post(`${base()}/quote`, { date: D, startAts: [at('18:00')] });
+    expect(q.body.guestOtpRequired).toBe(false);
+    const ok = await post(`${base()}/bookings`, guestBody({ guest: { name: 'A', phone: PHONE } }));
+    expect(ok.status).toBe(201);
+  });
+
+  it('anonymous without guest is 401', async () => {
+    const res = await post(`${base()}/bookings`, { date: D, startAts: [at('18:00')] });
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('unauthenticated');
+  });
+});
+
+describe('guest lookup', () => {
+  it('matches reference and phone only', async () => {
+    await requestOtpFor();
+    const created = await post(`${base()}/bookings`, guestBody());
+    const ref = created.body.booking.reference as string;
+    const ok = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: ref, phone: '+880 1711 111111' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.booking.id).toBe(created.body.booking.id);
+    const wrongPhone = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: ref, phone: '+8801722222222' });
+    const unknown = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: PHONE });
+    expect(wrongPhone.status).toBe(404);
+    expect(unknown.status).toBe(404);
+    expect(wrongPhone.body).toEqual(unknown.body);
+  });
+});
+
+describe('guest disabled', () => {
+  it('advance venue: quote, create and OTP refuse guests; players get awaiting_payment', async () => {
+    await setup({ paymentPolicy: { type: 'partial_percent', percent: 20 }, guestBooking: { allowed: true, requireOtp: true } });
+    const q = await post(`${base()}/quote`, { date: D, startAts: [at('18:00')] });
+    expect(q.body.guestAllowed).toBe(false);
+    expect(q.body.quote.advanceRequired).toBe(300);
+    const g = await post(`${base()}/bookings`, guestBody());
+    expect(g.status).toBe(403);
+    expect(g.body.error.code).toBe('guest_booking_disabled');
+    expect((await requestOtpFor()).status).toBe(403);
+    const { token } = await newPlayer();
+    const p = await post(`${base()}/bookings`, { date: D, startAts: [at('18:00')] }, token);
+    expect(p.status).toBe(201);
+    expect(p.body.booking.status).toBe('awaiting_payment');
+  });
+
+  it('guestBooking.allowed false, and no code is consumed', async () => {
+    await setup({ guestBooking: { allowed: false, requireOtp: true } });
+    expect((await requestOtpFor()).status).toBe(403);
+    expect(ctx.services.sms.sent).toHaveLength(0);
+    const g = await post(`${base()}/bookings`, guestBody());
+    expect(g.status).toBe(403);
+    expect(g.body.error.code).toBe('guest_booking_disabled');
+  });
+});
+
+describe('quote errors reach the client', () => {
+  it('non-consecutive, out of stock, concurrent same slot', async () => {
+    const { token } = await newPlayer();
+    const nc = await post(`${base()}/bookings`, { date: D, startAts: [at('10:00'), at('12:00')] }, token);
+    expect(nc.status).toBe(400);
+    expect(nc.body.error.code).toBe('slots_not_consecutive');
+
+    const venue = (await Venue.findOne({ slug }).setOptions({ crossTenant: true }))!;
+    const racket = await Addon.create({ ownerId, name: 'Racket', pricingType: 'per_unit', price: 100, currency: 'BDT', stock: 1 });
+    await AddonAssignment.create({ ownerId, addonId: racket._id, venueId: venue._id, turfId: null, enabled: true });
+    const sel = [{ addonId: racket.id, quantity: 1 }];
+    expect((await post(`${base()}/bookings`, { date: D, startAts: [at('10:00')], addons: sel }, token)).status).toBe(201);
+    const out = await post(`${base()}/bookings`, { date: D, startAts: [at('12:00')], addons: [{ addonId: racket.id, quantity: 2 }] }, token);
+    expect(out.status).toBe(409);
+    expect(out.body.error.code).toBe('addon_out_of_stock');
+    expect(out.body.error.details.addonId).toBe(racket.id);
+
+    const results = await Promise.all([
+      post(`${base()}/bookings`, { date: D, startAts: [at('18:00')] }, token),
+      post(`${base()}/bookings`, { date: D, startAts: [at('18:00')] }, token),
+    ]);
+    expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
+    expect(results.find((r) => r.status === 409)!.body.error.code).toBe('slot_taken');
+  }, 60_000);
+});
+
+describe('validation', () => {
+  it('rejects bad input with validation_error', async () => {
+    const many = Array.from({ length: 13 }, () => at('18:00'));
+    const bodies = [
+      guestBody({ startAts: many }),
+      guestBody({ date: '2026-02-30' }),
+      guestBody({ guest: { name: '', phone: PHONE, otpCode: '123456' } }),
+      guestBody({ guest: { name: 'x'.repeat(81), phone: PHONE, otpCode: '123456' } }),
+      guestBody({ guest: { name: 'x'.repeat(101), phone: PHONE, otpCode: '123456' } }),
+      guestBody({ extra: 1 }),
+    ];
+    for (const b of bodies) {
+      const res = await post(`${base()}/bookings`, b);
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('validation_error');
+    }
+    expect((await post(`${base()}/quote`, { date: D, startAts: [at('18:00')], extra: 1 })).status).toBe(400);
+  });
+});
+
+describe('guest OTP rate limit', () => {
+  it('429s after 20 requests when limiting is on', async () => {
+    ctx = buildTestApp({ services: ctx.services, rateLimit: true });
+    let last = 0;
+    for (let i = 0; i < 21; i++) last = (await requestOtpFor()).status;
+    expect(last).toBe(429);
+  });
+});

@@ -16,6 +16,7 @@ import { myMembershipsRouter } from './tenancy/routes/myMemberships';
 import { publicVenuesRouter } from './venues/routes/public';
 import { publicSlotsRouter } from './schedule/routes/publicSlots';
 import { publicAddonsRouter } from './addons/routes/publicAddons';
+import { publicBookingsRouter } from './bookings/routes/public';
 
 export type AppDeps = {
   config: Config;
@@ -66,6 +67,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(publicVenuesRouter());
   api.use(publicSlotsRouter(deps.services));
   api.use(publicAddonsRouter());
+  api.use(publicBookingsRouter(deps.config, deps.services, limited ? authLimiter(20) : undefined));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
 
   deps.extraRoutes?.(api);

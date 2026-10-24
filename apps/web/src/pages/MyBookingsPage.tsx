@@ -5,7 +5,7 @@ export function MyBookingsPage() {
   const { t } = useTranslation();
   return (
     <main>
-      <h1>{t('nav.myBookings')}</h1>
+      <h1>{t('myBookings.title')}</h1>
     </main>
   );
 }

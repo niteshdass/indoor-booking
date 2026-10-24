@@ -19,8 +19,41 @@
     "profile": "Profile"
   },
   "auth": {
+    "email": "Email address",
+    "password": "Password",
+    "name": "Name",
+    "tabs": {
+      "label": "Sign-in method",
+      "phone": "Phone",
+      "email": "Email"
+    },
+    "otp": {
+      "digit": "Digit {{n}} of {{total}}"
+    },
+    "phone": {
+      "label": "Phone",
+      "country": "Country code",
+      "number": "Phone number",
+      "sendCode": "Send code",
+      "code": "Verification code",
+      "sentTo": "We sent a code to {{phone}}.",
+      "verify": "Verify and sign in",
+      "resend": "Resend code",
+      "resendIn": "Resend code in {{sec}}s",
+      "change": "Change number"
+    },
     "login": {
-      "title": "Sign in"
+      "title": "Sign in",
+      "submit": "Sign in",
+      "forgot": "Forgot password?",
+      "toRegister": "Create an account"
+    },
+    "register": {
+      "title": "Create an account",
+      "submit": "Create account",
+      "passwordHint": "At least 8 characters.",
+      "haveAccount": "Already have an account? Sign in",
+      "toLogin": "Sign in instead"
     }
   },
   "theme": {
@@ -61,6 +94,12 @@
     "outside_window": "That date is outside the booking window.",
     "rate_limited": "Too many requests. Please wait a moment and try again.",
     "not_found": "We couldn't find what you were looking for.",
-    "validation_error": "Please check the details you entered."
+    "validation_error": "Please check the details you entered.",
+    "invalid_email": "Enter a valid email address.",
+    "account_disabled": "This account has been disabled.",
+    "identity_in_use": "These details are already linked to another account."
+  },
+  "myBookings": {
+    "title": "My bookings"
   }
 }

@@ -10,6 +10,7 @@ import { ProfilePage } from './auth/ProfilePage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { VenuePage } from './venue/VenuePage';
 import { CheckoutPage } from './checkout/CheckoutPage';
+import { PayPage } from './payment/PayPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export function AppRoutes() {
@@ -25,6 +26,7 @@ export function AppRoutes() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
         <Route path="/me/bookings" element={<RequireAuth><MyBookingsPage /></RequireAuth>} />
+        <Route path="/me/bookings/:id/pay" element={<RequireAuth><PayPage /></RequireAuth>} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

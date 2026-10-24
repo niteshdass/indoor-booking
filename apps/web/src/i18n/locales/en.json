@@ -285,5 +285,13 @@
     "durationH": "{{hours}} h",
     "durationM": "{{minutes}} min",
     "durationHM": "{{hours}} h {{minutes}} min"
+  },
+  "payment": {
+    "title": "Payment",
+    "payNow": "Pay {{amount}} now",
+    "pay": "Pay",
+    "holdEndsIn": "Your slots are held for {{time}}",
+    "expired": "Your hold has expired and the slots were released. Please pick your slots again.",
+    "backToVenue": "Back to venue"
   }
 }

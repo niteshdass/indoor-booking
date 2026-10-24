@@ -293,5 +293,13 @@
     "durationH": "{{hours}} ч",
     "durationM": "{{minutes}} мин",
     "durationHM": "{{hours}} ч {{minutes}} мин"
+  },
+  "payment": {
+    "title": "Оплата",
+    "payNow": "Оплатить {{amount}}",
+    "pay": "Оплатить",
+    "holdEndsIn": "Слоты удерживаются ещё {{time}}",
+    "expired": "Время удержания истекло, слоты освобождены. Выберите слоты заново.",
+    "backToVenue": "Назад к площадке"
   }
 }

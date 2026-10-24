@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -21,11 +21,15 @@ import { PaymentGatewayAccount } from '../../src/payments/gateway.model';
 import { WebhookEvent } from '../../src/payments/webhookEvent.model';
 import { Refund } from '../../src/payments/refund.model';
 import { Notification } from '../../src/notifications/notification.model';
+import { noticeBooking } from '../../src/notifications/outbox';
+import { runInTransaction } from '../../src/db';
 import {
+  SWEEP_BATCH,
   autoCompleteBookings,
   autoRejectPending,
   expireHolds,
   sendReminders,
+  sweepConfig,
   warnExpiringHolds,
 } from '../../src/jobs/sweeps';
 
@@ -85,6 +89,10 @@ beforeEach(async () => {
   // Players' bookings here are held awaiting a 60% advance.
   await setup({ paymentPolicy: { type: 'partial_percent', percent: 60 } });
   ({ webhookSecret: secret } = await connectStripe(ctx.app, owner));
+});
+
+afterEach(() => {
+  sweepConfig.batch = SWEEP_BATCH;
 });
 
 async function newPlayer(opts: { phone?: string } = {}) {
@@ -259,6 +267,33 @@ describe('autoRejectPending', () => {
       logged.mockRestore();
     }
   });
+
+  it('a booking confirmed after the sweep selected it is skipped quietly', async () => {
+    await setup({});
+    const booking = await bookAs(null, '18:00');
+    advanceTo(new Date((await startOf(booking.id)).getTime() - 2 * HOUR));
+    const token = await ownerToken();
+    // The sweep reads the owner's settings after selecting and before acting: confirm right then.
+    const realFindById = Owner.findById.bind(Owner);
+    const settings = vi.spyOn(Owner, 'findById').mockImplementationOnce(((...args: Parameters<typeof Owner.findById>) => ({
+      lean: async () => {
+        expect((await asOwner(token, `/bookings/${booking.id}/confirm`).send({})).status).toBe(200);
+        return realFindById(...args).lean();
+      },
+    })) as unknown as typeof Owner.findById);
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await autoRejectPending(now())).toBe(0);
+      expect(settings).toHaveBeenCalled();
+      expect(logged).not.toHaveBeenCalled();
+    } finally {
+      logged.mockRestore();
+      settings.mockRestore();
+    }
+    expect((await bookingOf(booking.id)).status).toBe('confirmed');
+    expect(await notices('booking_confirmed')).toHaveLength(1);
+    expect(await notices('booking_rejected')).toHaveLength(0);
+  });
 });
 
 describe('autoCompleteBookings', () => {
@@ -319,6 +354,23 @@ describe('sendReminders', () => {
     expect(await sendReminders(now())).toBe(0);
     expect(await notices('booking_reminder')).toHaveLength(0);
   });
+
+  it('rows that already have their reminder do not hold back a due one', async () => {
+    await setup({});
+    await Turf.updateOne({ ownerId: owner.ownerId, _id: turfId }, { $set: { slotLengthMin: 30 } });
+    const player = await newPlayer();
+    const ids: string[] = [];
+    for (const hm of ['16:00', '16:30', '17:00', '17:30']) ids.push((await bookAs(player.token, hm)).id);
+    advanceTo(at('15:45'));
+    for (const id of ids.slice(0, 3)) {
+      const b = await bookingOf(id);
+      await runInTransaction((s) => noticeBooking('booking_reminder', b, now(), s));
+    }
+    sweepConfig.batch = 2;
+    expect(await sendReminders(now())).toBe(1);
+    const rows = await notices('booking_reminder');
+    expect(rows.filter((r) => String(r.bookingId) === ids[3])).toHaveLength(1);
+  });
 });
 
 describe('warnExpiringHolds', () => {
@@ -349,5 +401,20 @@ describe('warnExpiringHolds', () => {
 
     advanceTo(linkExpires);
     expect(await warnExpiringHolds(now())).toBe(0);
+  });
+
+  it('holds without a payment link do not hold back a link hold', async () => {
+    const walkin = await asOwner(owner.token, `/venues/${venueId}/turfs/${turfId}/bookings`).send({
+      date: D, startAts: [at('18:00')], customer: { name: 'Walk In', phone: PHONE }, payment: { method: 'link' },
+    });
+    expect(walkin.status).toBe(201);
+    // In-app holds made now lapse just before the link hold, so they sort ahead of it.
+    ctx.services.clock.advance(21.5 * MIN);
+    for (const hm of ['19:00', '20:00', '21:00']) await intentHold(hm);
+    ctx.services.clock.advance(0.5 * MIN);
+    sweepConfig.batch = 2;
+    expect(await warnExpiringHolds(now())).toBe(1);
+    const rows = await notices('hold_expiring');
+    expect(rows.map((r) => String(r.bookingId))).toEqual([walkin.body.booking.id]);
   });
 });

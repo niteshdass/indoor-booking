@@ -17,6 +17,7 @@ import { publicVenuesRouter } from './venues/routes/public';
 import { publicSlotsRouter } from './schedule/routes/publicSlots';
 import { publicAddonsRouter } from './addons/routes/publicAddons';
 import { publicBookingsRouter } from './bookings/routes/public';
+import { webhooksRouter } from './payments/routes/webhooks';
 
 export type AppDeps = {
   config: Config;
@@ -45,6 +46,8 @@ export function createApp(deps: AppDeps): express.Express {
   if (deps.config.trustProxy !== undefined) app.set('trust proxy', deps.config.trustProxy);
   // credentials: the web app sends the httpOnly refresh cookie cross-origin.
   app.use(cors({ origin: deps.config.corsOrigin, credentials: true }));
+  // Signatures cover the exact bytes, so webhooks take the raw body: before express.json() and every rate limiter.
+  app.use('/api/v1/webhooks', express.raw({ type: '*/*', limit: '1mb' }), webhooksRouter(deps.config, deps.services));
   app.use(express.json());
   app.use(cookieParser());
 

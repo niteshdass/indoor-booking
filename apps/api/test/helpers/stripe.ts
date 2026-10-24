@@ -31,3 +31,62 @@ export async function connectStripe(
   if (res.status !== 200) throw new Error(`connectStripe failed: ${res.status} ${JSON.stringify(res.body)}`);
   return { webhookSecret, accountId: res.body.gateway.accountId };
 }
+
+/** Posts a delivery to the owner's Stripe webhook URL, signed with `webhookSecret`. */
+export function postEvent(app: Express, ownerId: string, webhookSecret: string, event: object): request.Test {
+  const { body, signature } = signedEvent(webhookSecret, event);
+  return request(app)
+    .post(`/api/v1/webhooks/stripe/${ownerId}`)
+    .set('stripe-signature', signature)
+    .set('Content-Type', 'application/json')
+    .send(body);
+}
+
+type PaymentLike = { _id: unknown; amount: number; currency: string; gatewayRef?: string | null };
+
+let eventSeq = 0;
+
+function stripeEvent(type: string, object: object, id?: string) {
+  eventSeq += 1;
+  return { id: id ?? `evt_${eventSeq}`, object: 'event', type, data: { object } };
+}
+
+const intentOf = (p: PaymentLike, paymentId = String(p._id)) => ({
+  id: p.gatewayRef ?? `pi_for_${paymentId}`,
+  object: 'payment_intent',
+  amount: p.amount,
+  currency: p.currency.toLowerCase(),
+  metadata: { paymentId },
+});
+
+export function piSucceeded(
+  p: PaymentLike,
+  o: { id?: string; amount?: number; currency?: string; paymentId?: string } = {},
+) {
+  const pi = intentOf(p, o.paymentId);
+  return stripeEvent(
+    'payment_intent.succeeded',
+    { ...pi, amount_received: o.amount ?? p.amount, currency: o.currency ?? pi.currency, status: 'succeeded' },
+    o.id,
+  );
+}
+
+export function piFailed(p: PaymentLike, o: { id?: string; code?: string } = {}) {
+  return stripeEvent(
+    'payment_intent.payment_failed',
+    { ...intentOf(p), amount_received: 0, last_payment_error: { code: o.code ?? 'card_declined' } },
+    o.id,
+  );
+}
+
+export function piCanceled(p: PaymentLike, o: { id?: string } = {}) {
+  return stripeEvent('payment_intent.canceled', { ...intentOf(p), status: 'canceled' }, o.id);
+}
+
+export function sessionExpired(p: PaymentLike, o: { id?: string } = {}) {
+  return stripeEvent(
+    'checkout.session.expired',
+    { id: `cs_for_${String(p._id)}`, object: 'checkout.session', metadata: { paymentId: String(p._id) } },
+    o.id,
+  );
+}

@@ -75,13 +75,18 @@ async function closeOpenPayment(booking: BookingDoc, deps: { config: Config; ser
   const inProgress = () => new AppError(409, 'payment_in_progress', 'A payment for this booking is in progress');
   try {
     const loaded = await loadGateway(ownerId, payment.gateway!, deps.config, deps.services);
-    if (!loaded) throw new Error('gateway unavailable');
+    if (!loaded) {
+      console.error(`[bookings] cancel of ${String(booking._id)} could not close payment ${String(payment._id)}: no gateway`);
+      throw inProgress();
+    }
     await loaded.gateway.cancelPayment(loaded.creds, {
       kind: payment.kind ?? 'intent',
       gatewayRef: payment.gatewayRef ?? null,
       linkRef: payment.linkRef ?? null,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    console.error(`[bookings] cancel of ${String(booking._id)} could not close payment ${String(payment._id)}`, err);
     throw inProgress();
   }
   await Payment.updateOne(

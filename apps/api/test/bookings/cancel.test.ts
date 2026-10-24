@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -201,6 +201,39 @@ describe('cancelBooking', () => {
     expect(await codeOf(cancelBooking(await bookingOf(bookingId), playerBy(player), {}, deps()))).toEqual({ status: 409, code: 'payment_in_progress' });
     expect((await bookingOf(bookingId)).status).toBe('awaiting_payment');
     expect((await Payment.findById(payment._id).setOptions(cross))!.status).toBe('pending');
+
+    // The payment then lands through its webhook and confirms the booking.
+    expect((await postEvent(ctx.app, owner.ownerId, secret, piSucceeded(payment))).status).toBe(200);
+    expect((await bookingOf(bookingId)).status).toBe('confirmed');
+  });
+
+  it('a hold whose gateway is gone cannot be cancelled', async () => {
+    const { player, bookingId } = await hold();
+    await PaymentGatewayAccount.deleteMany({}).setOptions(cross);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      expect(await codeOf(cancelBooking(await bookingOf(bookingId), playerBy(player), {}, deps()))).toEqual({ status: 409, code: 'payment_in_progress' });
+      expect(spy).toHaveBeenCalledWith(expect.stringContaining('could not close payment'));
+    } finally {
+      spy.mockRestore();
+    }
+    expect((await bookingOf(bookingId)).status).toBe('awaiting_payment');
+  });
+
+  it('a failed refund dispatch does not fail the cancel', async () => {
+    const { player, bookingId } = await paid();
+    ctx.services.stripe.onRefundCreate = async () => {
+      throw new Error('boom');
+    };
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const out = await cancelBooking(await bookingOf(bookingId), playerBy(player), {}, deps());
+      expect(out.booking.status).toBe('cancelled');
+      expect(out.refunds.map((r) => [r.method, r.status])).toEqual([['card', 'pending']]);
+    } finally {
+      spy.mockRestore();
+    }
+    expect((await refundRows())[0]!.status).toBe('pending');
   });
 
   it('two concurrent cancels create refunds once', async () => {

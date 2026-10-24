@@ -7,7 +7,7 @@ import type { TenantContext } from '../tenancy/context';
 import { Booking, type BookingDoc } from './booking.model';
 import { SlotLock } from './slotLock.model';
 
-/** Who acts: a member, or (null userId) a player or guest whose changes are logged as system activity. */
+/** Who acts: a member or player, or (null userId) a guest or system effect, logged as system activity. */
 export type Actor = { ownerId: string; userId: string | null };
 
 export const invalidTransition = (status: string) =>

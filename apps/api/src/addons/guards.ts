@@ -13,7 +13,12 @@ export async function scopedAddon(t: TenantContext, addonId: string): Promise<Ad
 }
 
 /** Like lockTurf: serializes concurrent writers of one add-on; 404s when it is gone. */
-export async function lockAddon(t: TenantContext, addonId: string, at: Date, session: ClientSession): Promise<void> {
+export async function lockAddon(
+  t: Pick<TenantContext, 'ownerId'>,
+  addonId: string,
+  at: Date,
+  session: ClientSession,
+): Promise<void> {
   const { matchedCount } = await Addon.updateOne(
     { ownerId: t.ownerId, _id: addonId },
     { $set: { updatedAt: at } },

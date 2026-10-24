@@ -15,12 +15,13 @@ import { Turf } from '../../src/venues/turf.model';
 import { signAccessToken } from '../../src/auth/jwt';
 import { Closure } from '../../src/schedule/closure.model';
 import { SlotOverride } from '../../src/schedule/slotOverride.model';
+import { Booking } from '../../src/bookings/booking.model';
 
 beforeAll(async () => {
   await startTestDb();
   await Promise.all([
     User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Turf.init(),
-    Closure.init(), SlotOverride.init(),
+    Closure.init(), SlotOverride.init(), Booking.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -55,6 +56,7 @@ beforeEach(async () => {
     Turf.deleteMany({}).setOptions({ crossTenant: true }),
     Closure.deleteMany({}).setOptions({ crossTenant: true }),
     SlotOverride.deleteMany({}).setOptions({ crossTenant: true }),
+    Booking.deleteMany({}).setOptions({ crossTenant: true }),
   ]);
   ctx = buildTestApp();
   await setNow(T0);
@@ -189,6 +191,38 @@ describe('public slots', () => {
     const susp = await getPublic();
     expect(susp.status).toBe(404);
     expect(susp.body).toEqual(venueRes.body);
+  });
+});
+
+describe('booked and pending slots', () => {
+  /** A one-slot booking stored directly at `hm` on `day` (Dhaka). */
+  async function bookAt(hm: string, status: string, holdExpiresAt: Date | null = null) {
+    const startAt = new Date(`${day}T${hm}:00+06:00`);
+    const endAt = new Date(startAt.getTime() + 3600_000);
+    await Booking.create({
+      ownerId: a.ownerId, venueId: v1, turfId: t1, reference: `R${hm.replace(':', '')}${status.slice(0, 3)}`.toUpperCase(),
+      businessDate: day, startAt, endAt, slots: [{ startAt, endAt, price: 1400 }], currency: 'BDT', subtotal: 1400,
+      addonsTotal: 0, total: 1400, advanceRequired: 0, status, paymentStatus: 'unpaid', holdExpiresAt,
+      source: 'online', policySnapshot: { paymentPolicy: { type: 'none' }, refundRules: [] },
+    });
+  }
+
+  it('shows pending and booked', async () => {
+    await bookAt('18:00', 'confirmed');
+    await bookAt('19:00', 'pending');
+    await bookAt('20:00', 'awaiting_payment', new Date(T0 + 600_000));
+    await bookAt('21:00', 'awaiting_payment', new Date(T0)); // hold already over
+    await bookAt('22:00', 'cancelled');
+    await bookAt('23:00', 'no_show');
+    const expected = {
+      '16:00': 'available', '17:00': 'available', '18:00': 'booked', '19:00': 'pending', '20:00': 'pending',
+      '21:00': 'available', '22:00': 'available', '23:00': 'booked', '00:00': 'available', '01:00': 'available',
+    };
+    for (const res of [await getOwner(), await getPublic()]) {
+      expect(res.status).toBe(200);
+      const got = Object.fromEntries(res.body.day.slots.map((s: { localStart: string; status: string }) => [s.localStart, s.status]));
+      expect(got).toEqual(expected);
+    }
   });
 });
 

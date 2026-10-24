@@ -10,7 +10,12 @@ import { scopedVenue } from './routes/venues';
  * same venue conflict (and retry) instead of both passing their checks. 404s when the venue is gone,
  * e.g. deleted between the route's lookup and this transaction (or its retry).
  */
-export async function lockVenue(t: TenantContext, venueId: string, at: Date, session: ClientSession): Promise<void> {
+export async function lockVenue(
+  t: Pick<TenantContext, 'ownerId'>,
+  venueId: string,
+  at: Date,
+  session: ClientSession,
+): Promise<void> {
   const { matchedCount } = await Venue.updateOne(
     { ownerId: t.ownerId, _id: venueId },
     { $set: { updatedAt: at } },
@@ -49,7 +54,12 @@ export async function scopedTurf(
 }
 
 /** Like lockVenue, for the turf: serializes concurrent writers of one turf's schedule data. */
-export async function lockTurf(t: TenantContext, turfId: string, at: Date, session: ClientSession): Promise<void> {
+export async function lockTurf(
+  t: Pick<TenantContext, 'ownerId'>,
+  turfId: string,
+  at: Date,
+  session: ClientSession,
+): Promise<void> {
   const { matchedCount } = await Turf.updateOne(
     { ownerId: t.ownerId, _id: turfId },
     { $set: { updatedAt: at } },

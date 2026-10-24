@@ -1,4 +1,15 @@
-import { addDays, computeSlots, localParts, weekdayOf, type DaySlots, type EffectiveSettings, type TurfPricing } from '@booking/shared';
+import {
+  addDays,
+  computeSlots,
+  localParts,
+  localToUtc,
+  weekdayOf,
+  type BookingStatus,
+  type DaySlots,
+  type EffectiveSettings,
+  type TurfPricing,
+} from '@booking/shared';
+import { Booking, holdingFilter } from '../bookings/booking.model';
 import type { TurfDoc } from '../venues/turf.model';
 import type { VenueDoc } from '../venues/venue.model';
 import { effectiveForTurf } from '../venues/effective';
@@ -9,7 +20,7 @@ import { overridesFor } from './slotOverride.model';
  * One business day of a turf: effective settings, closure, overrides, then computeSlots. The day
  * before is computed too, and its slots win: a slot of this day overlapping one of the day before
  * (a night session or extra running past midnight) is dropped, so no instant is offered twice.
- * Plan 07 adds `taken`.
+ * Slots of bookings that hold them show as booked or pending.
  */
 export async function loadDay(
   ownerId: string,
@@ -18,10 +29,13 @@ export async function loadDay(
   businessDate: string,
   now: Date,
 ): Promise<{ day: DaySlots; settings: EffectiveSettings }> {
-  const settings = await effectiveForTurf(ownerId, venue, turf);
+  const [settings, taken] = await Promise.all([
+    effectiveForTurf(ownerId, venue, turf),
+    takenSlots(ownerId, venue, turf, businessDate, now),
+  ]);
   const [day, before] = await Promise.all([
-    computeDay(ownerId, venue, turf, settings, businessDate, now),
-    computeDay(ownerId, venue, turf, settings, addDays(businessDate, -1), now),
+    computeDay(ownerId, venue, turf, settings, businessDate, now, taken),
+    computeDay(ownerId, venue, turf, settings, addDays(businessDate, -1), now, taken),
   ]);
   const slots = day.slots.filter((s) => !before.slots.some((b) => s.startAt < b.endAt && b.startAt < s.endAt));
   return { day: { ...day, slots }, settings };
@@ -34,6 +48,7 @@ async function computeDay(
   settings: EffectiveSettings,
   businessDate: string,
   now: Date,
+  taken: Taken,
 ): Promise<DaySlots> {
   const venueId = venue.id as string;
   const turfId = turf.id as string;
@@ -51,8 +66,29 @@ async function computeDay(
     pricing: (turf.pricing ?? null) as TurfPricing | null,
     overrides,
     closure,
+    taken,
     now,
   });
+}
+
+type Taken = { startAt: Date; status: 'pending' | 'booked' }[];
+
+const PENDING: readonly BookingStatus[] = ['pending', 'awaiting_payment'];
+
+/**
+ * Slots held by the turf's bookings from the start of the day before to the end of the day after:
+ * wide enough for both computed days, night sessions included. Matched to the grid by startAt.
+ */
+async function takenSlots(ownerId: string, venue: VenueDoc, turf: TurfDoc, businessDate: string, now: Date): Promise<Taken> {
+  const from = localToUtc(addDays(businessDate, -1), 0, venue.timezone);
+  const to = localToUtc(addDays(businessDate, 2), 0, venue.timezone);
+  const bookings = await Booking.find(
+    { ownerId, turfId: turf._id, startAt: { $lt: to }, endAt: { $gt: from }, ...holdingFilter(now) },
+    { status: 1, slots: 1 },
+  ).lean();
+  return bookings.flatMap((b) =>
+    b.slots.map((s) => ({ startAt: s.startAt, status: PENDING.includes(b.status) ? ('pending' as const) : ('booked' as const) })),
+  );
 }
 
 /** localToday - 1 <= d <= localToday + bookingWindowDays; the -1 keeps last night's past-midnight session bookable. */

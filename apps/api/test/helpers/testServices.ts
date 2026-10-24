@@ -25,7 +25,8 @@ export function makeFakeStripe(): FakeStripe {
       const kind = failures.get(method);
       if (kind) {
         failures.delete(method);
-        const raw = { message: 'fake stripe failure', type: kind === 'auth' ? ('authentication_error' as const) : ('api_error' as const) };
+        const message = `Invalid API Key provided: ${secretKey}`;
+        const raw = { message, type: kind === 'auth' ? ('authentication_error' as const) : ('api_error' as const) };
         throw kind === 'auth' ? new Stripe.errors.StripeAuthenticationError(raw) : new Stripe.errors.StripeAPIError(raw);
       }
       if (!idempotencyKey) return make();

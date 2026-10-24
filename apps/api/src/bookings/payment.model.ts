@@ -16,11 +16,22 @@ const paymentSchema = new mongoose.Schema(
     currency: { type: String, required: true },
     status: { type: String, enum: ['succeeded', 'pending', 'failed'], required: true },
     gatewayRef: { type: String, default: null },
+    /** How a card payment is collected: an in-app intent or a Checkout link; null for cash. */
+    kind: { type: String, enum: ['intent', 'link', null], default: null },
+    /** Checkout Session id for link payments. */
+    linkRef: { type: String, default: null },
+    failureCode: { type: String, default: null },
+    refundedAmount: { type: Number, default: 0, min: 0 },
     recordedBy: { type: ObjectId, ref: 'User', default: null },
   },
   { timestamps: true },
 );
 paymentSchema.index({ ownerId: 1, bookingId: 1 });
+// At most one in-flight card payment per booking.
+paymentSchema.index(
+  { bookingId: 1 },
+  { unique: true, partialFilterExpression: { method: 'card', status: 'pending' } },
+);
 paymentSchema.plugin(tenantScoped);
 
 export const Payment = mongoose.model('Payment', paymentSchema);

@@ -17,6 +17,7 @@ import { slotsRouter } from '../../schedule/routes/slots';
 import { catalogueRouter } from '../../addons/routes/catalogue';
 import { assignmentsRouter } from '../../addons/routes/assignments';
 import { ownerBookingsRouter } from '../../bookings/routes/owner';
+import { gatewaysRouter } from '../../payments/routes/gateways';
 
 /** Everything under /owners/:ownerId; later plans mount their routers on the returned router. */
 export function ownerRouter({ config, services }: AuthDeps): Router {
@@ -60,6 +61,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(catalogueRouter(services));
   router.use(assignmentsRouter(services));
   router.use(ownerBookingsRouter(services));
+  router.use(gatewaysRouter(config, services));
 
   return router;
 }

@@ -33,6 +33,7 @@ JTBD: owners and staff see today's schedule and act on it fast and calmly; playe
 Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
 Field minimum width token: `--field-min` 10rem (smallest width of a paired form field before it wraps; not themed).
 Map height token: `--map-height` 32rem (results map; same in light and dark).
+Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
 
 ## Breakpoints (fixed, mobile-first `min-width`)
 sm 640 · md 768 · lg 1024 · xl 1280. Owner portal sidebar becomes a drawer below lg. Public pages are designed phone-first; mobile apps will reuse the same API later.

@@ -1,5 +1,6 @@
 .wrap {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
@@ -16,7 +17,7 @@
   position: absolute;
   top: var(--space-3);
   left: 50%;
-  z-index: 1000;
+  z-index: 1000; /* above Leaflet's panes (up to 700); controls share 1000 and this comes later */
   transform: translateX(-50%);
   max-width: calc(100% - var(--space-6));
 }
@@ -24,6 +25,7 @@
 .pinWrap {
   background: transparent;
   border: 0;
+  outline: none; /* the focus indicator is drawn on .pin, the 0x0 wrapper has nothing to outline */
 }
 
 .pin {
@@ -47,5 +49,6 @@
 }
 
 .pinWrap:focus-visible .pin {
-  box-shadow: var(--focus-ring);
+  outline: var(--focus-width) solid var(--text-strong);
+  outline-offset: var(--focus-width);
 }

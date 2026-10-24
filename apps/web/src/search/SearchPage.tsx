@@ -45,13 +45,20 @@ export function SearchPage() {
   const navigate = useNavigate();
   const wide = useIsWide();
   const [view, setView] = useState<'list' | 'map'>('list');
-  const showList = wide || view === 'list';
-  const showMap = wide || view === 'map';
+  const listHidden = !wide && view !== 'list';
+  const mapHidden = !wide && view !== 'map';
 
   const onChange = (c: Criteria) => setParams(criteriaToParams(c));
   const onSearchArea = (center: { lat: number; lng: number }) =>
     onChange({ ...criteria, near: center, radiusKm: criteria.radiusKm ?? DEFAULT_RADIUS_KM });
   const loading = status === 'loading';
+  const loadMoreButton = status === 'idle' && hasMore && (
+    <div className={styles.more}>
+      <Button variant="secondary" size="lg" onClick={loadMore}>
+        {t('search.loadMore')}
+      </Button>
+    </div>
+  );
 
   return (
     <main className={styles.page}>
@@ -81,8 +88,8 @@ export function SearchPage() {
         </div>
 
         <div className={styles.body}>
-          {showList && (
-            <div className={styles.listPane}>
+          {(
+            <div className={styles.listPane} hidden={listHidden}>
             {status === 'error' && (
               <Alert tone="danger" className={styles.alert}>
                 <span>{errorMessage(error, t)}</span>
@@ -119,17 +126,11 @@ export function SearchPage() {
 
             {status === 'idle' && !hasMore && results.length === 0 && <p className={styles.empty}>{t('search.empty')}</p>}
 
-            {status === 'idle' && hasMore && (
-              <div className={styles.more}>
-                <Button variant="secondary" size="lg" onClick={loadMore}>
-                  {t('search.loadMore')}
-                </Button>
-              </div>
-            )}
+            {loadMoreButton}
             </div>
           )}
-          {showMap && (
-            <div className={styles.mapPane}>
+          {(
+            <div className={styles.mapPane} hidden={mapHidden}>
               <Suspense
                 fallback={
                   <div className={styles.loading}>
@@ -147,6 +148,7 @@ export function SearchPage() {
                   }}
                 />
               </Suspense>
+              {loadMoreButton}
             </div>
           )}
         </div>

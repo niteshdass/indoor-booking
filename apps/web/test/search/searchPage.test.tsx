@@ -141,15 +141,46 @@ describe('SearchPage', () => {
     mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
     const { user } = renderApp('/');
     await screen.findByText('Arena One');
-    expect(screen.queryByText('mock-map')).not.toBeInTheDocument();
+    expect(await screen.findByText('mock-map')).not.toBeVisible();
     const mapBtn = screen.getByRole('button', { name: en.search.view.map });
     expect(mapBtn).toHaveAttribute('aria-pressed', 'false');
     await user.click(mapBtn);
     expect(await screen.findByText('mock-map')).toBeInTheDocument();
     expect(mapBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByText('Arena One')).not.toBeInTheDocument();
+    expect(screen.getByText('mock-map')).toBeVisible();
+    expect(screen.getByText('Arena One')).not.toBeVisible();
     await user.click(screen.getByRole('button', { name: en.search.view.list }));
-    expect(await screen.findByText('Arena One')).toBeInTheDocument();
+    expect(screen.getByText('Arena One')).toBeVisible();
+    expect(screen.getByText('mock-map')).not.toBeVisible();
+  });
+
+  it('Load more is available in map view and appends', async () => {
+    const full = Array.from({ length: 20 }, (_, i) => ({ ...venue, slug: `v${i}`, name: `Venue ${i}` }));
+    mockApi([
+      {
+        path: '/search',
+        body: (c: Call) =>
+          c.query.get('cursor') === '0'
+            ? { results: full, nextCursor: 20 }
+            : { results: [{ ...venue, slug: 'last', name: 'Last Venue' }], nextCursor: null },
+      },
+    ]);
+    const { user } = renderApp('/');
+    await screen.findByText('Venue 0');
+    await user.click(screen.getByRole('button', { name: en.search.view.map }));
+    await user.click(screen.getByRole('button', { name: en.search.loadMore }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: en.search.loadMore })).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: en.search.view.list }));
+    expect(screen.getByText('Last Venue')).toBeVisible();
+  });
+
+  it('search this area keeps an existing radius', async () => {
+    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user, location } = renderApp('/?lat=5&lng=6&radiusKm=20');
+    await screen.findByText('Arena One');
+    await user.click(screen.getByRole('button', { name: en.search.view.map }));
+    await user.click(screen.getByText('mock-map'));
+    await waitFor(() => expect(location().search).toContain('lat=1&lng=2&radiusKm=20'));
   });
 
   it('search this area sets near and default radius', async () => {

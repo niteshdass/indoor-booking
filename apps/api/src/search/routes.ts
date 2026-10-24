@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import { SPORTS, localParts, type SearchResponse, type SearchResult } from '@booking/shared';
 import type { AppServices } from '../services';
 import { inWindow, loadDay } from '../schedule/load';
@@ -9,24 +9,34 @@ import { summarizeDay, type DaySummary } from './summarize';
 /** How many candidate venues one request reads; tests lower it to exercise paging. */
 export const searchConfig = { scanBatch: 100 };
 
+/** Venues whose days are loaded at once. */
+const CONCURRENCY = 8;
+
 /** Unauthenticated venue search across every owner. */
-export function searchRouter(services: AppServices): Router {
+export function searchRouter(services: AppServices, limiter?: RequestHandler): Router {
   const router = Router();
 
-  router.get('/search', async (req, res) => {
+  router.get('/search', ...(limiter ? [limiter] : []), async (req, res) => {
     const q = parseSearchQuery(req.query);
     const now = services.now();
     const { scanBatch } = searchConfig;
     const candidates = await findCandidates(q, q.cursor, scanBatch);
 
+    // Venues load in waves of CONCURRENCY but are taken in order; ones after a full page are not walked.
     const out: SearchResult[] = [];
     let walked = 0;
-    for (const c of candidates) {
-      if (out.length >= q.limit) break;
-      walked++;
-      const date = q.date ?? localParts(now, c.venue.timezone).date;
-      const summary = await summarize(c, date, q, now);
-      if (keep(summary, q)) out.push(resultJson(c, date, summary));
+    while (walked < candidates.length && out.length < q.limit) {
+      const wave = await Promise.all(
+        candidates.slice(walked, walked + CONCURRENCY).map(async (c) => {
+          const date = q.date ?? localParts(now, c.venue.timezone).date;
+          return { c, date, summary: await summarize(c, date, q, now) };
+        }),
+      );
+      for (const { c, date, summary } of wave) {
+        if (out.length >= q.limit) break;
+        walked++;
+        if (keep(summary, q)) out.push(resultJson(c, date, summary));
+      }
     }
 
     // A full batch may have more behind it; a short one that was walked to the end has not.

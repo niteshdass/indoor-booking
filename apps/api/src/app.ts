@@ -71,7 +71,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(publicVenuesRouter());
   api.use(publicSlotsRouter(deps.services));
   api.use(publicAddonsRouter());
-  api.use(searchRouter(deps.services));
+  api.use(searchRouter(deps.services, limited ? authLimiter(300) : undefined));
   api.use(publicBookingsRouter(deps.config, deps.services, limited ? authLimiter(20) : undefined));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
 

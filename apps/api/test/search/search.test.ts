@@ -167,6 +167,14 @@ describe('GET /api/v1/search', () => {
     expect(res.body.error.code).toBe('validation_error');
   });
 
+  it('429 rate_limited after 300 searches when limiting is on', async () => {
+    ctx = buildTestApp({ services: ctx.services, rateLimit: true });
+    const codes: number[] = [];
+    for (let i = 0; i < 301; i++) codes.push((await search()).status);
+    expect(codes.slice(0, 300).every((c) => c === 200)).toBe(true);
+    expect(codes[300]).toBe(429);
+  });
+
   it('unpublished venue never appears', async () => {
     await listed('Public');
     await listed('Draft', { published: false });

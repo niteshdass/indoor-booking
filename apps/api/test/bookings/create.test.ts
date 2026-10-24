@@ -101,6 +101,20 @@ const statusAt = async (hm: string, t = turf) =>
 const appError = (code: string, status: number) =>
   expect.objectContaining({ name: 'AppError', status, code }) as unknown;
 
+describe('grid after the hours move under a booking', () => {
+  it('shows every slot the booking overlaps as taken, and refuses them', async () => {
+    await book({ hms: ['18:00'] });
+    await Venue.updateOne({ _id: venue._id }, { 'settings.hours': Object.fromEntries(
+      Object.keys(HOURS).map((d) => [d, { open: '08:30', close: '23:30' }]),
+    ) }).setOptions({ crossTenant: true });
+    const v = (await Venue.findById(venue._id).setOptions({ crossTenant: true }))!;
+    const slots = (await loadDay(ownerId, v, turf, D, services.now())).day.slots;
+    const st = (hm: string) => slots.find((s) => s.localStart === hm)?.status;
+    expect([st('16:30'), st('17:30'), st('18:30'), st('19:30')]).toEqual(['available', 'booked', 'booked', 'available']);
+    await expect(book({ venue: v, hms: ['18:30'] })).rejects.toMatchObject({ code: 'slot_taken' });
+  });
+});
+
 describe('createBooking', () => {
   it('registered player at a no-advance venue is confirmed', async () => {
     const b = await book({ hms: ['18:00', '19:00'] });

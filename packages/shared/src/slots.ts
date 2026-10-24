@@ -86,7 +86,7 @@ export function computeSlots(input: {
   pricing: TurfPricing | null;
   overrides: (OverrideRule & { reason?: string | null })[];
   closure: { reason: string | null } | null;
-  taken?: { startAt: Date; status: 'pending' | 'booked' }[];
+  taken?: { startAt: Date; endAt: Date; status: 'pending' | 'booked' }[];
   now: Date;
 }): DaySlots {
   const { businessDate, timezone: tz, hours, overrides } = input;
@@ -142,14 +142,15 @@ export function computeSlots(input: {
   );
 
   const blocks = overrides.flatMap((o) => (o.type === 'block' ? [toUtc(o)] : []));
-  const taken = new Map((input.taken ?? []).map((t) => [t.startAt.getTime(), t.status]));
+  const taken = input.taken ?? [];
+  const takenAs = (d: Draft, status: 'pending' | 'booked') => taken.some((t) => t.status === status && overlaps(d, t));
 
   const slots = drafts.map((d): ComputedSlot => {
     const price =
       d.price ??
       (input.pricing ? priceFor(input.pricing, { businessDate, weekend: input.weekend, minute: d.minute }) : null);
     const status: SlotStatus =
-      taken.get(d.startAt.getTime()) ??
+      (takenAs(d, 'booked') ? 'booked' : takenAs(d, 'pending') ? 'pending' : null) ??
       (blocks.some((b) => overlaps(d, b)) ? 'blocked' : d.startAt <= input.now ? 'past' : 'available');
     return {
       startAt: d.startAt,

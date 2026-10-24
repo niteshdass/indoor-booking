@@ -71,13 +71,13 @@ async function computeDay(
   });
 }
 
-type Taken = { startAt: Date; status: 'pending' | 'booked' }[];
+type Taken = { startAt: Date; endAt: Date; status: 'pending' | 'booked' }[];
 
 const PENDING: readonly BookingStatus[] = ['pending', 'awaiting_payment'];
 
 /**
  * Slots held by the turf's bookings from the start of the day before to the end of the day after:
- * wide enough for both computed days, night sessions included. Matched to the grid by startAt.
+ * wide enough for both computed days, night sessions included. Matched to the grid by overlap, so a moved grid still sees them.
  */
 async function takenSlots(ownerId: string, venue: VenueDoc, turf: TurfDoc, businessDate: string, now: Date): Promise<Taken> {
   const from = localToUtc(addDays(businessDate, -1), 0, venue.timezone);
@@ -87,7 +87,7 @@ async function takenSlots(ownerId: string, venue: VenueDoc, turf: TurfDoc, busin
     { status: 1, slots: 1 },
   ).lean();
   return bookings.flatMap((b) =>
-    b.slots.map((s) => ({ startAt: s.startAt, status: PENDING.includes(b.status) ? ('pending' as const) : ('booked' as const) })),
+    b.slots.map((s) => ({ startAt: s.startAt, endAt: s.endAt, status: PENDING.includes(b.status) ? ('pending' as const) : ('booked' as const) })),
   );
 }
 

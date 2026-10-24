@@ -133,6 +133,44 @@ describe('computeSlots closures and overrides', () => {
   });
 });
 
+describe('computeSlots taken by overlap', () => {
+  const at = (hm: string) => new Date(`2026-10-30T${hm}:00+06:00`);
+  const halfHour = (taken: { startAt: Date; endAt: Date; status: 'pending' | 'booked' }[]) =>
+    computeSlots(input({ hours: { open: '08:30', close: '21:30' }, pricing: null, taken }));
+  const statuses = (r: ReturnType<typeof computeSlots>) =>
+    Object.fromEntries(r.slots.map((s) => [s.localStart, s.status]));
+
+  it('marks every slot a booked range overlaps, not adjacent ones', () => {
+    const st = statuses(halfHour([{ startAt: at('18:00'), endAt: at('19:00'), status: 'booked' }]));
+    expect([st['16:30'], st['17:30'], st['18:30'], st['19:30']]).toEqual(['available', 'booked', 'booked', 'available']);
+  });
+
+  it('marks pending by overlap', () => {
+    const st = statuses(halfHour([{ startAt: at('18:00'), endAt: at('19:00'), status: 'pending' }]));
+    expect([st['16:30'], st['17:30'], st['18:30'], st['19:30']]).toEqual(['available', 'pending', 'pending', 'available']);
+  });
+
+  it('pending and booked ranges each mark their own slot', () => {
+    const st = statuses(
+      halfHour([
+        { startAt: at('17:30'), endAt: at('18:00'), status: 'pending' },
+        { startAt: at('18:30'), endAt: at('19:00'), status: 'booked' },
+      ]),
+    );
+    expect([st['16:30'], st['17:30'], st['18:30'], st['19:30']]).toEqual(['available', 'pending', 'booked', 'available']);
+  });
+
+  it('a slot overlapping both a pending and a booked range is booked', () => {
+    const st = statuses(
+      halfHour([
+        { startAt: at('17:30'), endAt: at('18:00'), status: 'pending' },
+        { startAt: at('18:00'), endAt: at('18:30'), status: 'booked' },
+      ]),
+    );
+    expect(st['17:30']).toBe('booked');
+  });
+});
+
 describe('computeSlots status', () => {
   it('past, pending, booked, null pricing', () => {
     const base = computeSlots(input({ hours: { open: '16:00', close: '20:00' } }));
@@ -144,8 +182,8 @@ describe('computeSlots status', () => {
         pricing: null,
         now,
         taken: [
-          { startAt: new Date(c!.startAt.getTime()), status: 'pending' },
-          { startAt: new Date(d!.startAt.getTime()), status: 'booked' },
+          { startAt: c!.startAt, endAt: c!.endAt, status: 'pending' },
+          { startAt: d!.startAt, endAt: d!.endAt, status: 'booked' },
         ],
         overrides: [{ type: 'block', start: '18:00', end: '20:00' }],
       }),

@@ -7,6 +7,14 @@ import { money } from '../../src/lib/format';
 import { mockApi, type Call } from '../helpers/api';
 import { renderApp } from '../helpers/render';
 
+vi.mock('../../src/search/ResultsMap', () => ({
+  ResultsMap: (props: { onSearchArea(c: { lat: number; lng: number }): void }) => (
+    <button type="button" onClick={() => props.onSearchArea({ lat: 1, lng: 2 })}>
+      mock-map
+    </button>
+  ),
+}));
+
 const venue: SearchResult = {
   slug: 'arena-one',
   name: 'Arena One',
@@ -127,6 +135,38 @@ describe('SearchPage', () => {
     const t = (k: string, count: number) => i18n.t(k, { count, lng: 'ru' });
     expect([1, 2, 5, 21].map((n) => t('search.count', n))).toEqual(['1 площадка', '2 площадки', '5 площадок', '21 площадка']);
     expect([20, 22, 21].map((n) => t('search.countMore', n))).toEqual(['20+ площадок', '22+ площадки', '21+ площадка']);
+  });
+
+  it('map toggle shows map', async () => {
+    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user } = renderApp('/');
+    await screen.findByText('Arena One');
+    expect(screen.queryByText('mock-map')).not.toBeInTheDocument();
+    const mapBtn = screen.getByRole('button', { name: en.search.view.map });
+    expect(mapBtn).toHaveAttribute('aria-pressed', 'false');
+    await user.click(mapBtn);
+    expect(await screen.findByText('mock-map')).toBeInTheDocument();
+    expect(mapBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByText('Arena One')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.search.view.list }));
+    expect(await screen.findByText('Arena One')).toBeInTheDocument();
+  });
+
+  it('search this area sets near and default radius', async () => {
+    const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user, location } = renderApp('/?sport=futsal');
+    await screen.findByText('Arena One');
+    await user.click(screen.getByRole('button', { name: en.search.view.map }));
+    await user.click(await screen.findByText('mock-map'));
+    await waitFor(() => expect(location().search).toContain('lat=1&lng=2&radiusKm=10'));
+    expect(location().search).toContain('sport=futsal');
+    await waitFor(() => {
+      const last = api.calls[api.calls.length - 1]!.query;
+      expect(last.get('lat')).toBe('1');
+      expect(last.get('lng')).toBe('2');
+      expect(last.get('radiusKm')).toBe('10');
+      expect(last.get('sport')).toBe('futsal');
+    });
   });
 
   describe('criteria change', () => {

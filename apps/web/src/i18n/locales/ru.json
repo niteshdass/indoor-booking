@@ -182,7 +182,15 @@
     "countMore_one": "{{count}}+ площадка",
     "countMore_few": "{{count}}+ площадки",
     "countMore_many": "{{count}}+ площадок",
-    "countMore_other": "{{count}}+ площадки"
+    "countMore_other": "{{count}}+ площадки",
+    "view": {
+      "label": "Вид результатов",
+      "list": "Список",
+      "map": "Карта"
+    },
+    "searchArea": "Искать в этой области",
+    "mapLabel": "Карта результатов",
+    "pinAria": "{{name}}, {{price}}"
   },
   "sports": {
     "football": "Футбол",

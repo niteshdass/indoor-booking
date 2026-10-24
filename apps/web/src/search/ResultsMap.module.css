@@ -1,0 +1,51 @@
+.wrap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+.map {
+  width: 100%;
+  height: var(--map-height);
+  background: var(--bg-subtle);
+}
+
+.action {
+  position: absolute;
+  top: var(--space-3);
+  left: 50%;
+  z-index: 1000;
+  transform: translateX(-50%);
+  max-width: calc(100% - var(--space-6));
+}
+
+.pinWrap {
+  background: transparent;
+  border: 0;
+}
+
+.pin {
+  display: inline-block;
+  max-width: calc(var(--field-min) * 2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--bg-surface);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--primary-fg);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-body);
+}
+
+.pinWrap:focus-visible .pin {
+  box-shadow: var(--focus-ring);
+}

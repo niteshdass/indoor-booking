@@ -176,7 +176,15 @@
     "loadMore": "Load more",
     "retry": "Try again",
     "countMore_one": "{{count}}+ venue",
-    "countMore_other": "{{count}}+ venues"
+    "countMore_other": "{{count}}+ venues",
+    "view": {
+      "label": "Results view",
+      "list": "List",
+      "map": "Map"
+    },
+    "searchArea": "Search this area",
+    "mapLabel": "Map of results",
+    "pinAria": "{{name}}, {{price}}"
   },
   "sports": {
     "football": "Football",

@@ -32,6 +32,7 @@ JTBD: owners and staff see today's schedule and act on it fast and calmly; playe
 4 · 8 · 12 · 16 · 20 · 24 · 32 · 48 px. Card padding 20–24. Table row height 52. Control height 36 (sm 32, lg 40). Touch targets on public/player pages at least 40.
 Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
 Field minimum width token: `--field-min` 10rem (smallest width of a paired form field before it wraps; not themed).
+Map height token: `--map-height` 32rem (results map; same in light and dark).
 
 ## Breakpoints (fixed, mobile-first `min-width`)
 sm 640 · md 768 · lg 1024 · xl 1280. Owner portal sidebar becomes a drawer below lg. Public pages are designed phone-first; mobile apps will reuse the same API later.
@@ -74,6 +75,9 @@ Cool gray light ramp + navy-tinted dark.
 Radius: sm 4 (tag, checkbox) · md 8 (button, input, slot cell) · lg 12 (card) · xl 16 (modal) · full (badge, avatar).
 
 Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set, follow `prefers-color-scheme`.
+
+## Results map
+Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inverted in dark mode; the map frame, pins and the "Search this area" button use surface, border and primary tokens. Pins are DOM-built (venue names are untrusted text), keyboard-focusable, and labelled with the venue name and price. Below lg a List/Map segmented toggle (`aria-pressed`) shows one at a time; at lg and up list and map sit side by side with the map sticky.
 
 ## Components
 - Buttons: primary (solid), secondary (outline, surface bg), ghost, danger; sizes sm/md/lg; icon-only square. Label weight 500. On public pages the main CTA (Book, Pay) uses `--brand` with `--brand-fg`.

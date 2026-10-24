@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { BookingFacts } from '../../src/bookings/BookingFacts';
 import { BookingRow } from '../../src/bookings/BookingRow';
@@ -101,10 +101,17 @@ describe('guest lookup', () => {
     expect(await screen.findByText(en.lookup.notFound)).toBeInTheDocument();
   });
 
-  it('other errors show the API message', async () => {
+  it('other errors show localised text', async () => {
     setup({ lookup: { path: '/bookings/lookup', status: 500, body: errBody('internal', 'Boom') } });
     renderApp(URL_OK);
-    expect(await screen.findByText('Boom')).toBeInTheDocument();
+    expect(await screen.findByText(en.errors.generic)).toBeInTheDocument();
+    expect(screen.queryByText('Boom')).not.toBeInTheDocument();
+  });
+
+  it('rate limit shows its localised text', async () => {
+    setup({ lookup: { path: '/bookings/lookup', status: 429, body: errBody('rate_limited', 'Slow') } });
+    renderApp(URL_OK);
+    expect(await screen.findByText(en.errors.rate_limited)).toBeInTheDocument();
   });
 
   it('new booking shows save-reference note', async () => {
@@ -149,6 +156,82 @@ describe('guest lookup', () => {
     await user.click(within(dialog).getByRole('button', { name: en.cancel.confirm }));
     expect(await within(dialog).findByText(en.errors.otp_invalid)).toBeInTheDocument();
     expect(dialog).toHaveAttribute('open');
+  });
+
+  it.each(['otp_invalid', 'otp_expired'])('%s clears the code, disables confirm, retyping enables it', async (code) => {
+    setup({ cancel: { method: 'POST', path: '/bookings/lookup/cancel', status: 400, body: errBody(code) } });
+    const { user } = renderApp(URL_OK);
+    await user.click(await screen.findByRole('button', { name: en.cancel.open }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByRole('button', { name: en.checkout.sendCode }));
+    const digit = (n: number) => within(dialog).getByLabelText(i18n.t('auth.otp.digit', { n, total: 6 }));
+    await user.click(await within(dialog).findByLabelText(i18n.t('auth.otp.digit', { n: 1, total: 6 })));
+    await user.keyboard('000000');
+    await user.click(within(dialog).getByRole('button', { name: en.cancel.confirm }));
+    expect(await within(dialog).findByText((en.errors as Record<string, string>)[code]!)).toBeInTheDocument();
+    expect(digit(1)).toHaveValue('');
+    expect(within(dialog).getByRole('button', { name: en.cancel.confirm })).toBeDisabled();
+    await user.click(digit(1));
+    await user.keyboard('654321');
+    expect(within(dialog).getByRole('button', { name: en.cancel.confirm })).toBeEnabled();
+  });
+
+  it('copy link omits new=1 and carries reference and phone', async () => {
+    setup();
+    const { user } = renderApp(`${URL_OK}&new=1`);
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
+    await user.click(await screen.findByRole('button', { name: en.lookup.copyLink }));
+    const link = writeText.mock.calls[0]![0] as string;
+    expect(link).toContain('/lookup?');
+    expect(link).toContain('reference=AB12CD');
+    expect(link).toContain(`phone=${encodeURIComponent(PHONE)}`);
+    expect(link).not.toContain('new=1');
+  });
+
+  it('resend is disabled during the cooldown, then enabled', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      setup();
+      const { user } = renderApp(URL_OK);
+      await user.click(await screen.findByRole('button', { name: en.cancel.open }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(await within(dialog).findByRole('button', { name: en.checkout.sendCode }));
+      const resend = await within(dialog).findByRole('button', { name: /Resend code/ });
+      expect(resend).toBeDisabled();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000);
+      });
+      expect(within(dialog).getByRole('button', { name: en.auth.phone.resend })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('after a cancel the heading is the normal one and the save note hides', async () => {
+    setup();
+    const { user } = renderApp(`${URL_OK}&new=1`);
+    expect(await screen.findByText(en.lookup.saveReference)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.cancel.open }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(await within(dialog).findByRole('button', { name: en.checkout.sendCode }));
+    await user.click(await within(dialog).findByLabelText(i18n.t('auth.otp.digit', { n: 1, total: 6 })));
+    await user.keyboard('123456');
+    await user.click(within(dialog).getByRole('button', { name: en.cancel.confirm }));
+    await screen.findByText(en.status.cancelled);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(en.lookup.title);
+    expect(screen.queryByText(en.lookup.saveReference)).not.toBeInTheDocument();
+  });
+
+  it('form re-syncs when the URL changes', async () => {
+    setup({ lookup: { path: '/bookings/lookup', status: 404, body: errBody('not_found') } });
+    const { user } = renderApp(URL_OK);
+    await screen.findByText(en.lookup.notFound);
+    expect(screen.getByLabelText(en.lookup.reference)).toHaveValue('AB12CD');
+    await user.clear(screen.getByLabelText(en.lookup.reference));
+    await user.type(screen.getByLabelText(en.lookup.reference), 'zz99');
+    await user.click(screen.getByRole('button', { name: en.lookup.submit }));
+    await screen.findByText(en.lookup.notFound);
+    expect(screen.getByLabelText(en.lookup.reference)).toHaveValue('ZZ99');
   });
 
   it('player-linked booking shows sign in to manage', async () => {

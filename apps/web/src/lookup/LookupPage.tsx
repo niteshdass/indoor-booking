@@ -30,7 +30,8 @@ export function LookupPage() {
   const [params, setParams] = useSearchParams();
   const urlRef = (params.get('reference') ?? '').trim().toUpperCase();
   const urlPhone = params.get('phone') ?? '';
-  const isNew = params.get('new') === '1';
+  const [cancelledAt, setCancelledAt] = useState(0);
+  const isNew = params.get('new') === '1' && cancelledAt === 0;
 
   const [reference, setReference] = useState(urlRef);
   const [phone, setPhone] = useState(urlPhone);
@@ -38,7 +39,6 @@ export function LookupPage() {
   const [state, setState] = useState<State>({ status: 'idle' });
   const [refunds, setRefunds] = useState<RefundJson[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelledAt, setCancelledAt] = useState(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const query = `reference=${encodeURIComponent(urlRef)}&phone=${encodeURIComponent(urlPhone)}`;
@@ -59,6 +59,11 @@ export function LookupPage() {
       live = false;
     };
   }, [urlRef, urlPhone, attempt]);
+
+  useEffect(() => {
+    setReference(urlRef);
+    setPhone(urlPhone);
+  }, [urlRef, urlPhone]);
 
   useEffect(() => {
     if (cancelledAt > 0) headingRef.current?.focus();
@@ -92,7 +97,7 @@ export function LookupPage() {
               value={reference}
               onChange={(e) => setReference(e.target.value.toUpperCase())}
             />
-            <PhoneInput label={t('auth.phone.label')} value={phone} onChange={setPhone} />
+            <PhoneInput key={urlPhone} label={t('auth.phone.label')} value={phone} onChange={setPhone} />
             <Button type="submit" variant="brand" size="lg" block loading={state.status === 'loading'} disabled={!reference.trim() || !phone}>
               {t('lookup.submit')}
             </Button>
@@ -106,7 +111,7 @@ export function LookupPage() {
         </div>
       )}
       {state.status === 'not_found' && <Alert tone="danger">{t('lookup.notFound')}</Alert>}
-      {state.status === 'error' && <Alert tone="danger">{state.error instanceof ApiError ? state.error.message : errorMessage(state.error, t)}</Alert>}
+      {state.status === 'error' && <Alert tone="danger">{errorMessage(state.error, t)}</Alert>}
 
       {booking && (
         <>
@@ -239,9 +244,20 @@ function GuestCancel({ reference, phone, query, open, setOpen, onCancelled }: Gu
         open={open}
         onClose={() => setOpen(false)}
         loadPreview={() => apiGet<{ preview: CancellationPreview }>(`/bookings/lookup/cancellation?${query}`).then((r) => r.preview)}
-        cancel={(reason) =>
-          apiPost<{ booking: BookingJson; refunds: RefundJson[] }>('/bookings/lookup/cancel', { reference, phone, otpCode: code, ...(reason ? { reason } : {}) })
-        }
+        cancel={async (reason) => {
+          try {
+            return await apiPost<{ booking: BookingJson; refunds: RefundJson[] }>('/bookings/lookup/cancel', {
+              reference,
+              phone,
+              otpCode: code,
+              ...(reason ? { reason } : {}),
+            });
+          } catch (err) {
+            // A rejected or expired code is useless: clear it so confirm waits for a fresh one.
+            if (err instanceof ApiError && (err.code === 'otp_invalid' || err.code === 'otp_expired')) setCode('');
+            throw err;
+          }
+        }}
         onCancelled={onCancelled}
         extra={extra}
         canConfirm={sent && code.length === 6}

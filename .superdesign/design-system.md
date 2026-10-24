@@ -30,6 +30,7 @@ JTBD: owners and staff see today's schedule and act on it fast and calmly; playe
 
 ## Spacing (fixed)
 4 · 8 · 12 · 16 · 20 · 24 · 32 · 48 px. Card padding 20–24. Table row height 52. Control height 36 (sm 32, lg 40). Touch targets on public/player pages at least 40.
+Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
 
 ## Breakpoints (fixed, mobile-first `min-width`)
 sm 640 · md 768 · lg 1024 · xl 1280. Owner portal sidebar becomes a drawer below lg. Public pages are designed phone-first; mobile apps will reuse the same API later.

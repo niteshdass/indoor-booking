@@ -54,7 +54,7 @@ export function RegisterPage() {
             {error.emailInUse && (
               <>
                 {' '}
-                <Link to="/login">{t('auth.register.toLogin')}</Link>
+                <Link to={loginHref}>{t('auth.register.toLogin')}</Link>
               </>
             )}
           </Alert>

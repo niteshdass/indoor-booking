@@ -137,10 +137,10 @@ describe('RegisterPage', () => {
 
   it('register email_in_use shows login link', async () => {
     mockApi([{ method: 'POST', path: '/auth/register', status: 409, body: { error: { code: 'email_in_use', message: 'x' } } }]);
-    const h = renderApp('/register');
+    const h = renderApp('/register?next=%2Fme%2Fbookings');
     await fill(h);
     expect(await screen.findByText(en.errors.email_in_use)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: en.auth.register.toLogin })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('link', { name: en.auth.register.toLogin })).toHaveAttribute('href', '/login?next=%2Fme%2Fbookings');
   });
 
   it('signed-in user visiting /register is redirected', () => {

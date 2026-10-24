@@ -9,8 +9,8 @@
   flex-direction: column;
   gap: var(--space-4);
   width: 100%;
-  max-width: 28rem;
-  padding: var(--space-6);
+  max-width: var(--container-narrow);
+  padding: var(--space-5);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
@@ -101,4 +101,10 @@
 
 .countdown {
   font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: var(--space-6);
+  }
 }

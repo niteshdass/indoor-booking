@@ -21,7 +21,9 @@
 }
 
 .box {
-  width: var(--control-lg);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: var(--control-lg);
   min-height: var(--control-lg);
   padding: 0;
   border: 1px solid var(--border-default);

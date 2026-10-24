@@ -8,6 +8,7 @@ import { activityRouter } from './activity';
 import { rolesRouter } from './roles';
 import { membersRouter } from './members';
 import { settingsRouter } from '../../venues/routes/settings';
+import { venuesRouter } from '../../venues/routes/venues';
 
 /** Everything under /owners/:ownerId; later plans mount their routers on the returned router. */
 export function ownerRouter({ config, services }: AuthDeps): Router {
@@ -42,6 +43,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(rolesRouter(services));
   router.use(membersRouter(services));
   router.use(settingsRouter(services));
+  router.use(venuesRouter(services));
 
   return router;
 }

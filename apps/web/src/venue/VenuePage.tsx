@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useLocation, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
@@ -33,6 +33,8 @@ export function VenuePage() {
   const { slug = '' } = useParams();
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const slotTaken = (location.state as { notice?: string } | null)?.notice === 'slot_taken';
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 
@@ -160,6 +162,12 @@ export function VenuePage() {
           </div>
 
           <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} timeZone={venue.timezone} />
+
+          {slotTaken && (
+            <Alert tone="warning" className={styles.alert}>
+              {t('errors.slot_taken')}
+            </Alert>
+          )}
 
           <SlotsPanel
             key={`${turf.id}|${date}`}

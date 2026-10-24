@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useLocation, useParams, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { AddonSelection } from '@booking/shared';
 import { useAuth } from '../auth/useAuth';
@@ -13,6 +13,8 @@ import type { OfferedAddonJson, PublicVenue, QuoteResponse } from '../lib/types'
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { AddonPicker } from './AddonPicker';
 import { BookingSummary } from './BookingSummary';
+import { GuestForm, type GuestInput } from './GuestForm';
+import { useSubmitBooking } from './useSubmitBooking';
 import { readCheckout } from './checkoutParams';
 import styles from './CheckoutPage.module.css';
 
@@ -32,6 +34,7 @@ export function CheckoutPage() {
   const { pathname, search } = useLocation();
   const { t, i18n } = useTranslation();
   const { status: auth } = useAuth();
+  const navigate = useNavigate();
   const parsed = useMemo(() => readCheckout(params), [params]);
 
   const [venueState, setVenueState] = useState<VenueState>({ status: 'loading' });
@@ -41,6 +44,10 @@ export function CheckoutPage() {
   const [quote, setQuote] = useState<QuoteState>({ data: null, error: null, busy: true });
   const quotedKey = useRef<string | null>(null);
   const [addonsFailed, setAddonsFailed] = useState(false);
+
+  const submitter = useSubmitBooking(slug, parsed?.turfId ?? '');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [codeReset, setCodeReset] = useState(0);
 
   const turfId = parsed?.turfId;
   const date = parsed?.date;
@@ -105,6 +112,36 @@ export function CheckoutPage() {
   }, [slug, turfId, date, startKey, selection]);
 
   const venueHref = `/venues/${encodeURIComponent(slug)}`;
+
+  const place = async (guest?: GuestInput) => {
+    if (!parsed || submitter.pending) return;
+    setSubmitError(null);
+    try {
+      const booking = await submitter.submit({
+        date: parsed.date,
+        startAts: parsed.startAts,
+        addons: selection.filter((s) => (s.quantity ?? 1) > 0),
+        ...(guest ? { guest } : {}),
+      });
+      if (guest) {
+        navigate(`/lookup?reference=${encodeURIComponent(booking.reference)}&phone=${encodeURIComponent(guest.phone)}&new=1`);
+      } else if (booking.status === 'awaiting_payment') {
+        navigate(`/me/bookings/${encodeURIComponent(booking.id)}/pay`);
+      } else {
+        navigate(`/me/bookings/${encodeURIComponent(booking.id)}?new=1`);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 'slot_taken' || err.code === 'slot_unavailable')) {
+        const back = new URLSearchParams({ turf: parsed.turfId, date: parsed.date });
+        navigate(`${venueHref}?${back.toString()}`, { state: { notice: 'slot_taken' } });
+        return;
+      }
+      if (err instanceof ApiError && (err.code === 'otp_invalid' || err.code === 'otp_expired')) setCodeReset((n) => n + 1);
+      setSubmitError(errorMessage(err, t));
+    }
+  };
+  const submitBusy = quote.busy || submitter.pending;
+
   const here = `${pathname}${search}`;
   const next = encodeURIComponent(here);
 
@@ -167,7 +204,15 @@ export function CheckoutPage() {
   if (q && data && !failed) {
     if (auth === 'signedIn') {
       cta = (
-        <Button variant="brand" size="lg" block disabled={quote.busy} aria-disabled={quote.busy}>
+        <Button
+          variant="brand"
+          size="lg"
+          block
+          disabled={submitBusy}
+          aria-disabled={submitBusy}
+          loading={submitter.pending}
+          onClick={() => void place()}
+        >
           {q.advanceRequired > 0
             ? t('checkout.bookAndPay', { amount: money(q.advanceRequired, q.currency, i18n.language) })
             : t('checkout.book')}
@@ -177,6 +222,15 @@ export function CheckoutPage() {
       cta = data.guestAllowed ? (
         <>
           <p className={styles.note}>{t('checkout.guestPlaceholder')}</p>
+          <GuestForm
+            slug={slug}
+            otpRequired={data.guestOtpRequired}
+            pending={submitter.pending}
+            disabled={quote.busy}
+            codeResetSignal={codeReset}
+            label={q.advanceRequired > 0 ? t('checkout.bookAndPay', { amount: money(q.advanceRequired, q.currency, i18n.language) }) : t('checkout.book')}
+            onSubmit={(g) => void place(g)}
+          />
           <Button to={`/login?next=${next}`} variant="secondary" size="lg" block>
             {t('checkout.signInInstead')}
           </Button>
@@ -198,6 +252,7 @@ export function CheckoutPage() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t('checkout.title')}</h1>
+      {submitError && <Alert tone="danger" className={styles.alert}>{submitError}</Alert>}
       {failed && (
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(quote.error, t)}</span>

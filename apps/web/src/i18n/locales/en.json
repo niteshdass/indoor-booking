@@ -277,6 +277,8 @@
     "createAccount": "Create account",
     "signInInstead": "Sign in instead",
     "signInRequired": "An advance payment is required for this booking, so you need to sign in or create an account first.",
+    "guestName": "Your name",
+    "sendCode": "Send code",
     "guestPlaceholder": "You can continue as a guest.",
     "accountRequired": "Sign in or create an account to book.",
     "addonsUnavailable": "Extras couldn't be loaded. You can still book without them.",

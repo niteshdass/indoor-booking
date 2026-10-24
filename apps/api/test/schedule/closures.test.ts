@@ -90,6 +90,12 @@ describe('closures', () => {
     expect(res.body.error.message).toBe('Turf not found');
   });
 
+  it('rejects empty venue and turf ids', async () => {
+    const day = { from: '2026-12-16', to: '2026-12-16' };
+    expect((await post({ venueId: v1, turfId: '', ...day })).status).toBe(400);
+    expect((await post({ venueId: '', ...day })).status).toBe(400);
+  });
+
   it('owner-level closure needs settings.edit and all-venue scope', async () => {
     const day = { from: '2026-12-16', to: '2026-12-16' };
     const m = await addMember(ctx.services, a.ownerId, { roleKey: 'manager', venueIds: 'all' });

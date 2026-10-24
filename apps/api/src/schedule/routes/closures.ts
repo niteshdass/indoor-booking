@@ -54,7 +54,7 @@ export function closuresRouter(services: AppServices): Router {
     assertCanClose(t, venueId);
     let venueOid: string | null = null;
     let turfOid: string | null = null;
-    if (venueId !== null && input.turfId) {
+    if (venueId !== null && input.turfId !== undefined) {
       const { venue, turf } = await scopedTurf(t, venueId, input.turfId);
       venueOid = venue.id as string;
       turfOid = turf.id as string;
@@ -90,7 +90,8 @@ export function closuresRouter(services: AppServices): Router {
     if (!closure) throw closureNotFound();
     assertCanClose(t, closure.venueId ? String(closure.venueId) : null);
     await runInTransaction(async (session) => {
-      await Closure.deleteOne({ ownerId: t.ownerId, _id: closure._id }, { session });
+      const { deletedCount } = await Closure.deleteOne({ ownerId: t.ownerId, _id: closure._id }, { session });
+      if (deletedCount !== 1) throw closureNotFound();
       await logActivity(
         t,
         {

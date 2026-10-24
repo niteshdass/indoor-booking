@@ -13,6 +13,8 @@ export type ResultsMapProps = {
   center: LatLng | null;
   onSearchArea(center: LatLng): void;
   onSelect(slug: string): void;
+  /** Identifies the search; a new value makes the next non-empty result set fit the view. */
+  fitKey?: string;
 };
 
 const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -41,27 +43,25 @@ export function roundAndWrap(c: LatLng): LatLng {
 }
 
 /**
- * Whether the map should fit its view to the results. Only a fresh result set does: appended pages
- * (prev is a prefix of next), identical sets (language change) and empty sets (refetch in flight) keep the view.
+ * Whether the map should fit its view to the results: the first non-empty set of each search (`key`) does.
+ * Appended pages and language changes keep the key, and an empty set (refetch in flight) waits for results.
  */
-export function shouldFit(prev: string[], next: string[]): boolean {
-  if (next.length === 0) return false;
-  if (prev.length === 0) return true;
-  return !(prev.length <= next.length && prev.every((slug, i) => slug === next[i]));
+export function shouldFit(fittedKey: string | null, key: string, count: number): boolean {
+  return count > 0 && fittedKey !== key;
 }
 
 export function makePinIcon(r: SearchResult, lang: string): L.DivIcon {
   return L.divIcon({ className: styles.pinWrap, html: buildPin(pinLabel(r, lang), styles.pin!), iconSize: [0, 0] });
 }
 
-export function ResultsMap({ results, center, onSearchArea, onSelect }: ResultsMapProps) {
+export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '' }: ResultsMapProps) {
   const { t, i18n } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
   const handlers = useRef({ onSearchArea, onSelect });
   handlers.current = { onSearchArea, onSelect };
-  const slugs = useRef<string[]>([]);
+  const fittedKey = useRef<string | null>(null);
   const positioned = useRef(false);
   const pendingFit = useRef<L.LatLngBounds | null>(null);
 
@@ -113,18 +113,16 @@ export function ResultsMap({ results, center, onSearchArea, onSelect }: ResultsM
       marker.on('click', () => handlers.current.onSelect(r.slug));
       marker.addTo(group);
     }
-    const next = results.map((r) => r.slug);
-    if (shouldFit(slugs.current, next)) {
+    if (shouldFit(fittedKey.current, fitKey, results.length)) {
       fit(m, L.latLngBounds(points));
+      fittedKey.current = fitKey;
       positioned.current = true;
-    } else if (next.length === 0 && !positioned.current && center) {
+    } else if (results.length === 0 && !positioned.current && center) {
       m.setView([center.lat, center.lng], CENTER_ZOOM);
       positioned.current = true;
     }
-    // An empty set keeps the previous slugs: the refetch that follows must not look like a fresh search.
-    if (next.length > 0) slugs.current = next;
     // center only matters before the map has been positioned.
-  }, [results, i18n.language, t, center]);
+  }, [results, i18n.language, t, center, fitKey]);
 
   const searchArea = () => {
     const m = map.current;

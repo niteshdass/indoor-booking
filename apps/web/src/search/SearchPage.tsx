@@ -141,6 +141,7 @@ export function SearchPage() {
                 <ResultsMap
                   results={results}
                   center={criteria.near}
+                  fitKey={criteriaToParams(criteria).toString()}
                   onSearchArea={onSearchArea}
                   onSelect={(slug) => {
                     const r = results.find((x) => x.slug === slug);

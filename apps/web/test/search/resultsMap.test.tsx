@@ -68,10 +68,13 @@ describe('roundAndWrap', () => {
   });
 });
 
-describe('shouldFit', () => {
-  it('fits a first result set', () => expect(shouldFit([], ['a', 'b'])).toBe(true));
-  it('does not fit when pages are appended', () => expect(shouldFit(['a', 'b'], ['a', 'b', 'c'])).toBe(false));
-  it('does not fit an identical set (language change)', () => expect(shouldFit(['a'], ['a'])).toBe(false));
-  it('does not fit while results are empty (refetch)', () => expect(shouldFit(['a'], [])).toBe(false));
-  it('fits a different set', () => expect(shouldFit(['a', 'b'], ['x', 'y'])).toBe(true));
+describe('shouldFit(fittedKey, key, count)', () => {
+  it('fits the first non-empty set', () => expect(shouldFit(null, 'a', 3)).toBe(true));
+  it('does not fit an append under the same key (load more)', () => expect(shouldFit('a', 'a', 5)).toBe(false));
+  it('fits a new key whose results extend the previous list (wider radius)', () => expect(shouldFit('radius=10', 'radius=30', 8)).toBe(true));
+  it('waits while a new key has no results, then fits once they arrive', () => {
+    expect(shouldFit('a', 'b', 0)).toBe(false);
+    expect(shouldFit('a', 'b', 4)).toBe(true);
+  });
+  it('does not fit on a language change (same key)', () => expect(shouldFit('a', 'a', 3)).toBe(false));
 });

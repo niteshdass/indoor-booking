@@ -29,7 +29,8 @@ export async function applyEvent(
   ctx: ApplyContext,
   session: ClientSession,
 ): Promise<WebhookOutcome> {
-  if (event.kind === 'ignored') return 'ignored';
+  // refund_updated is handled by the refund service (Task 5).
+  if (event.kind === 'ignored' || event.kind === 'refund_updated') return 'ignored';
   const payment =
     event.paymentId && mongoose.isValidObjectId(event.paymentId)
       ? await Payment.findOne({ ownerId, _id: event.paymentId }).session(session)
@@ -218,6 +219,7 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
       gatewayRef: event.gatewayRef,
       amount: event.amount,
       idempotencyKey: `refund_${String(payment._id)}`,
+      refundId: String(row!._id),
     });
   } catch {
     // Not a GatewayError: the route must answer 500 so the gateway retries the webhook.
@@ -225,7 +227,7 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
   }
 
   // Only the outcome remains; a declined refund stays on record (status failed) for staff to settle.
-  await Refund.updateOne({ ownerId, _id: row!._id }, { $set: { status: result.status, gatewayRef: result.refundRef } }, { session });
+  await Refund.updateOne({ ownerId, _id: row!._id }, { $set: { status: result.status, gatewayRef: result.refundRef, failureCode: result.failureCode } }, { session });
   await ActivityLog.updateOne(
     { ownerId, entityId: payment._id, action: 'payment.refund', 'after.refundId': String(row!._id) },
     { $set: { 'after.status': result.status } },

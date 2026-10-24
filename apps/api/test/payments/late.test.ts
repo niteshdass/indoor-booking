@@ -121,7 +121,9 @@ const post = (event: object) => postEvent(ctx.app, owner.ownerId, secret, event)
 async function expectRefunded(payment: { _id: unknown; amount: number; gatewayRef?: string | null }, reason: string) {
   const calls = refundCalls();
   expect(calls).toHaveLength(1);
-  expect(calls[0]!.params).toEqual({ payment_intent: payment.gatewayRef, amount: payment.amount });
+  expect(calls[0]!.params).toEqual({
+    payment_intent: payment.gatewayRef, amount: payment.amount, metadata: { refundId: expect.any(String) },
+  });
   expect(calls[0]!.idempotencyKey).toBe(`refund_${String(payment._id)}`);
   const intentCall = ctx.services.stripe.calls.find((c) => c.method === 'paymentIntents.create')!;
   expect(calls[0]!.secretKey).toBe(intentCall.secretKey);
@@ -202,7 +204,7 @@ describe('late payment for a lapsed hold', () => {
       expect((await post(event)).status).toBe(200);
       expect(await bookingOf(bookingId)).toMatchObject({ status: 'expired', amountPaid: 0 });
       expect(await locksOf(bookingId)).toBe(0);
-      expect(refundCalls()[0]!.params).toEqual({ payment_intent: 'pi_test_1', amount: 600 });
+      expect(refundCalls()[0]!.params).toEqual({ payment_intent: 'pi_test_1', amount: 600, metadata: { refundId: expect.any(String) } });
       await expectRefunded(payment, 'late_payment');
       expect((await bookingOf(otherId)).toObject()).toEqual(before);
       expect(await locksOf(otherId)).toBe(1);

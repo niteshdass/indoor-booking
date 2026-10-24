@@ -125,6 +125,21 @@ describe('handleWebhook', () => {
     }
   });
 
+  it('normalizes refund.updated and refund.failed', () => {
+    const cases: [string, object, object][] = [
+      ['refund.updated', { id: 're_1', status: 'succeeded' }, { kind: 'refund_updated', refundRef: 're_1', status: 'succeeded', failureCode: null }],
+      [
+        'refund.failed',
+        { id: 're_2', status: 'failed', failure_reason: 'expired_or_canceled_card' },
+        { kind: 'refund_updated', refundRef: 're_2', status: 'failed', failureCode: 'expired_or_canceled_card' },
+      ],
+    ];
+    for (const [type, object, expected] of cases) {
+      const { body, signature } = signedEvent(creds.webhookSecret, evt(type, object));
+      expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({ type, ...expected });
+    }
+  });
+
   it('gives null paymentId / failureCode when absent', () => {
     const { body, signature } = signedEvent(creds.webhookSecret, evt('payment_intent.payment_failed', { id: 'pi_1', metadata: {} }));
     expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({
@@ -158,18 +173,49 @@ describe('handleWebhook', () => {
 });
 
 describe('refund', () => {
+  const input = { gatewayRef: 'pi_1', amount: 50, idempotencyKey: 'refund_p1', refundId: 'r1' };
+
   it.each(['succeeded', 'pending', 'failed'] as const)('maps %s', async (status) => {
     const real = services.stripe(creds.secretKey);
-    const spy = { ...real, refunds: { create: async () => ({ id: 're_x', status }) } };
+    const spy = { ...real, refunds: { ...real.refunds, create: async () => ({ id: 're_x', status }) } };
     const g = stripeGateway(() => spy);
-    expect(await g.refund(creds, { gatewayRef: 'pi_1', amount: 50, idempotencyKey: 'refund_p1' })).toEqual({ refundRef: 're_x', status });
+    expect(await g.refund(creds, input)).toEqual({ refundRef: 're_x', status, failureCode: null });
   });
 
   it('passes payment_intent, amount and idempotency key through', async () => {
-    const r = await gw.refund(creds, { gatewayRef: 'pi_1', amount: 50, idempotencyKey: 'refund_p1' });
-    expect(r).toEqual({ refundRef: 're_test_1', status: 'succeeded' });
+    const r = await gw.refund(creds, input);
+    expect(r).toEqual({ refundRef: 're_test_1', status: 'succeeded', failureCode: null });
     const c = services.stripe.calls[0]!;
     expect(c).toMatchObject({ method: 'refunds.create', idempotencyKey: 'refund_p1', params: { payment_intent: 'pi_1', amount: 50 } });
+  });
+
+  it('sends the refund id as metadata', async () => {
+    await gw.refund(creds, input);
+    const last = services.stripe.calls.filter((c) => c.method === 'refunds.create').at(-1)!;
+    expect(last.params).toMatchObject({ metadata: { refundId: 'r1' } });
+  });
+
+  it('returns a declined refund as failed with its code', async () => {
+    services.stripe.fail('refunds.create', 'invalid_request', 'charge_already_refunded');
+    expect(await gw.refund(creds, input)).toEqual({ refundRef: null, status: 'failed', failureCode: 'charge_already_refunded' });
+  });
+
+  it('throws a gateway_error when Stripe is unreachable', async () => {
+    services.stripe.fail('refunds.create', 'api');
+    await expect(gw.refund(creds, input)).rejects.toMatchObject({ name: 'GatewayError', code: 'gateway_error' });
+  });
+});
+
+describe('findRefund', () => {
+  it('finds an earlier refund by refund id', async () => {
+    const made = await gw.refund(creds, { gatewayRef: 'pi_1', amount: 50, idempotencyKey: 'k1', refundId: 'r1' });
+    expect((await gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r1' }))?.refundRef).toBe(made.refundRef);
+    expect(await gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r2' })).toBeNull();
+  });
+
+  it('throws a gateway_error when Stripe is unreachable', async () => {
+    services.stripe.fail('refunds.list', 'api');
+    await expect(gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r1' })).rejects.toBeInstanceOf(GatewayError);
   });
 });
 

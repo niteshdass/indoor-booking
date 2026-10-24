@@ -10,6 +10,7 @@ import { Payment } from '../../bookings/payment.model';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { gatewayFor } from '../gateway';
+import { STRIPE_WEBHOOK_EVENTS } from '../stripe';
 import { PaymentGatewayAccount, credentialsAad, loadGateway, type PaymentGatewayAccountDoc } from '../gateway.model';
 import { seal } from '../secretBox';
 
@@ -39,6 +40,7 @@ function view(ownerId: string, config: Config, gateway: string, row: PaymentGate
     accountId: row?.accountId ?? null,
     publishableKey: row?.publishableKey ?? null,
     webhookUrl: `${config.apiUrl}/api/v1/webhooks/${gateway}/${ownerId}`,
+    webhookEvents: STRIPE_WEBHOOK_EVENTS,
     updatedAt: row ? (row as unknown as { updatedAt: Date }).updatedAt : null,
   };
 }

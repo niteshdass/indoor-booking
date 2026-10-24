@@ -8,7 +8,7 @@ export type StripeCall = { method: string; secretKey: string; params: object; id
 export type FakeStripe = StripeFactory & {
   calls: StripeCall[];
   /** Makes the next call to `method` (e.g. 'paymentIntents.create') throw a Stripe auth or API error. */
-  fail(method: string, kind: 'auth' | 'api'): void;
+  fail(method: string, kind: 'auth' | 'api' | 'invalid_request', code?: string): void;
   /** Status the fake gives new refunds; 'failed' mimics a refund Stripe declines. */
   refundStatus: 'succeeded' | 'pending' | 'failed';
   /** Status of a PaymentIntent or Checkout Session the fake created. */
@@ -28,7 +28,9 @@ const LATENCY_S = 1;
  */
 export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   const calls: StripeCall[] = [];
-  const failures = new Map<string, 'auth' | 'api'>();
+  const failures = new Map<string, { kind: 'auth' | 'api' | 'invalid_request'; code?: string }>();
+  /** Refunds created, per payment intent. */
+  const refundsByIntent = new Map<string, { id: string; status: string; metadata: Record<string, string> | null; failure_reason?: string | null }[]>();
   const replays = new Map<string, unknown>();
   const counters: Record<string, number> = {};
   /** Created intents and sessions: status and the key (account) that owns them. */
@@ -38,9 +40,17 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   const factory = ((secretKey: string): StripeApi => {
     function call<T>(method: string, params: object, idempotencyKey: string | undefined, make: () => T): T {
       calls.push({ method, secretKey, params, ...(idempotencyKey ? { idempotencyKey } : {}) });
-      const kind = failures.get(method);
-      if (kind) {
+      const failure = failures.get(method);
+      if (failure) {
         failures.delete(method);
+        const { kind } = failure;
+        if (kind === 'invalid_request') {
+          throw new Stripe.errors.StripeInvalidRequestError({
+            type: 'invalid_request_error',
+            message: 'Invalid request',
+            ...(failure.code ? { code: failure.code } : {}),
+          });
+        }
         const message = `Invalid API Key provided: ${secretKey}`;
         const raw = { message, type: kind === 'auth' ? ('authentication_error' as const) : ('api_error' as const) };
         throw kind === 'auth' ? new Stripe.errors.StripeAuthenticationError(raw) : new Stripe.errors.StripeAPIError(raw);
@@ -111,13 +121,20 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
       },
       refunds: {
         async create(params, o) {
-          return call('refunds.create', params, o.idempotencyKey, () => ({ id: nextId('re'), status: factory.refundStatus }));
+          return call('refunds.create', params, o.idempotencyKey, () => {
+            const refund = { id: nextId('re'), status: factory.refundStatus, metadata: params.metadata ?? null };
+            refundsByIntent.set(params.payment_intent, [...(refundsByIntent.get(params.payment_intent) ?? []), refund]);
+            return refund;
+          });
+        },
+        async list(params) {
+          return call('refunds.list', params, undefined, () => ({ data: refundsByIntent.get(params.payment_intent) ?? [] }));
         },
       },
     };
   }) as FakeStripe;
   factory.calls = calls;
-  factory.fail = (method, kind) => void failures.set(method, kind);
+  factory.fail = (method, kind, code) => void failures.set(method, { kind, ...(code ? { code } : {}) });
   factory.refundStatus = 'succeeded';
   factory.statusOf = (id) => objects.get(id)?.status;
   factory.settle = (id, status) => void (objects.get(id)!.status = status);

@@ -58,7 +58,7 @@ describe('owner gateway settings', () => {
     expect(res.body).toEqual([
       {
         gateway: 'stripe', connected: false, enabled: false, mode: null, accountId: null,
-        publishableKey: null, webhookUrl: webhookUrl(), updatedAt: null,
+        publishableKey: null, webhookUrl: webhookUrl(), webhookEvents: expect.arrayContaining(['refund.updated', 'refund.failed']), updatedAt: null,
       },
     ]);
   });

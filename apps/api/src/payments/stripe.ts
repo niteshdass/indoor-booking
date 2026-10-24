@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { currencyExponent } from '@booking/shared';
-import { GatewayError, type GatewayEvent, type PaymentGateway } from './gateway';
+import { GatewayError, type GatewayEvent, type GatewayRefund, type PaymentGateway } from './gateway';
 
 /** The slice of the Stripe SDK we use, so tests can inject a fake. */
 export type StripeApi = {
@@ -17,9 +17,13 @@ export type StripeApi = {
   };
   refunds: {
     create(
-      p: { payment_intent: string; amount: number },
+      p: { payment_intent: string; amount: number; metadata: { refundId: string } },
       o: { idempotencyKey: string },
-    ): Promise<{ id: string; status: string | null }>;
+    ): Promise<{ id: string; status: string | null; failure_reason?: string | null }>;
+    list(p: {
+      payment_intent: string;
+      limit: number;
+    }): Promise<{ data: { id: string; status: string | null; metadata: Record<string, string> | null; failure_reason?: string | null }[] }>;
   };
 };
 
@@ -36,6 +40,16 @@ export const realStripe: StripeFactory = (secretKey) => {
   };
 };
 
+/** The event types the owner subscribes their webhook endpoint to. */
+export const STRIPE_WEBHOOK_EVENTS = [
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
+  'payment_intent.canceled',
+  'checkout.session.expired',
+  'refund.updated',
+  'refund.failed',
+] as const;
+
 /** Exponent 0 in ISO but Stripe takes them in two-decimal form; we would charge 1/100. */
 const TWO_DECIMAL_AT_STRIPE = new Set(['ISK', 'UGX']);
 
@@ -51,6 +65,11 @@ function supportsCurrency(currency: string): boolean {
 
 function paymentIdOf(obj: { metadata?: Record<string, string> | null }): string | null {
   return obj.metadata?.paymentId ?? null;
+}
+
+function toGatewayRefund(r: { id: string; status: string | null; failure_reason?: string | null }): GatewayRefund {
+  const status = r.status === 'succeeded' ? 'succeeded' : r.status === 'failed' || r.status === 'canceled' ? 'failed' : 'pending';
+  return { refundRef: r.id, status, failureCode: r.failure_reason ?? null };
 }
 
 export function stripeGateway(factory: StripeFactory): PaymentGateway {
@@ -136,6 +155,11 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
           return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object) };
         case 'checkout.session.expired':
           return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object) };
+        case 'refund.updated':
+        case 'refund.failed': {
+          const r = toGatewayRefund(event.data.object);
+          return { ...base, kind: 'refund_updated', refundRef: event.data.object.id, status: r.status, failureCode: r.failureCode };
+        }
         default:
           return { ...base, kind: 'ignored' };
       }
@@ -157,11 +181,24 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
     async refund(c, input) {
       try {
         const r = await factory(c.secretKey).refunds.create(
-          { payment_intent: input.gatewayRef, amount: input.amount },
+          { payment_intent: input.gatewayRef, amount: input.amount, metadata: { refundId: input.refundId } },
           { idempotencyKey: input.idempotencyKey },
         );
-        const status = r.status === 'succeeded' ? 'succeeded' : r.status === 'failed' || r.status === 'canceled' ? 'failed' : 'pending';
-        return { refundRef: r.id, status };
+        return toGatewayRefund(r);
+      } catch (err) {
+        // Stripe refused the request itself (already refunded, too large, ...): retrying cannot help.
+        if (err instanceof Stripe.errors.StripeInvalidRequestError) {
+          return { refundRef: null, status: 'failed', failureCode: err.code ?? 'refund_declined' };
+        }
+        throw new GatewayError('gateway_error');
+      }
+    },
+
+    async findRefund(c, input) {
+      try {
+        const { data } = await factory(c.secretKey).refunds.list({ payment_intent: input.gatewayRef, limit: 100 });
+        const found = data.find((r) => r.metadata?.refundId === input.refundId);
+        return found ? toGatewayRefund(found) : null;
       } catch {
         throw new GatewayError('gateway_error');
       }

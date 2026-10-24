@@ -63,7 +63,7 @@ const guestCancelSchema = z
 const guestOtpSchema = z.object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32) }).strict();
 
 /** The guest's booking by reference and phone. Same 404 for an unknown reference, a wrong phone and a malformed phone. */
-async function guestBooking(reference: string, rawPhone: string) {
+async function guestBooking(reference: string, rawPhone: string, opts: { unowned?: boolean } = {}) {
   let phone: string;
   try {
     phone = normalizePhone(rawPhone);
@@ -73,7 +73,8 @@ async function guestBooking(reference: string, rawPhone: string) {
   const booking = await Booking.findOne({ reference: reference.trim().toUpperCase(), 'guest.phone': phone }).setOptions({
     crossTenant: true,
   });
-  if (!booking) throw bookingNotFound();
+  // A walk-in linked to a player carries guest.phone too; only that player may cancel it.
+  if (!booking || (opts.unowned && booking.playerId)) throw bookingNotFound();
   return booking;
 }
 
@@ -181,21 +182,24 @@ export function publicBookingsRouter(
 
   router.get('/bookings/lookup/cancellation', async (req, res) => {
     const q = lookupQuery.parse(req.query);
-    const booking = await guestBooking(q.reference, q.phone);
+    const booking = await guestBooking(q.reference, q.phone, { unowned: true });
     res.json({ preview: await previewCancellation(booking, 'guest', services.now()) });
   });
 
   // Cancelling can move money, so a guest always needs a code, even where booking needs none.
   router.post('/bookings/lookup/otp', ...(otpLimiter ? [otpLimiter] : []), async (req, res) => {
     const q = guestOtpSchema.parse(req.body);
-    const booking = await guestBooking(q.reference, q.phone);
+    const booking = await guestBooking(q.reference, q.phone, { unowned: true });
+    // No SMS for a booking that cannot be cancelled.
+    await previewCancellation(booking, 'guest', services.now());
     res.json(await requestOtp(booking.guest!.phone, 'guest_cancel', services));
   });
 
   router.post('/bookings/lookup/cancel', async (req, res) => {
     const q = guestCancelSchema.parse(req.body);
-    const booking = await guestBooking(q.reference, q.phone);
-    // After the lookup, so a wrong phone never checks or consumes a code.
+    const booking = await guestBooking(q.reference, q.phone, { unowned: true });
+    // Before the code, so a 404 or 409 never checks or consumes it.
+    await previewCancellation(booking, 'guest', services.now());
     await verifyOtp(booking.guest!.phone, 'guest_cancel', q.otpCode, services);
     const out = await cancelBooking(booking, { kind: 'guest', ownerId: String(booking.ownerId) }, { reason: q.reason || undefined }, { config, services });
     res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });

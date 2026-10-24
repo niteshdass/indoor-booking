@@ -423,4 +423,39 @@ describe('guest cancellation', () => {
     const ok = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: lastCode() });
     expect(ok.status).toBe(200);
   });
+
+  it('guest otp and cancel refuse a booking that cannot be cancelled, without spending a code', async () => {
+    const reference = await guestBookingRef();
+    await lookupOtp(reference);
+    const code = lastCode();
+    const sent = ctx.services.sms.sent.length;
+    const original = (await Booking.findOne({ reference }).setOptions({ crossTenant: true }))!.startAt;
+    const setStart = (startAt: Date) => Booking.updateOne({ reference }, { startAt }).setOptions({ crossTenant: true });
+    await setStart(new Date(ctx.services.now().getTime() - 60_000));
+    const late = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: code });
+    expect(late.status).toBe(409);
+    expect(late.body.error.code).toBe('too_late');
+    expect((await lookupOtp(reference)).body.error.code).toBe('too_late');
+    expect(ctx.services.sms.sent).toHaveLength(sent);
+    // The code was not consumed: it still verifies once the start is back in the future.
+    await setStart(original);
+    const ok = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: code });
+    expect(ok.status).toBe(200);
+
+    const again = await lookupOtp(reference);
+    expect(again.status).toBe(409);
+    expect(again.body.error.code).toBe('invalid_transition');
+    expect(ctx.services.sms.sent).toHaveLength(sent);
+  });
+
+  it('a player-linked booking cannot be guest-cancelled by reference and phone', async () => {
+    const reference = await guestBookingRef();
+    const { userId } = await newPlayer();
+    await Booking.updateOne({ reference }, { playerId: userId }).setOptions({ crossTenant: true });
+    const sent = ctx.services.sms.sent.length;
+    expect((await lookupOtp(reference)).status).toBe(404);
+    expect((await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: '123456' })).status).toBe(404);
+    expect(ctx.services.sms.sent).toHaveLength(sent);
+    expect((await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference, phone: PHONE })).status).toBe(200);
+  });
 });

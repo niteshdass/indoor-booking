@@ -14,6 +14,8 @@ import { renderNotice, type NoticeData, type NoticeEvent } from './templates';
 
 export const MAX_NOTICE_ATTEMPTS = 5;
 const DELIVER_BATCH = 100;
+/** A run stops claiming rows after this long, so a hanging provider cannot hold the runner past its lease. */
+export const DELIVER_BUDGET_MS = 60_000;
 
 const cross = { crossTenant: true };
 
@@ -126,7 +128,10 @@ async function isStale(event: NoticeEvent, ownerId: unknown, bookingId: unknown)
   return booking?.status !== wanted;
 }
 
-/** Sweeper: sends due notices, retrying a failing one with backoff until MAX_NOTICE_ATTEMPTS. */
+/**
+ * Sweeper: sends due notices, retrying a failing one with backoff until MAX_NOTICE_ATTEMPTS. Stops
+ * claiming after DELIVER_BUDGET_MS; rows it did not claim stay pending for the next tick.
+ */
 export async function deliverNotifications(
   now: Date,
   deps: { config: Config; services: AppServices },
@@ -136,13 +141,18 @@ export async function deliverNotifications(
     .sort({ nextAttemptAt: 1 })
     .limit(DELIVER_BATCH);
   const result = { sent: 0, failed: 0, dropped: 0 };
+  const started = deps.services.now().getTime();
   for (const row of due) {
+    const claimNow = deps.services.now();
+    if (claimNow.getTime() - started > DELIVER_BUDGET_MS) break;
     const mine = { ownerId: row.ownerId, _id: row._id };
     try {
-      // Compare-and-set on the attempt count: of two concurrent deliverers only one gets the row.
+      // Compare-and-set on the attempt count: of two concurrent deliverers only one gets the row. The
+      // backoff runs from the claim, not the tick, so a row claimed late in a slow run is not due again
+      // while it is still being sent.
       const claimed = await Notification.findOneAndUpdate(
-        { ...mine, status: 'pending', attempts: row.attempts },
-        { $inc: { attempts: 1 }, $set: { nextAttemptAt: new Date(now.getTime() + backoffMs(row.attempts + 1)) } },
+        { ...mine, status: 'pending', attempts: row.attempts, nextAttemptAt: { $lte: claimNow } },
+        { $inc: { attempts: 1 }, $set: { nextAttemptAt: new Date(claimNow.getTime() + backoffMs(row.attempts + 1)) } },
         { new: true },
       );
       if (!claimed) continue;
@@ -155,7 +165,7 @@ export async function deliverNotifications(
         const msg = renderNotice(row.event, row.locale, row.data as NoticeData, deps.config.appUrl);
         if (row.channel === 'email') await deps.services.email.send({ to: row.to, subject: msg.subject, text: msg.text });
         else await deps.services.sms.send(row.to, msg.sms);
-        await Notification.updateOne(mine, { $set: { status: 'sent', sentAt: now, lastError: null } });
+        await Notification.updateOne(mine, { $set: { status: 'sent', sentAt: claimNow, lastError: null } });
         result.sent += 1;
       } catch (err) {
         const final = claimed.attempts >= MAX_NOTICE_ATTEMPTS;

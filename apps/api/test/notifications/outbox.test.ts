@@ -12,7 +12,7 @@ import { Venue } from '../../src/venues/venue.model';
 import { Turf } from '../../src/venues/turf.model';
 import { Booking, type BookingDoc } from '../../src/bookings/booking.model';
 import { Notification } from '../../src/notifications/notification.model';
-import { deliverNotifications, noticeBooking } from '../../src/notifications/outbox';
+import { DELIVER_BUDGET_MS, deliverNotifications, noticeBooking } from '../../src/notifications/outbox';
 import { runInTransaction } from '../../src/db';
 import type { NoticeEvent } from '../../src/notifications/templates';
 
@@ -193,6 +193,55 @@ describe('deliverNotifications', () => {
     expect(row).toMatchObject({ attempts: 5, status: 'failed', lastError: 'provider down' });
     services.clock.advance(60 * MIN);
     expect(await deliver()).toEqual({ sent: 0, failed: 0, dropped: 0 });
+  });
+
+  it('a slow provider stops the run once the time budget is spent', async () => {
+    expect(DELIVER_BUDGET_MS).toBe(60_000);
+    for (let i = 1; i <= 5; i += 1) await notice('booking_confirmed', await seedBooking({ guest: { name: 'G', phone: `+880180000000${i}` } }));
+    const send = services.sms.send.bind(services.sms);
+    services.sms.send = async (to, text) => {
+      services.clock.advance(30_000);
+      return send(to, text);
+    };
+
+    expect(await deliver()).toEqual({ sent: 3, failed: 0, dropped: 0 });
+    const left = await Notification.find({ status: 'pending' }).setOptions(cross);
+    expect(left).toHaveLength(2);
+    for (const row of left) expect(row.attempts).toBe(0);
+    // The next tick picks them up.
+    expect(await deliver()).toEqual({ sent: 2, failed: 0, dropped: 0 });
+  });
+
+  it('a row claimed late in a slow run cannot be claimed again by another instance', async () => {
+    await notice('booking_confirmed', await seedBooking({ guest: { name: 'A', phone: '+8801800000001' } }));
+    await notice('booking_confirmed', await seedBooking({ guest: { name: 'B', phone: '+8801800000002' } }));
+    const start = services.now();
+    const send = services.sms.send.bind(services.sms);
+    let calls = 0;
+    const nested: Awaited<ReturnType<typeof deliver>>[] = [];
+    services.sms.send = async (to, text) => {
+      calls += 1;
+      if (calls === 1) services.clock.advance(50_000);
+      if (calls === 2) {
+        // The second row was claimed at start + 50s; mid-send, another instance ticks at start + 70s.
+        const claimed = (await Notification.findOne({ to }).setOptions(cross))!;
+        expect(claimed.nextAttemptAt).toEqual(new Date(start.getTime() + 50_000 + MIN));
+        services.clock.advance(20_000);
+        nested.push(await deliverNotifications(services.now(), { config: testConfig, services }));
+        // An instance whose tick time is ahead of the clock does not re-claim it either.
+        nested.push(await deliverNotifications(new Date(start.getTime() + 5 * MIN), { config: testConfig, services }));
+      }
+      return send(to, text);
+    };
+
+    expect(await deliver()).toEqual({ sent: 2, failed: 0, dropped: 0 });
+    expect(nested).toEqual([
+      { sent: 0, failed: 0, dropped: 0 },
+      { sent: 0, failed: 0, dropped: 0 },
+    ]);
+    expect(services.sms.sent).toHaveLength(2);
+    expect(new Set(services.sms.sent.map((m) => m.to)).size).toBe(2);
+    for (const row of await rows()) expect(row).toMatchObject({ status: 'sent', attempts: 1 });
   });
 
   it('a throw while rendering fails only that row', async () => {

@@ -1,12 +1,13 @@
-import { BrowserRouter, Route, Routes } from 'react-router';
-import { HomePage } from './pages/HomePage';
+import { BrowserRouter } from 'react-router';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { AppRoutes } from './routes';
 
 export function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }

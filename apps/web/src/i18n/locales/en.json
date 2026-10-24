@@ -8,6 +8,31 @@
     "en": "English",
     "ru": "Русский"
   },
+  "app": {
+    "name": "Slot Booking"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "lookup": "Find my booking",
+    "signIn": "Sign in",
+    "myBookings": "My bookings",
+    "profile": "Profile"
+  },
+  "theme": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "common": {
+    "close": "Close",
+    "loading": "Loading"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist.",
+    "home": "Back to home"
+  },
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "network_error": "Can't reach the server. Check your connection and try again.",

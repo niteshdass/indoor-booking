@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { apiGet } from '../lib/apiClient';
 
 type Health = { status: string; db: 'up' | 'down' };
@@ -21,7 +20,6 @@ export function HomePage() {
 
   return (
     <main>
-      <LanguageSwitcher />
       <h1>{t('home.title')}</h1>
       <p>{t('home.apiStatus', { status: apiStatus })}</p>
     </main>

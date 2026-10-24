@@ -48,7 +48,7 @@ describe('createPayment', () => {
   });
 
   it('creates a Checkout Session for kind link', async () => {
-    const expiresAt = new Date('2026-01-01T00:30:00Z');
+    const expiresAt = new Date('2026-01-01T00:32:00Z');
     const r = await gw.createPayment(creds, {
       kind: 'link', amount: 500, currency: 'USD', metadata: meta, description: 'Booking BK-1',
       idempotencyKey: 'link_p1', expiresAt, successUrl: 'https://app.test/payment-complete?reference=BK-1',
@@ -65,6 +65,16 @@ describe('createPayment', () => {
       line_items: [{ quantity: 1, price_data: { currency: 'usd', unit_amount: 500 } }],
     });
     expect(r).toEqual({ gatewayRef: null, linkRef: 'cs_test_1', clientSecret: null, url: 'https://checkout.stripe.test/cs_test_1' });
+  });
+
+  it('a session expiring under 30 minutes after Stripe receives it is a gateway error', async () => {
+    const link = {
+      kind: 'link' as const, amount: 500, currency: 'USD', metadata: meta, description: 'Booking BK-1',
+      expiresAt: new Date('2026-01-01T00:30:00Z'),
+    };
+    await expect(gw.createPayment(creds, { ...link, idempotencyKey: 'link_short' })).rejects.toMatchObject({ code: 'gateway_error' });
+    services.clock.advance(-60_000);
+    await expect(gw.createPayment(creds, { ...link, idempotencyKey: 'link_ok' })).resolves.toMatchObject({ linkRef: 'cs_test_1' });
   });
 
   it('replays the same result for a repeated idempotency key', async () => {

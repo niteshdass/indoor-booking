@@ -39,7 +39,7 @@ const HOURS = Object.fromEntries(
 );
 const at = (hm: string) => localToUtc(D, hmToMin(hm), TZ).toISOString();
 const cross = { crossTenant: true };
-const HOLD_MS = 30 * 60_000;
+const HOLD_MS = 32 * 60_000;
 
 let ctx: ReturnType<typeof buildTestApp>;
 let owner: Awaited<ReturnType<typeof seedOwner>>;

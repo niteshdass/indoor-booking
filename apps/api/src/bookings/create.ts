@@ -53,8 +53,11 @@ export type CreateBookingInput = QuoteInput & {
 
 const REFERENCE_ATTEMPTS = 5;
 
-/** A Stripe Checkout Session cannot expire sooner than 30 minutes, so a link hold lasts that long. */
-export const LINK_HOLD_MINUTES = 30;
+/**
+ * A Stripe Checkout Session must expire at least 30 minutes after Stripe creates it, and it expires
+ * with the hold; the extra 2 minutes cover the transaction and the network before that call.
+ */
+export const LINK_HOLD_MINUTES = 32;
 
 const slotTaken = () => new AppError(409, 'slot_taken', 'That slot was just booked');
 

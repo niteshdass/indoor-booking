@@ -13,8 +13,16 @@ export type FakeStripe = StripeFactory & {
   refundStatus: 'succeeded' | 'pending' | 'failed';
 };
 
-/** In-memory Stripe: records calls, replays a repeated idempotency key, hands out sequential ids. */
-export function makeFakeStripe(): FakeStripe {
+/** Stripe Checkout: `expires_at` must be at least 30 minutes after the session is created. */
+const MIN_SESSION_S = 30 * 60;
+/** A request reaches Stripe some time after we read the clock; the fake counts one second. */
+const LATENCY_S = 1;
+
+/**
+ * In-memory Stripe: records calls, replays a repeated idempotency key, hands out sequential ids.
+ * `now` is the services clock, read at call time.
+ */
+export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   const calls: StripeCall[] = [];
   const failures = new Map<string, 'auth' | 'api'>();
   const replays = new Map<string, unknown>();
@@ -54,6 +62,16 @@ export function makeFakeStripe(): FakeStripe {
         sessions: {
           async create(params, o) {
             return call('checkout.sessions.create', params, o.idempotencyKey, () => {
+              // Checked on creation only: like Stripe, a replayed key returns the stored session.
+              const stripeNow = Math.floor(now().getTime() / 1000) + LATENCY_S;
+              const expiresAt = (params as { expires_at?: number }).expires_at;
+              if (expiresAt !== undefined && expiresAt < stripeNow + MIN_SESSION_S) {
+                throw new Stripe.errors.StripeInvalidRequestError({
+                  type: 'invalid_request_error',
+                  message: 'expires_at must be at least 30 minutes from session creation',
+                  param: 'expires_at',
+                });
+              }
               const id = nextId('cs');
               return { id, url: `https://checkout.stripe.test/${id}` };
             });
@@ -84,11 +102,12 @@ export type TestServices = AppServices & {
 /** Fakes for every external effect; time starts at 2026-01-01T00:00:00Z and only moves via clock.advance. */
 export function makeTestServices(): TestServices {
   let nowMs = Date.parse('2026-01-01T00:00:00Z');
+  const now = () => new Date(nowMs);
   const smsSent: { to: string; text: string }[] = [];
   const emailSent: { to: string; subject: string; text: string }[] = [];
   const googleTokens = new Map<string, GoogleProfile>();
   return {
-    now: () => new Date(nowMs),
+    now,
     clock: {
       advance(ms) {
         nowMs += ms;
@@ -117,6 +136,6 @@ export function makeTestServices(): TestServices {
       },
     },
     otpCode: () => '123456',
-    stripe: makeFakeStripe(),
+    stripe: makeFakeStripe(now),
   };
 }

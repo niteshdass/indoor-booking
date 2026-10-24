@@ -23,10 +23,10 @@ function setup(value: Criteria = EMPTY_CRITERIA, currencies: string[] = ['USD'])
         <SearchForm value={v} onChange={onChange} currencies={currencies} />
       </I18nextProvider>,
     );
-  return { onChange, user, rerender };
+  return { onChange, user, rerender, unmount: view.unmount };
 }
 
-function stubGeo(impl: (ok: PositionCallback, err: PositionErrorCallback) => void) {
+function stubGeo(impl: (ok: PositionCallback, err: PositionErrorCallback, o?: PositionOptions) => void) {
   Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition: impl } });
 }
 
@@ -120,15 +120,83 @@ describe('SearchForm', () => {
     expect(screen.queryByLabelText(s.minPrice)).not.toBeInTheDocument();
   });
 
-  it('time range applies only when both are set', async () => {
+  it('time range with one end set is an inline error', async () => {
     const { onChange, user } = setup();
     await user.click(screen.getByText(s.moreFilters));
     await user.type(screen.getByLabelText(s.timeFrom), '18:00');
     await user.click(screen.getByRole('button', { name: s.submit }));
-    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ from: null, to: null }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(s.timeInvalid)).toBeInTheDocument();
     await user.type(screen.getByLabelText(s.timeTo), '20:00');
     await user.click(screen.getByRole('button', { name: s.submit }));
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ from: '18:00', to: '20:00' }));
+  });
+
+  it('time range with from equal to is an inline error', async () => {
+    const { onChange, user } = setup();
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.timeFrom), '18:00');
+    await user.type(screen.getByLabelText(s.timeTo), '18:00');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(s.timeInvalid)).toBeInTheDocument();
+  });
+
+  it('keeps the URL price filter when currencies is empty', async () => {
+    const { onChange, user } = setup({ ...EMPTY_CRITERIA, currency: 'USD', minPrice: 1000 }, []);
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'USD', minPrice: 1000, maxPrice: null }));
+  });
+
+  it('keeps a URL currency that is not in the results list', async () => {
+    const { onChange, user } = setup({ ...EMPTY_CRITERIA, currency: 'JPY', minPrice: 1000 }, ['USD']);
+    expect(screen.getByLabelText(s.minPrice)).toHaveValue('1000');
+    expect(screen.getByLabelText(s.currency)).toHaveValue('JPY');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'JPY', minPrice: 1000 }));
+  });
+
+  it('a chosen currency without prices is emitted', async () => {
+    const { onChange, user } = setup(EMPTY_CRITERIA, ['USD', 'EUR']);
+    await user.click(screen.getByText(s.moreFilters));
+    await user.selectOptions(screen.getByLabelText(s.currency), 'EUR');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'EUR', minPrice: null, maxPrice: null }));
+  });
+
+  it('accepts a comma decimal', async () => {
+    const { onChange, user } = setup();
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.minPrice), '12,50');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ minPrice: 1250 }));
+  });
+
+  it('geolocation error clears pending and passes a timeout', async () => {
+    let opts: PositionOptions | undefined;
+    stubGeo((_ok, err, o) => {
+      opts = o;
+      err({ code: 3 } as GeolocationPositionError);
+    });
+    const { user } = setup();
+    await user.click(screen.getByRole('button', { name: s.useMyLocation }));
+    expect(opts).toEqual({ timeout: 10000 });
+    expect(await screen.findByText(s.locationDenied)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: s.useMyLocation })).toBeEnabled();
+  });
+
+  it('ignores a position that arrives after unmount', async () => {
+    let finish: PositionCallback = () => {};
+    stubGeo((ok) => {
+      finish = ok;
+    });
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { user, unmount } = setup();
+    await user.click(screen.getByRole('button', { name: s.useMyLocation }));
+    unmount();
+    finish({ coords: { latitude: 1, longitude: 2 } } as GeolocationPosition);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it('re-syncs the draft when value changes', () => {

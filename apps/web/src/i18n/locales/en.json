@@ -167,7 +167,8 @@
     "maxPrice": "Maximum price",
     "priceInvalid": "Enter an amount like 12.50 using the currency's decimals.",
     "priceRange": "The minimum price must not be higher than the maximum.",
-    "submit": "Search"
+    "submit": "Search",
+    "timeInvalid": "Set both times, and make them different."
   },
   "sports": {
     "football": "Football",

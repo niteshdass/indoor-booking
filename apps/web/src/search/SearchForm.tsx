@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InvalidMoneyError, MAX_SEARCH_RADIUS_KM, SEARCH_RADII_KM, SPORTS, currencyExponent, parseMoney } from '@booking/shared';
 import { Button } from '../components/ui/Button';
@@ -28,7 +28,7 @@ function radiusChoice(r: number | null): string {
   return (SEARCH_RADII_KM as readonly number[]).includes(r) ? String(r) : 'custom';
 }
 
-type Texts = { radiusChoice: string; customRadius: string; min: string; max: string };
+type Texts = { radiusChoice: string; customRadius: string; min: string; max: string; priceDirty: boolean };
 
 function textsFrom(v: Criteria): Texts {
   const choice = radiusChoice(v.radiusKm);
@@ -37,10 +37,14 @@ function textsFrom(v: Criteria): Texts {
     customRadius: choice === 'custom' ? String(v.radiusKm) : '',
     min: minorToDecimal(v.minPrice, v.currency),
     max: minorToDecimal(v.maxPrice, v.currency),
+    priceDirty: false,
   };
 }
 
-type Errors = { radius?: true; min?: true; max?: true; range?: true };
+type Errors = { radius?: true; min?: true; max?: true; range?: true; time?: true };
+
+/** A single comma is a decimal separator (Russian keyboards); anything else is left for parseMoney to judge. */
+const normaliseDecimal = (s: string) => (!s.includes('.') && s.split(',').length === 2 ? s.replace(',', '.') : s);
 
 export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   const { t } = useTranslation();
@@ -49,6 +53,13 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   const [errors, setErrors] = useState<Errors>({});
   const [locating, setLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   // Re-sync when the criteria change from outside (URL navigation).
   const valueKey = criteriaToParams(value).toString();
@@ -61,7 +72,9 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   }, [valueKey]);
 
   const patch = (p: Partial<Criteria>) => setDraft((d) => ({ ...d, ...p }));
-  const priceCurrency = draft.currency && currencies.includes(draft.currency) ? draft.currency : (currencies[0] ?? null);
+  // The URL's currency stays selectable even when no result in view uses it.
+  const currencyOptions = [...new Set([value.currency, ...currencies].filter((c): c is string => Boolean(c)))];
+  const priceCurrency = draft.currency && currencyOptions.includes(draft.currency) ? draft.currency : (currencyOptions[0] ?? null);
 
   function locate() {
     setLocationDenied(false);
@@ -72,13 +85,16 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        if (!mounted.current) return;
         patch({ near: { lat: round4(pos.coords.latitude), lng: round4(pos.coords.longitude) } });
         setLocating(false);
       },
       () => {
+        if (!mounted.current) return;
         setLocationDenied(true);
         setLocating(false);
       },
+      { timeout: 10000 },
     );
   }
 
@@ -96,37 +112,44 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       }
     }
 
-    let currency: string | null = null;
-    let minPrice: number | null = null;
-    let maxPrice: number | null = null;
-    const minText = texts.min.trim();
-    const maxText = texts.max.trim();
-    if (priceCurrency && (minText || maxText)) {
+    // Untouched price text keeps the filter exactly as it came in; edited text is parsed with the
+    // currency it is shown in, so an amount is never re-denominated.
+    let currency: string | null = draft.currency;
+    let minPrice: number | null = draft.minPrice;
+    let maxPrice: number | null = draft.maxPrice;
+    if (texts.priceDirty) {
       currency = priceCurrency;
-      try {
-        if (minText) minPrice = parseMoney(minText, priceCurrency);
-      } catch (err) {
-        if (!(err instanceof InvalidMoneyError)) throw err;
-        next.min = true;
-      }
-      try {
-        if (maxText) maxPrice = parseMoney(maxText, priceCurrency);
-      } catch (err) {
-        if (!(err instanceof InvalidMoneyError)) throw err;
-        next.max = true;
+      minPrice = null;
+      maxPrice = null;
+      const minText = normaliseDecimal(texts.min.trim());
+      const maxText = normaliseDecimal(texts.max.trim());
+      if (priceCurrency) {
+        try {
+          if (minText) minPrice = parseMoney(minText, priceCurrency);
+        } catch (err) {
+          if (!(err instanceof InvalidMoneyError)) throw err;
+          next.min = true;
+        }
+        try {
+          if (maxText) maxPrice = parseMoney(maxText, priceCurrency);
+        } catch (err) {
+          if (!(err instanceof InvalidMoneyError)) throw err;
+          next.max = true;
+        }
       }
       if (!next.min && !next.max && minPrice !== null && maxPrice !== null && minPrice > maxPrice) next.range = true;
     }
 
+    const hasFrom = Boolean(draft.from);
+    const hasTo = Boolean(draft.to);
+    if (hasFrom !== hasTo || (hasFrom && draft.from === draft.to)) next.time = true;
+
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const hasRange = draft.from && draft.to && draft.from !== draft.to;
     onChange({
       ...draft,
       radiusKm,
-      from: hasRange ? draft.from : null,
-      to: hasRange ? draft.to : null,
       currency,
       minPrice,
       maxPrice,
@@ -213,7 +236,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
 
           <div className={styles.pair}>
             <TextField label={t('search.timeFrom')} type="time" step={1800} value={draft.from ?? ''} onChange={(e) => patch({ from: e.target.value || null })} />
-            <TextField label={t('search.timeTo')} type="time" step={1800} value={draft.to ?? ''} onChange={(e) => patch({ to: e.target.value || null })} />
+            <TextField label={t('search.timeTo')} type="time" step={1800} value={draft.to ?? ''} error={errors.time ? t('search.timeInvalid') : undefined} onChange={(e) => patch({ to: e.target.value || null })} />
           </div>
           <p className={styles.hint}>{t('search.timeHint')}</p>
 
@@ -222,15 +245,19 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
             <span>{t('search.availableOnly')}</span>
           </label>
 
-          {currencies.length > 0 && (
+          {currencyOptions.length > 0 && (
             <fieldset className={styles.prices}>
               <legend className={styles.legend}>{t('search.price')}</legend>
               <Select
                 size="lg"
                 label={t('search.currency')}
                 value={priceCurrency ?? ''}
-                onChange={(e) => patch({ currency: e.target.value })}
-                options={currencies.map((c) => ({ value: c, label: c }))}
+                onChange={(e) => {
+                  // Amounts typed under another currency would change meaning, so they are cleared.
+                  patch({ currency: e.target.value, minPrice: null, maxPrice: null });
+                  setTexts((x) => ({ ...x, min: '', max: '', priceDirty: false }));
+                }}
+                options={currencyOptions.map((c) => ({ value: c, label: c }))}
                 className={styles.stacked}
               />
               <div className={styles.pair}>
@@ -239,14 +266,14 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
                   inputMode="decimal"
                   value={texts.min}
                   error={errors.min || errors.range ? priceError : undefined}
-                  onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value }))}
+                  onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value, priceDirty: true }))}
                 />
                 <TextField
                   label={t('search.maxPrice')}
                   inputMode="decimal"
                   value={texts.max}
                   error={errors.max ? priceError : undefined}
-                  onChange={(e) => setTexts((x) => ({ ...x, max: e.target.value }))}
+                  onChange={(e) => setTexts((x) => ({ ...x, max: e.target.value, priceDirty: true }))}
                 />
               </div>
             </fieldset>

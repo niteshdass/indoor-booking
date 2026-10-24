@@ -190,6 +190,7 @@ async function refund(s: Succeeded): Promise<WebhookOutcome> {
         amount: event.amount,
         currency: payment.currency,
         reason,
+        method: 'card',
         gateway: payment.gateway ?? ctx.gateway.key,
         gatewayAccountId: payment.gatewayAccountId,
         status: 'pending',

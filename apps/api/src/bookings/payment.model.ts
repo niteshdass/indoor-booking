@@ -21,6 +21,7 @@ const paymentSchema = new mongoose.Schema(
     /** Checkout Session id for link payments. */
     linkRef: { type: String, default: null },
     failureCode: { type: String, default: null },
+    /** Sum of this payment's non-failed refunds, pending included (a reservation). */
     refundedAmount: { type: Number, default: 0, min: 0 },
     recordedBy: { type: ObjectId, ref: 'User', default: null },
   },

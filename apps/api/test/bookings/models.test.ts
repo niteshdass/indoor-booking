@@ -2,16 +2,55 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { Booking, bookingJson, holdingFilter } from '../../src/bookings/booking.model';
+import { Refund } from '../../src/payments/refund.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
 import { newReference } from '../../src/bookings/reference';
 
 beforeAll(async () => {
   await startTestDb();
-  await Promise.all([Booking.init(), SlotLock.init()]);
+  await Promise.all([Booking.init(), SlotLock.init(), Refund.init()]);
 });
 afterAll(stopTestDb);
 beforeEach(async () => {
-  await Promise.all([Booking.deleteMany({ ownerId: { $exists: true } }), SlotLock.deleteMany({ ownerId: { $exists: true } })]);
+  await Promise.all([
+    Booking.deleteMany({ ownerId: { $exists: true } }),
+    SlotLock.deleteMany({ ownerId: { $exists: true } }),
+    Refund.deleteMany({ ownerId: { $exists: true } }),
+  ]);
+});
+
+function refundFields(overrides: Record<string, unknown>) {
+  return {
+    ownerId: oid(),
+    venueId: oid(),
+    bookingId: oid(),
+    paymentId: oid(),
+    amount: 500,
+    currency: 'INR',
+    reason: 'cancellation',
+    status: 'pending',
+    ...overrides,
+  };
+}
+
+describe('Refund', () => {
+  it('a cash refund needs no gateway', async () => {
+    await expect(
+      Refund.create(refundFields({ method: 'cash', gateway: null, gatewayAccountId: null })),
+    ).resolves.toBeTruthy();
+  });
+
+  it('a card refund needs its gateway and account', async () => {
+    await expect(
+      Refund.create(refundFields({ method: 'card', gateway: null, gatewayAccountId: null })),
+    ).rejects.toMatchObject({ name: 'ValidationError', errors: { gateway: expect.anything() } });
+  });
+
+  it('refund reason must be known', async () => {
+    await expect(
+      Refund.create(refundFields({ method: 'cash', gateway: null, gatewayAccountId: null, reason: 'manual' })),
+    ).rejects.toMatchObject({ name: 'ValidationError', errors: { reason: expect.anything() } });
+  });
 });
 
 const oid = () => new mongoose.Types.ObjectId();
@@ -93,5 +132,17 @@ describe('bookingJson', () => {
     expect(json).not.toHaveProperty('policySnapshot');
     expect(json).toMatchObject({ id: String(b._id), reference: b.reference, slots: [{ price: 1000 }] });
     expect(typeof json.slots[0]!.startAt).toBe('string');
+  });
+
+  it('a booking starts with nothing refunded', async () => {
+    const b = await makeBooking(oid(), 'confirmed');
+    expect(b.amountRefunded).toBe(0);
+    expect(b.cancelledBy).toBeNull();
+  });
+
+  it('bookingJson exposes the refund and cancellation fields', async () => {
+    const b = await makeBooking(oid(), 'confirmed');
+    const json = bookingJson(b);
+    expect(json).toMatchObject({ amountRefunded: 0, cancelledAt: null, cancelledBy: null, cancelReason: null });
   });
 });

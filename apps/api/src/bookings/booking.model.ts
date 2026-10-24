@@ -44,6 +44,8 @@ const bookingSchema = new mongoose.Schema(
     total: { type: Number, required: true, min: 0 },
     advanceRequired: { type: Number, required: true, min: 0 },
     amountPaid: { type: Number, default: 0, min: 0 },
+    /** Sum of this booking's cancellation refunds, pending included. */
+    amountRefunded: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: BOOKING_STATUSES, required: true },
     paymentStatus: { type: String, enum: PAYMENT_STATUSES, required: true },
     /** Set while awaiting_payment; the slots are free again once it passes. */
@@ -58,6 +60,9 @@ const bookingSchema = new mongoose.Schema(
     },
     createdBy: { type: ObjectId, ref: 'User', default: null },
     rejectReason: { type: String, default: null },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
+    cancelReason: { type: String, default: null },
   },
   { timestamps: true, minimize: false },
 );
@@ -95,6 +100,7 @@ export function bookingJson(b: BookingDoc) {
     total: b.total,
     advanceRequired: b.advanceRequired,
     amountPaid: b.amountPaid,
+    amountRefunded: b.amountRefunded,
     status: b.status,
     paymentStatus: b.paymentStatus,
     holdExpiresAt: b.holdExpiresAt ? b.holdExpiresAt.toISOString() : null,
@@ -102,6 +108,9 @@ export function bookingJson(b: BookingDoc) {
     playerId: b.playerId ? String(b.playerId) : null,
     guest: b.guest ? { name: b.guest.name, phone: b.guest.phone } : null,
     rejectReason: b.rejectReason ?? null,
+    cancelledAt: b.cancelledAt ? b.cancelledAt.toISOString() : null,
+    cancelledBy: b.cancelledBy ?? null,
+    cancelReason: b.cancelReason ?? null,
     createdAt: b.createdAt.toISOString(),
   };
 }

@@ -1,11 +1,14 @@
 import type { ClientSession } from 'mongoose';
 import { SLOT_FREEING_STATUSES, canTransition, type BookingStatus } from '@booking/shared';
 import { AppError } from '../errors';
-import { logActivity } from '../tenancy/activityLog.model';
+import { logActivity, logSystemActivity } from '../tenancy/activityLog.model';
 import { tenantRepo } from '../tenancy/repo';
 import type { TenantContext } from '../tenancy/context';
 import { Booking, type BookingDoc } from './booking.model';
 import { SlotLock } from './slotLock.model';
+
+/** Who acts: a member, or (null userId) a player or guest whose changes are logged as system activity. */
+export type Actor = { ownerId: string; userId: string | null };
 
 export const invalidTransition = (status: string) =>
   new AppError(409, 'invalid_transition', `This booking is already ${status}`);
@@ -23,12 +26,14 @@ export async function scopedBooking(t: TenantContext, bookingId: string): Promis
  * logs `booking.<to>`. Call inside the transaction that carries `session`.
  */
 export async function transition(
-  t: TenantContext,
+  t: Actor,
   booking: BookingDoc,
   to: BookingStatus,
   at: Date,
   session: ClientSession,
   extra: Record<string, unknown> = {},
+  /** Extra fields for the activity log's `after` only. */
+  logExtra: Record<string, unknown> = {},
 ): Promise<BookingDoc> {
   const from = booking.status as BookingStatus;
   if (!canTransition(from, to)) throw invalidTransition(from);
@@ -44,18 +49,15 @@ export async function transition(
   if (SLOT_FREEING_STATUSES.includes(to)) {
     await SlotLock.deleteMany({ ownerId: t.ownerId, bookingId: booking._id }, { session });
   }
-  await logActivity(
-    t,
-    {
-      action: `booking.${to}`,
-      entity: 'booking',
-      entityId: booking.id as string,
-      venueId: String(booking.venueId),
-      before: { status: from },
-      after: { status: to, ...extra },
-    },
-    at,
-    session,
-  );
+  const entry = {
+    action: `booking.${to}`,
+    entity: 'booking',
+    entityId: booking.id as string,
+    venueId: String(booking.venueId),
+    before: { status: from },
+    after: { status: to, ...extra, ...logExtra },
+  };
+  if (t.userId) await logActivity({ ownerId: t.ownerId, userId: t.userId }, entry, at, session);
+  else await logSystemActivity(t.ownerId, entry, at, session);
   return updated;
 }

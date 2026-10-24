@@ -267,10 +267,38 @@ describe('validation', () => {
 });
 
 describe('guest OTP rate limit', () => {
-  it('429s after 20 requests when limiting is on', async () => {
+  it('429 rate_limited on the 21st request when limiting is on', async () => {
     ctx = buildTestApp({ services: ctx.services, rateLimit: true });
-    let last = 0;
-    for (let i = 0; i < 21; i++) last = (await requestOtpFor()).status;
-    expect(last).toBe(429);
+    const codes: string[] = [];
+    for (let i = 0; i < 21; i++) {
+      const res = await post(`/api/v1/venues/${slug}/bookings/otp`, { phone: `+88017${String(10000000 + i)}` });
+      codes.push(res.body.error?.code ?? 'ok');
+    }
+    expect(codes.slice(0, 20)).not.toContain('rate_limited');
+    expect(codes[20]).toBe('rate_limited');
+  });
+});
+
+describe('guest gate at venue level', () => {
+  it('full-payment venue with a free slot still refuses guests', async () => {
+    const { venue } = await setup({ paymentPolicy: { type: 'full' }, guestBooking: { allowed: true, requireOtp: false } });
+    const free = await seedTurf(ownerId, venue.id as string, { pricing: { base: 0, rules: [] } });
+    turfId = free.id as string;
+    const q = await post(`${base()}/quote`, { date: D, startAts: [at('18:00')] });
+    expect(q.status).toBe(200);
+    expect(q.body.quote.advanceRequired).toBe(0);
+    expect(q.body.guestAllowed).toBe(false);
+    const g = await post(`${base()}/bookings`, guestBody({ guest: { name: 'A', phone: PHONE } }));
+    expect(g.status).toBe(403);
+    expect(g.body.error.code).toBe('guest_booking_disabled');
+  });
+});
+
+describe('lookup with a malformed phone', () => {
+  it('is the same 404', async () => {
+    const miss = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: PHONE });
+    const bad = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: 'abc' });
+    expect(bad.status).toBe(404);
+    expect(bad.body).toEqual(miss.body);
   });
 });

@@ -1,7 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
-import { MAX_SLOTS_PER_BOOKING, type BookingQuote } from '@booking/shared';
+import { MAX_SLOTS_PER_BOOKING, type BookingQuote, type EffectiveSettings } from '@booking/shared';
 import { optionalAuth, requireAuth } from '../../auth/requireAuth';
 import { normalizePhone } from '../../auth/normalize';
 import { requestOtp, verifyOtp } from '../../auth/otp';
@@ -36,13 +36,16 @@ const createSchema = z
     date: isoDateSchema,
     startAts: startAtsSchema,
     addons: addonsSchema,
-    guest: z.object({ name: nameSchema, phone: z.string(), otpCode: otpCodeSchema.optional() }).strict().optional(),
+    guest: z.object({ name: nameSchema, phone: z.string().max(32), otpCode: otpCodeSchema.optional() }).strict().optional(),
   })
   .strict();
 
-const otpSchema = z.object({ phone: z.string() }).strict();
+const otpSchema = z.object({ phone: z.string().max(32) }).strict();
 
 const lookupQuery = z.object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32) });
+
+/** Guests need the venue to allow them and no payment policy at all (a policy can demand an advance). */
+const guestsAllowed = (s: EffectiveSettings) => s.guestBooking.allowed && s.paymentPolicy.type === 'none';
 
 const guestDisabled = () =>
   new AppError(403, 'guest_booking_disabled', 'Guest booking is not available at this venue');
@@ -93,7 +96,7 @@ export function publicBookingsRouter(
     });
     res.json({
       quote: quoteJson(quote, venue.currency),
-      guestAllowed: settings.guestBooking.allowed && quote.advanceRequired === 0,
+      guestAllowed: guestsAllowed(settings) && quote.advanceRequired === 0,
       guestOtpRequired: settings.guestBooking.requireOtp,
     });
   });
@@ -103,7 +106,7 @@ export function publicBookingsRouter(
     const { phone } = otpSchema.parse(req.body);
     const venue = await publicVenueBySlug(req.params.slug as string);
     const settings = await effectiveForVenue(String(venue.ownerId), venue);
-    if (!settings.guestBooking.allowed || settings.paymentPolicy.type !== 'none') throw guestDisabled();
+    if (!guestsAllowed(settings)) throw guestDisabled();
     res.json(await requestOtp(normalizePhone(phone), 'guest_booking', services));
   });
 
@@ -131,9 +134,10 @@ export function publicBookingsRouter(
       const phone = normalizePhone(g.phone);
       const { quote, settings } = await quoteFor(base);
       // Disabled first, so a venue that refuses guests never consumes a code.
-      if (!settings.guestBooking.allowed || quote.advanceRequired > 0) throw guestDisabled();
+      if (!guestsAllowed(settings) || quote.advanceRequired > 0) throw guestDisabled();
       if (settings.guestBooking.requireOtp) {
         if (g.otpCode === undefined) throw new AppError(400, 'otp_required', 'A verification code is required');
+        // Consumed here, before the transaction: a slot_taken race afterwards needs a new code.
         await verifyOtp(phone, 'guest_booking', g.otpCode, services);
       }
       const booking = await createBooking({
@@ -146,8 +150,13 @@ export function publicBookingsRouter(
 
   router.get('/bookings/lookup', async (req, res) => {
     const q = lookupQuery.parse(req.query);
-    const phone = normalizePhone(q.phone);
-    // Same 404 for an unknown reference and a wrong phone.
+    // Same 404 for an unknown reference, a wrong phone and a malformed phone.
+    let phone: string;
+    try {
+      phone = normalizePhone(q.phone);
+    } catch {
+      throw bookingNotFound();
+    }
     const booking = await Booking.findOne({ reference: q.reference.trim().toUpperCase(), 'guest.phone': phone }).setOptions({
       crossTenant: true,
     });

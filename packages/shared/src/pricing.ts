@@ -15,6 +15,15 @@ function minutesOf(rule: PricingRule): [number, number] {
   return rule.range ? rangeMinutes(rule.range) : WHOLE_DAY;
 }
 
+/** Rule ranges are times of day, so they match modulo 1440: m, m+1440 or m-1440 may fall in [s, e). */
+function covers([s, e]: [number, number], m: number): boolean {
+  return (s <= m && m < e) || (s <= m + 1440 && m + 1440 < e) || (s <= m - 1440 && m - 1440 < e);
+}
+
+function overlaps([as, ae]: [number, number], [bs, be]: [number, number]): boolean {
+  return [0, 1440, -1440].some((d) => as < be + d && bs + d < ae);
+}
+
 /** First tier with a matching rule wins: date, weekend, weekday, base. minute is in [0, 2880). */
 export function priceFor(
   pricing: TurfPricing,
@@ -28,8 +37,7 @@ export function priceFor(
   for (const inTier of tiers) {
     for (const rule of pricing.rules) {
       if (!inTier(rule)) continue;
-      const [s, e] = minutesOf(rule);
-      if (s <= at.minute && at.minute < e) return rule.price;
+      if (covers(minutesOf(rule), at.minute)) return rule.price;
     }
   }
   return pricing.base;
@@ -47,9 +55,7 @@ export function pricingConflict(rules: PricingRule[]): [number, number] | null {
       const a = rules[i]!;
       const b = rules[j]!;
       if (!sameTier(a, b)) continue;
-      const [as, ae] = minutesOf(a);
-      const [bs, be] = minutesOf(b);
-      if (as < be && bs < ae) return [i, j];
+      if (overlaps(minutesOf(a), minutesOf(b))) return [i, j];
     }
   }
   return null;

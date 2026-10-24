@@ -32,7 +32,28 @@ describe('priceFor', () => {
   });
 });
 
+describe('priceFor modulo 1440', () => {
+  it('matches a 00:00-02:00 rule against past-midnight slot minutes', () => {
+    const p: TurfPricing = {
+      base: 1000,
+      rules: [{ kind: 'weekday', range: { start: '00:00', end: '02:00' }, price: 1100 }],
+    };
+    expect(priceFor(p, { businessDate: '2026-12-15', weekend: false, minute: 1500 })).toBe(1100);
+    expect(priceFor(p, { businessDate: '2026-12-15', weekend: false, minute: 60 })).toBe(1100);
+    expect(priceFor(p, { businessDate: '2026-12-15', weekend: false, minute: 600 })).toBe(1000);
+  });
+});
+
 describe('pricingConflict', () => {
+  it('detects overlap modulo 1440', () => {
+    expect(
+      pricingConflict([
+        { kind: 'weekday', range: { start: '01:00', end: '02:00' }, price: 1 },
+        { kind: 'weekday', range: { start: '22:00', end: '02:00' }, price: 2 },
+      ]),
+    ).toEqual([0, 1]);
+  });
+
   it('returns null for non-overlapping rules', () => {
     expect(pricingConflict(rules)).toBeNull();
   });

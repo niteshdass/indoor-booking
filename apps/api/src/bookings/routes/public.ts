@@ -15,7 +15,8 @@ import { turfNotFound } from '../../venues/guards';
 import { effectiveForVenue } from '../../venues/effective';
 import { publicVenueBySlug } from '../../venues/routes/public';
 import { Turf } from '../../venues/turf.model';
-import { Booking, bookingJson } from '../booking.model';
+import { Booking } from '../booking.model';
+import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, quoteFor } from '../create';
 import { startIntent } from '../../payments/intent';
 import { invalidTransition } from '../transition';
@@ -153,7 +154,7 @@ export function publicBookingsRouter(
 
       if (userId) {
         const booking = await createBooking({ ...base, who: { playerId: userId, guest: null, createdBy: userId } });
-        res.status(201).json({ booking: bookingJson(booking) });
+        res.status(201).json({ booking: await playerBookingJson(booking) });
         return;
       }
 
@@ -171,13 +172,13 @@ export function publicBookingsRouter(
         ...base,
         who: { playerId: null, guest: { name: g.name, phone }, createdBy: null },
       });
-      res.status(201).json({ booking: bookingJson(booking) });
+      res.status(201).json({ booking: await playerBookingJson(booking) });
     },
   );
 
   router.get('/bookings/lookup', async (req, res) => {
     const q = lookupQuery.parse(req.query);
-    res.json({ booking: bookingJson(await guestBooking(q.reference, q.phone)) });
+    res.json({ booking: await playerBookingJson(await guestBooking(q.reference, q.phone)) });
   });
 
   router.get('/bookings/lookup/cancellation', async (req, res) => {
@@ -202,7 +203,7 @@ export function publicBookingsRouter(
     await previewCancellation(booking, 'guest', services.now());
     await verifyOtp(booking.guest!.phone, 'guest_cancel', q.otpCode, services);
     const out = await cancelBooking(booking, { kind: 'guest', ownerId: String(booking.ownerId) }, { reason: q.reason || undefined }, { config, services });
-    res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });
+    res.json({ booking: await playerBookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
   router.get('/me/bookings', requireAuth(config, services), async (req, res) => {
@@ -210,7 +211,7 @@ export function publicBookingsRouter(
       .setOptions({ crossTenant: true })
       .sort({ startAt: -1 })
       .limit(100);
-    res.json({ bookings: bookings.map(bookingJson) });
+    res.json({ bookings: await playerBookingsJson(bookings) });
   });
 
   /** The player's own booking, else 404 (never 403, so ids don't leak). */
@@ -225,7 +226,7 @@ export function publicBookingsRouter(
   router.get('/me/bookings/:bookingId', requireAuth(config, services), async (req, res) => {
     const booking = await playerBooking(req.params.bookingId as string, req.auth!.userId);
     const refunds = await Refund.find({ ownerId: booking.ownerId, bookingId: booking._id }).sort({ _id: 1 });
-    res.json({ booking: bookingJson(booking), refunds: refunds.map(refundJson) });
+    res.json({ booking: await playerBookingJson(booking), refunds: refunds.map(refundJson) });
   });
 
   router.get('/me/bookings/:bookingId/cancellation', requireAuth(config, services), async (req, res) => {
@@ -239,7 +240,7 @@ export function publicBookingsRouter(
     const booking = await playerBooking(req.params.bookingId as string, userId);
     const by = { kind: 'player' as const, ownerId: String(booking.ownerId), userId };
     const out = await cancelBooking(booking, by, { reason: reason || undefined }, { config, services });
-    res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });
+    res.json({ booking: await playerBookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
   router.post('/bookings/:bookingId/payment', requireAuth(config, services), async (req, res) => {

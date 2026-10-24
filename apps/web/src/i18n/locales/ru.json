@@ -18,6 +18,11 @@
     "myBookings": "Мои брони",
     "profile": "Профиль"
   },
+  "auth": {
+    "login": {
+      "title": "Вход"
+    }
+  },
   "theme": {
     "label": "Тема",
     "system": "Системная",

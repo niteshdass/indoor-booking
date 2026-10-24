@@ -18,6 +18,11 @@
     "myBookings": "My bookings",
     "profile": "Profile"
   },
+  "auth": {
+    "login": {
+      "title": "Sign in"
+    }
+  },
   "theme": {
     "label": "Theme",
     "system": "System",

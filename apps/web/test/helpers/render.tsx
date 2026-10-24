@@ -2,23 +2,34 @@ import type { ReactElement } from 'react';
 import { render, type RenderResult } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { I18nextProvider } from 'react-i18next';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import i18n from '../../src/i18n';
 import { ThemeProvider } from '../../src/theme/ThemeProvider';
+import { AuthProvider } from '../../src/auth/AuthProvider';
 import { AppRoutes } from '../../src/routes';
 import type { PublicUser } from '../../src/lib/types';
 
-/** Renders the whole app at `path`. `opts.user` is wired to AuthProvider's `initialUser` from Task 4 on. */
-export function renderApp(path: string, _opts?: { user?: PublicUser }): RenderResult & { user: UserEvent } {
+/** Renders the whole app at `path`. `opts.user` is passed to AuthProvider's `initialUser`. */
+function LocationProbe({ onChange }: { onChange(l: { pathname: string; search: string }): void }) {
+  const { pathname, search } = useLocation();
+  onChange({ pathname, search });
+  return null;
+}
+
+export function renderApp(path: string, opts?: { user?: PublicUser }): RenderResult & { user: UserEvent; location(): { pathname: string; search: string } } {
   const user = userEvent.setup();
+  let current = { pathname: path.split('?')[0] ?? path, search: '' };
   const ui: ReactElement = (
     <I18nextProvider i18n={i18n}>
       <ThemeProvider>
         <MemoryRouter initialEntries={[path]}>
-          <AppRoutes />
+          <AuthProvider initialUser={opts?.user ?? null}>
+            <AppRoutes />
+          </AuthProvider>
+          <LocationProbe onChange={(l) => (current = l)} />
         </MemoryRouter>
       </ThemeProvider>
     </I18nextProvider>
   );
-  return { ...render(ui), user };
+  return { ...render(ui), user, location: () => current };
 }

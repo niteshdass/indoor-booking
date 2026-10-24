@@ -124,3 +124,8 @@
 .totalLabel {
   font-weight: var(--weight-semibold);
 }
+
+.utc {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

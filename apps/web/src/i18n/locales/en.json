@@ -320,7 +320,8 @@
     "addons": "Add-ons",
     "total": "Total",
     "paid": "Paid",
-    "refunded": "Refunded"
+    "refunded": "Refunded",
+    "timesUtc": "Times shown in UTC"
   },
   "status": {
     "awaiting_payment": "Awaiting payment",
@@ -363,5 +364,19 @@
       "failed": "Failed"
     },
     "nothingPaid": "Nothing has been paid yet, so there is nothing to refund."
+  },
+  "lookup": {
+    "title": "Find my booking",
+    "intro": "Enter the booking reference and the phone number you booked with.",
+    "reference": "Booking reference",
+    "submit": "Find booking",
+    "notFound": "We couldn't find a booking with those details. Check the reference and phone number and try again.",
+    "saveReference": "Save your reference and phone number. You will need both to view or cancel this booking later.",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "signInToManage": "This booking belongs to an account. Sign in to manage it.",
+    "signIn": "Sign in",
+    "sendCode": "Send code",
+    "codeNote": "We will text a code to the phone number on this booking to confirm the cancellation."
   }
 }

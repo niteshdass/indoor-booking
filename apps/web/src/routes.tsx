@@ -12,6 +12,7 @@ import { VenuePage } from './venue/VenuePage';
 import { CheckoutPage } from './checkout/CheckoutPage';
 import { BookingDetailPage } from './bookings/BookingDetailPage';
 import { PayPage } from './payment/PayPage';
+import { LookupPage } from './lookup/LookupPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export function AppRoutes() {
@@ -21,6 +22,7 @@ export function AppRoutes() {
         <Route path="/" element={<SearchPage />} />
         <Route path="/venues/:slug" element={<VenuePage />} />
         <Route path="/venues/:slug/checkout" element={<CheckoutPage />} />
+        <Route path="/lookup" element={<LookupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

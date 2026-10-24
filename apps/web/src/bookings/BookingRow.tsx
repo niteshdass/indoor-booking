@@ -6,7 +6,7 @@ import { BookingStatusBadge } from './BookingStatusBadge';
 import styles from './MyBookingsPage.module.css';
 
 export function BookingRow({ booking }: { booking: BookingJson }) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const tz = booking.venue?.timezone ?? 'UTC';
   const starts = booking.slots.map((s) => s.startAt).sort();
@@ -16,7 +16,7 @@ export function BookingRow({ booking }: { booking: BookingJson }) {
   return (
     <Link to={`/me/bookings/${encodeURIComponent(booking.id)}`} className={styles.row}>
       <span className={styles.top}>
-        <span className={styles.venue}>{booking.venue?.name}</span>
+        {booking.venue ? <span className={styles.venue}>{booking.venue.name}</span> : <span />}
         <BookingStatusBadge status={booking.status} />
       </span>
       <span className={styles.meta}>
@@ -28,6 +28,7 @@ export function BookingRow({ booking }: { booking: BookingJson }) {
         {first && last && (
           <span className={styles.time}>
             {formatTime(first, tz, lang)} – {formatTime(last, tz, lang)}
+            {!booking.venue && <span> · {t('booking.timesUtc')}</span>}
           </span>
         )}
         <span className={styles.total}>{money(booking.total, booking.currency, lang)}</span>

@@ -8,10 +8,9 @@ import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
-import { Badge } from '../components/ui/Badge';
-import { money } from '../lib/format';
 import { BookingFacts } from './BookingFacts';
 import { CancelDialog } from './CancelDialog';
+import { RefundList } from './RefundList';
 import styles from './BookingDetailPage.module.css';
 
 const CANCELLABLE = new Set(['awaiting_payment', 'pending', 'confirmed']);
@@ -26,7 +25,7 @@ type State =
 
 export function BookingDetailPage() {
   const { id = '' } = useParams();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const paid = params.get('paid') === '1';
@@ -138,22 +137,7 @@ export function BookingDetailPage() {
               {t('booking.payNow')}
             </Button>
           )}
-          {refunds.length > 0 && (
-            <section className={styles.refunds} aria-label={t('cancel.refundsTitle')}>
-              <h2 className={styles.refundsTitle}>{t('cancel.refundsTitle')}</h2>
-              <ul className={styles.refundList}>
-                {refunds.map((r) => (
-                  <li key={r.id} className={styles.refund}>
-                    <span className={styles.refundAmount}>{money(r.amount, r.currency, i18n.language)}</span>
-                    <span>{t(`cancel.method.${r.method}`)}</span>
-                    <Badge tone={r.status === 'succeeded' ? 'success' : r.status === 'failed' ? 'danger' : 'warning'}>
-                      {t(`cancel.refundStatus.${r.status}`)}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <RefundList refunds={refunds} />
           {CANCELLABLE.has(booking.status) && (
             <>
               <Button variant="secondary" size="lg" block onClick={() => setCancelOpen(true)}>

@@ -74,9 +74,11 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
       {booking.status === 'pending' && <p className={styles.note}>{t('booking.pendingNote')}</p>}
 
       <header className={styles.head}>
-        <h2 className={styles.venue}>
-          {booking.venue ? <Link to={`/venues/${encodeURIComponent(booking.venue.slug)}`}>{booking.venue.name}</Link> : null}
-        </h2>
+        {booking.venue && (
+          <h2 className={styles.venue}>
+            <Link to={`/venues/${encodeURIComponent(booking.venue.slug)}`}>{booking.venue.name}</Link>
+          </h2>
+        )}
         <p className={styles.meta}>
           {booking.turf && <span>{booking.turf.name}</span>}
           {booking.turf && ' · '}
@@ -85,6 +87,7 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
         {first && last && (
           <p className={styles.time}>
             {formatTime(first.startAt, tz, lang)} – {formatTime(last.endAt, tz, lang)}
+            {!booking.venue && <span className={styles.utc}> · {t('booking.timesUtc')}</span>}
           </p>
         )}
       </header>

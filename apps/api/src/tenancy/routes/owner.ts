@@ -12,6 +12,7 @@ import { venuesRouter } from '../../venues/routes/venues';
 import { turfsRouter } from '../../venues/routes/turfs';
 import { pricingRouter } from '../../schedule/routes/pricing';
 import { closuresRouter } from '../../schedule/routes/closures';
+import { overridesRouter } from '../../schedule/routes/overrides';
 
 /** Everything under /owners/:ownerId; later plans mount their routers on the returned router. */
 export function ownerRouter({ config, services }: AuthDeps): Router {
@@ -50,6 +51,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(turfsRouter(services));
   router.use(pricingRouter(services));
   router.use(closuresRouter(services));
+  router.use(overridesRouter(services));
 
   return router;
 }

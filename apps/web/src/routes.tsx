@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router';
 import { AppShell } from './components/AppShell';
 import { RequireAuth } from './auth/RequireAuth';
-import { HomePage } from './pages/HomePage';
+import { SearchPage } from './search/SearchPage';
 import { LoginPage } from './auth/LoginPage';
 import { RegisterPage } from './auth/RegisterPage';
 import { ForgotPasswordPage } from './auth/ForgotPasswordPage';
@@ -14,7 +14,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<SearchPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

@@ -1,8 +1,4 @@
 {
-  "home": {
-    "title": "Book your next game",
-    "apiStatus": "API: {{status}}"
-  },
   "language": {
     "label": "Language",
     "en": "English",
@@ -168,7 +164,17 @@
     "priceInvalid": "Enter an amount like 12.50 using the currency's decimals.",
     "priceRange": "The minimum price must not be higher than the maximum.",
     "submit": "Search",
-    "timeInvalid": "Set both times, and make them different."
+    "timeInvalid": "Set both times, and make them different.",
+    "resultsLabel": "Search results",
+    "count_one": "{{count}} venue",
+    "count_other": "{{count}} venues",
+    "empty": "No venues match your search. Try changing the filters.",
+    "noPrice": "No price available",
+    "fromPrice": "from {{price}}",
+    "nextFree": "Next free: {{start}}–{{end}} · {{turf}}",
+    "noFreeSlot": "No free slots",
+    "loadMore": "Load more",
+    "retry": "Try again"
   },
   "sports": {
     "football": "Football",

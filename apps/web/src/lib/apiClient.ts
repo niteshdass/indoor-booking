@@ -14,12 +14,33 @@ const BASE_URL: string = import.meta.env.VITE_API_URL ?? '/api/v1';
 
 type ErrorBody = { error?: { code?: string; message?: string; details?: unknown } };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+let accessToken: string | null = null;
+let refreshHandler: (() => Promise<string | null>) | null = null;
+
+/** The access token lives in memory only; it is never written to storage. */
+export function setAccessToken(token: string | null): void {
+  accessToken = token;
+}
+
+/** Called once on a 401 for an authenticated request; resolves a fresh access token, or null when signed out. */
+export function setRefreshHandler(fn: (() => Promise<string | null>) | null): void {
+  refreshHandler = fn;
+}
+
+const REFRESHABLE_CODES = ['invalid_token', 'unauthenticated'];
+
+async function send<T>(path: string, init: RequestInit | undefined, token: string | null): Promise<T> {
+  const isAuthPath = path.startsWith('/auth/');
   let res: Response;
   try {
     res = await fetch(BASE_URL + path, {
       ...init,
-      headers: { Accept: 'application/json', ...init?.headers },
+      ...(isAuthPath ? { credentials: 'include' as const } : {}),
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init?.headers,
+      },
     });
   } catch {
     throw new ApiError(0, 'network_error', 'Network request failed');
@@ -38,6 +59,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = accessToken;
+  try {
+    return await send<T>(path, init, token);
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      err.status === 401 &&
+      REFRESHABLE_CODES.includes(err.code) &&
+      token &&
+      !path.startsWith('/auth/') &&
+      refreshHandler
+    ) {
+      const fresh = await refreshHandler();
+      if (fresh) return send<T>(path, init, fresh);
+    }
+    throw err;
+  }
+}
+
 export function apiGet<T>(path: string): Promise<T> {
   return request<T>(path);
 }
@@ -45,6 +86,14 @@ export function apiGet<T>(path: string): Promise<T> {
 export function apiPost<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });

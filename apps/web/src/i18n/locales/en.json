@@ -1,4 +1,36 @@
 {
-  "home": { "title": "Book your next game", "apiStatus": "API: {{status}}" },
-  "language": { "label": "Language", "en": "English", "ru": "Русский" }
+  "home": {
+    "title": "Book your next game",
+    "apiStatus": "API: {{status}}"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "ru": "Русский"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "network_error": "Can't reach the server. Check your connection and try again.",
+    "slot_taken": "Someone just took that slot. Please pick another.",
+    "slot_unavailable": "One of the selected slots is no longer available.",
+    "hold_expired": "Your hold has expired. Please start again.",
+    "otp_invalid": "That code is incorrect.",
+    "otp_expired": "That code has expired. Request a new one.",
+    "otp_required": "Enter the verification code we sent you.",
+    "otp_cooldown": "Please wait a moment before requesting another code.",
+    "otp_rate_limited": "Too many codes requested. Try again later.",
+    "otp_attempts_exceeded": "Too many wrong attempts. Request a new code.",
+    "guest_booking_disabled": "This venue requires you to sign in to book.",
+    "invalid_credentials": "Incorrect email or password.",
+    "email_in_use": "That email is already in use.",
+    "account_exists": "An account with these details already exists. Please sign in.",
+    "too_late": "It's too late to book or change this slot.",
+    "too_early": "This slot isn't open for booking yet.",
+    "payment_in_progress": "A payment for this booking is already in progress.",
+    "payments_unavailable": "Online payments are unavailable right now.",
+    "outside_window": "That date is outside the booking window.",
+    "rate_limited": "Too many requests. Please wait a moment and try again.",
+    "not_found": "We couldn't find what you were looking for.",
+    "validation_error": "Please check the details you entered."
+  }
 }

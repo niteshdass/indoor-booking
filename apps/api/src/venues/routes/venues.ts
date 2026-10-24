@@ -22,7 +22,7 @@ import { effectiveForVenue, ownerSettings } from '../effective';
 import { Venue, type VenueDoc } from '../venue.model';
 import { Turf } from '../turf.model';
 import { Membership } from '../../tenancy/membership.model';
-import { activeTurfCount, lockVenue } from '../guards';
+import { activeTurfCount, lockVenue, venueNotFound } from '../guards';
 
 const SLUG_MAX = 60;
 const MAX_SLUG_SUFFIX = 20;
@@ -86,7 +86,6 @@ export const venuePatchFields = {
 };
 const patchSchema = z.object(venuePatchFields).strict();
 
-export const venueNotFound = () => new AppError(404, 'not_found', 'Venue not found');
 const slugTaken = () => new AppError(409, 'slug_taken', 'That link is already taken');
 
 const isSlugDuplicate = (err: unknown) =>

@@ -33,11 +33,22 @@ export const AMENITIES = [
 ] as const;
 export type Amenity = (typeof AMENITIES)[number];
 
-const TIME_ZONES = new Set(Intl.supportedValuesOf('timeZone'));
+// Area/Location form only: DateTimeFormat also accepts abbreviations (EST) and offsets (+05:30).
+const ZONE_NAME_RE = /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)+$/;
 
-/** True for an IANA time zone name known to the runtime (or 'UTC'). */
+/**
+ * True for an IANA time zone name known to the runtime (or 'UTC'). Asks DateTimeFormat rather than
+ * Intl.supportedValuesOf, which lists ICU's old aliases (Asia/Calcutta) and omits current names (Asia/Kolkata).
+ */
 export function isTimeZone(tz: string): boolean {
-  return tz === 'UTC' || TIME_ZONES.has(tz);
+  if (tz === 'UTC') return true;
+  if (!ZONE_NAME_RE.test(tz)) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;

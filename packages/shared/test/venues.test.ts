@@ -22,4 +22,16 @@ describe('isTimeZone', () => {
     expect(isTimeZone('Asia/Dhak')).toBe(false);
     expect(isTimeZone('')).toBe(false);
   });
+
+  it('accepts current IANA names that ICU lists under old aliases', () => {
+    expect(isTimeZone('Asia/Kolkata')).toBe(true);
+    expect(isTimeZone('Europe/Kyiv')).toBe(true);
+    expect(isTimeZone('America/Argentina/Buenos_Aires')).toBe(true);
+  });
+
+  it('rejects abbreviations and offsets', () => {
+    expect(isTimeZone('EST')).toBe(false);
+    expect(isTimeZone('GMT')).toBe(false);
+    expect(isTimeZone('+05:30')).toBe(false);
+  });
 });

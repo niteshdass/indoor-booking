@@ -112,3 +112,6 @@ Scrolling strips and tab lists carry `--space-1` padding so the focus ring is no
 
 ## Slot grid
 Grid is 3 columns on phone, 4 from sm, 6 from lg. Pending (warning-soft + "Pending") is always visually distinct from booked; every non-clickable cell puts its state in the label and `aria-label`, never colour alone. A null price shows "Unavailable" and is disabled. A legend sits under the grid. The selection bar is an in-flow sticky card at the bottom edge on phone (so it never covers the last row, wraps for long Russian text) and a sticky side card of `--side-card-width` from lg; its Continue link uses `--brand`.
+
+## Checkout
+Add-ons (checkbox for per-booking, 40px stepper buttons for per-unit and per-hour) sit beside the booking summary card, which is a sticky `--side-card-width` card from lg and stacks below on phones. Summary rows are tabular; the total is 20px/600. When an advance is due, "Due now" and "Pay at the venue" rows follow the total. While a new quote loads the previous one stays visible, dimmed, with `aria-busy`. Auto-applied add-ons show as "Included" lines and are never selectable. The CTA is a `--brand` button (signed in) or sign-in/create-account links carrying `?next=` back to the checkout URL.

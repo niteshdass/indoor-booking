@@ -113,7 +113,12 @@
     "identity_in_use": "These details are already linked to another account.",
     "invalid_reset_token": "This reset link is invalid or has expired.",
     "invalid_google_token": "Google sign-in failed. Please try again.",
-    "google_not_configured": "Google sign-in is unavailable right now."
+    "google_not_configured": "Google sign-in is unavailable right now.",
+    "addon_unavailable": "One of the extras is no longer available.",
+    "addon_auto": "That extra is added automatically.",
+    "invalid_quantity": "Choose a valid quantity for the extras.",
+    "addon_out_of_stock": "That extra is out of stock for these times.",
+    "too_many_slots": "You can book at most 12 slots at once."
   },
   "myBookings": {
     "title": "My bookings"
@@ -244,5 +249,34 @@
     "selectedCount_one": "{{count}} slot",
     "selectedCount_other": "{{count}} slots",
     "pickHint": "Pick a time slot to see your total."
+  },
+  "addons": {
+    "per_booking": "per booking",
+    "per_unit": "each",
+    "per_hour": "per hour"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "summary": "Booking summary",
+    "invalidParams": "This checkout link is incomplete or invalid. Pick your slots again.",
+    "backToVenue": "Back to venue",
+    "chooseOtherSlots": "Choose other slots",
+    "addons": "Extras",
+    "decrease": "Decrease {{name}}",
+    "increase": "Increase {{name}}",
+    "quantity": "Quantity of {{name}}",
+    "autoAdded": "Included",
+    "subtotal": "Slots",
+    "addonsTotal": "Extras",
+    "total": "Total",
+    "advanceDue": "Due now",
+    "payLater": "Pay at the venue",
+    "book": "Book",
+    "bookAndPay": "Book and pay {{amount}}",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "signInInstead": "Sign in instead",
+    "signInRequired": "An advance payment is required for this booking, so you need to sign in or create an account first.",
+    "guestPlaceholder": "You can continue as a guest."
   }
 }

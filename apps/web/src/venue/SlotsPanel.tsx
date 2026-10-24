@@ -7,6 +7,7 @@ import { apiGet } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { formatDate, money } from '../lib/format';
 import type { SlotDay } from '../lib/types';
+import { checkoutHref } from '../checkout/checkoutParams';
 import { SlotGrid } from './SlotGrid';
 import { keepSelectable, toggleSlot } from './slotSelection';
 import styles from './SlotsPanel.module.css';
@@ -54,8 +55,7 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
 
   let href = '';
   if (day && first) {
-    const q = new URLSearchParams({ turf: turfId, date, slots: chosen.map((s) => s.startAt).join(',') });
-    href = `/venues/${encodeURIComponent(slug)}/checkout?${q.toString()}`;
+    href = checkoutHref(slug, turfId, date, chosen.map((s) => s.startAt));
   }
 
   return (

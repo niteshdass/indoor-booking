@@ -9,6 +9,7 @@ import { ResetPasswordPage } from './auth/ResetPasswordPage';
 import { ProfilePage } from './auth/ProfilePage';
 import { MyBookingsPage } from './pages/MyBookingsPage';
 import { VenuePage } from './venue/VenuePage';
+import { CheckoutPage } from './checkout/CheckoutPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export function AppRoutes() {
@@ -17,6 +18,7 @@ export function AppRoutes() {
       <Route element={<AppShell />}>
         <Route path="/" element={<SearchPage />} />
         <Route path="/venues/:slug" element={<VenuePage />} />
+        <Route path="/venues/:slug/checkout" element={<CheckoutPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

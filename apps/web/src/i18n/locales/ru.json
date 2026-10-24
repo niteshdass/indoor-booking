@@ -113,7 +113,12 @@
     "identity_in_use": "Эти данные уже привязаны к другому аккаунту.",
     "invalid_reset_token": "Ссылка для сброса недействительна или устарела.",
     "invalid_google_token": "Не удалось войти через Google. Попробуйте ещё раз.",
-    "google_not_configured": "Вход через Google сейчас недоступен."
+    "google_not_configured": "Вход через Google сейчас недоступен.",
+    "addon_unavailable": "Одно из дополнений больше недоступно.",
+    "addon_auto": "Это дополнение добавляется автоматически.",
+    "invalid_quantity": "Укажите корректное количество дополнений.",
+    "addon_out_of_stock": "Это дополнение закончилось на выбранное время.",
+    "too_many_slots": "За один раз можно забронировать не более 12 слотов."
   },
   "myBookings": {
     "title": "Мои брони"
@@ -252,5 +257,34 @@
     "selectedCount_many": "{{count}} слотов",
     "selectedCount_other": "{{count}} слота",
     "pickHint": "Выберите время, чтобы увидеть сумму."
+  },
+  "addons": {
+    "per_booking": "за бронь",
+    "per_unit": "за штуку",
+    "per_hour": "за час"
+  },
+  "checkout": {
+    "title": "Оформление",
+    "summary": "Сводка брони",
+    "invalidParams": "Ссылка на оформление неполная или неверная. Выберите слоты заново.",
+    "backToVenue": "Назад к площадке",
+    "chooseOtherSlots": "Выбрать другие слоты",
+    "addons": "Дополнения",
+    "decrease": "Уменьшить: {{name}}",
+    "increase": "Увеличить: {{name}}",
+    "quantity": "Количество: {{name}}",
+    "autoAdded": "Включено",
+    "subtotal": "Слоты",
+    "addonsTotal": "Дополнения",
+    "total": "Итого",
+    "advanceDue": "К оплате сейчас",
+    "payLater": "Оплата на месте",
+    "book": "Забронировать",
+    "bookAndPay": "Забронировать и оплатить {{amount}}",
+    "signIn": "Войти",
+    "createAccount": "Создать аккаунт",
+    "signInInstead": "Войти в аккаунт",
+    "signInRequired": "Для этой брони нужна предоплата, поэтому сначала войдите или создайте аккаунт.",
+    "guestPlaceholder": "Вы можете продолжить как гость."
   }
 }

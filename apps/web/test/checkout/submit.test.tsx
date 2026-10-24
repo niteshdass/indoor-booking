@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import i18n from '../../src/i18n';
 import en from '../../src/i18n/locales/en.json';
 import { mockApi, type Call } from '../helpers/api';
@@ -42,12 +42,12 @@ function qr(over: Partial<QuoteResponse> = {}, advance = 0): QuoteResponse {
 }
 const booking = (over: Partial<BookingJson> = {}) => ({ id: 'b1', reference: 'AB12CD', status: 'confirmed', ...over }) as BookingJson;
 
-type Extra = { create?: unknown };
+type Extra = { create?: unknown; quoteBody?: unknown; offered?: unknown[] };
 function api(quote: QuoteResponse, extra: Extra = {}) {
   return mockApi([
     { path: '/venues/arena-one', body: { venue } },
-    { path: '/venues/arena-one/turfs/t1/addons', body: { currency: 'BDT', addons: [] } },
-    { method: 'POST', path: '/venues/arena-one/turfs/t1/quote', body: quote },
+    { path: '/venues/arena-one/turfs/t1/addons', body: { currency: 'BDT', addons: extra.offered ?? [] } },
+    { method: 'POST', path: '/venues/arena-one/turfs/t1/quote', body: extra.quoteBody ?? quote },
     { method: 'POST', path: '/venues/arena-one/bookings/otp', body: { expiresInSec: 300, resendInSec: 60 } },
     {
       method: 'POST',
@@ -164,5 +164,69 @@ describe('placing a booking', () => {
     await second.user.click(screen.getByRole('button', { name: en.checkout.book }));
     await waitFor(() => expect(createCalls(b.calls).length).toBe(1));
     expect(createCalls(b.calls)[0]!.headers.get('Authorization')).toBeNull();
+  });
+
+  it('otp_expired keeps name and phone, clears code', async () => {
+    api(qr({ guestOtpRequired: true }), { create: () => ({ status: 400, body: { error: { code: 'otp_expired', message: 'x' } } }) });
+    const { user } = renderApp(PATH);
+    await fillGuest(user);
+    await user.click(screen.getByRole('button', { name: en.checkout.sendCode }));
+    await user.click(await screen.findByLabelText('Digit 1 of 6'));
+    await user.paste('123456');
+    await user.click(screen.getByRole('button', { name: en.checkout.book }));
+    expect(await screen.findByText(en.errors.otp_expired)).toBeInTheDocument();
+    expect(screen.getByLabelText(en.checkout.guestName)).toHaveValue('Ana');
+    expect(screen.getByLabelText(en.auth.phone.number)).toHaveValue('1712345678');
+    for (let i = 1; i <= 6; i++) expect(screen.getByLabelText(`Digit ${i} of 6`)).toHaveValue('');
+  });
+
+  it('slot_unavailable on submit redirects like slot_taken', async () => {
+    api(qr(), { create: () => ({ status: 409, body: { error: { code: 'slot_unavailable', message: 'x' } } }) });
+    const { user, location } = renderApp(PATH, { user: player });
+    await user.click(await screen.findByRole('button', { name: en.checkout.book }));
+    expect(await screen.findByText(en.errors.slot_taken)).toBeInTheDocument();
+    expect(location().pathname).toBe('/venues/arena-one');
+    expect(location().navType).toBe('REPLACE');
+  });
+
+  it('the submit error clears on retry', async () => {
+    api(qr(), {
+      create: (_c: Call, n: number) =>
+        n === 0 ? { status: 500, body: { error: { code: 'internal', message: 'x' } } } : { status: 201, body: { booking: booking() } },
+    });
+    const { user, location } = renderApp(PATH, { user: player });
+    await user.click(await screen.findByRole('button', { name: en.checkout.book }));
+    expect(await screen.findByText(en.errors.generic)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.checkout.book }));
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
+  });
+
+  it('two rapid clicks send one create request', async () => {
+    const { calls } = api(qr());
+    const { location } = renderApp(PATH, { user: player });
+    const btn = await screen.findByRole('button', { name: en.checkout.book });
+    await waitFor(() => expect(btn).toBeEnabled());
+    act(() => {
+      fireEvent.click(btn);
+      fireEvent.click(btn);
+    });
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
+    expect(createCalls(calls)).toHaveLength(1);
+  });
+
+  it('keeps the guest form filled across an add-on quote error', async () => {
+    const shoes = { id: 'a1', name: 'Shoes', pricingType: 'per_unit', unitPrice: 150, maxQuantity: 3, autoApply: null };
+    api(qr(), {
+      offered: [shoes],
+      quoteBody: (_c: Call, n: number) =>
+        n === 0 ? qr() : { status: 400, body: { error: { code: 'addon_unavailable', message: 'x' } } },
+    });
+    const { user } = renderApp(PATH);
+    await fillGuest(user);
+    await user.click(screen.getByRole('button', { name: 'Increase Shoes' }));
+    expect(await screen.findByText(en.errors.addon_unavailable)).toBeInTheDocument();
+    expect(screen.getByLabelText(en.checkout.guestName)).toHaveValue('Ana');
+    expect(screen.getByLabelText(en.auth.phone.number)).toHaveValue('1712345678');
+    expect(screen.getByRole('button', { name: en.checkout.book })).toBeDisabled();
   });
 });

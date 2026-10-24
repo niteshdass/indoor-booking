@@ -59,16 +59,23 @@ export function GuestForm({ otpRequired, onSubmit, pending, slug, label, disable
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!ready || pending || disabled) return;
+    setError(null);
     onSubmit({ name: name.trim(), phone, ...(otpRequired ? { otpCode: code } : {}) });
   };
 
   return (
     <form className={styles.form} onSubmit={submit}>
       <TextField label={t('checkout.guestName')} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
-      <PhoneInput label={t('auth.phone.label')} value={phone} onChange={setPhone} />
+      <PhoneInput label={t('auth.phone.label')} value={phone} onChange={(v) => {
+          if (v === phone) return;
+          setPhone(v);
+          setCode('');
+          setSentTo(null);
+        }}
+      />
       {error && <Alert tone="danger">{error}</Alert>}
       {otpRequired && !sent && (
-        <Button variant="secondary" size="lg" block loading={sending} disabled={!phone} onClick={() => void sendCode()}>
+        <Button variant="secondary" size="lg" block loading={sending} disabled={!phone || cooldown.left > 0} onClick={() => void sendCode()}>
           {t('checkout.sendCode')}
         </Button>
       )}

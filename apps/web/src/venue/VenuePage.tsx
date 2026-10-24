@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
-import { useLocation, useParams, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
@@ -34,7 +34,13 @@ export function VenuePage() {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
-  const slotTaken = (location.state as { notice?: string } | null)?.notice === 'slot_taken';
+  const navigate = useNavigate();
+  // Shown once: remembered locally, then dropped from history state so a refresh does not bring it back.
+  const [slotTaken] = useState(() => (location.state as { notice?: string } | null)?.notice === 'slot_taken');
+  useEffect(() => {
+    if (slotTaken) navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
+    // Only on mount.
+  }, []);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 

@@ -48,6 +48,14 @@ export function CheckoutPage() {
   const submitter = useSubmitBooking(slug, parsed?.turfId ?? '');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [codeReset, setCodeReset] = useState(0);
+  const inflight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const turfId = parsed?.turfId;
   const date = parsed?.date;
@@ -114,7 +122,8 @@ export function CheckoutPage() {
   const venueHref = `/venues/${encodeURIComponent(slug)}`;
 
   const place = async (guest?: GuestInput) => {
-    if (!parsed || submitter.pending) return;
+    if (!parsed || inflight.current) return;
+    inflight.current = true;
     setSubmitError(null);
     try {
       const booking = await submitter.submit({
@@ -123,6 +132,7 @@ export function CheckoutPage() {
         addons: selection.filter((s) => (s.quantity ?? 1) > 0),
         ...(guest ? { guest } : {}),
       });
+      if (!mounted.current) return;
       if (guest) {
         navigate(`/lookup?reference=${encodeURIComponent(booking.reference)}&phone=${encodeURIComponent(guest.phone)}&new=1`);
       } else if (booking.status === 'awaiting_payment') {
@@ -131,16 +141,18 @@ export function CheckoutPage() {
         navigate(`/me/bookings/${encodeURIComponent(booking.id)}?new=1`);
       }
     } catch (err) {
+      if (!mounted.current) return;
       if (err instanceof ApiError && (err.code === 'slot_taken' || err.code === 'slot_unavailable')) {
         const back = new URLSearchParams({ turf: parsed.turfId, date: parsed.date });
-        navigate(`${venueHref}?${back.toString()}`, { state: { notice: 'slot_taken' } });
+        navigate(`${venueHref}?${back.toString()}`, { replace: true, state: { notice: 'slot_taken' } });
         return;
       }
       if (err instanceof ApiError && (err.code === 'otp_invalid' || err.code === 'otp_expired')) setCodeReset((n) => n + 1);
       setSubmitError(errorMessage(err, t));
+    } finally {
+      inflight.current = false;
     }
   };
-  const submitBusy = quote.busy || submitter.pending;
 
   const here = `${pathname}${search}`;
   const next = encodeURIComponent(here);
@@ -200,8 +212,11 @@ export function CheckoutPage() {
   const failed = quote.error !== null && quote.error !== undefined;
   const q = data?.quote;
 
+  const addonErr = failed && isAddonError(quote.error);
+  const submitBusy = quote.busy || submitter.pending || addonErr;
+
   let cta: ReactNode = null;
-  if (q && data && !failed) {
+  if (q && data && (!failed || addonErr)) {
     if (auth === 'signedIn') {
       cta = (
         <Button
@@ -226,7 +241,7 @@ export function CheckoutPage() {
             slug={slug}
             otpRequired={data.guestOtpRequired}
             pending={submitter.pending}
-            disabled={quote.busy}
+            disabled={submitBusy}
             codeResetSignal={codeReset}
             label={q.advanceRequired > 0 ? t('checkout.bookAndPay', { amount: money(q.advanceRequired, q.currency, i18n.language) }) : t('checkout.book')}
             onSubmit={(g) => void place(g)}
@@ -252,7 +267,6 @@ export function CheckoutPage() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t('checkout.title')}</h1>
-      {submitError && <Alert tone="danger" className={styles.alert}>{submitError}</Alert>}
       {failed && (
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(quote.error, t)}</span>
@@ -277,6 +291,7 @@ export function CheckoutPage() {
         <div className={styles.side}>
           {q ? (
             <BookingSummary venue={venue} turf={turf} date={parsed.date} quote={q} busy={quote.busy}>
+              {submitError && <Alert tone="danger">{submitError}</Alert>}
               {cta}
             </BookingSummary>
           ) : (

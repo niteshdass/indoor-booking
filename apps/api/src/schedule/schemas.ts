@@ -36,3 +36,23 @@ export const pricingSchema = z
     const clash = pricingConflict(p.rules as PricingRule[]);
     if (clash) ctx.addIssue({ code: 'custom', path: ['rules'], message: `Rules ${clash[0]} and ${clash[1]} overlap` });
   });
+
+const dayMs = 86_400_000;
+
+export const closureSchema = z
+  .object({
+    venueId: z.string().optional(),
+    turfId: z.string().optional(),
+    from: isoDateSchema,
+    to: isoDateSchema,
+    reason: z.string().trim().max(200).nullish(),
+  })
+  .strict()
+  .superRefine((c, ctx) => {
+    if (c.turfId && !c.venueId) ctx.addIssue({ code: 'custom', path: ['turfId'], message: 'turfId needs venueId' });
+    if (c.to < c.from) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'to must not be before from' });
+    } else if ((Date.parse(c.to) - Date.parse(c.from)) / dayMs + 1 > 366) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'A closure spans at most 366 days' });
+    }
+  });

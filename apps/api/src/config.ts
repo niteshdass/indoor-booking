@@ -7,6 +7,7 @@ export type Config = {
   corsOrigin: string;
   jwtSecret: string;
   googleClientId?: string;
+  /** Public web app URL, linked from every customer message; required in production. */
   appUrl: string;
   /** Public base URL of this API; builds the webhook URL shown to owners. */
   apiUrl: string;
@@ -37,7 +38,8 @@ const envSchema = z
     CORS_ORIGIN: z.string().min(1).default('http://localhost:5173'),
     JWT_SECRET: z.string().min(32, 'must be at least 32 characters'),
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
-    APP_URL: z.string().url().default('http://localhost:5173'),
+    // Defaulted in loadConfig, so production can tell an unset value apart.
+    APP_URL: z.string().url().optional(),
     API_URL: z.string().url().default('http://localhost:4000'),
     PAYMENTS_ENCRYPTION_KEY: z
       .string()
@@ -59,6 +61,9 @@ const envSchema = z
         path: ['PAYMENTS_ENCRYPTION_KEY'],
         message: 'is required in production',
       });
+    }
+    if (e.NODE_ENV === 'production' && !e.APP_URL) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['APP_URL'], message: 'is required in production' });
     }
     // Each provider group is all-or-nothing, and both are required in production.
     const groups = [
@@ -103,7 +108,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     mongodbUri: e.MONGODB_URI,
     corsOrigin: e.CORS_ORIGIN,
     jwtSecret: e.JWT_SECRET,
-    appUrl: e.APP_URL,
+    appUrl: e.APP_URL ?? 'http://localhost:5173',
     apiUrl: e.API_URL,
     jobsEnabled: e.JOBS_ENABLED === 'true',
   };

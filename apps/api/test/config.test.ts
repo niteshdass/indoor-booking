@@ -60,6 +60,22 @@ describe('loadConfig', () => {
       expect(() => loadConfig({ ...base, NODE_ENV: 'production' })).toThrow(/PAYMENTS_ENCRYPTION_KEY/);
       expect(loadConfig({ ...base, NODE_ENV: 'development' }).paymentsKey).toBeUndefined();
     });
+    it('requires APP_URL in production only', () => {
+      const prod = {
+        ...base,
+        NODE_ENV: 'production',
+        PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+        SMTP_URL: 'smtp://mail.example:587',
+        EMAIL_FROM: 'no-reply@example.com',
+        TWILIO_ACCOUNT_SID: 'AC1',
+        TWILIO_AUTH_TOKEN: 'tok',
+        TWILIO_FROM: '+15550001111',
+      };
+      expect(() => loadConfig(prod)).toThrow(ConfigError);
+      expect(() => loadConfig(prod)).toThrow(/APP_URL: is required in production/);
+      expect(loadConfig({ ...prod, APP_URL: 'https://app.example' }).appUrl).toBe('https://app.example');
+      expect(loadConfig(base).appUrl).toBe('http://localhost:5173');
+    });
     it('defaults and reads API_URL', () => {
       expect(loadConfig(base).apiUrl).toBe('http://localhost:4000');
       expect(loadConfig({ ...base, API_URL: 'https://api.example' }).apiUrl).toBe('https://api.example');
@@ -86,6 +102,7 @@ describe('loadConfig', () => {
         ...base,
         NODE_ENV: 'production',
         PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+        APP_URL: 'https://app.example',
       };
       expect(() => loadConfig({ ...prod, ...email })).toThrow(/TWILIO_ACCOUNT_SID/);
       expect(() => loadConfig({ ...prod, ...sms })).toThrow(/SMTP_URL/);

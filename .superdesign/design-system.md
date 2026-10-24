@@ -33,6 +33,7 @@ JTBD: owners and staff see today's schedule and act on it fast and calmly; playe
 Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
 Field minimum width token: `--field-min` 10rem (smallest width of a paired form field before it wraps; not themed).
 Map height token: `--map-height` 32rem (results map; same in light and dark).
+Photo strip tokens: `--photo-height` 12rem and `--photo-width` 18rem (venue page photo strip tiles; not themed).
 Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
 
 ## Breakpoints (fixed, mobile-first `min-width`)
@@ -104,3 +105,6 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
 - **Schedule (owner)**: courts as columns, time as rows (30/60 min); booking blocks use status soft bg + 3px left border in status fg; current-time line in danger.
 - **Booking summary card**: venue, court, date, time range, line items, total 20px/600 tabular, CTA full width.
 - **Price**: always formatted with the owner's currency and locale via `Intl.NumberFormat`; never hand-built strings.
+
+## Venue page
+Header (name, address, sport and amenity chips), a horizontally scrolling photo strip (placeholder when empty), ARIA turf tabs whose active underline uses `--brand`, a scrolling date strip (selected chip = primary, today marked with a dot and `aria-current="date"`, chips at least `--control-lg` tall), then the slot grid region.

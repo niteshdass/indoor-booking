@@ -213,5 +213,18 @@
     "equipment_rental": "Equipment rental",
     "seating": "Seating",
     "prayer_room": "Prayer room"
+  },
+  "venue": {
+    "photosLabel": "Venue photos",
+    "amenities": "Amenities",
+    "turfs": "Courts",
+    "indoor": "Indoor",
+    "outdoor": "Outdoor",
+    "noTurfs": "This venue has no courts yet.",
+    "dateStrip": "Choose a date",
+    "today": "today",
+    "slotsRegion": "Availability",
+    "selected": "{{turf}} · {{date}}",
+    "slotsSoon": "Time slots will appear here."
   }
 }

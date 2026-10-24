@@ -10,3 +10,4 @@ export * from './slots';
 export * from './addons';
 export * from './booking';
 export * from './refunds';
+export * from './search';

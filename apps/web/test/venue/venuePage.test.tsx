@@ -25,7 +25,10 @@ const venue: PublicVenue = {
 };
 
 beforeEach(() => i18n.changeLanguage('en'));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe('VenuePage', () => {
   it('renders venue details and amenities', async () => {
@@ -62,10 +65,10 @@ describe('VenuePage', () => {
     const today = screen.getAllByRole('button').find((b) => b.getAttribute('aria-current') === 'date')!;
     expect(today).toHaveTextContent('Oct 24');
     expect(today).toHaveAttribute('aria-pressed', 'true');
-    vi.useRealTimers();
   });
 
   it('changing the date keeps turf and replaces history', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     mockApi([{ path: '/venues/arena-one', body: { venue } }]);
     const { user, location } = renderApp('/venues/arena-one?turf=t2&date=2026-10-25');
     await user.click(await screen.findByRole('button', { name: /Oct 27/ }));

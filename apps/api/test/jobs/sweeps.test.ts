@@ -233,6 +233,19 @@ describe('autoRejectPending', () => {
     expect((await bookingOf(late.id)).status).toBe('rejected');
   });
 
+  it('a booking whose start already passed is rejected without a notice', async () => {
+    await setup({});
+    const past = await bookAs(null, '18:00');
+    const future = await bookAs(null, '20:00');
+    advanceTo(new Date((await startOf(past.id)).getTime() + 30 * MIN));
+
+    expect(await autoRejectPending(now())).toBe(2);
+    expect((await bookingOf(past.id)).status).toBe('rejected');
+    expect((await bookingOf(future.id)).status).toBe('rejected');
+    const rejected = await notices('booking_rejected');
+    expect(rejected.map((n) => String(n.bookingId))).toEqual([future.id]);
+  });
+
   it('auto-reject and a staff confirm racing: one wins', async () => {
     await setup({});
     const booking = await bookAs(null, '18:00');

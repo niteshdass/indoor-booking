@@ -89,7 +89,10 @@ export async function expireHolds(now: Date): Promise<number> {
   });
 }
 
-/** Rejects pending bookings the venue did not confirm by the owner's pendingAutoRejectHours before start. */
+/**
+ * Rejects pending bookings the venue did not confirm by the owner's pendingAutoRejectHours before start.
+ * Only those that have not started yet are told.
+ */
 export async function autoRejectPending(now: Date): Promise<number> {
   const hoursOf = new Map<string, number>();
   const due = async (page: BookingDoc[]) => {
@@ -107,7 +110,8 @@ export async function autoRejectPending(now: Date): Promise<number> {
     'startAt',
     async (b, session) => {
       const moved = await transition(system(b), b, 'rejected', now, session, { rejectReason: AUTO_REJECT_REASON });
-      await noticeBooking('booking_rejected', moved, now, session, { autoRejected: true });
+      // A game that already started (a backlog on first deploy, or 0 hours plus job delay) gets no message.
+      if (b.startAt > now) await noticeBooking('booking_rejected', moved, now, session, { autoRejected: true });
       return true;
     },
     due,

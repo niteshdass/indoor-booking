@@ -48,9 +48,11 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
         return null;
       }
     };
-    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-    const started: Promise<string | null> = locks ? (locks.request('auth-refresh', run) as Promise<string | null>) : run();
-    const p = started.finally(() => {
+    const guarded = async (): Promise<string | null> => {
+      const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+      return locks ? await locks.request('auth-refresh', () => run()) : await run();
+    };
+    const p = guarded().finally(() => {
       inflight = null;
     });
     inflight = p;

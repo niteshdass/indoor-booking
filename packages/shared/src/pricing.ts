@@ -24,6 +24,11 @@ function overlaps([as, ae]: [number, number], [bs, be]: [number, number]): boole
   return [0, 1440, -1440].some((d) => as < be + d && bs + d < ae);
 }
 
+/** Whether a time-of-day range covers minute m; no range covers every minute. */
+export function rangeCovers(range: TimeRange | undefined, minute: number): boolean {
+  return range ? covers(rangeMinutes(range), minute) : true;
+}
+
 /** First tier with a matching rule wins: date, weekend, weekday, base. minute is in [0, 2880). */
 export function priceFor(
   pricing: TurfPricing,
@@ -37,7 +42,7 @@ export function priceFor(
   for (const inTier of tiers) {
     for (const rule of pricing.rules) {
       if (!inTier(rule)) continue;
-      if (covers(minutesOf(rule), at.minute)) return rule.price;
+      if (rangeCovers(rule.range, at.minute)) return rule.price;
     }
   }
   return pricing.base;

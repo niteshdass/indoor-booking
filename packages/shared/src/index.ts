@@ -7,3 +7,4 @@ export * from './settings';
 export * from './time';
 export * from './pricing';
 export * from './slots';
+export * from './addons';

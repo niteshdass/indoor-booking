@@ -1,17 +1,16 @@
 import { Router } from 'express';
-import mongoose from 'mongoose';
 import { z } from 'zod';
 import { SPORTS, resolveSettings, type EffectiveSettings, type TurfSettingsOverride, type VenueSettingsOverride } from '@booking/shared';
 import { AppError } from '../../errors';
 import { isDuplicateKeyError, runInTransaction } from '../../db';
 import type { AppServices } from '../../services';
 import { logActivity } from '../../tenancy/activityLog.model';
-import { requirePermission, tenantOf, type TenantContext } from '../../tenancy/context';
+import { requirePermission, tenantOf } from '../../tenancy/context';
 import { applyPatch, turfSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForTurf, ownerSettings } from '../effective';
 import { Turf, type TurfDoc } from '../turf.model';
 import { Venue } from '../venue.model';
-import { activeTurfCount, lockVenue } from '../guards';
+import { activeTurfCount, lockVenue, scopedTurf } from '../guards';
 import { changedFields, scopedVenue } from './venues';
 
 const fields = {
@@ -37,7 +36,6 @@ const patchSchema = z
   })
   .strict();
 
-const turfNotFound = () => new AppError(404, 'not_found', 'Turf not found');
 const nameTaken = () => new AppError(409, 'turf_name_taken', 'This venue already has a turf with that name');
 const lastActive = () =>
   new AppError(409, 'last_active_turf', 'A published venue needs at least one active turf; unpublish it first');
@@ -45,7 +43,7 @@ const lastActive = () =>
 const isNameDuplicate = (err: unknown) =>
   isDuplicateKeyError(err) && Object.hasOwn((err as { keyPattern?: object }).keyPattern ?? {}, 'name');
 
-type TurfLike = Pick<TurfDoc, 'venueId' | 'name' | 'sports' | 'indoor' | 'slotLengthMin' | 'active' | 'settings'> & {
+type TurfLike = Pick<TurfDoc, 'venueId' | 'name' | 'sports' | 'indoor' | 'slotLengthMin' | 'active' | 'settings' | 'pricing'> & {
   _id: unknown;
   createdAt: Date;
 };
@@ -60,6 +58,7 @@ function turfJson(turf: TurfLike, effectiveSettings: EffectiveSettings) {
     slotLengthMin: turf.slotLengthMin,
     active: turf.active,
     settings: turf.settings ?? {},
+    pricing: turf.pricing ?? null,
     effectiveSettings,
     createdAt: turf.createdAt.toISOString(),
   };
@@ -77,14 +76,6 @@ const snapshot = (turf: TurfDoc) => ({
 export function turfsRouter(services: AppServices): Router {
   const router = Router({ mergeParams: true });
   const base = '/venues/:venueId/turfs';
-
-  async function turfOf(t: TenantContext, venueId: string, turfId: string) {
-    const turf = mongoose.isValidObjectId(turfId)
-      ? await Turf.findOne({ ownerId: t.ownerId, venueId, _id: turfId })
-      : null;
-    if (!turf) throw turfNotFound();
-    return turf;
-  }
 
   router.get(base, async (req, res) => {
     const t = tenantOf(req);
@@ -143,17 +134,15 @@ export function turfsRouter(services: AppServices): Router {
 
   router.get(`${base}/:turfId`, async (req, res) => {
     const t = tenantOf(req);
-    const venue = await scopedVenue(t, req.params.venueId as string);
-    const turf = await turfOf(t, venue.id as string, req.params.turfId as string);
+    const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
     res.json({ turf: turfJson(turf, await effectiveForTurf(t.ownerId, venue, turf)) });
   });
 
   router.patch(`${base}/:turfId`, requirePermission('turf.manage'), async (req, res) => {
     const t = tenantOf(req);
     const input = patchSchema.parse(req.body);
-    const venue = await scopedVenue(t, req.params.venueId as string);
+    const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
     const venueId = venue.id as string;
-    const turf = await turfOf(t, venueId, req.params.turfId as string);
     const beforeAll = snapshot(turf);
     const wasActive = turf.active;
 
@@ -189,9 +178,8 @@ export function turfsRouter(services: AppServices): Router {
   // Hard delete for now; Plan 07 must refuse it once the turf has bookings.
   router.delete(`${base}/:turfId`, requirePermission('turf.manage'), async (req, res) => {
     const t = tenantOf(req);
-    const venue = await scopedVenue(t, req.params.venueId as string);
+    const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
     const venueId = venue.id as string;
-    const turf = await turfOf(t, venueId, req.params.turfId as string);
     await runInTransaction(async (session) => {
       await lockVenue(t, venueId, services.now(), session);
       if (turf.active) {

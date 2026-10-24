@@ -1,3 +1,4 @@
+import type { TurfPricing } from '@booking/shared';
 import { Venue, type VenueDoc } from '../../src/venues/venue.model';
 import { Turf, type TurfDoc } from '../../src/venues/turf.model';
 
@@ -35,7 +36,13 @@ export async function seedVenue(
 export async function seedTurf(
   ownerId: string,
   venueId: string,
-  over: Partial<{ name: string; active: boolean; slotLengthMin: number; settings: Record<string, unknown> }> = {},
+  over: Partial<{
+    name: string;
+    active: boolean;
+    slotLengthMin: number;
+    settings: Record<string, unknown>;
+    pricing: TurfPricing | null;
+  }> = {},
 ): Promise<TurfDoc> {
   seq += 1;
   return Turf.create({
@@ -47,5 +54,6 @@ export async function seedTurf(
     slotLengthMin: over.slotLengthMin ?? 60,
     active: over.active ?? true,
     settings: over.settings ?? {},
+    pricing: over.pricing ?? null,
   });
 }

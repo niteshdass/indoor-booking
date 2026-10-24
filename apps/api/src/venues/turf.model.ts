@@ -16,6 +16,8 @@ const turfSchema = new mongoose.Schema(
     active: { type: Boolean, default: true },
     /** TurfSettingsOverride: hours only. */
     settings: { type: Mixed, default: {} },
+    /** TurfPricing; null = unpriced (slots carry no price and cannot be booked). */
+    pricing: { type: Mixed, default: null },
   },
   { timestamps: true, minimize: false },
 );

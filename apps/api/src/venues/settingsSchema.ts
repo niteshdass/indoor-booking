@@ -1,13 +1,14 @@
 import { z } from 'zod';
 import { WEEKDAYS, assertMinor } from '@booking/shared';
 
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24-hour)');
+/** HH:MM, 24-hour. */
+export const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24-hour)');
 /** close <= open means the session ends the next day. */
-export const dayHoursSchema = z.union([z.literal('closed'), z.object({ open: time, close: time }).strict()]);
+export const dayHoursSchema = z.union([z.literal('closed'), z.object({ open: timeSchema, close: timeSchema }).strict()]);
 export const hoursPatchSchema = z
-  .object(Object.fromEntries(WEEKDAYS.map((d) => [d, dayHoursSchema.optional()])) as Record<
+  .object(Object.fromEntries(WEEKDAYS.map((d) => [d, dayHoursSchema.nullable().optional()])) as Record<
     (typeof WEEKDAYS)[number],
-    z.ZodOptional<typeof dayHoursSchema>
+    z.ZodOptional<z.ZodNullable<typeof dayHoursSchema>>
   >)
   .strict();
 
@@ -83,14 +84,16 @@ export const venueSettingsPatchSchema = z
 
 export const turfSettingsPatchSchema = z.object({ hours: hoursPatchSchema.nullable().optional() }).strict();
 
-/** Applies a validated patch to stored (partial) settings: null deletes, hours merge per day. */
+/** Applies a validated patch to stored (partial) settings: null deletes, hours merge per day (a null day resets it). */
 export function applyPatch<T>(stored: T, patch: Record<string, unknown>): T {
   const out: Record<string, unknown> = structuredClone((stored ?? {}) as Record<string, unknown>);
   for (const [key, value] of Object.entries(patch)) {
     if (value === undefined) continue;
     if (value === null) delete out[key];
     else if (key === 'hours') {
-      out.hours = { ...((out.hours as object | undefined) ?? {}), ...(value as object) };
+      const hours: Record<string, unknown> = { ...((out.hours as object | undefined) ?? {}), ...(value as object) };
+      for (const [day, h] of Object.entries(hours)) if (h === null) delete hours[day];
+      out.hours = hours;
     } else out[key] = value;
   }
   return out as T;

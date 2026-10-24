@@ -9,10 +9,12 @@ import { Owner } from '../../src/tenancy/owner.model';
 import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
 import { Membership } from '../../src/tenancy/membership.model';
 import { ActivityLog } from '../../src/tenancy/activityLog.model';
+import { Venue } from '../../src/venues/venue.model';
+import { seedVenue } from '../helpers/venues';
 
 beforeAll(async () => {
   await startTestDb();
-  await Promise.all([User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init()]);
+  await Promise.all([User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init()]);
   await ensureSystemRoles();
 });
 afterAll(stopTestDb);
@@ -25,6 +27,7 @@ beforeEach(async () => {
     Owner.deleteMany({}),
     Membership.deleteMany({ ownerId: { $exists: true } }),
     ActivityLog.deleteMany({}).setOptions({ crossTenant: true }),
+    Venue.deleteMany({}).setOptions({ crossTenant: true }),
   ]);
   ctx = buildTestApp();
   a = await seedOwner(ctx.services);
@@ -102,5 +105,18 @@ describe('owner settings', () => {
     expect(row).toMatchObject({ entity: 'owner', after: { bookingWindowDays: 60 } });
     expect(row!.before ?? {}).toEqual({}); // ActivityLog minimizes an empty object away
     expect(String(row!.entityId)).toBe(a.ownerId);
+  });
+
+  it('a weekday set to null resets only that day', async () => {
+    const venue = await seedVenue(a.ownerId, {
+      settings: { hours: { mon: 'closed', fri: { open: '16:00', close: '02:00' } } },
+    });
+    const res = await request(ctx.app)
+      .patch(`/api/v1/owners/${a.ownerId}/venues/${venue.id}`)
+      .set(...bearer(a.token))
+      .send({ settings: { hours: { mon: null } } });
+    expect(res.status).toBe(200);
+    expect(res.body.venue.settings.hours).toEqual({ fri: { open: '16:00', close: '02:00' } });
+    expect(res.body.venue.effectiveSettings.hours.mon).toEqual({ open: '08:00', close: '22:00' });
   });
 });

@@ -7,6 +7,7 @@ import { TextField } from '../components/ui/TextField';
 import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse } from '../lib/types';
+import { GoogleButton } from './GoogleButton';
 import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
 import styles from './auth.module.css';
@@ -83,6 +84,12 @@ export function RegisterPage() {
             {t('auth.register.submit')}
           </Button>
         </form>
+        <GoogleButton
+          onSignedIn={(res) => {
+            signIn(res);
+            navigate(next, { replace: true });
+          }}
+        />
         <div className={styles.links}>
           <Link to={loginHref}>{t('auth.register.haveAccount')}</Link>
         </div>

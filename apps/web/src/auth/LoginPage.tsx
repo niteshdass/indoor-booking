@@ -9,6 +9,7 @@ import { TextField } from '../components/ui/TextField';
 import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse, OtpSent } from '../lib/types';
+import { GoogleButton } from './GoogleButton';
 import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
 import { useCooldown } from './useCooldown';
@@ -185,6 +186,8 @@ export function LoginPage() {
             </form>
           )}
         </div>
+
+        <GoogleButton onSignedIn={finish} />
 
         <div className={styles.links}>
           <Link to="/forgot-password">{t('auth.login.forgot')}</Link>

@@ -54,6 +54,23 @@
       "passwordHint": "At least 8 characters.",
       "haveAccount": "Already have an account? Sign in",
       "toLogin": "Sign in instead"
+    },
+    "or": "or",
+    "forgot": {
+      "title": "Forgot your password?",
+      "intro": "Enter your email and we will send you a reset link.",
+      "submit": "Send reset link",
+      "sent": "If an account exists for that email, we have sent a link to reset the password.",
+      "back": "Back to sign in"
+    },
+    "reset": {
+      "title": "Set a new password",
+      "newPassword": "New password",
+      "submit": "Save password",
+      "success": "Your password has been changed. You can now sign in.",
+      "toLogin": "Go to sign in",
+      "invalid": "This reset link is invalid or has expired.",
+      "requestNew": "Request a new link"
     }
   },
   "theme": {
@@ -97,9 +114,24 @@
     "validation_error": "Please check the details you entered.",
     "invalid_email": "Enter a valid email address.",
     "account_disabled": "This account has been disabled.",
-    "identity_in_use": "These details are already linked to another account."
+    "identity_in_use": "These details are already linked to another account.",
+    "invalid_reset_token": "This reset link is invalid or has expired.",
+    "invalid_google_token": "Google sign-in failed. Please try again.",
+    "google_not_configured": "Google sign-in is unavailable right now."
   },
   "myBookings": {
     "title": "My bookings"
+  },
+  "profile": {
+    "title": "Profile",
+    "name": "Name",
+    "save": "Save",
+    "saved": "Saved.",
+    "email": "Email",
+    "phone": "Phone",
+    "verified": "Verified",
+    "notSet": "Not set",
+    "google": "Signed in with Google",
+    "signOut": "Sign out"
   }
 }

@@ -1,4 +1,4 @@
-import type { TurfPricing } from '@booking/shared';
+import type { Sport, TurfPricing } from '@booking/shared';
 import { Venue, type VenueDoc } from '../../src/venues/venue.model';
 import { Turf, type TurfDoc } from '../../src/venues/turf.model';
 
@@ -14,6 +14,7 @@ export async function seedVenue(
     timezone: string;
     currency: string;
     settings: Record<string, unknown>;
+    location: [number, number];
   }> = {},
 ): Promise<VenueDoc> {
   seq += 1;
@@ -26,7 +27,7 @@ export async function seedVenue(
     country: 'BD',
     currency: over.currency ?? 'BDT',
     timezone: over.timezone ?? 'Asia/Dhaka',
-    location: { type: 'Point', coordinates: [90.41, 23.81] },
+    location: { type: 'Point', coordinates: over.location ?? [90.41, 23.81] },
     published: over.published ?? false,
     settings: over.settings ?? {},
   });
@@ -43,6 +44,7 @@ export async function seedTurf(
     slotLengthMin: number;
     settings: Record<string, unknown>;
     pricing: TurfPricing | null;
+    sports: Sport[];
   }> = {},
 ): Promise<TurfDoc> {
   seq += 1;
@@ -50,7 +52,7 @@ export async function seedTurf(
     ownerId,
     venueId,
     name: over.name ?? `Court ${seq}`,
-    sports: ['football'],
+    sports: over.sports ?? ['football'],
     indoor: over.indoor ?? false,
     slotLengthMin: over.slotLengthMin ?? 60,
     active: over.active ?? true,

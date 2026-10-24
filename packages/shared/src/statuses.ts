@@ -10,12 +10,16 @@ export const BOOKING_STATUSES = [
 ] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
-/** Statuses in which a booking keeps its slots locked. */
-export const SLOT_HOLDING_STATUSES: readonly BookingStatus[] = [
-  'awaiting_payment',
-  'pending',
-  'confirmed',
-];
+/** Statuses in which a booking gives its slots back. */
+export const SLOT_FREEING_STATUSES: readonly BookingStatus[] = ['rejected', 'cancelled', 'expired'];
+
+/**
+ * Statuses in which a booking keeps its slots locked: every status that does not free them.
+ * Includes completed and no_show, since a checked-in booking still occupies its time.
+ */
+export const SLOT_HOLDING_STATUSES: readonly BookingStatus[] = BOOKING_STATUSES.filter(
+  (s) => !SLOT_FREEING_STATUSES.includes(s),
+);
 
 export const PAYMENT_STATUSES = [
   'unpaid',

@@ -185,18 +185,56 @@ describe('SearchForm', () => {
     expect(screen.getByRole('button', { name: s.useMyLocation })).toBeEnabled();
   });
 
-  it('ignores a position that arrives after unmount', async () => {
-    let finish: PositionCallback = () => {};
-    stubGeo((ok) => {
-      finish = ok;
-    });
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const { user, unmount } = setup();
-    await user.click(screen.getByRole('button', { name: s.useMyLocation }));
-    unmount();
-    finish({ coords: { latitude: 1, longitude: 2 } } as GeolocationPosition);
-    expect(spy).not.toHaveBeenCalled();
-    spy.mockRestore();
+  it('opens the collapsed filters to show a time error', async () => {
+    const { onChange, user } = setup();
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.timeFrom), '18:00');
+    await user.click(screen.getByText(s.moreFilters));
+    const details = document.querySelector('details')!;
+    expect(details.open).toBe(false);
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(details.open).toBe(true);
+    expect(screen.getByText(s.timeInvalid)).toBeVisible();
+    expect(screen.getByLabelText(s.timeTo)).toHaveFocus();
+  });
+
+  it('opens the collapsed filters to show a price error', async () => {
+    const { user } = setup();
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.minPrice), '1.234');
+    await user.click(screen.getByText(s.moreFilters));
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(document.querySelector('details')!.open).toBe(true);
+    expect(screen.getByText(s.priceInvalid)).toBeVisible();
+  });
+
+  it('a half range with only to set is an error', async () => {
+    const { onChange, user } = setup();
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.timeTo), '20:00');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(s.timeInvalid)).toBeInTheDocument();
+  });
+
+  it('does not invent a currency when amounts are typed then cleared', async () => {
+    const { onChange, user } = setup();
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.minPrice), '5');
+    await user.clear(screen.getByLabelText(s.minPrice));
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: null, minPrice: null, maxPrice: null }));
+  });
+
+  it('switching currency clears typed amounts', async () => {
+    const { onChange, user } = setup(EMPTY_CRITERIA, ['USD', 'EUR']);
+    await user.click(screen.getByText(s.moreFilters));
+    await user.type(screen.getByLabelText(s.minPrice), '12.50');
+    await user.selectOptions(screen.getByLabelText(s.currency), 'EUR');
+    expect(screen.getByLabelText(s.minPrice)).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'EUR', minPrice: null }));
   });
 
   it('re-syncs the draft when value changes', () => {

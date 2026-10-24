@@ -53,6 +53,8 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   const [errors, setErrors] = useState<Errors>({});
   const [locating, setLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -70,6 +72,11 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     setLocationDenied(false);
     // valueKey stands in for `value`: a new object with the same content must not reset edits.
   }, [valueKey]);
+
+  // Move focus to the first invalid field once the (possibly just reopened) filters are rendered.
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [errors]);
 
   const patch = (p: Partial<Criteria>) => setDraft((d) => ({ ...d, ...p }));
   // The URL's currency stays selectable even when no result in view uses it.
@@ -118,7 +125,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     let minPrice: number | null = draft.minPrice;
     let maxPrice: number | null = draft.maxPrice;
     if (texts.priceDirty) {
-      currency = priceCurrency;
+      currency = draft.currency;
       minPrice = null;
       maxPrice = null;
       const minText = normaliseDecimal(texts.min.trim());
@@ -140,11 +147,15 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       if (!next.min && !next.max && minPrice !== null && maxPrice !== null && minPrice > maxPrice) next.range = true;
     }
 
+    // The currency shown by default is applied only once an amount is entered.
+    if (texts.priceDirty && (minPrice !== null || maxPrice !== null)) currency = priceCurrency;
+
     const hasFrom = Boolean(draft.from);
     const hasTo = Boolean(draft.to);
     if (hasFrom !== hasTo || (hasFrom && draft.from === draft.to)) next.time = true;
 
     setErrors(next);
+    if (next.time || next.min || next.max || next.range) setMoreOpen(true);
     if (Object.keys(next).length > 0) return;
 
     onChange({
@@ -170,7 +181,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   const priceError = errors.range ? t('search.priceRange') : t('search.priceInvalid');
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate aria-label={t('search.title')}>
+    <form ref={formRef} className={styles.form} onSubmit={submit} noValidate aria-label={t('search.title')}>
       <div className={styles.location}>
         <Button type="button" variant="secondary" size="lg" loading={locating} onClick={locate}>
           {t('search.useMyLocation')}
@@ -222,7 +233,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
 
       <TextField label={t('search.date')} type="date" hint={t('search.dateHint')} value={draft.date ?? ''} onChange={(e) => patch({ date: e.target.value || null })} />
 
-      <details className={styles.more}>
+      <details className={styles.more} open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
         <summary className={styles.summary}>{t('search.moreFilters')}</summary>
         <div className={styles.moreBody}>
           <Select

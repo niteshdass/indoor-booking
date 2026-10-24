@@ -1,4 +1,4 @@
-import { priceFor, type TurfPricing } from './pricing';
+import { priceFor, type TimeRange, type TurfPricing } from './pricing';
 import type { DayHours } from './settings';
 import type { SlotStatus } from './statuses';
 import { addDays, hmToMin, localParts, localToUtc, rangeMinutes, weekdayOf } from './time';
@@ -59,12 +59,18 @@ export function generatedRanges(hours: DayHours, slotLengthMin: number): [number
   return out;
 }
 
-type Draft = { startAt: Date; endAt: Date; source: ComputedSlot['source']; price?: number; minute: number };
-
-function rangeUtc(date: string, range: { start: string; end: string }, tz: string) {
-  const [s, e] = rangeMinutes(range);
-  return { startAt: localToUtc(date, s, tz), endAt: localToUtc(date, e, tz), minute: s };
+/**
+ * An override range on the business day's timeline: a start before opening time is after
+ * midnight (so 01:00 on a 16:00-02:00 night is minute 1500). Closed hours anchor at 00:00.
+ */
+export function overrideMinutes(range: TimeRange, hours: DayHours): [number, number] {
+  const anchor = hours === 'closed' ? 0 : hmToMin(hours.open);
+  const [rs, re] = rangeMinutes(range);
+  const s = rs < anchor ? rs + 1440 : rs;
+  return [s, s + (re - rs)];
 }
+
+type Draft = { startAt: Date; endAt: Date; source: ComputedSlot['source']; price?: number; minute: number };
 
 function overlaps(a: { startAt: Date; endAt: Date }, b: { startAt: Date; endAt: Date }): boolean {
   return a.startAt < b.endAt && b.startAt < a.endAt;
@@ -102,17 +108,30 @@ export function computeSlots(input: {
     }
   }
 
-  // 2. modify replaces its first matching generated slot; add appends.
+  // Override ranges convert at their business-day minutes. On a fall-back night a 01:00-02:00
+  // modify starts at the earlier 01:00, so it spans two elapsed hours and covers both 01:00 slots.
+  const toUtc = (range: TimeRange) => {
+    const [s, e] = overrideMinutes(range, hours);
+    return { startAt: localToUtc(businessDate, s, tz), endAt: localToUtc(businessDate, e, tz), minute: s };
+  };
+
+  // 2. Modifies, then adds, in input order; one overlapping an extra already kept is dropped,
+  // so the output never overlaps. A kept modify replaces its first matching generated slot.
   const extra: Draft[] = [];
+  const keep = (d: Draft) => {
+    if (extra.some((x) => overlaps(x, d))) return false;
+    extra.push(d);
+    return true;
+  };
   for (const o of overrides) {
-    if (o.type === 'modify') {
-      const i = generated.findIndex((g) => localParts(g.startAt, tz).hm === o.slotStart);
-      if (i < 0) continue; // hours changed since the override was made
-      generated.splice(i, 1);
-      extra.push({ ...rangeUtc(businessDate, o, tz), source: 'modify', price: o.price });
-    } else if (o.type === 'add') {
-      extra.push({ ...rangeUtc(businessDate, o, tz), source: 'add', price: o.price });
-    }
+    if (o.type !== 'modify') continue;
+    const [target] = overrideMinutes({ start: o.slotStart, end: o.slotStart }, hours);
+    const i = generated.findIndex((g) => g.minute === target);
+    if (i < 0) continue; // hours changed since the override was made
+    if (keep({ ...toUtc(o), source: 'modify', price: o.price })) generated.splice(i, 1);
+  }
+  for (const o of overrides) {
+    if (o.type === 'add') keep({ ...toUtc(o), source: 'add', price: o.price });
   }
 
   // 3. Overrides win over any generated slot they overlap.
@@ -120,7 +139,7 @@ export function computeSlots(input: {
     (a, b) => a.startAt.getTime() - b.startAt.getTime(),
   );
 
-  const blocks = overrides.flatMap((o) => (o.type === 'block' ? [rangeUtc(businessDate, o, tz)] : []));
+  const blocks = overrides.flatMap((o) => (o.type === 'block' ? [toUtc(o)] : []));
   const taken = new Map((input.taken ?? []).map((t) => [t.startAt.getTime(), t.status]));
 
   const slots = drafts.map((d): ComputedSlot => {

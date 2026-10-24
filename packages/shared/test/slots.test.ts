@@ -5,6 +5,7 @@ import {
   generatedRanges,
   overrideAppliesOn,
   overrideDatesIntersect,
+  overrideMinutes,
   type OverrideRule,
 } from '../src/slots';
 
@@ -215,5 +216,98 @@ describe('generatedRanges', () => {
     ]);
     expect(generatedRanges('closed', 60)).toEqual([]);
     expect(generatedRanges({ open: '00:00', close: '00:00' }, 120)).toHaveLength(12);
+  });
+});
+
+describe('overrideMinutes', () => {
+  it('places override times on the business-day timeline', () => {
+    const night = { open: '16:00', close: '02:00' };
+    expect(overrideMinutes({ start: '01:00', end: '02:00' }, night)).toEqual([1500, 1560]);
+    expect(overrideMinutes({ start: '17:00', end: '18:30' }, night)).toEqual([1020, 1110]);
+    expect(overrideMinutes({ start: '00:30', end: '01:30' }, 'closed')).toEqual([30, 90]);
+    expect(overrideMinutes({ start: '23:30', end: '00:30' }, { open: '08:00', close: '22:00' })).toEqual([1410, 1470]);
+  });
+});
+
+describe('computeSlots past-midnight overrides', () => {
+  const iso = (r: ReturnType<typeof computeSlots>) => r.slots.map((s) => [s.startAt.toISOString(), s.source, s.status]);
+
+  it('modify of a past-midnight slot stays on the business night', () => {
+    const r = computeSlots(
+      input({ overrides: [{ type: 'modify', slotStart: '01:00', start: '01:00', end: '02:00', price: 900 }] }),
+    );
+    const mods = r.slots.filter((s) => s.source === 'modify');
+    expect(mods.map((s) => [s.startAt.toISOString(), s.price])).toEqual([['2026-10-30T19:00:00.000Z', 900]]);
+    expect(r.slots).toHaveLength(10);
+    expect(r.slots[0]!.startAt.toISOString()).toBe('2026-10-30T10:00:00.000Z');
+  });
+
+  it('block after midnight blocks the 00:00 and 01:00 slots', () => {
+    const r = computeSlots(input({ overrides: [{ type: 'block', start: '00:30', end: '01:30' }] }));
+    expect(r.slots.filter((s) => s.status === 'blocked').map((s) => s.localStart)).toEqual(['00:00', '01:00']);
+  });
+
+  it('a block wrapping midnight blocks the 23:00 and 00:00 slots', () => {
+    const r = computeSlots(input({ overrides: [{ type: 'block', start: '23:30', end: '00:30' }] }));
+    expect(r.slots.filter((s) => s.status === 'blocked').map((s) => s.localStart)).toEqual(['23:00', '00:00']);
+  });
+
+  it('add after close lands after midnight of the business night', () => {
+    const r = computeSlots(input({ overrides: [{ type: 'add', start: '02:00', end: '03:00' }] }));
+    expect(iso(r).at(-1)).toEqual(['2026-10-30T20:00:00.000Z', 'add', 'available']);
+  });
+
+  it('a past-midnight add is priced by its business-day minute', () => {
+    const r = computeSlots(
+      input({ hours: { open: '16:00', close: '20:00' }, overrides: [{ type: 'add', start: '01:00', end: '02:00' }] }),
+    );
+    const add = r.slots.find((s) => s.source === 'add')!;
+    expect(add.startAt.toISOString()).toBe('2026-10-30T19:00:00.000Z');
+    expect(add.price).toBe(1200);
+  });
+
+  it('never returns overlapping slots: the first of two overlapping adds wins', () => {
+    const r = computeSlots(
+      input({
+        hours: { open: '16:00', close: '20:00' },
+        overrides: [
+          { type: 'add', start: '20:00', end: '21:00' },
+          { type: 'add', start: '20:30', end: '21:30' },
+        ],
+      }),
+    );
+    expect(r.slots.filter((s) => s.source === 'add').map((s) => [s.localStart, s.localEnd])).toEqual([['20:00', '21:00']]);
+  });
+
+  it('modifies are kept before adds', () => {
+    const r = computeSlots(
+      input({
+        hours: { open: '16:00', close: '20:00' },
+        overrides: [
+          { type: 'add', start: '18:30', end: '19:30' },
+          { type: 'modify', slotStart: '18:00', start: '18:00', end: '19:00' },
+        ],
+      }),
+    );
+    expect(r.slots.map((s) => [s.localStart, s.source])).toEqual([
+      ['16:00', 'hours'],
+      ['17:00', 'hours'],
+      ['18:00', 'modify'],
+      ['19:00', 'hours'],
+    ]);
+  });
+
+  it('fall-back modify of 01:00-02:00 spans two elapsed hours and replaces both 01:00 slots', () => {
+    const r = computeSlots(
+      input({
+        timezone: 'Europe/London',
+        businessDate: '2026-10-24',
+        overrides: [{ type: 'modify', slotStart: '01:00', start: '01:00', end: '02:00' }],
+      }),
+    );
+    const mod = r.slots.find((s) => s.source === 'modify')!;
+    expect(mod.endAt.getTime() - mod.startAt.getTime()).toBe(2 * 3_600_000);
+    expect(r.slots.filter((s) => s.localStart === '01:00').map((s) => s.source)).toEqual(['modify']);
+    expect(r.slots).toHaveLength(10);
   });
 });

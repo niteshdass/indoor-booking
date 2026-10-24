@@ -18,13 +18,13 @@ import { Turf } from '../../venues/turf.model';
 import { Booking, bookingJson } from '../booking.model';
 import { createBooking, quoteFor } from '../create';
 
-const startAtsSchema = z
+export const startAtsSchema = z
   .array(z.string().datetime({ offset: true }))
   .min(1)
   .max(MAX_SLOTS_PER_BOOKING)
   .transform((a) => a.map((s) => new Date(s)));
 
-const addonsSchema = z
+export const addonsSchema = z
   .array(z.object({ addonId: z.string().min(1), quantity: z.number().int().min(1).max(1000).optional() }).strict())
   .max(50)
   .default([]);

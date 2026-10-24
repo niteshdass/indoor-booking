@@ -10,6 +10,7 @@ import { applyPatch, turfSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForTurf, ownerSettings } from '../effective';
 import { Turf, type TurfDoc } from '../turf.model';
 import { Venue } from '../venue.model';
+import { Booking } from '../../bookings/booking.model';
 import { SlotOverride } from '../../schedule/slotOverride.model';
 import { Closure } from '../../schedule/closure.model';
 import { AddonAssignment } from '../../addons/assignment.model';
@@ -178,7 +179,7 @@ export function turfsRouter(services: AppServices): Router {
     res.json({ turf: turfJson(turf, await effectiveForTurf(t.ownerId, venue, turf)) });
   });
 
-  // Hard delete for now; Plan 07 must refuse it once the turf has bookings.
+  // Hard delete, refused once the turf has any booking.
   router.delete(`${base}/:turfId`, requirePermission('turf.manage'), async (req, res) => {
     const t = tenantOf(req);
     const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
@@ -186,6 +187,9 @@ export function turfsRouter(services: AppServices): Router {
     await runInTransaction(async (session) => {
       await lockVenue(t, venueId, services.now(), session);
       await lockTurf(t, turf.id as string, services.now(), session);
+      if (await Booking.exists({ ownerId: t.ownerId, turfId: turf._id }).session(session)) {
+        throw new AppError(409, 'turf_has_bookings', 'This turf has bookings and cannot be deleted; deactivate it instead');
+      }
       if (turf.active) {
         const current = await Venue.findOne({ ownerId: t.ownerId, _id: venueId }, { published: 1 }).session(session);
         if (current?.published && (await activeTurfCount(t, venueId, session, turf._id)) === 0) throw lastActive();

@@ -11,11 +11,12 @@ import { Membership } from '../../src/tenancy/membership.model';
 import { ActivityLog } from '../../src/tenancy/activityLog.model';
 import { Venue } from '../../src/venues/venue.model';
 import { Turf } from '../../src/venues/turf.model';
+import { Booking } from '../../src/bookings/booking.model';
 
 beforeAll(async () => {
   await startTestDb();
   await Promise.all([
-    User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Turf.init(),
+    User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Turf.init(), Booking.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -32,6 +33,7 @@ beforeEach(async () => {
     ActivityLog.deleteMany({}).setOptions({ crossTenant: true }),
     Venue.deleteMany({}).setOptions({ crossTenant: true }),
     Turf.deleteMany({}).setOptions({ crossTenant: true }),
+    Booking.deleteMany({}).setOptions({ crossTenant: true }),
   ]);
   ctx = buildTestApp();
   a = await seedOwner(ctx.services);
@@ -120,6 +122,24 @@ describe('turfs API', () => {
     expect(del.body.error.code).toBe('last_active_turf');
     await createTurf({ name: 'Court 2' });
     expect((await api().patch(turfs(v1, `/${id}`)).set(...bearer(a.token)).send({ active: false })).status).toBe(200);
+  });
+
+  it('refuses delete when the turf has bookings', async () => {
+    const { id } = (await createTurf()).body.turf;
+    const startAt = new Date('2026-02-01T10:00:00Z');
+    const endAt = new Date('2026-02-01T11:00:00Z');
+    await Booking.create({
+      ownerId: a.ownerId, venueId: v1, turfId: id, reference: 'REF00001', businessDate: '2026-02-01', startAt, endAt,
+      slots: [{ startAt, endAt, price: 1000 }], currency: 'BDT', subtotal: 1000, addonsTotal: 0, total: 1000,
+      advanceRequired: 0, status: 'cancelled', paymentStatus: 'unpaid', source: 'online',
+      policySnapshot: { paymentPolicy: { type: 'none' }, refundRules: [] },
+    });
+    const del = await api().delete(turfs(v1, `/${id}`)).set(...bearer(a.token));
+    expect(del.status).toBe(409);
+    expect(del.body.error.code).toBe('turf_has_bookings');
+    expect(await Turf.exists({ ownerId: a.ownerId, _id: id })).not.toBeNull();
+    await Booking.deleteMany({}).setOptions({ crossTenant: true });
+    expect((await api().delete(turfs(v1, `/${id}`)).set(...bearer(a.token))).status).toBe(204);
   });
 
   it('venue delete', async () => {

@@ -1,0 +1,37 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+}
+
+.success {
+  color: var(--success);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.title:focus {
+  outline: none;
+}

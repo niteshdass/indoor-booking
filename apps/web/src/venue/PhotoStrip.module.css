@@ -1,0 +1,33 @@
+.strip {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+.item {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.img,
+.placeholder {
+  display: block;
+  height: var(--photo-height);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+.img {
+  width: var(--photo-width);
+  object-fit: cover;
+  border: 1px solid var(--border-subtle);
+}
+
+.placeholder {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+}

@@ -1,0 +1,171 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-4);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.count {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+
+.alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+}
+
+.item > * {
+  flex: 1;
+}
+
+.skeleton {
+  min-height: var(--table-row);
+  height: calc(var(--table-row) * 4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+.loading,
+.more {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.empty {
+  margin: 0;
+  padding-block: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.toggle {
+  display: inline-flex;
+  padding: var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.toggleBtn {
+  min-height: var(--control-lg);
+  padding-inline: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.toggleBtn[aria-pressed='true'] {
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  box-shadow: var(--shadow-xs);
+}
+
+.toggleBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.listPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.mapPane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.listPane[hidden],
+.mapPane[hidden] {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding: var(--space-6);
+  }
+
+  .toggle {
+    display: none;
+  }
+
+  .body {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .mapPane {
+    position: sticky;
+    top: var(--space-4);
+  }
+
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

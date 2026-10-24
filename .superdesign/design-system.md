@@ -30,6 +30,13 @@ JTBD: owners and staff see today's schedule and act on it fast and calmly; playe
 
 ## Spacing (fixed)
 4 · 8 · 12 · 16 · 20 · 24 · 32 · 48 px. Card padding 20–24. Table row height 52. Control height 36 (sm 32, lg 40). Touch targets on public/player pages at least 40.
+Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
+Field minimum width token: `--field-min` 10rem (smallest width of a paired form field before it wraps; not themed).
+Map height token: `--map-height` 32rem (results map; same in light and dark).
+Tab underline token: `--tab-underline` 2px (active turf tab underline on the venue page, drawn with `--brand`; not themed).
+Photo strip tokens: `--photo-height` 12rem and `--photo-width` 18rem (venue page photo strip tiles; not themed).
+Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
+Disabled and busy token: `--opacity-muted` 0.55 (disabled buttons, a summary that is re-quoting; not themed). Motion token: `--duration-fast` 150ms (short opacity transitions; not themed).
 
 ## Breakpoints (fixed, mobile-first `min-width`)
 sm 640 · md 768 · lg 1024 · xl 1280. Owner portal sidebar becomes a drawer below lg. Public pages are designed phone-first; mobile apps will reuse the same API later.
@@ -66,11 +73,15 @@ Cool gray light ramp + navy-tinted dark.
 | text-default | #2b303b | #cacfd8 |
 | text-muted | #525866 | #99a0ae |
 | text-subtle | #99a0ae | #717784 |
+| overlay (modal scrim) | rgba(10,13,20,.5) | rgba(0,0,0,.6) |
 | primary / hover / fg | #19283a / #2b3a4d / #fff | #f0f3f5 / #cacfd8 / #0e121b |
 
 Radius: sm 4 (tag, checkbox) · md 8 (button, input, slot cell) · lg 12 (card) · xl 16 (modal) · full (badge, avatar).
 
 Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set, follow `prefers-color-scheme`.
+
+## Results map
+Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inverted in dark mode; the map frame, pins and the "Search this area" button use surface, border and primary tokens. Pins are DOM-built (venue names are untrusted text), keyboard-focusable, and labelled with the venue name and price. Below lg a List/Map segmented toggle (`aria-pressed`) shows one at a time; at lg and up list and map sit side by side with the map sticky.
 
 ## Components
 - Buttons: primary (solid), secondary (outline, surface bg), ghost, danger; sizes sm/md/lg; icon-only square. Label weight 500. On public pages the main CTA (Book, Pay) uses `--brand` with `--brand-fg`.
@@ -96,3 +107,12 @@ Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set,
 - **Schedule (owner)**: courts as columns, time as rows (30/60 min); booking blocks use status soft bg + 3px left border in status fg; current-time line in danger.
 - **Booking summary card**: venue, court, date, time range, line items, total 20px/600 tabular, CTA full width.
 - **Price**: always formatted with the owner's currency and locale via `Intl.NumberFormat`; never hand-built strings.
+
+## Venue page
+Scrolling strips and tab lists carry `--space-1` padding so the focus ring is not clipped by the scroll container. Header (name, address, sport and amenity chips), a horizontally scrolling photo strip (placeholder when empty), ARIA turf tabs whose active underline uses `--brand`, a scrolling date strip (selected chip = primary, today marked with a dot and `aria-current="date"`, chips at least `--control-lg` tall), then the slot grid region.
+
+## Slot grid
+Grid is 3 columns on phone, 4 from sm, 6 from lg. Pending (warning-soft + "Pending") is always visually distinct from booked; every non-clickable cell puts its state in the label and `aria-label`, never colour alone. A null price shows "Unavailable" and is disabled. A legend sits under the grid. The selection bar is an in-flow sticky card at the bottom edge on phone (so it never covers the last row, wraps for long Russian text) and a sticky side card of `--side-card-width` from lg; its Continue link uses `--brand`.
+
+## Checkout
+Add-ons (checkbox for per-booking, 40px stepper buttons for per-unit and per-hour) sit beside the booking summary card, which is a sticky `--side-card-width` card from lg and stacks below on phones. Summary rows are tabular; the total is 20px/600. When an advance is due, "Due now" and "Pay at the venue" rows follow the total. While a new quote loads the previous one stays visible, dimmed, with `aria-busy`. Auto-applied add-ons show as "Included" lines and are never selectable. The CTA is a `--brand` button (signed in) or sign-in/create-account links carrying `?next=` back to the checkout URL.

@@ -1,0 +1,27 @@
+.card {
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.neutral {
+  border-color: var(--border-default);
+}
+
+.success {
+  border-color: var(--success);
+}
+
+.warning {
+  border-color: var(--warning);
+}
+
+.danger {
+  border-color: var(--danger);
+}
+
+.info {
+  border-color: var(--info);
+}

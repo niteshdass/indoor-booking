@@ -1,0 +1,136 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.panel:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.caption {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-default);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Phone: in-flow sticky bar at the bottom edge, so it never covers the last grid row. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.count {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.range {
+  font-size: var(--text-base);
+  color: var(--text-default);
+}
+
+.total {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+/* Visually hidden but still announced; zero-size regions are skipped by some screen readers. */
+.live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+
+/* Phone: nothing to show until a slot is picked. From lg the card is always there so the grid never reflows. */
+.barEmpty {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .panel {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .main {
+    flex: 1;
+  }
+
+  .bar {
+    position: sticky;
+    top: var(--space-4);
+    bottom: auto;
+    flex: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: var(--side-card-width);
+  }
+
+  .barEmpty {
+    display: flex;
+  }
+}

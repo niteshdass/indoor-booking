@@ -4,3 +4,4 @@ export * from './permissions';
 export * from './locales';
 export * from './venues';
 export * from './settings';
+export * from './time';

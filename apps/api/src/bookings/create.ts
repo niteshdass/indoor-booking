@@ -58,14 +58,14 @@ const rangeOf = (slots: Range[]): Range => ({ startAt: slots[0]!.startAt, endAt:
 const overlapping = (r: Range) => ({ startAt: { $lt: r.endAt }, endAt: { $gt: r.startAt } });
 
 /** The selected add-ons that have a stock limit. */
-const limited = (offered: OfferedAddon[], selection: AddonSelection[]) =>
+export const limited = (offered: OfferedAddon[], selection: AddonSelection[]) =>
   selection.filter((s) => offered.some((o) => o.addonId === s.addonId && o.stock !== null)).map((s) => s.addonId);
 
 /**
  * Units of each add-on held at the venue (any turf) by bookings overlapping `range`: a per_unit
  * line counts its quantity, any other line 1.
  */
-async function stockInUse(
+export async function stockInUse(
   ownerId: string,
   venue: VenueDoc,
   addonIds: string[],

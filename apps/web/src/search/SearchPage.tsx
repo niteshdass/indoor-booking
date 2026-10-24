@@ -149,7 +149,7 @@ export function SearchPage() {
                   }}
                 />
               </Suspense>
-              {loadMoreButton}
+              {!wide && loadMoreButton}
             </div>
           )}
         </div>

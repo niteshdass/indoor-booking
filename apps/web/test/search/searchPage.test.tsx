@@ -174,6 +174,20 @@ describe('SearchPage', () => {
     expect(screen.getByText('Last Venue')).toBeVisible();
   });
 
+  it('shows a single Load more at lg, where list and map are side by side', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    const full = Array.from({ length: 20 }, (_, i) => ({ ...venue, slug: `v${i}`, name: `Venue ${i}` }));
+    mockApi([{ path: '/search', body: { results: full, nextCursor: 20 } }]);
+    renderApp('/');
+    await screen.findByText('Venue 0');
+    expect(screen.getAllByRole('button', { name: en.search.loadMore })).toHaveLength(1);
+  });
+
   it('search this area keeps an existing radius', async () => {
     mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
     const { user, location } = renderApp('/?lat=5&lng=6&radiusKm=20');

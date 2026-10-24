@@ -49,6 +49,10 @@
 }
 
 .pinWrap:focus-visible .pin {
+  /* Two-tone so it shows on light and dark tiles: dark outline, light ring just outside it. */
   outline: var(--focus-width) solid var(--text-strong);
   outline-offset: var(--focus-width);
+  box-shadow:
+    0 0 0 calc(var(--focus-width) * 2) var(--bg-surface),
+    var(--shadow-sm);
 }

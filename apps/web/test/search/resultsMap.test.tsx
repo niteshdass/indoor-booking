@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SearchResult } from '@booking/shared';
-import { buildPin, makePinIcon, pinLabel, roundAndWrap, shouldFit } from '../../src/search/ResultsMap';
+import { buildPin, makePinIcon, pinLabel, roundAndWrap, shouldFit, viewAction } from '../../src/search/ResultsMap';
 import { money } from '../../src/lib/format';
 
 const r: SearchResult = {
@@ -77,4 +77,14 @@ describe('shouldFit(fittedKey, key, count)', () => {
     expect(shouldFit('a', 'b', 4)).toBe(true);
   });
   it('does not fit on a language change (same key)', () => expect(shouldFit('a', 'a', 3)).toBe(false));
+});
+
+describe('viewAction', () => {
+  const base = { fittedKey: null, centeredKey: null, key: 'k', count: 0, hasCenter: true, atCenter: false };
+  it('fits non-empty results of a new key', () => expect(viewAction({ ...base, count: 3 })).toBe('fit'));
+  it('centres an empty result set of a new key', () => expect(viewAction(base)).toBe('center'));
+  it('does not centre twice for the same key', () => expect(viewAction({ ...base, centeredKey: 'k' })).toBe('none'));
+  it('does not move a map that is already at the centre (keeps the user zoom)', () => expect(viewAction({ ...base, atCenter: true })).toBe('mark'));
+  it('does not centre without a centre (no world-view flash)', () => expect(viewAction({ ...base, hasCenter: false })).toBe('none'));
+  it('fits results that arrive after the key was centred', () => expect(viewAction({ ...base, centeredKey: 'k', count: 2 })).toBe('fit'));
 });

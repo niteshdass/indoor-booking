@@ -21,6 +21,7 @@ const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const ATTRIBUTION = '© OpenStreetMap contributors';
 const CENTER_ZOOM = 12;
 const FIT_MAX_ZOOM = 15;
+const AT_CENTER = 0.0001; // degrees
 
 /** Pin text: the price when there is one, else the venue name. */
 export function pinLabel(r: SearchResult, lang: string): string {
@@ -50,6 +51,26 @@ export function shouldFit(fittedKey: string | null, key: string, count: number):
   return count > 0 && fittedKey !== key;
 }
 
+export type ViewState = {
+  fittedKey: string | null;
+  centeredKey: string | null;
+  key: string;
+  count: number;
+  hasCenter: boolean;
+  /** The map is already centred on `center` (e.g. after "Search this area"). */
+  atCenter: boolean;
+};
+
+/**
+ * What the map should do with its view: 'fit' the results, 'center' on the search centre (empty result set of a
+ * new search), 'mark' the key as handled without moving, or leave it ('none').
+ */
+export function viewAction(v: ViewState): 'fit' | 'center' | 'mark' | 'none' {
+  if (shouldFit(v.fittedKey, v.key, v.count)) return 'fit';
+  if (v.count === 0 && v.hasCenter && v.centeredKey !== v.key) return v.atCenter ? 'mark' : 'center';
+  return 'none';
+}
+
 export function makePinIcon(r: SearchResult, lang: string): L.DivIcon {
   return L.divIcon({ className: styles.pinWrap, html: buildPin(pinLabel(r, lang), styles.pin!), iconSize: [0, 0] });
 }
@@ -62,7 +83,7 @@ export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '
   const handlers = useRef({ onSearchArea, onSelect });
   handlers.current = { onSearchArea, onSelect };
   const fittedKey = useRef<string | null>(null);
-  const positioned = useRef(false);
+  const centeredKey = useRef<string | null>(null);
   const pendingFit = useRef<L.LatLngBounds | null>(null);
 
   const fit = (m: L.Map, bounds: L.LatLngBounds) => {
@@ -113,15 +134,23 @@ export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '
       marker.on('click', () => handlers.current.onSelect(r.slug));
       marker.addTo(group);
     }
-    if (shouldFit(fittedKey.current, fitKey, results.length)) {
+    const action = viewAction({
+      fittedKey: fittedKey.current,
+      centeredKey: centeredKey.current,
+      key: fitKey,
+      count: results.length,
+      hasCenter: center !== null,
+      atCenter: center !== null && Math.abs(m.getCenter().lat - center.lat) < AT_CENTER && Math.abs(m.getCenter().lng - center.lng) < AT_CENTER,
+    });
+    if (action === 'fit') {
       fit(m, L.latLngBounds(points));
       fittedKey.current = fitKey;
-      positioned.current = true;
-    } else if (results.length === 0 && !positioned.current && center) {
+    } else if (action === 'center' && center) {
       m.setView([center.lat, center.lng], CENTER_ZOOM);
-      positioned.current = true;
+      centeredKey.current = fitKey;
+    } else if (action === 'mark') {
+      centeredKey.current = fitKey;
     }
-    // center only matters before the map has been positioned.
   }, [results, i18n.language, t, center, fitKey]);
 
   const searchArea = () => {

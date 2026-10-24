@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { SearchResult } from '@booking/shared';
@@ -9,16 +10,17 @@ export function ResultCard({ r }: { r: SearchResult }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const slot = r.nextFreeSlot;
+  const id = useId();
   return (
-    <Link to={`/venues/${r.slug}?date=${r.date}`} className={styles.card}>
+    <Link to={`/venues/${r.slug}?date=${r.date}`} className={styles.card} aria-labelledby={`${id}-name`} aria-describedby={`${id}-meta ${id}-price ${id}-slot`}>
       {r.photo ? (
-        <img className={styles.photo} src={r.photo.url} alt={r.photo.alt ?? ''} loading="lazy" />
+        <img className={styles.photo} src={r.photo.url} alt="" loading="lazy" />
       ) : (
         <span className={styles.placeholder} aria-hidden="true" />
       )}
       <span className={styles.body}>
-        <span className={styles.name}>{r.name}</span>
-        <span className={styles.meta}>
+        <span id={`${id}-name`} className={styles.name}>{r.name}</span>
+        <span id={`${id}-meta`} className={styles.meta}>
           {r.city}
           {r.distanceMeters !== null && <> · <span className={styles.num}>{formatDistance(r.distanceMeters, lang)}</span></>}
         </span>
@@ -31,10 +33,10 @@ export function ResultCard({ r }: { r: SearchResult }) {
             ))}
           </span>
         )}
-        <span className={styles.price}>
+        <span id={`${id}-price`} className={styles.price}>
           {r.fromPrice !== null ? t('search.fromPrice', { price: money(r.fromPrice, r.currency, lang) }) : t('search.noPrice')}
         </span>
-        <span className={styles.slot}>
+        <span id={`${id}-slot`} className={styles.slot}>
           {slot
             ? t('search.nextFree', { start: slot.localStart, end: slot.localEnd, turf: slot.turfName })
             : t('search.noFreeSlot')}

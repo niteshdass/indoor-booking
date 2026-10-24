@@ -174,7 +174,9 @@
     "nextFree": "Next free: {{start}}–{{end}} · {{turf}}",
     "noFreeSlot": "No free slots",
     "loadMore": "Load more",
-    "retry": "Try again"
+    "retry": "Try again",
+    "countMore_one": "{{count}}+ venue",
+    "countMore_other": "{{count}}+ venues"
   },
   "sports": {
     "football": "Football",

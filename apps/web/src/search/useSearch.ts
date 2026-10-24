@@ -38,16 +38,18 @@ export function useSearch(c: Criteria): {
   const accumulated = useRef<SearchResult[]>([]);
   const nextCursor = useRef<number | null>(null);
   const failedCursor = useRef<number | null>(null);
+  const unmounted = useRef(false);
 
   useEffect(() => {
     criteria.current = c;
   });
 
   /** One load: fetch `cursor`, then keep following while this load's batch is short. Strictly one request at a time. */
-  const load = useCallback(async (id: number, loadKey: string, start: number): Promise<void> => {
+  const load = useCallback(async (id: number, loadKey: string, start: number, reset: boolean): Promise<void> => {
     inFlight.current = true;
     failedCursor.current = null;
-    setState((s) => ({ ...s, key: loadKey, status: 'loading', error: null }));
+    // A new criteria drops everything from the old one; loadMore/retry keep what was already loaded.
+    setState((s) => (reset ? initial(loadKey) : { ...s, key: loadKey, status: 'loading', error: null }));
     const base = accumulated.current.length;
     let cursor = start;
     let extra = 0;
@@ -56,13 +58,13 @@ export function useSearch(c: Criteria): {
       try {
         page = await apiGet<SearchResponse>(`/search${apiQuery(criteria.current, cursor)}`);
       } catch (error) {
-        if (id !== requestId.current) return;
+        if (id !== requestId.current || unmounted.current) return;
         inFlight.current = false;
         failedCursor.current = cursor;
         setState((s) => ({ ...s, key: loadKey, status: 'error', error }));
         return;
       }
-      if (id !== requestId.current) return;
+      if (id !== requestId.current || unmounted.current) return;
       accumulated.current = [...accumulated.current, ...page.results];
       nextCursor.current = page.nextCursor;
       const batch = accumulated.current.length - base;
@@ -86,6 +88,14 @@ export function useSearch(c: Criteria): {
   }, []);
 
   useEffect(() => {
+    // Stops a running chain before its next request. StrictMode's simulated unmount/remount flips this back at once.
+    unmounted.current = false;
+    return () => {
+      unmounted.current = true;
+    };
+  }, []);
+
+  useEffect(() => {
     // StrictMode re-runs effects with the same key; the chain already running for it is still valid.
     if (startedKey.current === key) return;
     startedKey.current = key;
@@ -93,17 +103,17 @@ export function useSearch(c: Criteria): {
     accumulated.current = [];
     nextCursor.current = null;
     failedCursor.current = null;
-    void load(requestId.current, key, 0);
+    void load(requestId.current, key, 0, true);
   }, [key, load]);
 
   const loadMore = useCallback(() => {
     if (inFlight.current || failedCursor.current !== null || nextCursor.current === null) return;
-    void load(requestId.current, startedKey.current ?? key, nextCursor.current);
+    void load(requestId.current, startedKey.current ?? key, nextCursor.current, false);
   }, [key, load]);
 
   const retry = useCallback(() => {
     if (inFlight.current || failedCursor.current === null) return;
-    void load(requestId.current, startedKey.current ?? key, failedCursor.current);
+    void load(requestId.current, startedKey.current ?? key, failedCursor.current, false);
   }, [key, load]);
 
   const cur = state.key === key ? state : initial(key);

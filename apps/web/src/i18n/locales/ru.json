@@ -178,7 +178,11 @@
     "nextFree": "Ближайший свободный: {{start}}–{{end}} · {{turf}}",
     "noFreeSlot": "Нет свободных слотов",
     "loadMore": "Показать ещё",
-    "retry": "Повторить"
+    "retry": "Повторить",
+    "countMore_one": "{{count}}+ площадка",
+    "countMore_few": "{{count}}+ площадки",
+    "countMore_many": "{{count}}+ площадок",
+    "countMore_other": "{{count}}+ площадки"
   },
   "sports": {
     "football": "Футбол",

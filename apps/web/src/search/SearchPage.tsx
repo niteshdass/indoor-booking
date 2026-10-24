@@ -20,10 +20,8 @@ export function SearchPage() {
   const { results, status, error, hasMore, loadMore, retry } = useSearch(criteria);
 
   const currencies = useMemo(() => {
-    const set = new Set(results.map((r) => r.currency));
-    if (criteria.currency) set.add(criteria.currency);
-    return [...set];
-  }, [results, criteria.currency]);
+    return [...new Set(results.map((r) => r.currency))];
+  }, [results]);
 
   const onChange = (c: Criteria) => setParams(criteriaToParams(c));
   const loading = status === 'loading';
@@ -35,7 +33,11 @@ export function SearchPage() {
 
       <section className={styles.results} aria-label={t('search.resultsLabel')} aria-busy={loading}>
         <div className={styles.toolbar}>
-          {results.length > 0 && <p className={styles.count}>{t('search.count', { count: results.length })}</p>}
+          {results.length > 0 && (
+            <p className={styles.count}>
+              {t(hasMore ? 'search.countMore' : 'search.count', { count: results.length })}
+            </p>
+          )}
           {/* Map toggle goes here (Task 9). */}
         </div>
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { SearchResult } from '@booking/shared';
 import { useSearch } from '../../src/search/useSearch';
@@ -24,6 +25,15 @@ function venue(slug: string): SearchResult {
     fromPrice: 1000,
     nextFreeSlot: null,
   };
+}
+/** Holds the fetch calls (by call index) until the returned release() is called; they then go through to the mock. */
+function gateFetch(held: (n: number) => boolean): () => void {
+  const inner = globalThis.fetch;
+  let open!: () => void;
+  const gate = new Promise<void>((r) => (open = r));
+  let n = 0;
+  vi.stubGlobal('fetch', (...args: Parameters<typeof fetch>) => (held(n++) ? gate.then(() => inner(...args)) : inner(...args)));
+  return open;
 }
 const cursorOf = (q: URLSearchParams) => Number(q.get('cursor'));
 
@@ -84,28 +94,70 @@ describe('useSearch', () => {
   });
 
   it('criteria change discards stale response', async () => {
-    let releaseFirst: (v: unknown) => void = () => {};
-    const first = new Promise((r) => (releaseFirst = r));
     const real = mockApi([
       {
         path: '/search',
         body: (c: Call) => ({ results: [venue(c.query.get('sport') === 'padel' ? 'padel-venue' : 'x')], nextCursor: null }),
       },
     ]);
-    const inner = globalThis.fetch;
-    let n = 0;
-    vi.stubGlobal('fetch', (...args: Parameters<typeof fetch>) => (n++ === 0 ? first.then(() => inner(...args)) : inner(...args)));
+    const release = gateFetch((n) => n === 0);
     const { result, rerender } = renderHook(({ c }: { c: Criteria }) => useSearch(c), {
       initialProps: { c: EMPTY_CRITERIA },
     });
     rerender({ c: { ...EMPTY_CRITERIA, sport: 'padel' } });
     await waitFor(() => expect(result.current.results.map((r) => r.slug)).toEqual(['padel-venue']));
-    await act(async () => {
-      releaseFirst(undefined);
-      await Promise.resolve();
-    });
+    release();
+    await waitFor(() => expect(real.calls).toHaveLength(2)); // the stale request really completed
+    await new Promise((r) => setTimeout(r, 20));
     expect(result.current.results.map((r) => r.slug)).toEqual(['padel-venue']);
-    expect(real.calls).toHaveLength(2);
+  });
+
+  it('criteria change mid-chain stops the old chain and writes nothing from it', async () => {
+    const api = mockApi([
+      {
+        path: '/search',
+        body: (c: Call) =>
+          c.query.get('sport') === 'padel'
+            ? { results: [venue('new')], nextCursor: null }
+            : { results: [venue(`old${cursorOf(c.query)}`)].slice(0, 0), nextCursor: cursorOf(c.query) + 100 },
+      },
+    ]);
+    const release = gateFetch((n) => n === 1); // the old chain's second request
+    const { result, rerender } = renderHook(({ c }: { c: Criteria }) => useSearch(c), {
+      initialProps: { c: EMPTY_CRITERIA },
+    });
+    await waitFor(() => expect(api.calls).toHaveLength(1));
+    rerender({ c: { ...EMPTY_CRITERIA, sport: 'padel' } });
+    await waitFor(() => expect(result.current.results.map((r) => r.slug)).toEqual(['new']));
+    release();
+    await waitFor(() => expect(api.calls).toHaveLength(3));
+    await new Promise((r) => setTimeout(r, 20));
+    const old = api.calls.filter((c) => c.query.get('sport') === null);
+    expect(old.map((c) => cursorOf(c.query))).toEqual([0, 100]);
+    expect(api.calls).toHaveLength(3);
+    expect(result.current.results.map((r) => r.slug)).toEqual(['new']);
+    expect(result.current.hasMore).toBe(false);
+    expect(result.current.status).toBe('idle');
+  });
+
+  it('unmounting mid-chain stops further requests', async () => {
+    const api = mockApi([{ path: '/search', body: (c: Call) => ({ results: [], nextCursor: cursorOf(c.query) + 100 }) }]);
+    const release = gateFetch((n) => n === 1);
+    const { unmount } = renderHook(() => useSearch(EMPTY_CRITERIA));
+    await waitFor(() => expect(api.calls).toHaveLength(1));
+    unmount();
+    release();
+    await waitFor(() => expect(api.calls).toHaveLength(2));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(api.calls).toHaveLength(2);
+  });
+
+  it('under StrictMode the initial load is fetched once', async () => {
+    const api = mockApi([{ path: '/search', body: { results: [venue('a')], nextCursor: null } }]);
+    const { result } = renderHook(() => useSearch(EMPTY_CRITERIA), { wrapper: StrictMode });
+    await waitFor(() => expect(result.current.status).toBe('idle'));
+    expect(api.calls).toHaveLength(1);
+    expect(result.current.results).toHaveLength(1);
   });
 
   it('rate limited shows error, and retry resumes from the failed cursor keeping results', async () => {

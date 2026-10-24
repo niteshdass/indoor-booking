@@ -32,7 +32,11 @@ export const realStripe: StripeFactory = (secretKey) => {
   };
 };
 
+/** Exponent 0 in ISO but Stripe takes them in two-decimal form; we would charge 1/100. */
+const TWO_DECIMAL_AT_STRIPE = new Set(['ISK', 'UGX']);
+
 function supportsCurrency(currency: string): boolean {
+  if (TWO_DECIMAL_AT_STRIPE.has(currency.toUpperCase())) return false;
   try {
     const exp = currencyExponent(currency);
     return exp === 0 || exp === 2;

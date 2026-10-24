@@ -29,6 +29,12 @@ describe('supports', () => {
     expect(gw.supports('KW', 'KWD')).toBe(false);
     expect(gw.supports('US', 'XXX')).toBe(false);
   });
+
+  it('rejects ISK and UGX, which Stripe takes in two-decimal form despite exponent 0', () => {
+    expect(gw.supports('IS', 'ISK')).toBe(false);
+    expect(gw.supports('UG', 'UGX')).toBe(false);
+    expect(gw.supports('KR', 'KRW')).toBe(true);
+  });
 });
 
 describe('createPayment', () => {

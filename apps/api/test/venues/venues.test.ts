@@ -103,6 +103,15 @@ describe('venues API', () => {
     expect(renamed.body.error.code).toBe('slug_taken');
   });
 
+  it('generated slug never 409s once the numbered suffixes are used up', async () => {
+    const other = new mongoose.Types.ObjectId().toString();
+    await seedVenue(other, { slug: 'venue' });
+    for (let n = 2; n <= 20; n++) await seedVenue(other, { slug: `venue-${n}` });
+    const res = await create(valid({ name: 'খেলার মাঠ' }));
+    expect(res.status).toBe(201);
+    expect(res.body.venue.slug).toMatch(/^venue-[a-z0-9]{6}$/);
+  });
+
   it('PATCH merges venue settings over owner settings', async () => {
     await api().patch(`/api/v1/owners/${a.ownerId}/settings`).set(...bearer(a.token))
       .send({ guestBooking: { allowed: true, requireOtp: false } });

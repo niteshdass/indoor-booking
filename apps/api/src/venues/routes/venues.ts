@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import {
@@ -26,6 +27,10 @@ import { activeTurfCount, lockVenue, venueNotFound } from '../guards';
 
 const SLUG_MAX = 60;
 const MAX_SLUG_SUFFIX = 20;
+/** Random-suffix tries after the numbered ones, so a generated slug never comes back taken. */
+const RANDOM_SLUG_TRIES = 5;
+
+const randomSuffix = () => `-${randomInt(36 ** 6).toString(36).padStart(6, '0')}`;
 
 const isCurrency = (c: string) => {
   try {
@@ -191,9 +196,9 @@ export function venuesRouter(services: AppServices): Router {
       amenities: input.amenities ?? [],
       settings: applyPatch({}, input.settings ?? {}),
     };
-    const attempts = input.slug !== undefined ? 1 : MAX_SLUG_SUFFIX;
+    const attempts = input.slug !== undefined ? 1 : MAX_SLUG_SUFFIX + RANDOM_SLUG_TRIES;
     for (let n = 1; n <= attempts; n++) {
-      const suffix = n === 1 ? '' : `-${n}`;
+      const suffix = n === 1 ? '' : n <= MAX_SLUG_SUFFIX ? `-${n}` : randomSuffix();
       const slug = `${base.slice(0, SLUG_MAX - suffix.length).replace(/-+$/, '')}${suffix}`;
       try {
         const venue = await runInTransaction(async (session) => {

@@ -1,0 +1,147 @@
+/*
+ * Design tokens — source of truth for all UI. Spec: .superdesign/design-system.md
+ * Use var(--token) everywhere; never hardcode colors, font sizes, radii or shadows.
+ */
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-display: 56px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --leading-body: 1.5;
+  --leading-heading: 1.25;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  --control-sm: 32px;
+  --control-md: 36px;
+  --control-lg: 40px;
+  --table-row: 52px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  --shadow-xs: 0 1px 2px rgba(10, 13, 20, 0.03);
+  --shadow-sm: 0 2px 8px rgba(10, 13, 20, 0.06);
+  --shadow-md: 0 12px 32px rgba(10, 13, 20, 0.1), 0 2px 8px rgba(10, 13, 20, 0.06);
+  --shadow-lg: 0 20px 60px rgba(10, 13, 20, 0.18), 0 4px 16px rgba(10, 13, 20, 0.08);
+
+  --bg-page: #f5f7fa;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #ffffff;
+  --bg-subtle: #f0f3f5;
+  --bg-hover: #f0f3f5;
+  --border-subtle: #f0f3f5;
+  --border-default: #e1e4ea;
+  --border-strong: #cacfd8;
+  --text-strong: #0e121b;
+  --text-default: #2b303b;
+  --text-muted: #525866;
+  --text-subtle: #99a0ae;
+  --primary: #19283a;
+  --primary-hover: #2b3a4d;
+  --primary-fg: #ffffff;
+  --focus-ring: 0 0 0 3px rgba(25, 40, 58, 0.12);
+
+  --success: #059669;
+  --success-soft: #d1fae5;
+  --warning: #d97706;
+  --warning-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-soft: #fef2f2;
+  --info: #2563eb;
+  --info-soft: #eff6ff;
+
+  /* Per-owner brand color: public pages only, set inline from the owner's settings. */
+  --brand: var(--primary);
+  --brand-fg: var(--primary-fg);
+
+  color-scheme: light;
+}
+
+/* Dark values are repeated: plain CSS cannot share one block between a selector and a media query. */
+:root[data-theme='dark'] {
+  --bg-page: #0e121b;
+  --bg-surface: #141f2c;
+  --bg-surface-raised: #1e2a38;
+  --bg-subtle: #222f3d;
+  --bg-hover: #222f3d;
+  --border-subtle: #222f3d;
+  --border-default: #2c3a4b;
+  --border-strong: #3d4c5e;
+  --text-strong: #f0f3f5;
+  --text-default: #cacfd8;
+  --text-muted: #99a0ae;
+  --text-subtle: #717784;
+  --primary: #f0f3f5;
+  --primary-hover: #cacfd8;
+  --primary-fg: #0e121b;
+  --focus-ring: 0 0 0 3px rgba(240, 243, 245, 0.15);
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.12);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg-page: #0e121b;
+    --bg-surface: #141f2c;
+    --bg-surface-raised: #1e2a38;
+    --bg-subtle: #222f3d;
+    --bg-hover: #222f3d;
+    --border-subtle: #222f3d;
+    --border-default: #2c3a4b;
+    --border-strong: #3d4c5e;
+    --text-strong: #f0f3f5;
+    --text-default: #cacfd8;
+    --text-muted: #99a0ae;
+    --text-subtle: #717784;
+    --primary: #f0f3f5;
+    --primary-hover: #cacfd8;
+    --primary-fg: #0e121b;
+    --focus-ring: 0 0 0 3px rgba(240, 243, 245, 0.15);
+    --shadow-xs: none;
+    --shadow-sm: none;
+    --success: #34d399;
+    --success-soft: rgba(52, 211, 153, 0.12);
+    --warning: #fbbf24;
+    --warning-soft: rgba(251, 191, 36, 0.12);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.12);
+    --info: #60a5fa;
+    --info-soft: rgba(96, 165, 250, 0.12);
+    color-scheme: dark;
+  }
+}

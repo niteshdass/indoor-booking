@@ -6,6 +6,7 @@ import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { Owner } from '../../tenancy/owner.model';
 import { Addon, addonJson } from '../addon.model';
+import { AddonAssignment } from '../assignment.model';
 import { assertCatalogueWriter, lockAddon, scopedAddon } from '../guards';
 import { addonCreateSchema, addonMergedSchema, addonPatchSchema } from '../schemas';
 
@@ -95,14 +96,17 @@ export function catalogueRouter(services: AppServices): Router {
   router.delete('/addons/:addonId', async (req, res) => {
     const t = tenantOf(req);
     assertCatalogueWriter(t);
-    const addon = await scopedAddon(t, req.params.addonId as string);
+    const addonId = (await scopedAddon(t, req.params.addonId as string)).id as string;
     await runInTransaction(async (session) => {
-      await lockAddon(t, addon.id as string, services.now(), session);
-      await Addon.deleteOne({ ownerId: t.ownerId, _id: addon._id }, { session });
+      const at = services.now();
+      await lockAddon(t, addonId, at, session);
+      const current = (await Addon.findOne({ ownerId: t.ownerId, _id: addonId }).session(session))!;
+      await Addon.deleteOne({ ownerId: t.ownerId, _id: addonId }, { session });
+      await AddonAssignment.deleteMany({ ownerId: t.ownerId, addonId }, { session });
       await logActivity(
         t,
-        { action: 'addon.delete', entity: 'addon', entityId: addon.id as string, before: addonJson(addon) },
-        services.now(),
+        { action: 'addon.delete', entity: 'addon', entityId: addonId, before: addonJson(current) },
+        at,
         session,
       );
     });

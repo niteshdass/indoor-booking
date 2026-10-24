@@ -46,3 +46,16 @@ export const addonPatchSchema = z
 export const addonMergedSchema = z
   .object({ pricingType: fields.pricingType, stock: fields.stock, autoApply: fields.autoApply })
   .superRefine(addonRules);
+
+export const venueAssignmentSchema = z
+  .object({
+    enabled: z.boolean(),
+    priceOverride: minorSchema.nullable().optional(),
+    stock: z.number().int().min(0).max(9999).nullable().optional(),
+  })
+  .strict();
+
+/** Stock is a venue-level override only. */
+export const turfAssignmentSchema = z
+  .object({ enabled: z.boolean(), priceOverride: minorSchema.nullable().optional() })
+  .strict();

@@ -39,6 +39,7 @@ export async function seedTurf(
   over: Partial<{
     name: string;
     active: boolean;
+    indoor: boolean;
     slotLengthMin: number;
     settings: Record<string, unknown>;
     pricing: TurfPricing | null;
@@ -50,7 +51,7 @@ export async function seedTurf(
     venueId,
     name: over.name ?? `Court ${seq}`,
     sports: ['football'],
-    indoor: false,
+    indoor: over.indoor ?? false,
     slotLengthMin: over.slotLengthMin ?? 60,
     active: over.active ?? true,
     settings: over.settings ?? {},

@@ -172,6 +172,32 @@ describe('cancelBooking', () => {
     }
   });
 
+  it('a refunded duplicate payment is not offered to the cancel, and its failed refund can still be recorded as cash', async () => {
+    const { payment: a, bookingId } = await paid();
+    const b = await Payment.create({
+      ownerId: owner.ownerId, venueId: a.venueId, bookingId, method: 'card', kind: 'intent', amount: 3000, currency: 'BDT',
+      status: 'pending', gateway: 'stripe', gatewayAccountId: a.gatewayAccountId, gatewayRef: 'pi_dup_1',
+    });
+    ctx.services.stripe.refundStatus = 'failed';
+    expect((await postEvent(ctx.app, owner.ownerId, secret, piSucceeded(b))).status).toBe(200);
+    ctx.services.stripe.refundStatus = 'succeeded';
+    const dup = (await Refund.findOne({ ownerId: owner.ownerId, paymentId: b._id }).lean())!;
+    expect(dup).toMatchObject({ reason: 'duplicate_payment', status: 'failed' });
+    expect(await bookingOf(bookingId)).toMatchObject({ amountPaid: 3000 });
+
+    const before = await bookingOf(bookingId);
+    expect(await previewCancellation(before, 'staff', ctx.services.now())).toMatchObject({ amount: 3000, card: 3000 });
+    const out = await cancelBooking(before, staff(), {}, deps());
+    expect(out.refunds.map((r) => [String(r.paymentId), r.amount, r.status])).toEqual([[String(a._id), 3000, 'succeeded']]);
+
+    const res = await request(ctx.app)
+      .post(`/api/v1/owners/${owner.ownerId}/refunds/${String(dup._id)}/record-cash`)
+      .set(...bearer(owner.token))
+      .send({});
+    expect(res.status).toBe(201);
+    expect(res.body.refund).toMatchObject({ method: 'cash', status: 'succeeded', amount: 3000, paymentId: String(b._id) });
+  });
+
   it('player cannot cancel after start; staff can', async () => {
     const { player, bookingId } = await paid();
     ctx.services.clock.advance(109 * HOUR);

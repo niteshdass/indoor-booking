@@ -109,8 +109,8 @@ async function reserved(amount = 3000) {
 }
 
 describe('allocateRefund', () => {
-  const pay = (id: string, method: string, amount: number, over: Partial<{ status: string; refundedAmount: number }> = {}) =>
-    ({ _id: new mongoose.Types.ObjectId(id.padStart(24, '0')), method, amount, status: over.status ?? 'succeeded', refundedAmount: over.refundedAmount ?? 0 }) as unknown as PaymentDoc;
+  const pay = (id: string, method: string, amount: number, over: Partial<{ status: string; refundedAmount: number; excess: boolean }> = {}) =>
+    ({ _id: new mongoose.Types.ObjectId(id.padStart(24, '0')), method, amount, status: over.status ?? 'succeeded', refundedAmount: over.refundedAmount ?? 0, excess: over.excess ?? false }) as unknown as PaymentDoc;
 
   it('takes card before cash, newest first', () => {
     const card3000 = pay('1', 'card', 3000);
@@ -130,6 +130,12 @@ describe('allocateRefund', () => {
       { paymentId: partly._id, method: 'card', amount: 300 },
       { paymentId: cash._id, method: 'cash', amount: 500 },
     ]);
+  });
+
+  it('skips excess payments, even with room released', () => {
+    const counted = pay('1', 'card', 1000);
+    const excess = pay('2', 'card', 1000, { excess: true });
+    expect(allocateRefund([counted, excess], 1000)).toEqual([{ paymentId: counted._id, method: 'card', amount: 1000 }]);
   });
 
   it('throws when payments cannot cover the amount', () => {

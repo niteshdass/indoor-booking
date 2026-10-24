@@ -262,11 +262,11 @@ async function refund(s: Succeeded): Promise<ApplyResult> {
   }
   const paid = await Payment.updateOne(
     pendingOf(s),
-    { $set: { status: 'succeeded', gatewayRef: event.gatewayRef } },
+    { $set: { status: 'succeeded', gatewayRef: event.gatewayRef, excess: true } },
     { session },
   );
   if (paid.matchedCount !== 1) throw changedUnderneath();
-  // The payment is now succeeded with its amount reserved, so no allocation offers it again.
+  // Excess, so no allocation offers it, even once a failed refund releases its reservation.
   const [row] = await reserveRefunds(
     {
       booking,

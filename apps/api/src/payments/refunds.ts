@@ -18,10 +18,13 @@ const cross = { crossTenant: true };
 
 export type RefundPart = { paymentId: unknown; method: 'card' | 'cash'; amount: number };
 
-/** Splits `amount` over the booking's payments: card before cash, newest first, within each payment's unrefunded room. */
+/**
+ * Splits `amount` over the booking's payments: card before cash, newest first, within each payment's
+ * unrefunded room. Excess payments are not part of amountPaid, so they are never offered.
+ */
 export function allocateRefund(payments: PaymentDoc[], amount: number): RefundPart[] {
   const usable = payments
-    .filter((p) => p.status === 'succeeded' && (p.method === 'card' || p.method === 'cash') && p.amount - p.refundedAmount > 0)
+    .filter((p) => p.status === 'succeeded' && !p.excess && (p.method === 'card' || p.method === 'cash') && p.amount - p.refundedAmount > 0)
     .sort((a, b) => Number(b.method === 'card') - Number(a.method === 'card') || (String(a._id) < String(b._id) ? 1 : -1));
   const parts: RefundPart[] = [];
   let left = amount;

@@ -24,6 +24,8 @@ const paymentSchema = new mongoose.Schema(
     /** Sum of this payment's non-failed refunds, pending included (a reservation). */
     refundedAmount: { type: Number, default: 0, min: 0 },
     recordedBy: { type: ObjectId, ref: 'User', default: null },
+    /** Succeeded but not counted in the booking's amountPaid (a late or duplicate payment refunded in full); never offered to a cancellation. */
+    excess: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

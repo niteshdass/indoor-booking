@@ -294,5 +294,43 @@
     "expired": "Your hold has expired and the slots were released. Please pick your slots again.",
     "backToVenue": "Back to venue",
     "loadFailed": "Couldn't load the payment form. Please try again."
+  },
+  "booking": {
+    "title": "Booking",
+    "received": "Booking received",
+    "paymentReceived": "Payment received",
+    "processing": "Confirming your payment…",
+    "processingSlow": "This is taking longer than usual. Your booking will update once the payment is confirmed.",
+    "refresh": "Refresh",
+    "payNow": "Pay now",
+    "pendingNote": "The venue will confirm your booking",
+    "reference": "Reference",
+    "copy": "Copy",
+    "copied": "Copied",
+    "venue": "Venue",
+    "turf": "Turf",
+    "date": "Date",
+    "time": "Time",
+    "addons": "Add-ons",
+    "total": "Total",
+    "paid": "Paid",
+    "refunded": "Refunded"
+  },
+  "status": {
+    "awaiting_payment": "Awaiting payment",
+    "pending": "Pending",
+    "confirmed": "Confirmed",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "expired": "Expired",
+    "completed": "Completed",
+    "no_show": "No-show"
+  },
+  "paymentStatus": {
+    "unpaid": "Unpaid",
+    "partially_paid": "Partially paid",
+    "paid": "Paid",
+    "refunded": "Refunded",
+    "partially_refunded": "Partially refunded"
   }
 }

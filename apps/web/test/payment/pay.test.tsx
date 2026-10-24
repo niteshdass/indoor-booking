@@ -35,6 +35,9 @@ const booking = (over: Partial<BookingJson> = {}) =>
     reference: 'AB12CD',
     status: 'awaiting_payment',
     currency: 'BDT',
+    businessDate: '2026-11-03',
+    slots: [],
+    addons: [],
     venue: { slug: 'arena-one', name: 'Arena One', address: 'x', city: 'Dhaka', timezone: 'Asia/Dhaka' },
     ...over,
   }) as BookingJson;

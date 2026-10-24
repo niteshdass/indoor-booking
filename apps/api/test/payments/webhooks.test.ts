@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -165,6 +165,36 @@ describe('POST /webhooks/stripe/:ownerId', () => {
       expect((await bookingOf(bookingId)).amountPaid).toBe(600);
       expect(await events()).toHaveLength(1);
       expect(await ActivityLog.countDocuments({ ownerId: owner.ownerId, action: 'booking.confirmed' })).toBe(1);
+    });
+
+    it('answers 500 when the effect hits another unique index, so Stripe retries', async () => {
+      const { bookingId, payment } = await paidHold();
+      const event = piSucceeded(payment);
+      const dup = Object.assign(new Error('E11000 duplicate key error'), {
+        code: 11000,
+        keyPattern: { ownerId: 1, turfId: 1, startAt: 1 },
+        keyValue: { startAt: new Date() },
+      });
+      const update = vi.spyOn(Booking, 'updateOne').mockImplementationOnce((() => Promise.reject(dup)) as never);
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const res = await post(event);
+        expect(res.status).toBe(500);
+        expect(logged).toHaveBeenCalledWith(dup);
+      } finally {
+        update.mockRestore();
+        logged.mockRestore();
+      }
+      expect(await events()).toHaveLength(0);
+      expect((await paymentOf(payment._id)).status).toBe('pending');
+      expect((await bookingOf(bookingId)).status).toBe('awaiting_payment');
+
+      const retry = await post(event);
+      expect(retry.status).toBe(200);
+      expect(await bookingOf(bookingId)).toMatchObject({ status: 'confirmed', amountPaid: 600 });
+      const rows = await events();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.outcome).toBe('applied');
     });
   });
 

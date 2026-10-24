@@ -8,6 +8,10 @@ import { applyEvent } from '../apply';
 import { loadGateway } from '../gateway.model';
 import { WebhookEvent } from '../webhookEvent.model';
 
+/** Only a repeat of this event; any other unique violation is a failed effect that Stripe must retry. */
+const isDuplicateEvent = (err: unknown) =>
+  isDuplicateKeyError(err) && Object.hasOwn((err as { keyPattern?: object }).keyPattern ?? {}, 'eventId');
+
 const endpointNotFound = () => new AppError(404, 'not_found', 'Webhook endpoint not found');
 
 /** `/webhooks/:gateway/:ownerId`; needs the raw body, so it is mounted before `express.json()`. */
@@ -36,7 +40,7 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
       });
     } catch (err) {
       // Already processed: the first delivery's transaction committed the event row.
-      if (!isDuplicateKeyError(err)) throw err;
+      if (!isDuplicateEvent(err)) throw err;
     }
     res.json({ received: true });
   });

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useRef, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { apiPost, setAccessToken, setRefreshHandler } from '../lib/apiClient';
 import type { AuthResponse, PublicUser } from '../lib/types';
 
@@ -30,7 +30,11 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
     if (initialUser) setAccessToken('test-token');
   });
 
+  // Bumped by every sign-in/sign-out so a refresh that was in flight meanwhile cannot overwrite the newer state.
+  const generation = useRef(0);
+
   const clear = useCallback(() => {
+    generation.current += 1;
     setAccessToken(null);
     setSession({ status: 'signedOut', user: null });
   }, []);
@@ -38,19 +42,27 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
   const refresh = useCallback((): Promise<string | null> => {
     if (inflight) return inflight;
     const run = async (): Promise<string | null> => {
+      const gen = generation.current;
       try {
         const res = await apiPost<AuthResponse>('/auth/refresh', {});
+        if (generation.current !== gen) return null;
         setAccessToken(res.accessToken);
         setSession({ status: 'signedIn', user: res.user });
         return res.accessToken;
       } catch {
-        clear();
+        if (generation.current === gen) clear();
         return null;
       }
     };
     const guarded = async (): Promise<string | null> => {
       const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-      return locks ? await locks.request('auth-refresh', () => run()) : await run();
+      if (!locks) return run();
+      try {
+        return await locks.request('auth-refresh', () => run());
+      } catch {
+        // The Locks API itself failed (e.g. SecurityError in a sandboxed frame); run() never rejects.
+        return run();
+      }
     };
     const p = guarded().finally(() => {
       inflight = null;
@@ -67,6 +79,7 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
   }, [refresh]);
 
   const signIn = useCallback((res: AuthResponse) => {
+    generation.current += 1;
     setAccessToken(res.accessToken);
     setSession({ status: 'signedIn', user: res.user });
   }, []);
@@ -74,6 +87,7 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
   const setUser = useCallback((u: PublicUser) => setSession((s) => ({ ...s, user: u })), []);
 
   const signOut = useCallback(async () => {
+    generation.current += 1;
     try {
       await apiPost('/auth/logout', {});
     } catch {

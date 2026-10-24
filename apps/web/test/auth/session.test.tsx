@@ -86,6 +86,60 @@ describe('AuthProvider', () => {
     expect(calls.filter((c) => c.path === '/auth/refresh')).toHaveLength(1);
   });
 
+  it('falls back to a direct refresh when navigator.locks.request rejects', async () => {
+    vi.stubGlobal('navigator', { ...navigator, locks: { request: () => Promise.reject(new Error('x')) } });
+    mockApi([{ method: 'POST', path: '/auth/refresh', body: authRes }]);
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('signedIn'));
+  });
+
+  it('runs the refresh inside the auth-refresh lock', async () => {
+    const names: string[] = [];
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      locks: { request: (name: string, cb: () => unknown) => (names.push(name), Promise.resolve(cb())) },
+    });
+    const { calls } = mockApi([{ method: 'POST', path: '/auth/refresh', body: authRes }]);
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('signedIn'));
+    expect(names).toEqual(['auth-refresh']);
+    expect(calls.filter((c) => c.path === '/auth/refresh')).toHaveLength(1);
+  });
+
+  it('discards a refresh that resolves after signOut', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).endsWith('/auth/refresh')) {
+          await gate;
+          return new Response(JSON.stringify(authRes), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return new Response(null, { status: 204 });
+      }),
+    );
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'out' }));
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('signedOut'));
+    release();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByTestId('status')).toHaveTextContent('signedOut');
+    expect(screen.getByTestId('name')).toHaveTextContent('');
+  });
+
   it('signOut posts logout and clears user even when logout fails', async () => {
     const { calls } = mockApi([{ method: 'POST', path: '/auth/logout', status: 500, body: { error: { code: 'x', message: 'x' } } }]);
     render(

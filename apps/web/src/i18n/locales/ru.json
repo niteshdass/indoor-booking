@@ -230,7 +230,26 @@
     "dateStrip": "Выберите дату",
     "today": "сегодня",
     "slotsRegion": "Доступность",
-    "selected": "{{turf}} · {{date}}",
-    "slotsSoon": "Здесь появятся временные слоты."
+    "selected": "{{turf}} · {{date}}"
+  },
+  "slots": {
+    "grid": "Временные слоты",
+    "legend": "Обозначения",
+    "available": "Свободно",
+    "selected": "Выбрано",
+    "pending": "Ожидает",
+    "booked": "Занято",
+    "blocked": "Закрыто",
+    "past": "Прошло",
+    "unavailable": "Недоступно",
+    "closed": "В этот день закрыто.",
+    "outsideWindow": "Бронирование на эту дату ещё не открыто.",
+    "none": "В этот день нет слотов.",
+    "summary": "Ваш выбор",
+    "continue": "Продолжить",
+    "selectedCount_one": "{{count}} слот",
+    "selectedCount_few": "{{count}} слота",
+    "selectedCount_many": "{{count}} слотов",
+    "selectedCount_other": "{{count}} слота"
   }
 }

@@ -1,0 +1,133 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.panel:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.caption {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-default);
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Phone: in-flow sticky bar at the bottom edge, so it never covers the last grid row. */
+.bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.count {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.range {
+  font-size: var(--text-base);
+  color: var(--text-default);
+}
+
+.total {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-lg);
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--brand);
+  color: var(--brand-fg);
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-heading);
+  text-align: center;
+  text-decoration: none;
+}
+
+.continue:hover {
+  filter: brightness(1.1);
+}
+
+.continue:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (min-width: 1024px) {
+  .panel {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .main {
+    flex: 1;
+  }
+
+  .bar {
+    position: sticky;
+    top: var(--space-4);
+    bottom: auto;
+    flex: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: var(--side-card-width);
+  }
+}

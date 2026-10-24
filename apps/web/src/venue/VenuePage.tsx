@@ -8,11 +8,11 @@ import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { apiGet, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import { formatDate } from '../lib/format';
 import type { PublicVenue } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { DateStrip } from './DateStrip';
 import { PhotoStrip } from './PhotoStrip';
+import { SlotsPanel } from './SlotsPanel';
 import styles from './VenuePage.module.css';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,7 +31,7 @@ type State =
 
 export function VenuePage() {
   const { slug = '' } = useParams();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -161,13 +161,14 @@ export function VenuePage() {
 
           <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} timeZone={venue.timezone} />
 
-          <section id="turf-panel" role="tabpanel" aria-labelledby={`turf-tab-${turf.id}`} className={styles.slots}>
-            <h2 className={styles.slotsTitle}>{t('venue.slotsRegion')}</h2>
-            <p className={styles.selected}>
-              {t('venue.selected', { turf: turf.name, date: formatDate(date, 'UTC', i18n.language) })}
-            </p>
-            <p className={styles.soon}>{t('venue.slotsSoon')}</p>
-          </section>
+          <SlotsPanel
+            key={`${turf.id}|${date}`}
+            slug={slug}
+            turfId={turf.id}
+            turfName={turf.name}
+            date={date}
+            tabId={`turf-tab-${turf.id}`}
+          />
         </>
       ) : (
         <p className={styles.empty}>{t('venue.noTurfs')}</p>

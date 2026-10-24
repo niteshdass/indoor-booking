@@ -224,7 +224,24 @@
     "dateStrip": "Choose a date",
     "today": "today",
     "slotsRegion": "Availability",
-    "selected": "{{turf}} · {{date}}",
-    "slotsSoon": "Time slots will appear here."
+    "selected": "{{turf}} · {{date}}"
+  },
+  "slots": {
+    "grid": "Time slots",
+    "legend": "Legend",
+    "available": "Available",
+    "selected": "Selected",
+    "pending": "Pending",
+    "booked": "Booked",
+    "blocked": "Blocked",
+    "past": "Past",
+    "unavailable": "Unavailable",
+    "closed": "Closed on this day.",
+    "outsideWindow": "This date is not open for booking yet.",
+    "none": "No time slots on this day.",
+    "summary": "Your selection",
+    "continue": "Continue",
+    "selectedCount_one": "{{count}} slot",
+    "selectedCount_other": "{{count}} slots"
   }
 }

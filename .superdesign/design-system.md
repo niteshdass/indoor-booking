@@ -109,3 +109,6 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
 
 ## Venue page
 Scrolling strips and tab lists carry `--space-1` padding so the focus ring is not clipped by the scroll container. Header (name, address, sport and amenity chips), a horizontally scrolling photo strip (placeholder when empty), ARIA turf tabs whose active underline uses `--brand`, a scrolling date strip (selected chip = primary, today marked with a dot and `aria-current="date"`, chips at least `--control-lg` tall), then the slot grid region.
+
+## Slot grid
+Grid is 3 columns on phone, 4 from sm, 6 from lg. Pending (warning-soft + "Pending") is always visually distinct from booked; every non-clickable cell puts its state in the label and `aria-label`, never colour alone. A null price shows "Unavailable" and is disabled. A legend sits under the grid. The selection bar is an in-flow sticky card at the bottom edge on phone (so it never covers the last row, wraps for long Russian text) and a sticky side card of `--side-card-width` from lg; its Continue link uses `--brand`.

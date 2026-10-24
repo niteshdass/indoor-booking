@@ -47,7 +47,7 @@ beforeEach(async () => {
   ctx = buildTestApp();
   a = await seedOwner(ctx.services);
   v1 = (await seedVenue(a.ownerId, { slug: 'v-one', published: true })).id as string;
-  v2 = (await seedVenue(a.ownerId, { currency: 'USD' })).id as string;
+  v2 = (await seedVenue(a.ownerId, { currency: 'USD', slug: 'v-two', published: true })).id as string;
   t1 = (await seedTurf(a.ownerId, v1)).id as string;
   t2 = (await seedTurf(a.ownerId, v1)).id as string;
   t3 = (await seedTurf(a.ownerId, v1, { indoor: true })).id as string;
@@ -135,6 +135,15 @@ describe('offered add-ons', () => {
     expect(out.body.currency).toBe('USD');
     expect(prices(out)).toEqual([['Towel', 200]]);
     expect((await putT(v2, t4, id, { enabled: true })).status).toBe(200);
+    // Venue-level price goes away: the turf assignment stays enabled but has no USD price.
+    for (const drop of [() => putV(v2, id, { enabled: false }), () => delV(v2, id)]) {
+      await putV(v2, id, { enabled: true, priceOverride: 200 });
+      expect((await drop()).status).toBeLessThan(300);
+      expect((await offered(v2, t4)).body.addons).toEqual([]);
+      const pub = await api().get(`/api/v1/venues/v-two/turfs/${t4}/addons`);
+      expect(pub.status).toBe(200);
+      expect(pub.body.addons).toEqual([]);
+    }
   });
 });
 

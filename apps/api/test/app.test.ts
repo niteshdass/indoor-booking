@@ -14,6 +14,7 @@ const config: Config = {
   jwtSecret: 'x'.repeat(32),
   appUrl: 'http://localhost:5173',
   apiUrl: 'http://localhost:4000',
+  jobsEnabled: false,
 };
 
 const app = createApp({

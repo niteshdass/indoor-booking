@@ -14,6 +14,8 @@ export type Config = {
   paymentsKey?: Buffer;
   /** Express `trust proxy` value; unset means the socket address is the client. */
   trustProxy?: boolean | number | string;
+  /** Whether this process runs the background jobs (sweeps, delivery, refund reconcile). */
+  jobsEnabled: boolean;
 };
 
 export class ConfigError extends Error {
@@ -39,6 +41,7 @@ const envSchema = z
       .refine((v) => Buffer.from(v, 'base64').length === 32, 'must be base64 of exactly 32 bytes')
       .optional(),
     TRUST_PROXY: z.string().min(1).optional(),
+    JOBS_ENABLED: z.enum(['true', 'false']).default('true'),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && !e.PAYMENTS_ENCRYPTION_KEY) {
@@ -73,6 +76,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     jwtSecret: e.JWT_SECRET,
     appUrl: e.APP_URL,
     apiUrl: e.API_URL,
+    jobsEnabled: e.JOBS_ENABLED === 'true',
   };
   if (e.GOOGLE_CLIENT_ID) config.googleClientId = e.GOOGLE_CLIENT_ID;
   if (e.PAYMENTS_ENCRYPTION_KEY) config.paymentsKey = Buffer.from(e.PAYMENTS_ENCRYPTION_KEY, 'base64');

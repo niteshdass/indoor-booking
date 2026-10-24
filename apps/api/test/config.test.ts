@@ -15,6 +15,7 @@ describe('loadConfig', () => {
       jwtSecret: 's'.repeat(32),
       appUrl: 'http://localhost:5173',
       apiUrl: 'http://localhost:4000',
+      jobsEnabled: true,
     });
   });
   it('rejects non-numeric PORT', () => {
@@ -32,6 +33,17 @@ describe('loadConfig', () => {
     });
     expect(c.googleClientId).toBe('gid');
     expect(c.appUrl).toBe('https://app.example');
+  });
+  describe('jobs', () => {
+    const base = { MONGODB_URI: 'mongodb://x', JWT_SECRET: 's'.repeat(32) };
+    it('runs jobs unless JOBS_ENABLED=false', () => {
+      expect(loadConfig(base).jobsEnabled).toBe(true);
+      expect(loadConfig({ ...base, JOBS_ENABLED: 'true' }).jobsEnabled).toBe(true);
+      expect(loadConfig({ ...base, JOBS_ENABLED: 'false' }).jobsEnabled).toBe(false);
+    });
+    it('rejects another JOBS_ENABLED value', () => {
+      expect(() => loadConfig({ ...base, JOBS_ENABLED: 'no' })).toThrow(/JOBS_ENABLED/);
+    });
   });
   describe('payments', () => {
     const base = { MONGODB_URI: 'mongodb://x', JWT_SECRET: 's'.repeat(32) };

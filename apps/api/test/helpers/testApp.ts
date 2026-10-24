@@ -13,6 +13,7 @@ export const testConfig: Config = {
   appUrl: 'http://localhost:5173',
   apiUrl: 'http://localhost:4000',
   paymentsKey: Buffer.alloc(32, 7),
+  jobsEnabled: false,
 };
 
 export function buildTestApp(

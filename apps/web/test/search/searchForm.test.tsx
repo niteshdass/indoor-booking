@@ -156,12 +156,35 @@ describe('SearchForm', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'JPY', minPrice: 1000 }));
   });
 
-  it('a chosen currency without prices is emitted', async () => {
+  it('a chosen currency without prices is not emitted (it would filter venues)', async () => {
     const { onChange, user } = setup(EMPTY_CRITERIA, ['USD', 'EUR']);
     await user.click(screen.getByText(s.moreFilters));
     await user.selectOptions(screen.getByLabelText(s.currency), 'EUR');
     await user.click(screen.getByRole('button', { name: s.submit }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'EUR', minPrice: null, maxPrice: null }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: null, minPrice: null, maxPrice: null }));
+  });
+
+  it('a chosen currency with an amount is emitted', async () => {
+    const { onChange, user } = setup(EMPTY_CRITERIA, ['USD', 'EUR']);
+    await user.click(screen.getByText(s.moreFilters));
+    await user.selectOptions(screen.getByLabelText(s.currency), 'EUR');
+    await user.type(screen.getByLabelText(s.maxPrice), '30');
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'EUR', maxPrice: 3000 }));
+  });
+
+  it('clearing a URL max price also drops its currency', async () => {
+    const { onChange, user } = setup({ ...EMPTY_CRITERIA, currency: 'BDT', maxPrice: 50000 }, ['BDT', 'USD']);
+    await user.click(screen.getByText(s.moreFilters));
+    await user.clear(screen.getByLabelText(s.maxPrice));
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: null, minPrice: null, maxPrice: null }));
+  });
+
+  it('a leftover currency without amounts is dropped on submit', async () => {
+    const { onChange, user } = setup({ ...EMPTY_CRITERIA, currency: 'BDT' }, ['BDT', 'USD']);
+    await user.click(screen.getByRole('button', { name: s.submit }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: null }));
   });
 
   it('accepts a comma decimal', async () => {
@@ -234,7 +257,7 @@ describe('SearchForm', () => {
     await user.selectOptions(screen.getByLabelText(s.currency), 'EUR');
     expect(screen.getByLabelText(s.minPrice)).toHaveValue('');
     await user.click(screen.getByRole('button', { name: s.submit }));
-    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: 'EUR', minPrice: null }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ currency: null, minPrice: null }));
   });
 
   it('re-syncs the draft when value changes', () => {

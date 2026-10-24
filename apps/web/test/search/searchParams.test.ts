@@ -45,7 +45,18 @@ describe('search params', () => {
     expect(parse('minPrice=100')).toMatchObject({ minPrice: null, maxPrice: null });
   });
   it('min > max dropped', () => {
-    expect(parse('currency=USD&minPrice=500&maxPrice=100')).toMatchObject({ currency: 'USD', minPrice: null, maxPrice: null });
+    expect(parse('currency=USD&minPrice=500&maxPrice=100')).toMatchObject({ currency: null, minPrice: null, maxPrice: null });
+  });
+  it('currency without a price is dropped on parse', () => {
+    expect(parse('currency=BDT').currency).toBeNull();
+  });
+  it('criteriaToParams sends currency only with a price', () => {
+    expect(criteriaToParams({ ...EMPTY_CRITERIA, currency: 'BDT' }).has('currency')).toBe(false);
+    expect(criteriaToParams({ ...EMPTY_CRITERIA, currency: 'BDT', maxPrice: 100 }).get('currency')).toBe('BDT');
+    expect(criteriaToParams({ ...EMPTY_CRITERIA, currency: 'BDT', minPrice: 0 }).get('currency')).toBe('BDT');
+  });
+  it('apiQuery omits a price-less currency', () => {
+    expect(apiQuery({ ...EMPTY_CRITERIA, currency: 'BDT' }, 0)).toBe('?limit=20&cursor=0');
   });
   it('garbage values dropped', () => {
     expect(parse('sport=chess').sport).toBeNull();

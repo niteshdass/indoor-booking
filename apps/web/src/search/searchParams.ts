@@ -78,13 +78,15 @@ export function criteriaFromParams(p: URLSearchParams): Criteria {
   const toParam = p.get('to');
   const rangeOk = fromParam !== null && toParam !== null && TIME.test(fromParam) && TIME.test(toParam) && fromParam !== toParam;
 
-  const currency = validCurrency(p.get('currency'));
-  let minPrice = currency ? whole(p.get('minPrice')) : null;
-  let maxPrice = currency ? whole(p.get('maxPrice')) : null;
+  const currencyParam = validCurrency(p.get('currency'));
+  let minPrice = currencyParam ? whole(p.get('minPrice')) : null;
+  let maxPrice = currencyParam ? whole(p.get('maxPrice')) : null;
   if (minPrice !== null && maxPrice !== null && minPrice > maxPrice) {
     minPrice = null;
     maxPrice = null;
   }
+  // The API filters venues by currency whenever it is sent, so it only travels with an amount.
+  const currency = minPrice !== null || maxPrice !== null ? currencyParam : null;
 
   return {
     near,
@@ -116,7 +118,7 @@ export function criteriaToParams(c: Criteria): URLSearchParams {
     p.set('from', c.from);
     p.set('to', c.to);
   }
-  if (c.currency) p.set('currency', c.currency);
+  if (c.currency && (c.minPrice !== null || c.maxPrice !== null)) p.set('currency', c.currency);
   if (c.minPrice !== null) p.set('minPrice', String(c.minPrice));
   if (c.maxPrice !== null) p.set('maxPrice', String(c.maxPrice));
   if (c.available) p.set('available', 'true');

@@ -147,8 +147,10 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       if (!next.min && !next.max && minPrice !== null && maxPrice !== null && minPrice > maxPrice) next.range = true;
     }
 
-    // The currency shown by default is applied only once an amount is entered.
+    // The currency shown by default is applied only once an amount is entered; without an amount it would
+    // only hide venues priced in other currencies, so it is not sent at all.
     if (texts.priceDirty && (minPrice !== null || maxPrice !== null)) currency = priceCurrency;
+    if (minPrice === null && maxPrice === null) currency = null;
 
     const hasFrom = Boolean(draft.from);
     const hasTo = Boolean(draft.to);

@@ -132,3 +132,16 @@ describe('quoteAddons', () => {
     expect(() => quoteAddons({ offered: [towel], slots: [], indoor: true, selection: [] })).toThrow();
   });
 });
+
+describe('addonLineTotal input guards', () => {
+  it('guards inputs', () => {
+    expect(() => addonLineTotal('per_hour', 10.5, 1, 60)).toThrow(InvalidMoneyError);
+    const msg = 'Add-on quantity and minutes must be whole numbers';
+    expect(() => addonLineTotal('per_hour', 1200, 1, 90.5)).toThrow(new RangeError(msg));
+    expect(() => addonLineTotal('per_unit', 150, 1.5, 60)).toThrow(new RangeError(msg));
+    expect(() => addonLineTotal('per_unit', 150, 0, 60)).toThrow(RangeError);
+    expect(addonLineTotal('per_hour', 1200, 1, 90)).toBe(1800);
+    expect(addonLineTotal('per_unit', 150, 2, 60)).toBe(300);
+    expect(addonLineTotal('per_booking', 50, 1, 60)).toBe(50);
+  });
+});

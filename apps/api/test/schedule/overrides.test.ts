@@ -202,6 +202,17 @@ describe('slot overrides', () => {
     expect((await post({ recurrence: before, type: 'add', start: '00:30', end: '01:30' })).status).toBe(201);
   });
 
+  it('rejects an extra reaching two days ahead', async () => {
+    const night = Object.fromEntries(WEEKDAYS.map((d) => [d, { open: '18:00', close: '06:00' }]));
+    const t3 = (await seedTurf(a.ownerId, v1, { slotLengthMin: 60, settings: { hours: night } })).id as string;
+    // 05:00 is the tail of the night (mapped 1740), so 05:00-04:00 would end at 3120.
+    const long = await post({ date: day, type: 'add', start: '05:00', end: '04:00' }, a.token, v1, t3);
+    expect(long.status).toBe(400);
+    expect(long.body.error.code).toBe('override_too_long');
+    // 02:00-05:00 sits inside the night (409), so an in-bound morning extra stands in for "unaffected".
+    expect((await post({ date: day, type: 'add', start: '06:00', end: '09:00' }, a.token, v1, t3)).status).toBe(201);
+  });
+
   it('blocks have no bound or overlap check', async () => {
     const block = await post({ recurrence: { weekdays: ['fri'], from: '2026-10-01' }, type: 'block', start: '23:00', end: '17:00' });
     expect(block.status).toBe(201);

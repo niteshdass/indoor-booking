@@ -82,6 +82,8 @@ function checkExtra(o: Extra, hours: WeeklyHours, slotLengthMin: number, existin
   }
   for (const [day, when] of days) {
     const mine = overrideMinutes(o, hours[day]);
+    // The overlap checks only look one day either side, so an extra must end within day D+1.
+    if (mine[1] > 2880) throw new AppError(400, 'override_too_long', 'An extra slot must end by the end of the next day');
     const target = o.type === 'modify' ? targetOf(o.slotStart, day) : null;
     for (const k of [-1, 0, 1]) {
       const kDay = weekdayPlus(day, k);

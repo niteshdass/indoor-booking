@@ -52,6 +52,10 @@ export function addonLineTotal(
   quantity: number,
   minutes: number,
 ): number {
+  assertMinor(unitPrice);
+  if (!Number.isSafeInteger(quantity) || quantity < 1 || !Number.isSafeInteger(minutes) || minutes < 0) {
+    throw new RangeError('Add-on quantity and minutes must be whole numbers');
+  }
   let total: number;
   if (pricingType === 'per_booking') total = unitPrice;
   else if (pricingType === 'per_unit') total = unitPrice * quantity;

@@ -13,7 +13,7 @@ import { Venue } from '../venue.model';
 import { SlotOverride } from '../../schedule/slotOverride.model';
 import { Closure } from '../../schedule/closure.model';
 import { AddonAssignment } from '../../addons/assignment.model';
-import { activeTurfCount, lockVenue, scopedTurf } from '../guards';
+import { activeTurfCount, lockTurf, lockVenue, scopedTurf } from '../guards';
 import { changedFields, scopedVenue } from './venues';
 
 const fields = {
@@ -185,6 +185,7 @@ export function turfsRouter(services: AppServices): Router {
     const venueId = venue.id as string;
     await runInTransaction(async (session) => {
       await lockVenue(t, venueId, services.now(), session);
+      await lockTurf(t, turf.id as string, services.now(), session);
       if (turf.active) {
         const current = await Venue.findOne({ ownerId: t.ownerId, _id: venueId }, { published: 1 }).session(session);
         if (current?.published && (await activeTurfCount(t, venueId, session, turf._id)) === 0) throw lastActive();

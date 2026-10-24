@@ -5,7 +5,7 @@ import type { AppServices } from '../../services';
 import { runInTransaction } from '../../db';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { assertVenueAccess, permissionsCover, tenantOf, type TenantContext } from '../../tenancy/context';
-import { scopedTurf } from '../../venues/guards';
+import { lockTurf, lockVenue, scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Closure, closureJson } from '../closure.model';
 import { closureSchema } from '../schemas';
@@ -62,6 +62,9 @@ export function closuresRouter(services: AppServices): Router {
       venueOid = (await scopedVenue(t, venueId)).id as string;
     }
     const closure = await runInTransaction(async (session) => {
+      // Serialize against a concurrent delete of the target so no closure outlives it.
+      if (turfOid !== null) await lockTurf(t, turfOid, services.now(), session);
+      else if (venueOid !== null) await lockVenue(t, venueOid, services.now(), session);
       const [created] = await Closure.create(
         [{ ownerId: t.ownerId, venueId: venueOid, turfId: turfOid, from: input.from, to: input.to, reason: input.reason || null }],
         { session },

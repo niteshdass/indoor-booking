@@ -282,6 +282,7 @@ export function venuesRouter(services: AppServices): Router {
     const t = tenantOf(req);
     const venue = await scopedVenue(t, req.params.venueId as string);
     await runInTransaction(async (session) => {
+      await lockVenue(t, venue.id as string, services.now(), session);
       if (await Turf.exists({ ownerId: t.ownerId, venueId: venue._id }).session(session)) {
         throw new AppError(409, 'venue_has_turfs', 'Delete or move the turfs first');
       }

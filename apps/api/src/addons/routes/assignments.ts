@@ -4,7 +4,7 @@ import { runInTransaction } from '../../db';
 import type { AppServices } from '../../services';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf, type TenantContext } from '../../tenancy/context';
-import { scopedTurf } from '../../venues/guards';
+import { lockTurf, lockVenue, scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { AddonAssignment, assignmentJson } from '../assignment.model';
 import { Addon } from '../addon.model';
@@ -41,6 +41,8 @@ export function assignmentsRouter(services: AppServices): Router {
     return runInTransaction(async (session) => {
       const now = services.now();
       await lockAddon(t, addonId, now, session);
+      if (tg.turfId !== null) await lockTurf(t, tg.turfId, now, session);
+      else await lockVenue(t, tg.venueId, now, session);
       const addon = (await Addon.findOne({ ownerId: t.ownerId, _id: addonId }).session(session))!;
       if (addon.autoApply && stock !== null) {
         throw new AppError(400, 'validation_error', 'Auto-apply add-ons have unlimited stock');

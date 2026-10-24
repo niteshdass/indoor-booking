@@ -1,0 +1,106 @@
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import request from 'supertest';
+import { DEFAULT_OWNER_SETTINGS } from '@booking/shared';
+import { startTestDb, stopTestDb } from '../helpers/testDb';
+import { buildTestApp } from '../helpers/testApp';
+import { addMember, bearer, seedOwner } from '../helpers/tenancy';
+import { User } from '../../src/auth/user.model';
+import { Owner } from '../../src/tenancy/owner.model';
+import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
+import { Membership } from '../../src/tenancy/membership.model';
+import { ActivityLog } from '../../src/tenancy/activityLog.model';
+
+beforeAll(async () => {
+  await startTestDb();
+  await Promise.all([User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init()]);
+  await ensureSystemRoles();
+});
+afterAll(stopTestDb);
+
+let ctx: ReturnType<typeof buildTestApp>;
+let a: Awaited<ReturnType<typeof seedOwner>>;
+beforeEach(async () => {
+  await Promise.all([
+    User.deleteMany({}),
+    Owner.deleteMany({}),
+    Membership.deleteMany({ ownerId: { $exists: true } }),
+    ActivityLog.deleteMany({}).setOptions({ crossTenant: true }),
+  ]);
+  ctx = buildTestApp();
+  a = await seedOwner(ctx.services);
+});
+
+const url = (ownerId = a.ownerId) => `/api/v1/owners/${ownerId}/settings`;
+const get = (token = a.token) => request(ctx.app).get(url()).set(...bearer(token));
+const patch = (body: object, token = a.token) =>
+  request(ctx.app).patch(url()).set(...bearer(token)).send(body);
+
+describe('owner settings', () => {
+  it('GET returns defaults for a fresh owner', async () => {
+    const res = await get();
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ settings: DEFAULT_OWNER_SETTINGS });
+  });
+
+  it('PATCH sets, merges hours, and null resets', async () => {
+    expect((await patch({ weekendDays: ['fri', 'sat'], hours: { fri: 'closed' } })).status).toBe(200);
+    expect((await patch({ hours: { sat: { open: '10:00', close: '02:00' } } })).status).toBe(200);
+    const { settings } = (await get()).body;
+    expect(settings.weekendDays).toEqual(['fri', 'sat']);
+    expect(settings.hours.fri).toBe('closed');
+    expect(settings.hours.sat).toEqual({ open: '10:00', close: '02:00' });
+    expect(settings.hours.mon).toEqual({ open: '08:00', close: '22:00' });
+    const reset = await patch({ weekendDays: null });
+    expect(reset.body.settings.weekendDays).toEqual(['sat', 'sun']);
+  });
+
+  it('refund rules are sorted and validated', async () => {
+    const res = await patch({
+      refundRules: [{ minHoursBefore: 48, percent: 20 }, { minHoursBefore: 96, percent: 100 }],
+    });
+    expect(res.body.settings.refundRules).toEqual([
+      { minHoursBefore: 96, percent: 100 },
+      { minHoursBefore: 48, percent: 20 },
+    ]);
+    for (const refundRules of [
+      [{ minHoursBefore: 48, percent: 20 }, { minHoursBefore: 48, percent: 50 }],
+      [{ minHoursBefore: 48, percent: 101 }],
+      [{ minHoursBefore: 48, percent: 12.345 }],
+    ]) {
+      const bad = await patch({ refundRules });
+      expect(bad.status).toBe(400);
+      expect(bad.body.error.code).toBe('validation_error');
+    }
+  });
+
+  it('owner level rejects fixed advance and bad values', async () => {
+    for (const body of [
+      { paymentPolicy: { type: 'partial_fixed', amount: 500 } },
+      { hours: { mon: { open: '25:00', close: '10:00' } } },
+      { unknownKey: 1 },
+      { bookingWindowDays: 0 },
+    ]) {
+      const res = await patch(body);
+      expect(res.status, JSON.stringify(body)).toBe(400);
+      expect(res.body.error.code).toBe('validation_error');
+    }
+  });
+
+  it('staff without settings.edit → 403 forbidden; non-member → 404', async () => {
+    const staff = await addMember(ctx.services, a.ownerId);
+    const res = await patch({ bookingWindowDays: 10 }, staff.token);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('forbidden');
+    expect((await get(staff.token)).status).toBe(200);
+    const b = await seedOwner(ctx.services);
+    expect((await get(b.token)).status).toBe(404);
+  });
+
+  it('PATCH writes a settings.update activity entry', async () => {
+    await patch({ bookingWindowDays: 60 });
+    const row = await ActivityLog.findOne({ ownerId: a.ownerId, action: 'settings.update' }).lean();
+    expect(row).toMatchObject({ entity: 'owner', after: { bookingWindowDays: 60 } });
+    expect(row!.before ?? {}).toEqual({}); // ActivityLog minimizes an empty object away
+    expect(String(row!.entityId)).toBe(a.ownerId);
+  });
+});

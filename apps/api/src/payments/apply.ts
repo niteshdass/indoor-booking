@@ -134,6 +134,23 @@ async function refundUpdated(
 ): Promise<WebhookOutcome> {
   const row = await Refund.findOne({ ownerId, gatewayRef: event.refundRef }).session(session);
   if (!row) return 'unmatched';
+  if (event.status === 'succeeded' && row.status === 'failed') {
+    // The money moved after we gave up on it: leave the row alone, but make sure staff can see it.
+    console.error(`[refunds] refund ${String(row._id)} succeeded at the gateway after being recorded as failed`);
+    await logSystemActivity(
+      ownerId,
+      {
+        action: 'refund.late_success',
+        entity: 'refund',
+        entityId: String(row._id),
+        venueId: String(row.venueId),
+        after: { refundRef: event.refundRef, failureCode: row.failureCode },
+      },
+      ctx.now,
+      session,
+    );
+    return 'applied';
+  }
   const changed = await settleRefund(
     ownerId,
     row._id,

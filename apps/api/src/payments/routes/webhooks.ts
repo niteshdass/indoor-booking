@@ -46,7 +46,13 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
       if (!isDuplicateEvent(err)) throw err;
     }
     // Committed: send the refunds now. A gateway outage leaves them pending for reconcile, never for Stripe's retry.
-    for (const id of refundIds) await dispatchRefund(id, ownerId, { config, services });
+    for (const id of refundIds) {
+      try {
+        await dispatchRefund(id, ownerId, { config, services });
+      } catch (err) {
+        console.error(`[refunds] dispatch of ${id} failed`, err);
+      }
+    }
     res.json({ received: true });
   });
 

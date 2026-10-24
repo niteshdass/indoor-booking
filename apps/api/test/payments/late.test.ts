@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { BOOKING_TRANSITIONS, hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -329,6 +329,26 @@ describe('late payment for a lapsed hold', () => {
       expect(await paymentOf(payment._id)).toMatchObject({ status: 'succeeded', refundedAmount: 600 });
     });
 
+    it('answers 200 when dispatch throws a non-gateway error, leaving the refund pending', async () => {
+      const { bookingId, payment } = await paidHold();
+      ctx.services.clock.advance(LAPSE);
+      expect((await book(await newPlayer(), [at('18:00')])).status).toBe(201);
+      // A database fault inside dispatch is not a GatewayError, so dispatchRefund rethrows it.
+      const claim = vi.spyOn(Refund, 'findOneAndUpdate').mockRejectedValueOnce(new Error('boom'));
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        expect((await post(piSucceeded(payment))).status).toBe(200);
+        expect(logged).toHaveBeenCalledWith(expect.stringContaining('[refunds] dispatch of'), expect.any(Error));
+      } finally {
+        logged.mockRestore();
+        claim.mockRestore();
+      }
+      expect((await refunds())[0]).toMatchObject({ status: 'pending' });
+      expect(refundCalls()).toHaveLength(0);
+      expect((await bookingOf(bookingId)).status).toBe('expired');
+      expect((await WebhookEvent.find({}).setOptions(cross).lean())[0]!.outcome).toBe('applied');
+    });
+
     it('calls the gateway only after the webhook transaction commits', async () => {
       const { payment } = await paidHold();
       ctx.services.clock.advance(LAPSE);
@@ -443,6 +463,26 @@ describe('late payment for a lapsed hold', () => {
         const outcomes = (await WebhookEvent.find({}).setOptions(cross).lean()).map((e) => e.outcome);
         expect(outcomes.at(-1)).toBe('ignored');
         expect((await refunds())[0]!.status).toBe('succeeded');
+      });
+
+      it('records a late success on a refund already failed without changing it', async () => {
+        const { row } = await refundedLate();
+        await Refund.updateOne({ _id: row._id }, { $set: { status: 'failed', failureCode: 'gateway_unreachable' } }).setOptions(cross);
+        const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+          expect((await post(refundEvent('refund.updated', row.gatewayRef!, 'succeeded'))).status).toBe(200);
+          expect(logged).toHaveBeenCalledWith(expect.stringContaining('[refunds]'));
+        } finally {
+          logged.mockRestore();
+        }
+        expect((await refunds())[0]).toMatchObject({ status: 'failed', failureCode: 'gateway_unreachable' });
+        const outcomes = (await WebhookEvent.find({}).setOptions(cross).lean()).map((e) => e.outcome);
+        expect(outcomes.at(-1)).toBe('applied');
+        const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'refund.late_success' }).lean();
+        expect(logs).toHaveLength(1);
+        expect(logs[0]).toMatchObject({ entity: 'refund' });
+        expect(String(logs[0]!.entityId)).toBe(String(row._id));
+        expect(logs[0]!.after).toEqual({ refundRef: row.gatewayRef, failureCode: 'gateway_unreachable' });
       });
 
       it('refund.updated for an unknown refund is unmatched', async () => {

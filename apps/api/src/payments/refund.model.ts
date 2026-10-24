@@ -44,6 +44,7 @@ const refundSchema = new mongoose.Schema(
   { timestamps: true },
 );
 refundSchema.index({ ownerId: 1, bookingId: 1 });
+refundSchema.index({ ownerId: 1, gatewayRef: 1 });
 refundSchema.index({ status: 1, method: 1, updatedAt: 1 });
 refundSchema.plugin(tenantScoped);
 

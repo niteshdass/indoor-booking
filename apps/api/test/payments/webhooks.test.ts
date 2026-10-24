@@ -240,11 +240,15 @@ describe('POST /webhooks/stripe/:ownerId', () => {
   describe('bad input', () => {
     it('fails the payment and leaves the booking alone when the amount or currency differ', async () => {
       const { bookingId, payment } = await paidHold();
+      const other = await paidHold('19:00');
       expect((await post(piSucceeded(payment, { amount: 599 }))).status).toBe(200);
-      expect((await post(piSucceeded(payment, { currency: 'usd' }))).status).toBe(200);
-      // The first delivery fails the payment; the second finds it no longer pending.
-      expect((await events()).map((e) => e.outcome)).toEqual(['mismatch', 'ignored']);
+      expect((await post(piSucceeded(other.payment, { currency: 'usd' }))).status).toBe(200);
+      expect((await events()).map((e) => e.outcome)).toEqual(['mismatch', 'mismatch']);
+      // A repeat finds the payment no longer pending.
+      expect((await post(piSucceeded(payment, { amount: 599 }))).status).toBe(200);
+      expect((await events()).map((e) => e.outcome).at(-1)).toBe('ignored');
       expect(await paymentOf(payment._id)).toMatchObject({ status: 'failed', failureCode: 'amount_mismatch' });
+      expect(await paymentOf(other.payment._id)).toMatchObject({ status: 'failed', failureCode: 'amount_mismatch' });
       expect(await bookingOf(bookingId)).toMatchObject({ status: 'awaiting_payment', amountPaid: 0 });
     });
 

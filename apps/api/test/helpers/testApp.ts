@@ -11,6 +11,8 @@ export const testConfig: Config = {
   corsOrigin: 'http://localhost:5173',
   jwtSecret: 'x'.repeat(32),
   appUrl: 'http://localhost:5173',
+  apiUrl: 'http://localhost:4000',
+  paymentsKey: Buffer.alloc(32, 7),
 };
 
 export function buildTestApp(

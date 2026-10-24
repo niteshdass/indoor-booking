@@ -5,7 +5,8 @@ const { ObjectId, Mixed } = mongoose.Schema.Types;
 
 const activityLogSchema = new mongoose.Schema({
   ownerId: { type: ObjectId, ref: 'Owner', required: true },
-  actorId: { type: ObjectId, ref: 'User', required: true },
+  /** Null for system effects such as a payment webhook. */
+  actorId: { type: ObjectId, ref: 'User', default: null },
   /** '<entity>.<verb>', e.g. role.create */
   action: { type: String, required: true },
   entity: { type: String, required: true },
@@ -41,4 +42,14 @@ export async function logActivity(
   await ActivityLog.create([{ ...entry, ownerId: actor.ownerId, actorId: actor.userId, at }], {
     session,
   });
+}
+
+/** Records a system effect with no acting user (e.g. a payment webhook). */
+export async function logSystemActivity(
+  ownerId: string,
+  entry: ActivityEntry,
+  at: Date,
+  session?: ClientSession,
+): Promise<void> {
+  await ActivityLog.create([{ ...entry, ownerId, actorId: null, at }], { session });
 }

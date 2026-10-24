@@ -8,7 +8,7 @@ import { User } from '../../src/auth/user.model';
 import { Owner } from '../../src/tenancy/owner.model';
 import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
 import { Membership } from '../../src/tenancy/membership.model';
-import { ActivityLog, logActivity } from '../../src/tenancy/activityLog.model';
+import { ActivityLog, logActivity, logSystemActivity } from '../../src/tenancy/activityLog.model';
 
 beforeAll(async () => {
   await startTestDb();
@@ -101,5 +101,14 @@ describe('activity log', () => {
     const res = await activity(a.ownerId, a.token, '?before=garbage');
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('validation_error');
+  });
+
+  it('lists a system entry', async () => {
+    const a = await seedOwner(ctx.services);
+    await logSystemActivity(a.ownerId, { action: 'booking.confirmed', entity: 'booking', entityId: oid() }, at(9));
+    const res = await activity(a.ownerId, a.token);
+    expect(res.status).toBe(200);
+    const item = res.body.items.find((i: { action: string }) => i.action === 'booking.confirmed');
+    expect(item.actor).toBeNull();
   });
 });

@@ -25,7 +25,7 @@ export function activityRouter(): Router {
       .sort({ _id: -1 })
       .limit(limit)
       .lean();
-    const actors = await User.find({ _id: { $in: rows.map((r) => r.actorId) } }, { name: 1 }).lean();
+    const actors = await User.find({ _id: { $in: rows.flatMap((r) => (r.actorId ? [r.actorId] : [])) } }, { name: 1 }).lean();
     const nameById = new Map(actors.map((u) => [String(u._id), u.name ?? null]));
     const items = rows.map((r) => ({
       id: String(r._id),
@@ -33,7 +33,9 @@ export function activityRouter(): Router {
       entity: r.entity,
       entityId: String(r.entityId),
       venueId: r.venueId ? String(r.venueId) : null,
-      actor: { id: String(r.actorId), name: nameById.get(String(r.actorId)) ?? null },
+      actor: r.actorId
+        ? { id: String(r.actorId), name: nameById.get(String(r.actorId)) ?? null }
+        : null,
       before: r.before ?? null,
       after: r.after ?? null,
       at: r.at.toISOString(),

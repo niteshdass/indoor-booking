@@ -91,8 +91,8 @@ export function initialStatus(input: {
   advanceRequired: number;
 }): 'awaiting_payment' | 'pending' | 'confirmed' {
   if (input.source === 'walkin') return 'confirmed';
-  if (input.advanceRequired > 0) return 'awaiting_payment';
-  return input.guest ? 'pending' : 'confirmed';
+  if (input.guest) return 'pending';
+  return input.advanceRequired > 0 ? 'awaiting_payment' : 'confirmed';
 }
 
 export function paymentStatusFor(amountPaid: number, total: number): 'unpaid' | 'partially_paid' | 'paid' {
@@ -118,7 +118,10 @@ export function quoteBooking(input: {
   inUse?: Record<string, number>;
   paymentPolicy: PaymentPolicy | null;
 }): BookingQuote {
-  const slots = input.slots.map((s) => ({ startAt: s.startAt, endAt: s.endAt, price: s.price as number }));
+  const slots = input.slots.map((s) => {
+    if (s.price === null) throw new BookingQuoteError('slot_unavailable', s.startAt.toISOString());
+    return { startAt: s.startAt, endAt: s.endAt, price: s.price };
+  });
   const subtotal = slots.reduce((sum, s) => sum + s.price, 0);
   const { lines, total: addonsTotal } = quoteAddons({
     offered: input.offered,

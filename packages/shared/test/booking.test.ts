@@ -129,6 +129,7 @@ describe('initialStatus', () => {
     expect(initialStatus({ source: 'online', guest: true, advanceRequired: 0 })).toBe('pending');
     expect(initialStatus({ source: 'online', guest: false, advanceRequired: 0 })).toBe('confirmed');
     expect(initialStatus({ source: 'online', guest: false, advanceRequired: 840 })).toBe('awaiting_payment');
+    expect(initialStatus({ source: 'online', guest: true, advanceRequired: 840 })).toBe('pending');
   });
 });
 
@@ -160,6 +161,13 @@ describe('quoteBooking', () => {
   });
   it('walk-in has no advance', () => {
     expect(quoteBooking({ ...base, paymentPolicy: null }).advanceRequired).toBe(0);
+  });
+  it('rejects a null-priced slot', () => {
+    const e = codeOf(() =>
+      quoteBooking({ ...base, slots: [slotAt(18, { price: null })], paymentPolicy: null }),
+    );
+    expect(e.code).toBe('slot_unavailable');
+    expect(e.startAt).toBe(iso(18).toISOString());
   });
   it('propagates add-on errors', () => {
     expect(() =>

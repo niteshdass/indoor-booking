@@ -20,6 +20,9 @@ import { tenantRepo } from '../../tenancy/repo';
 import { applyPatch, venueSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForVenue, ownerSettings } from '../effective';
 import { Venue, type VenueDoc } from '../venue.model';
+import { Turf } from '../turf.model';
+import { Membership } from '../../tenancy/membership.model';
+import { activeTurfCount, lockVenue } from '../guards';
 
 const SLUG_MAX = 60;
 const MAX_SLUG_SUFFIX = 20;
@@ -79,6 +82,7 @@ export const venuePatchFields = {
   photos: fields.photos.optional(),
   amenities: fields.amenities.optional(),
   settings: fields.settings.optional(),
+  published: z.boolean().optional(),
 };
 const patchSchema = z.object(venuePatchFields).strict();
 
@@ -239,12 +243,24 @@ export function venuesRouter(services: AppServices): Router {
       venue.markModified('settings');
     }
     const { before, after } = changedFields(beforeAll, snapshotOf(venue, keys));
+    const changed = Object.keys(after);
+    const action =
+      changed.length === 1 && changed[0] === 'published'
+        ? venue.published ? 'venue.publish' : 'venue.unpublish'
+        : 'venue.update';
+    const publishing = changed.includes('published') && venue.published;
     try {
       await runInTransaction(async (session) => {
+        if (publishing) {
+          await lockVenue(t, venue.id as string, services.now(), session);
+          if ((await activeTurfCount(t, venue.id as string, session)) === 0) {
+            throw new AppError(409, 'venue_not_ready', 'Add an active turf before publishing');
+          }
+        }
         await venue.save({ session });
         await logActivity(
           t,
-          { action: 'venue.update', entity: 'venue', entityId: venue.id as string, venueId: venue.id as string, before, after },
+          { action, entity: 'venue', entityId: venue.id as string, venueId: venue.id as string, before, after },
           services.now(),
           session,
         );
@@ -254,6 +270,35 @@ export function venuesRouter(services: AppServices): Router {
       throw err;
     }
     res.json({ venue: venueJson(venue, await effectiveForVenue(t.ownerId, venue)) });
+  });
+
+  router.delete('/venues/:venueId', requirePermission('venue.manage'), async (req, res) => {
+    const t = tenantOf(req);
+    const venue = await scopedVenue(t, req.params.venueId as string);
+    await runInTransaction(async (session) => {
+      if (await Turf.exists({ ownerId: t.ownerId, venueId: venue._id }).session(session)) {
+        throw new AppError(409, 'venue_has_turfs', 'Delete or move the turfs first');
+      }
+      await Venue.deleteOne({ ownerId: t.ownerId, _id: venue._id }, { session });
+      await Membership.updateMany(
+        { ownerId: t.ownerId, venueIds: venue._id },
+        { $pull: { venueIds: venue._id } },
+        { session },
+      );
+      await logActivity(
+        t,
+        {
+          action: 'venue.delete',
+          entity: 'venue',
+          entityId: venue.id as string,
+          venueId: venue.id as string,
+          before: { name: venue.name, slug: venue.slug },
+        },
+        services.now(),
+        session,
+      );
+    });
+    res.status(204).end();
   });
 
   return router;

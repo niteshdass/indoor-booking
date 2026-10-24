@@ -242,6 +242,7 @@
     "summary": "Your selection",
     "continue": "Continue",
     "selectedCount_one": "{{count}} slot",
-    "selectedCount_other": "{{count}} slots"
+    "selectedCount_other": "{{count}} slots",
+    "pickHint": "Pick a time slot to see your total."
   }
 }

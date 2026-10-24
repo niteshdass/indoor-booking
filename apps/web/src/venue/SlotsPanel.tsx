@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
@@ -9,7 +8,7 @@ import { errorMessage } from '../lib/errors';
 import { formatDate, money } from '../lib/format';
 import type { SlotDay } from '../lib/types';
 import { SlotGrid } from './SlotGrid';
-import { toggleSlot } from './slotSelection';
+import { keepSelectable, toggleSlot } from './slotSelection';
 import styles from './SlotsPanel.module.css';
 
 type State = { status: 'loading' } | { status: 'ready'; day: SlotDay } | { status: 'error'; error: unknown };
@@ -29,8 +28,7 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
     apiGet<{ day: SlotDay }>(`/venues/${encodeURIComponent(slug)}/turfs/${encodeURIComponent(turfId)}/slots?date=${date}`).then(
       (r) => {
         if (!live) return;
-        const free = new Set(r.day.slots.filter((s) => s.status === 'available').map((s) => s.startAt));
-        setSelected((prev) => (prev.every((x) => free.has(x)) ? prev : []));
+        setSelected((prev) => keepSelectable(r.day.slots, prev));
         setState({ status: 'ready', day: r.day });
       },
       (error: unknown) => live && setState({ status: 'error', error }),
@@ -87,20 +85,27 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
         {day && <SlotGrid day={day} selected={selected} onToggle={onToggle} />}
       </div>
 
-      {day && first && last && (
-        <aside className={styles.bar} aria-label={t('slots.summary')}>
-          <div className={styles.info}>
-            <span className={styles.count} aria-live="polite">
-              {t('slots.selectedCount', { count: chosen.length })}
-            </span>
-            <span className={styles.range}>
-              {first.localStart}–{last.localEnd}
-            </span>
-            <span className={styles.total}>{money(total, day.currency, i18n.language)}</span>
-          </div>
-          <Link to={href} className={styles.continue}>
-            {t('slots.continue')}
-          </Link>
+      <p className={styles.live} aria-live="polite">
+        {first ? t('slots.selectedCount', { count: chosen.length }) : ''}
+      </p>
+      {day && (
+        <aside className={[styles.bar, first ? '' : styles.barEmpty].filter(Boolean).join(' ')} aria-label={t('slots.summary')}>
+          {first && last ? (
+            <>
+              <div className={styles.info}>
+                <span className={styles.count}>{t('slots.selectedCount', { count: chosen.length })}</span>
+                <span className={styles.range}>
+                  {first.localStart}–{last.localEnd}
+                </span>
+                <span className={styles.total}>{money(total, day.currency, i18n.language)}</span>
+              </div>
+              <Button to={href} variant="brand" size="lg">
+                {t('slots.continue')}
+              </Button>
+            </>
+          ) : (
+            <p className={styles.hint}>{t('slots.pickHint')}</p>
+          )}
         </aside>
       )}
     </section>

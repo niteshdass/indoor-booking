@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_SLOTS_PER_BOOKING, type SlotStatus } from '@booking/shared';
-import { toggleSlot } from '../../src/venue/slotSelection';
+import { keepSelectable, toggleSlot } from '../../src/venue/slotSelection';
 import type { SlotJson } from '../../src/lib/types';
 
 const BASE = Date.parse('2026-10-25T04:00:00Z');
@@ -60,5 +60,27 @@ describe('toggleSlot', () => {
     const list = [slot(0), slot(1, 'pending'), slot(2)];
     const sel = [list[0]!.startAt];
     expect(toggleSlot(list, sel, list[1]!.startAt)).toBe(sel);
+  });
+
+  it('max 12 also blocks backward extension', () => {
+    const many = Array.from({ length: 14 }, (_, i) => slot(i));
+    const sel = many.slice(1, 1 + MAX_SLOTS_PER_BOOKING).map((x) => x.startAt);
+    expect(toggleSlot(many, sel, many[0]!.startAt)).toBe(sel);
+  });
+
+  it('null price is not selectable', () => {
+    const list = [slot(0), { ...slot(1), price: null }, slot(2)];
+    expect(toggleSlot(list, [], list[1]!.startAt)).toEqual([]);
+    const sel = [list[0]!.startAt];
+    expect(toggleSlot(list, sel, list[1]!.startAt)).toBe(sel);
+  });
+});
+
+describe('keepSelectable', () => {
+  it('drops selections that became booked or unpriced, keeps others', () => {
+    const list = [slot(0), slot(1, 'booked'), { ...slot(2), price: null }, slot(3)];
+    const all = list.map((x) => x.startAt);
+    expect(keepSelectable(list, all)).toEqual([]);
+    expect(keepSelectable(list, [all[0]!])).toEqual([all[0]]);
   });
 });

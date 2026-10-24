@@ -1,6 +1,16 @@
 import { MAX_SLOTS_PER_BOOKING } from '@booking/shared';
 import type { SlotJson } from '../lib/types';
 
+export function isSelectable(s: SlotJson): boolean {
+  return s.status === 'available' && s.price !== null;
+}
+
+/** The part of `selected` that is still selectable in a fresh slot list; all-or-nothing keeps the run valid. */
+export function keepSelectable(slots: SlotJson[], selected: string[]): string[] {
+  const ok = new Set(slots.filter(isSelectable).map((s) => s.startAt));
+  return selected.every((x) => ok.has(x)) ? selected : [];
+}
+
 /**
  * Next selection after clicking `startAt`. `selected` holds startAt values sorted ascending and forming one
  * consecutive run. Only available slots can be selected; the run never exceeds MAX_SLOTS_PER_BOOKING.
@@ -15,7 +25,7 @@ export function toggleSlot(slots: SlotJson[], selected: string[], startAt: strin
     return [startAt];
   }
 
-  if (slot.status !== 'available') return selected;
+  if (!isSelectable(slot)) return selected;
   if (selected.length === 0) return [startAt];
 
   const first = slots.find((s) => s.startAt === selected[0]);

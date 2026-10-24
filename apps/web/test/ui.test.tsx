@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import '../src/i18n';
 import { Button } from '../src/components/ui/Button';
 import { Dialog } from '../src/components/ui/Dialog';
@@ -19,6 +20,18 @@ function Harness() {
 }
 
 describe('ui', () => {
+  it('button with `to` renders a brand-styled router link', () => {
+    render(
+      <MemoryRouter>
+        <Button to="/go?x=1" variant="brand" size="lg">Go</Button>
+      </MemoryRouter>,
+    );
+    const link = screen.getByRole('link', { name: 'Go' });
+    expect(link).toHaveAttribute('href', '/go?x=1');
+    expect(link.className).toMatch(/brand/);
+    expect(link.className).toMatch(/lg/);
+  });
+
   it('loading button is disabled, busy, shows a spinner and ignores clicks', async () => {
     const onClick = vi.fn();
     render(<Button loading onClick={onClick}>Save</Button>);

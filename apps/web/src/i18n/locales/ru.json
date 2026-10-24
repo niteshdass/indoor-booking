@@ -250,6 +250,7 @@
     "selectedCount_one": "{{count}} слот",
     "selectedCount_few": "{{count}} слота",
     "selectedCount_many": "{{count}} слотов",
-    "selectedCount_other": "{{count}} слота"
+    "selectedCount_other": "{{count}} слота",
+    "pickHint": "Выберите время, чтобы увидеть сумму."
   }
 }

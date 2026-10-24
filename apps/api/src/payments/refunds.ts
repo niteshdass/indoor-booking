@@ -6,7 +6,7 @@ import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { runInTransaction } from '../db';
 import type { AppServices } from '../services';
 import { logActivity, logSystemActivity, type ActivityEntry } from '../tenancy/activityLog.model';
-import { GatewayError } from './gateway';
+import { GatewayError, gatewayFor } from './gateway';
 import { loadGateway } from './gateway.model';
 import { Refund, type RefundDoc, type RefundReason, type RuleApplied } from './refund.model';
 
@@ -70,6 +70,7 @@ export async function reserveRefunds(
   for (const part of parts) {
     const payment = await Payment.findOne({ ownerId, _id: part.paymentId }).session(session);
     if (!payment || part.amount > payment.amount - payment.refundedAmount) throw new Error('Refund exceeds what was paid');
+    if (part.method === 'card' && payment.method !== 'card') throw new Error('A card refund needs a card payment');
     const reserved = await Payment.updateOne(
       { ownerId, _id: payment._id, refundedAmount: payment.refundedAmount },
       { $inc: { refundedAmount: part.amount } },
@@ -200,26 +201,44 @@ export async function settleRefund(
 /**
  * Phase 2, after the reserving transaction committed: sends a card refund to the gateway that
  * took the payment. Gateway trouble leaves the row pending for reconcileRefunds; it never throws for it.
+ * Returns whether this call worked on the refund (false when it was skipped or another dispatcher won).
  */
 export async function dispatchRefund(
   refundId: string,
   ownerId: string,
   deps: { config: Config; services: AppServices },
-): Promise<void> {
+): Promise<boolean> {
   const now = deps.services.now();
   const refund = await Refund.findOne({ ownerId, _id: refundId });
-  if (!refund || refund.method !== 'card' || refund.status !== 'pending') return;
+  if (!refund || refund.method !== 'card' || refund.status !== 'pending') return false;
   const settle = (outcome: Outcome) => runInTransaction((s) => settleRefund(ownerId, refund._id, outcome, now, s));
+  // Compare-and-set on the row as read: of two concurrent dispatchers only one gets the claim.
+  const claim = (dispatched: boolean) =>
+    Refund.findOneAndUpdate(
+      { ownerId, _id: refund._id, status: 'pending', attempts: refund.attempts, updatedAt: refund.updatedAt },
+      { $set: { ...(dispatched ? { dispatchedAt: now } : {}), updatedAt: now }, $inc: { attempts: 1 } },
+      { new: true, timestamps: false },
+    );
+  /** The gateway could not be reached: count the attempt, and give up once there have been too many. */
+  const retryLater = async () => {
+    const bumped = await claim(false);
+    if (!bumped) return false;
+    if (bumped.attempts >= MAX_DISPATCH_ATTEMPTS) await settle({ status: 'failed', failureCode: 'gateway_unreachable' });
+    return true;
+  };
 
+  // No key or adapter is a deployment problem that a later run may fix; only a missing or replaced account is final.
+  if (!deps.config.paymentsKey || !gatewayFor(deps.services, refund.gateway!)) return retryLater();
   const loaded = await loadGateway(ownerId, refund.gateway!, deps.config, deps.services);
   if (!loaded || loaded.row.accountId !== refund.gatewayAccountId) {
-    await settle({ status: 'failed', failureCode: 'account_changed' });
-    return;
+    // Once dispatched, the money may have moved at the old account.
+    await settle({ status: 'failed', failureCode: refund.dispatchedAt ? 'account_changed_after_dispatch' : 'account_changed' });
+    return true;
   }
   const payment = await Payment.findOne({ ownerId, _id: refund.paymentId });
   if (!payment?.gatewayRef) {
     await settle({ status: 'failed', failureCode: 'no_charge' });
-    return;
+    return true;
   }
   const { gateway, creds } = loaded;
   const gatewayRef = payment.gatewayRef;
@@ -230,20 +249,16 @@ export async function dispatchRefund(
       const found = await gateway.findRefund(creds, { gatewayRef, refundId: String(refund._id) });
       if (found) {
         await settle({ status: found.status, gatewayRef: found.refundRef, failureCode: found.failureCode });
-        return;
+        return true;
       }
     } catch (err) {
-      if (err instanceof GatewayError) return;
+      if (err instanceof GatewayError) return retryLater();
       throw err;
     }
   }
 
-  const claimed = await Refund.findOneAndUpdate(
-    { ownerId, _id: refund._id, status: 'pending' },
-    { $set: { dispatchedAt: now, updatedAt: now }, $inc: { attempts: 1 } },
-    { new: true, timestamps: false },
-  );
-  if (!claimed) return;
+  const claimed = await claim(true);
+  if (!claimed) return false;
 
   try {
     const result = await gateway.refund(creds, {
@@ -257,6 +272,7 @@ export async function dispatchRefund(
     if (!(err instanceof GatewayError)) throw err;
     if (claimed.attempts >= MAX_DISPATCH_ATTEMPTS) await settle({ status: 'failed', failureCode: 'gateway_unreachable' });
   }
+  return true;
 }
 
 /** Sweeper: re-dispatches card refunds stuck pending (outage, crash between commit and dispatch). */
@@ -275,8 +291,7 @@ export async function reconcileRefunds(
   let dispatched = 0;
   for (const row of stuck) {
     try {
-      await dispatchRefund(String(row._id), String(row.ownerId), deps);
-      dispatched += 1;
+      if (await dispatchRefund(String(row._id), String(row.ownerId), deps)) dispatched += 1;
     } catch (err) {
       console.error(`[refunds] reconcile of ${String(row._id)} failed`, err);
     }

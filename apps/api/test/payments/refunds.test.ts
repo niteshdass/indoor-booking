@@ -166,7 +166,8 @@ describe('refund service', () => {
 
   it('a declined refund fails and releases the reservation', async () => {
     const { booking, payment, refund } = await reserved(3000);
-    expect((await bookingOf(booking._id)).paymentStatus).toBe('paid');
+    // What the cancel flow would have written for a full reservation.
+    await Booking.updateOne({ ownerId: owner.ownerId, _id: booking._id }, { $set: { paymentStatus: 'refunded' } });
     ctx.services.stripe.refundStatus = 'failed';
     await dispatchRefund(String(refund._id), owner.ownerId, deps());
     const row = await refundOf(refund._id);
@@ -193,6 +194,8 @@ describe('refund service', () => {
     expect(row.status).toBe('succeeded');
     expect(listCalls()).toHaveLength(1);
     expect(createCalls()).toHaveLength(2);
+    const order = ctx.services.stripe.calls.map((c) => c.method).filter((m) => m.startsWith('refunds.'));
+    expect(order).toEqual(['refunds.create', 'refunds.list', 'refunds.create']);
   });
 
   it('adopts an earlier refund instead of refunding twice', async () => {
@@ -222,6 +225,68 @@ describe('refund service', () => {
     expect(createCalls()).toHaveLength(0);
     expect((await paymentOf(payment._id)).refundedAmount).toBe(0);
     expect((await bookingOf(booking._id)).amountRefunded).toBe(0);
+  });
+
+  it('fails a refund whose account was replaced after it was dispatched', async () => {
+    const { refund } = await reserved();
+    await Refund.updateOne({ ownerId: owner.ownerId, _id: refund._id }, { $set: { dispatchedAt: ctx.services.now() } });
+    await connectStripe(ctx.app, owner, { secretKey: 'sk_test_replaced' });
+    await dispatchRefund(String(refund._id), owner.ownerId, deps());
+    expect(await refundOf(refund._id)).toMatchObject({ status: 'failed', failureCode: 'account_changed_after_dispatch' });
+  });
+
+  it('fails a refund whose gateway account was removed', async () => {
+    const { refund } = await reserved();
+    await PaymentGatewayAccount.deleteMany({ ownerId: owner.ownerId });
+    await dispatchRefund(String(refund._id), owner.ownerId, deps());
+    expect(await refundOf(refund._id)).toMatchObject({ status: 'failed', failureCode: 'account_changed' });
+  });
+
+  it('treats a missing encryption key as retryable, then gives up', async () => {
+    const { payment, refund } = await reserved();
+    const noKey = { config: { ...ctx.config, paymentsKey: undefined }, services: ctx.services };
+    await dispatchRefund(String(refund._id), owner.ownerId, noKey);
+    expect(await refundOf(refund._id)).toMatchObject({ status: 'pending', attempts: 1 });
+    await Refund.updateOne({ ownerId: owner.ownerId, _id: refund._id }, { $set: { attempts: MAX_DISPATCH_ATTEMPTS - 1 } });
+    await dispatchRefund(String(refund._id), owner.ownerId, noKey);
+    expect(await refundOf(refund._id)).toMatchObject({ status: 'failed', failureCode: 'gateway_unreachable' });
+    expect((await paymentOf(payment._id)).refundedAmount).toBe(0);
+    expect(createCalls()).toHaveLength(0);
+  });
+
+  it('counts a failed lookup as an attempt and gives up eventually', async () => {
+    const { payment, refund } = await reserved();
+    const where = { ownerId: owner.ownerId, _id: refund._id };
+    await Refund.updateOne(where, { $set: { dispatchedAt: ctx.services.now() } });
+    ctx.services.clock.advance(11 * MIN);
+    ctx.services.stripe.fail('refunds.list', 'api');
+    await dispatchRefund(String(refund._id), owner.ownerId, deps());
+    const row = await refundOf(refund._id);
+    expect(row).toMatchObject({ status: 'pending', attempts: 1 });
+    expect(row.updatedAt).toEqual(ctx.services.now());
+
+    await Refund.updateOne(where, { $set: { attempts: MAX_DISPATCH_ATTEMPTS - 1 } });
+    ctx.services.stripe.fail('refunds.list', 'api');
+    await dispatchRefund(String(refund._id), owner.ownerId, deps());
+    expect(await refundOf(refund._id)).toMatchObject({ status: 'failed', failureCode: 'gateway_unreachable' });
+    expect((await paymentOf(payment._id)).refundedAmount).toBe(0);
+  });
+
+  it('two concurrent dispatchers call the gateway once', async () => {
+    const { refund } = await reserved();
+    await Promise.all([
+      dispatchRefund(String(refund._id), owner.ownerId, deps()),
+      dispatchRefund(String(refund._id), owner.ownerId, deps()),
+    ]);
+    expect(createCalls()).toHaveLength(1);
+    expect((await refundOf(refund._id)).attempts).toBe(1);
+  });
+
+  it('rejects a card part against a cash payment', async () => {
+    const booking = await seedBooking(3000);
+    const payment = await seedPayment(booking, { method: 'cash' });
+    await expect(reserve(booking, [{ paymentId: payment._id, method: 'card', amount: 100 }])).rejects.toThrow();
+    expect((await paymentOf(payment._id)).refundedAmount).toBe(0);
   });
 
   it('fails a refund whose payment has no charge', async () => {

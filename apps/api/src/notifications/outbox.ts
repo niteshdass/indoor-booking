@@ -61,12 +61,11 @@ export async function noticeBooking(
   extra: { amount?: number; reason?: string | null; refundId?: string } = {},
 ): Promise<number> {
   const ownerId = String(booking.ownerId);
-  const [venue, turf, owner, player] = await Promise.all([
-    Venue.findOne({ ownerId, _id: booking.venueId }).session(session),
-    Turf.findOne({ ownerId, _id: booking.turfId }).session(session),
-    Owner.findById(ownerId).session(session),
-    booking.playerId ? User.findById(booking.playerId).session(session) : null,
-  ]);
+  // One at a time: a transaction session cannot run operations in parallel.
+  const venue = await Venue.findOne({ ownerId, _id: booking.venueId }).session(session);
+  const turf = await Turf.findOne({ ownerId, _id: booking.turfId }).session(session);
+  const owner = await Owner.findById(ownerId).session(session);
+  const player = booking.playerId ? await User.findById(booking.playerId).session(session) : null;
   if (!venue || !turf || !owner) throw new Error('Booking venue, turf or owner is missing');
 
   const data: NoticeData = {

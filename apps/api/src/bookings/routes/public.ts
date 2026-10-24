@@ -19,6 +19,9 @@ import { Booking, bookingJson } from '../booking.model';
 import { createBooking, quoteFor } from '../create';
 import { startIntent } from '../../payments/intent';
 import { invalidTransition } from '../transition';
+import { cancelBooking, previewCancellation } from '../cancel';
+import { Refund } from '../../payments/refund.model';
+import { refundJson } from '../../payments/refunds';
 
 export const startAtsSchema = z
   .array(z.string().datetime({ offset: true }))
@@ -52,6 +55,27 @@ const guestsAllowed = (s: EffectiveSettings) => s.guestBooking.allowed && s.paym
 const guestDisabled = () =>
   new AppError(403, 'guest_booking_disabled', 'Guest booking is not available at this venue');
 const bookingNotFound = () => new AppError(404, 'not_found', 'Booking not found');
+
+const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
+const guestCancelSchema = z
+  .object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32), otpCode: otpCodeSchema, reason: z.string().trim().max(300).optional() })
+  .strict();
+const guestOtpSchema = z.object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32) }).strict();
+
+/** The guest's booking by reference and phone. Same 404 for an unknown reference, a wrong phone and a malformed phone. */
+async function guestBooking(reference: string, rawPhone: string) {
+  let phone: string;
+  try {
+    phone = normalizePhone(rawPhone);
+  } catch {
+    throw bookingNotFound();
+  }
+  const booking = await Booking.findOne({ reference: reference.trim().toUpperCase(), 'guest.phone': phone }).setOptions({
+    crossTenant: true,
+  });
+  if (!booking) throw bookingNotFound();
+  return booking;
+}
 
 const quoteJson = (q: BookingQuote, currency: string) => ({
   currency,
@@ -152,18 +176,29 @@ export function publicBookingsRouter(
 
   router.get('/bookings/lookup', async (req, res) => {
     const q = lookupQuery.parse(req.query);
-    // Same 404 for an unknown reference, a wrong phone and a malformed phone.
-    let phone: string;
-    try {
-      phone = normalizePhone(q.phone);
-    } catch {
-      throw bookingNotFound();
-    }
-    const booking = await Booking.findOne({ reference: q.reference.trim().toUpperCase(), 'guest.phone': phone }).setOptions({
-      crossTenant: true,
-    });
-    if (!booking) throw bookingNotFound();
-    res.json({ booking: bookingJson(booking) });
+    res.json({ booking: bookingJson(await guestBooking(q.reference, q.phone)) });
+  });
+
+  router.get('/bookings/lookup/cancellation', async (req, res) => {
+    const q = lookupQuery.parse(req.query);
+    const booking = await guestBooking(q.reference, q.phone);
+    res.json({ preview: await previewCancellation(booking, 'guest', services.now()) });
+  });
+
+  // Cancelling can move money, so a guest always needs a code, even where booking needs none.
+  router.post('/bookings/lookup/otp', ...(otpLimiter ? [otpLimiter] : []), async (req, res) => {
+    const q = guestOtpSchema.parse(req.body);
+    const booking = await guestBooking(q.reference, q.phone);
+    res.json(await requestOtp(booking.guest!.phone, 'guest_cancel', services));
+  });
+
+  router.post('/bookings/lookup/cancel', async (req, res) => {
+    const q = guestCancelSchema.parse(req.body);
+    const booking = await guestBooking(q.reference, q.phone);
+    // After the lookup, so a wrong phone never checks or consumes a code.
+    await verifyOtp(booking.guest!.phone, 'guest_cancel', q.otpCode, services);
+    const out = await cancelBooking(booking, { kind: 'guest', ownerId: String(booking.ownerId) }, { reason: q.reason || undefined }, { config, services });
+    res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
   router.get('/me/bookings', requireAuth(config, services), async (req, res) => {
@@ -174,13 +209,33 @@ export function publicBookingsRouter(
     res.json({ bookings: bookings.map(bookingJson) });
   });
 
-  router.get('/me/bookings/:bookingId', requireAuth(config, services), async (req, res) => {
-    const { bookingId } = req.params;
+  /** The player's own booking, else 404 (never 403, so ids don't leak). */
+  async function playerBooking(bookingId: string, userId: string) {
     const booking = mongoose.isValidObjectId(bookingId)
-      ? await Booking.findOne({ _id: bookingId, playerId: req.auth!.userId }).setOptions({ crossTenant: true })
+      ? await Booking.findOne({ _id: bookingId, playerId: userId }).setOptions({ crossTenant: true })
       : null;
     if (!booking) throw bookingNotFound();
-    res.json({ booking: bookingJson(booking) });
+    return booking;
+  }
+
+  router.get('/me/bookings/:bookingId', requireAuth(config, services), async (req, res) => {
+    const booking = await playerBooking(req.params.bookingId as string, req.auth!.userId);
+    const refunds = await Refund.find({ ownerId: booking.ownerId, bookingId: booking._id }).sort({ _id: 1 });
+    res.json({ booking: bookingJson(booking), refunds: refunds.map(refundJson) });
+  });
+
+  router.get('/me/bookings/:bookingId/cancellation', requireAuth(config, services), async (req, res) => {
+    const booking = await playerBooking(req.params.bookingId as string, req.auth!.userId);
+    res.json({ preview: await previewCancellation(booking, 'player', services.now()) });
+  });
+
+  router.post('/me/bookings/:bookingId/cancel', requireAuth(config, services), async (req, res) => {
+    const { reason } = cancelSchema.parse(req.body ?? {});
+    const userId = req.auth!.userId;
+    const booking = await playerBooking(req.params.bookingId as string, userId);
+    const by = { kind: 'player' as const, ownerId: String(booking.ownerId), userId };
+    const out = await cancelBooking(booking, by, { reason: reason || undefined }, { config, services });
+    res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
   router.post('/bookings/:bookingId/payment', requireAuth(config, services), async (req, res) => {

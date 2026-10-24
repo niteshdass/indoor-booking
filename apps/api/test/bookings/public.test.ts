@@ -21,6 +21,7 @@ import { AddonAssignment } from '../../src/addons/assignment.model';
 import { Booking } from '../../src/bookings/booking.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
 import { Payment } from '../../src/bookings/payment.model';
+import { Refund } from '../../src/payments/refund.model';
 
 beforeAll(async () => {
   await startTestDb();
@@ -50,7 +51,7 @@ beforeEach(async () => {
   await Promise.all([
     User.deleteMany({}), Owner.deleteMany({}), OtpCode.deleteMany({}), OtpThrottle.deleteMany({}),
     Membership.deleteMany({ ownerId: { $exists: true } }),
-    ...[Venue, Turf, Closure, SlotOverride, Addon, AddonAssignment, Booking, SlotLock, Payment].map((m) =>
+    ...[Venue, Turf, Closure, SlotOverride, Addon, AddonAssignment, Booking, SlotLock, Payment, Refund].map((m) =>
       (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true }),
     ),
   ]);
@@ -300,5 +301,126 @@ describe('lookup with a malformed phone', () => {
     const bad = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: 'abc' });
     expect(bad.status).toBe(404);
     expect(bad.body).toEqual(miss.body);
+  });
+});
+
+describe('player cancellation', () => {
+  /** A confirmed 18:00 booking with 1500 paid in cash; the venue refunds 50% from 24h out. */
+  async function paidBooking(token: string) {
+    await setup({ refundRules: [{ minHoursBefore: 24, percent: 50 }] });
+    const res = await post(`${base()}/bookings`, { date: D, startAts: [at('18:00')] }, token);
+    expect(res.status).toBe(201);
+    const id = res.body.booking.id as string;
+    const b = (await Booking.findById(id).setOptions({ crossTenant: true }))!;
+    await Payment.create({
+      ownerId, venueId: b.venueId, bookingId: b._id, method: 'cash', amount: 1500, currency: 'BDT', status: 'succeeded',
+    });
+    await Booking.updateOne({ ownerId, _id: id }, { amountPaid: 1500, paymentStatus: 'paid' });
+    return id;
+  }
+  const getAs = (path: string, token: string) => request(ctx.app).get(`/api/v1${path}`).set(...bearer(token));
+
+  it('player previews and cancels their own booking', async () => {
+    const { token } = await newPlayer();
+    const id = await paidBooking(token);
+    const preview = await getAs(`/me/bookings/${id}/cancellation`, token);
+    expect(preview.status).toBe(200);
+    expect(preview.body.preview).toMatchObject({ percent: 50, amount: 750, amountPaid: 1500, cash: 750, card: 0 });
+
+    const res = await post(`/api/v1/me/bookings/${id}/cancel`, { reason: 'rain' }, token);
+    expect(res.status).toBe(200);
+    expect(res.body.booking).toMatchObject({ id, status: 'cancelled', cancelledBy: 'player', cancelReason: 'rain' });
+    expect(res.body.refunds).toHaveLength(1);
+    expect(res.body.refunds[0]).toMatchObject({ amount: preview.body.preview.amount, ruleApplied: { percent: preview.body.preview.percent } });
+  });
+
+  it("player cannot cancel someone else's booking", async () => {
+    const { token } = await newPlayer();
+    const id = await paidBooking(token);
+    const other = await newPlayer();
+    expect((await getAs(`/me/bookings/${id}/cancellation`, other.token)).status).toBe(404);
+    expect((await post(`/api/v1/me/bookings/${id}/cancel`, {}, other.token)).status).toBe(404);
+    expect((await post(`/api/v1/me/bookings/${id}/cancel`, {})).status).toBe(401);
+    expect((await Booking.findById(id).setOptions({ crossTenant: true }))!.status).toBe('confirmed');
+  });
+
+  it('player cancel after start is too_late', async () => {
+    const { userId, token: early } = await newPlayer();
+    const id = await paidBooking(early);
+    ctx.services.clock.advance(Date.parse(at('18:30')) - ctx.services.now().getTime());
+    // The first token has expired with the clock.
+    const token = await signAccessToken(userId, ctx.config.jwtSecret, ctx.services.now());
+    const res = await post(`/api/v1/me/bookings/${id}/cancel`, {}, token);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('too_late');
+    expect((await getAs(`/me/bookings/${id}/cancellation`, token)).body.error.code).toBe('too_late');
+  });
+
+  it('me booking detail lists refunds', async () => {
+    const { token } = await newPlayer();
+    const id = await paidBooking(token);
+    expect((await getAs(`/me/bookings/${id}`, token)).body.refunds).toEqual([]);
+    const cancelled = await post(`/api/v1/me/bookings/${id}/cancel`, {}, token);
+    const res = await getAs(`/me/bookings/${id}`, token);
+    expect(res.body.refunds).toEqual(cancelled.body.refunds);
+    expect(res.body.refunds).toHaveLength(1);
+  });
+});
+
+describe('guest cancellation', () => {
+  async function guestBookingRef() {
+    await requestOtpFor();
+    const created = await post(`${base()}/bookings`, guestBody());
+    expect(created.status).toBe(201);
+    ctx.services.clock.advance(61_000);
+    return created.body.booking.reference as string;
+  }
+  const lookupOtp = (reference: string, phone = PHONE) => post('/api/v1/bookings/lookup/otp', { reference, phone });
+  const lastCode = () => /\d{6}/.exec(ctx.services.sms.sent.at(-1)!.text)![0];
+
+  it('guest cancel needs a code sent to the booking phone', async () => {
+    const reference = await guestBookingRef();
+    const preview = await request(ctx.app).get('/api/v1/bookings/lookup/cancellation').query({ reference, phone: PHONE });
+    expect(preview.status).toBe(200);
+    expect(preview.body.preview).toMatchObject({ amount: 0, amountPaid: 0 });
+
+    const none = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE });
+    expect(none.status).toBe(400);
+    expect(none.body.error.code).toBe('validation_error');
+
+    const sentBefore = ctx.services.sms.sent.length;
+    const otp = await lookupOtp(reference, '+880 1711 111111');
+    expect(otp.status).toBe(200);
+    expect(ctx.services.sms.sent).toHaveLength(sentBefore + 1);
+    expect(ctx.services.sms.sent.at(-1)!.to).toBe(PHONE);
+
+    const wrong = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: '000000' });
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.error.code).toBe('otp_invalid');
+
+    const ok = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: lastCode(), reason: 'plans changed' });
+    expect(ok.status).toBe(200);
+    expect(ok.body.booking).toMatchObject({ status: 'cancelled', cancelledBy: 'guest', cancelReason: 'plans changed' });
+    expect(ok.body.refunds).toEqual([]);
+  });
+
+  it('guest otp and cancel answer 404 for a wrong phone', async () => {
+    const reference = await guestBookingRef();
+    const sentBefore = ctx.services.sms.sent.length;
+    const miss = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference, phone: '+8801722222222' });
+    for (const phone of ['+8801722222222', 'abc']) {
+      const otp = await lookupOtp(reference, phone);
+      const cancel = await post('/api/v1/bookings/lookup/cancel', { reference, phone, otpCode: '123456' });
+      const preview = await request(ctx.app).get('/api/v1/bookings/lookup/cancellation').query({ reference, phone });
+      for (const r of [otp, cancel, preview]) {
+        expect(r.status).toBe(404);
+        expect(r.body).toEqual(miss.body);
+      }
+    }
+    expect(ctx.services.sms.sent).toHaveLength(sentBefore);
+    // The real code was never touched by the wrong-phone attempts.
+    await lookupOtp(reference);
+    const ok = await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: lastCode() });
+    expect(ok.status).toBe(200);
   });
 });

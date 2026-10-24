@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-export const OTP_PURPOSES = ['login', 'link', 'guest_booking'] as const;
+export const OTP_PURPOSES = ['login', 'link', 'guest_booking', 'guest_cancel'] as const;
 
 const otpCodeSchema = new mongoose.Schema({
   phone: { type: String, required: true },

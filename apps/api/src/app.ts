@@ -14,6 +14,7 @@ import { meRouter } from './auth/routes/me';
 import { ownerRouter } from './tenancy/routes/owner';
 import { myMembershipsRouter } from './tenancy/routes/myMemberships';
 import { publicVenuesRouter } from './venues/routes/public';
+import { publicSlotsRouter } from './schedule/routes/publicSlots';
 
 export type AppDeps = {
   config: Config;
@@ -62,6 +63,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(meRouter(authDeps));
   api.use(myMembershipsRouter(authDeps));
   api.use(publicVenuesRouter());
+  api.use(publicSlotsRouter(deps.services));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
 
   deps.extraRoutes?.(api);

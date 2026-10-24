@@ -138,7 +138,8 @@ export async function cancelBooking(
         booking: current,
         parts: allocateRefund(payments, amount),
         reason: 'cancellation',
-        ruleApplied: { minHoursBefore: rule?.minHoursBefore ?? null, percent },
+        // Staff refund in full whatever tier matched, so no rule applied.
+        ruleApplied: { minHoursBefore: kind === 'staff' ? null : (rule?.minHoursBefore ?? null), percent },
         by: userId,
         now,
       },

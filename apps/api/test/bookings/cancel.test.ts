@@ -198,6 +198,15 @@ describe('cancelBooking', () => {
     expect(res.body.refund).toMatchObject({ method: 'cash', status: 'succeeded', amount: 3000, paymentId: String(b._id) });
   });
 
+  it('staff cancel inside a tier still records no rule, at 100%', async () => {
+    const { bookingId } = await paid();
+    ctx.services.clock.advance(28 * HOUR);
+    await cancelBooking(await bookingOf(bookingId), staff(), {}, deps());
+    const rows = await refundRows();
+    expect(rows.map((r) => r.amount)).toEqual([3000]);
+    expect(rows[0]!.ruleApplied).toEqual({ minHoursBefore: null, percent: 100 });
+  });
+
   it('player cannot cancel after start; staff can', async () => {
     const { player, bookingId } = await paid();
     ctx.services.clock.advance(109 * HOUR);

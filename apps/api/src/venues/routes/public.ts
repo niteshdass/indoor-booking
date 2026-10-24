@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { SLUG_RE } from '@booking/shared';
 import { AppError } from '../../errors';
+import { Owner } from '../../tenancy/owner.model';
 import { Venue } from '../venue.model';
 import { Turf } from '../turf.model';
 
@@ -16,6 +17,9 @@ export function publicVenuesRouter(): Router {
     // Public read by slug across tenants: the one cross-tenant venue lookup the spec allows.
     const venue = await Venue.findOne({ slug, published: true }).setOptions({ crossTenant: true });
     if (!venue) throw notFound();
+    // A suspended or not-yet-approved owner's venues leave the player side too.
+    const owner = await Owner.findById(venue.ownerId, { status: 1 }).lean();
+    if (owner?.status !== 'active') throw notFound();
     const turfs = await Turf.find({ ownerId: venue.ownerId, venueId: venue._id, active: true })
       .sort({ name: 1 })
       .collation({ locale: 'en', strength: 2 });

@@ -64,6 +64,16 @@ describe('public venue page', () => {
     for (const body of bodies) expect(body).toEqual({ error: { code: 'not_found', message: 'Venue not found' } });
   });
 
+  it('venue of a suspended or pending owner → same 404', async () => {
+    await seedVenue(ownerId, { slug: 'paused-venue', published: true });
+    for (const status of ['suspended', 'pending_approval']) {
+      await Owner.updateOne({ _id: ownerId }, { $set: { status } });
+      const res = await get('paused-venue');
+      expect(res.status, status).toBe(404);
+      expect(res.body).toEqual({ error: { code: 'not_found', message: 'Venue not found' } });
+    }
+  });
+
   it('no auth needed', async () => {
     await seedVenue(ownerId, { slug: 'open-venue', published: true });
     const res = await get('open-venue');

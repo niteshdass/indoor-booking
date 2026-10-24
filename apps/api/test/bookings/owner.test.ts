@@ -162,6 +162,16 @@ describe('walk-in with cash', () => {
     expect((await walkin(staff.token)).status).toBe(201);
     expect((await walkin(staff.token)).status).toBe(409);
   });
+
+  it('cash walk-in on a zero total confirms without a payment', async () => {
+    await Turf.updateOne({ _id: t1 }, { $set: { pricing: { base: 0, rules: [] } } }).setOptions({ crossTenant: true });
+    const res = await walkin(staff.token, { payment: { method: 'cash' } });
+    expect(res.status).toBe(201);
+    expect(res.body.booking).toMatchObject({ status: 'confirmed', paymentStatus: 'paid', total: 0, amountPaid: 0 });
+    expect(await Payment.countDocuments({}).setOptions({ crossTenant: true })).toBe(0);
+    const acts = await ActivityLog.find({ ownerId: a.ownerId, action: /^(booking|payment)\./ }).lean();
+    expect(acts.map((r) => r.action)).toEqual(['booking.create']);
+  });
 });
 
 describe('walk-in atomicity and permissions', () => {

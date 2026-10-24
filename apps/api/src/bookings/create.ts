@@ -42,11 +42,19 @@ export type CreateBookingInput = QuoteInput & {
   who: { playerId: string | null; guest: { name: string; phone: string } | null; createdBy: string | null };
   /** Cash taken at creation; an omitted amount means the whole total. */
   cash?: { amount?: number; recordedBy: string };
+  /**
+   * A card payment link: the booking is held awaiting_payment for LINK_HOLD_MINUTES and a pending
+   * `link` payment is inserted. An omitted amount means the whole total.
+   */
+  card?: { amount?: number; gateway: string; gatewayAccountId: string };
   /** Runs inside the creating transaction after the inserts, e.g. to log activity atomically. */
   afterInsert?: (session: ClientSession, booking: BookingDoc, payment: PaymentDoc | null) => Promise<void>;
 };
 
 const REFERENCE_ATTEMPTS = 5;
+
+/** A Stripe Checkout Session cannot expire sooner than 30 minutes, so a link hold lasts that long. */
+export const LINK_HOLD_MINUTES = 30;
 
 const slotTaken = () => new AppError(409, 'slot_taken', 'That slot was just booked');
 
@@ -148,7 +156,7 @@ export async function quoteFor(
  * sees the winner. Does not log activity; staff routes do that.
  */
 export async function createBooking(input: CreateBookingInput): Promise<BookingDoc> {
-  const { venue, turf, selection, source, now, who, cash, afterInsert } = input;
+  const { venue, turf, selection, source, now, who, cash, card, afterInsert } = input;
   let prepared: Awaited<ReturnType<typeof prepare>>;
   try {
     prepared = await prepare(input);
@@ -179,15 +187,21 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
       const inUse = await stockInUse(ownerId, venue, stocked, range, now, session);
       const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy });
 
-      const status = initialStatus({ source, guest: who.guest !== null, advanceRequired: quote.advanceRequired });
-      let amountPaid = 0;
-      if (cash) {
-        amountPaid = cash.amount ?? quote.total;
-        assertMinor(amountPaid);
-        if (amountPaid < 1 || amountPaid > quote.total) {
-          throw new InvalidMoneyError(`Cash must be between 1 and ${quote.total}`);
-        }
-      }
+      const status = card
+        ? 'awaiting_payment'
+        : initialStatus({ source, guest: who.guest !== null, advanceRequired: quote.advanceRequired });
+      // Nothing to collect on a free booking: cash records no payment, a card link is refused.
+      const takeCash = cash !== undefined && (quote.total > 0 || cash.amount !== undefined);
+      if (card && quote.total === 0) throw new AppError(400, 'nothing_to_pay', 'This booking has nothing to pay');
+      const amountOf = (taken: { amount?: number }) => {
+        const amount = taken.amount ?? quote.total;
+        assertMinor(amount);
+        if (amount < 1 || amount > quote.total) throw new InvalidMoneyError(`Amount must be between 1 and ${quote.total}`);
+        return amount;
+      };
+      const amountPaid = takeCash ? amountOf(cash) : 0;
+      const linkAmount = card ? amountOf(card) : 0;
+      const holdMinutes = card ? LINK_HOLD_MINUTES : HOLD_MINUTES;
 
       const [booking] = await Booking.create(
         [
@@ -209,7 +223,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             amountPaid,
             status,
             paymentStatus: paymentStatusFor(amountPaid, quote.total),
-            holdExpiresAt: status === 'awaiting_payment' ? new Date(now.getTime() + HOLD_MINUTES * 60_000) : null,
+            holdExpiresAt: status === 'awaiting_payment' ? new Date(now.getTime() + holdMinutes * 60_000) : null,
             source,
             playerId: who.playerId,
             guest: who.guest,
@@ -223,21 +237,22 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
         quote.slots.map((s) => ({ ownerId, turfId: turf._id, startAt: s.startAt, bookingId: booking!._id })),
         { session, ordered: true },
       );
+      const paymentRow = takeCash
+        ? { method: 'cash', amount: amountPaid, status: 'succeeded', recordedBy: cash.recordedBy }
+        : card
+          ? {
+              method: 'card',
+              kind: 'link',
+              amount: linkAmount,
+              status: 'pending',
+              gateway: card.gateway,
+              gatewayAccountId: card.gatewayAccountId,
+            }
+          : null;
       let payment: PaymentDoc | null = null;
-      if (cash) {
+      if (paymentRow) {
         const [created] = await Payment.create(
-          [
-            {
-              ownerId,
-              venueId: venue._id,
-              bookingId: booking!._id,
-              method: 'cash',
-              amount: amountPaid,
-              currency: venue.currency,
-              status: 'succeeded',
-              recordedBy: cash.recordedBy,
-            },
-          ],
+          [{ ownerId, venueId: venue._id, bookingId: booking!._id, currency: venue.currency, ...paymentRow }],
           { session },
         );
         payment = created as unknown as PaymentDoc;

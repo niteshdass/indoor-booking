@@ -28,7 +28,8 @@ export async function expireHold(booking: BookingDoc, now: Date): Promise<void> 
 
 /**
  * Inserts the booking's pending card payment, or returns the existing one of the same kind when
- * the partial unique index says it is already there.
+ * the partial unique index says it is already there. A pending payment of the other kind (a
+ * walk-in link under an online intent, or the reverse) is a 409.
  */
 export async function pendingCardPayment(
   booking: BookingDoc,
@@ -49,8 +50,11 @@ export async function pendingCardPayment(
     });
   } catch (err) {
     if (!isDuplicateKeyError(err)) throw err;
-    const existing = await Payment.findOne({ ownerId, bookingId: booking._id, method: 'card', status: 'pending', kind });
+    const existing = await Payment.findOne({ ownerId, bookingId: booking._id, method: 'card', status: 'pending' });
     if (!existing) throw err;
+    if (existing.kind !== kind) {
+      throw new AppError(409, 'invalid_transition', 'This booking already has a payment in progress');
+    }
     return existing;
   }
 }
@@ -102,4 +106,42 @@ export async function startIntent(
     payment.gatewayRef = created.gatewayRef;
   }
   return { payment, clientSecret: created.clientSecret, publishableKey: row.publishableKey };
+}
+
+/** Creates (or, by idempotency key, replays) the Checkout Session of a pending walk-in `link` payment. */
+export async function startLink(
+  booking: BookingDoc,
+  payment: PaymentDoc,
+  ctx: { config: Config; services: AppServices },
+): Promise<{ url: string }> {
+  const { config, services } = ctx;
+  const ownerId = String(booking.ownerId);
+  const loaded = await loadGateway(ownerId, payment.gateway ?? '', config, services);
+  // The webhook verifies with the account that took the payment, so the link must be on it too.
+  if (!loaded || loaded.row.accountId !== payment.gatewayAccountId || !booking.holdExpiresAt) {
+    throw paymentsUnavailable();
+  }
+  const { creds, gateway } = loaded;
+
+  const created = await gateway.createPayment(creds, {
+    kind: 'link',
+    amount: payment.amount,
+    currency: payment.currency,
+    metadata: {
+      paymentId: String(payment._id),
+      bookingId: String(booking._id),
+      ownerId,
+      reference: booking.reference,
+    },
+    description: `Booking ${booking.reference}`,
+    idempotencyKey: `link_${payment._id}`,
+    expiresAt: booking.holdExpiresAt,
+    successUrl: `${config.appUrl}/payment-complete?reference=${encodeURIComponent(booking.reference)}`,
+  });
+  if (!created.url || !created.linkRef) throw new GatewayError('gateway_error');
+  if (payment.linkRef !== created.linkRef) {
+    await Payment.updateOne({ ownerId, _id: payment._id }, { $set: { linkRef: created.linkRef } });
+    payment.linkRef = created.linkRef;
+  }
+  return { url: created.url };
 }

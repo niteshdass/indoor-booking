@@ -60,7 +60,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(slotsRouter(services));
   router.use(catalogueRouter(services));
   router.use(assignmentsRouter(services));
-  router.use(ownerBookingsRouter(services));
+  router.use(ownerBookingsRouter(config, services));
   router.use(gatewaysRouter(config, services));
 
   return router;

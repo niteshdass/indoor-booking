@@ -5,10 +5,13 @@ import { BOOKING_STATUSES, localParts, paymentStatusFor, type BookingStatus } fr
 import { normalizePhone } from '../../auth/normalize';
 import { nameSchema } from '../../auth/routes/emailAuth';
 import { User } from '../../auth/user.model';
+import type { Config } from '../../config';
 import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
 import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
+import { expireHold, paymentsUnavailable, startLink } from '../../payments/intent';
+import { loadGateway } from '../../payments/gateway.model';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { permissionsCover, requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
@@ -16,7 +19,7 @@ import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Booking, bookingJson } from '../booking.model';
 import { createBooking } from '../create';
-import { Payment } from '../payment.model';
+import { Payment, type PaymentDoc } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
 import { addonsSchema, startAtsSchema } from './public';
 
@@ -46,6 +49,7 @@ const walkinSchema = z
       .strict(),
     payment: z.discriminatedUnion('method', [
       z.object({ method: z.literal('cash'), amount: z.number().int().optional() }).strict(),
+      z.object({ method: z.literal('link'), amount: z.number().int().optional() }).strict(),
       z.object({ method: z.literal('unpaid') }).strict(),
     ]),
   })
@@ -62,7 +66,7 @@ const daysBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(f
 const tooEarly = () => new AppError(409, 'too_early', 'It is too early for this action');
 
 /** Mounted on ownerRouter. */
-export function ownerBookingsRouter(services: AppServices): Router {
+export function ownerBookingsRouter(config: Config, services: AppServices): Router {
   const router = Router({ mergeParams: true });
 
   router.get('/bookings', requirePermission('booking.view'), async (req, res) => {
@@ -118,10 +122,21 @@ export function ownerBookingsRouter(services: AppServices): Router {
     if (cash && !permissionsCover(t, ['payment.mark_cash'])) {
       throw new AppError(403, 'forbidden', 'You do not have permission to do this');
     }
+    // A card link needs booking.create only: staff hand over a link and take no money.
+    let card: { amount?: number; gateway: string; gatewayAccountId: string } | undefined;
+    if (input.payment.method === 'link') {
+      const loaded = await loadGateway(t.ownerId, 'stripe', config, services);
+      if (!loaded || !loaded.row.enabled || !loaded.gateway.supports(venue.country, venue.currency)) {
+        throw paymentsUnavailable();
+      }
+      card = { amount: input.payment.amount, gateway: loaded.gateway.key, gatewayAccountId: loaded.row.accountId };
+    }
+    let linkPayment: PaymentDoc | null = null;
     const booking = await createBooking({
       ...base,
       who: { playerId, guest: { name: input.customer.name, phone }, createdBy: t.userId },
       cash,
+      card,
       // Same transaction as the inserts: the booking and its log commit or fail together.
       afterInsert: async (session, created, payment) => {
         const venueId = String(created.venueId);
@@ -137,7 +152,8 @@ export function ownerBookingsRouter(services: AppServices): Router {
           now,
           session,
         );
-        if (payment) {
+        if (payment?.method === 'card') linkPayment = payment;
+        if (payment?.method === 'cash') {
           await logActivity(
             t,
             {
@@ -153,7 +169,35 @@ export function ownerBookingsRouter(services: AppServices): Router {
         }
       },
     });
-    res.status(201).json({ booking: bookingJson(booking) });
+    if (!linkPayment) {
+      res.status(201).json({ booking: bookingJson(booking) });
+      return;
+    }
+    // After commit: a Stripe failure leaves the hold in place for the re-issue route.
+    const { url } = await startLink(booking, linkPayment, { config, services });
+    res.status(201).json({ booking: bookingJson(booking), payment: linkJson(linkPayment, url) });
+  });
+
+  router.post('/bookings/:bookingId/payments/link', requirePermission('booking.create'), async (req, res) => {
+    const t = tenantOf(req);
+    const booking = await scopedBooking(t, req.params.bookingId as string);
+    const payment = await Payment.findOne({
+      ownerId: t.ownerId,
+      bookingId: booking._id,
+      method: 'card',
+      kind: 'link',
+      status: 'pending',
+    });
+    if (!payment || booking.status !== 'awaiting_payment') {
+      throw new AppError(409, 'invalid_transition', 'This booking has no payment link to show');
+    }
+    const now = services.now();
+    if (!booking.holdExpiresAt || booking.holdExpiresAt <= now) {
+      await expireHold(booking, now);
+      throw new AppError(409, 'hold_expired', 'This hold has expired');
+    }
+    const { url } = await startLink(booking, payment, { config, services });
+    res.json({ payment: linkJson(payment, url) });
   });
 
   router.post('/bookings/:bookingId/confirm', requirePermission('booking.confirm'), async (req, res) => {
@@ -256,6 +300,10 @@ export function ownerBookingsRouter(services: AppServices): Router {
   });
 
   return router;
+}
+
+function linkJson(p: PaymentDoc, url: string) {
+  return { id: String(p.id), amount: p.amount, currency: p.currency, url };
 }
 
 function paymentJson(p: InstanceType<typeof Payment>) {

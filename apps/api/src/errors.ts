@@ -1,5 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
+import { AddonQuoteError, BookingQuoteError, InvalidMoneyError } from '@booking/shared';
 
 export class AppError extends Error {
   constructor(
@@ -52,6 +53,20 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     res.status(400).json({
       error: { code: 'validation_error', message: 'Invalid request', details: err.issues },
     });
+    return;
+  }
+  if (err instanceof AddonQuoteError) {
+    res.status(err.code === 'addon_out_of_stock' ? 409 : 400).json({
+      error: { code: err.code, message: err.message, details: { addonId: err.addonId } },
+    });
+    return;
+  }
+  if (err instanceof BookingQuoteError) {
+    res.status(400).json({ error: { code: err.code, message: err.message, details: { startAt: err.startAt } } });
+    return;
+  }
+  if (err instanceof InvalidMoneyError) {
+    res.status(400).json({ error: { code: 'invalid_amount', message: err.message } });
     return;
   }
   if (isJsonParseError(err)) {

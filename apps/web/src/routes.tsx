@@ -7,7 +7,7 @@ import { RegisterPage } from './auth/RegisterPage';
 import { ForgotPasswordPage } from './auth/ForgotPasswordPage';
 import { ResetPasswordPage } from './auth/ResetPasswordPage';
 import { ProfilePage } from './auth/ProfilePage';
-import { MyBookingsPage } from './pages/MyBookingsPage';
+import { MyBookingsPage } from './bookings/MyBookingsPage';
 import { VenuePage } from './venue/VenuePage';
 import { CheckoutPage } from './checkout/CheckoutPage';
 import { BookingDetailPage } from './bookings/BookingDetailPage';

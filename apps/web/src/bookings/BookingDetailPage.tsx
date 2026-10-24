@@ -4,13 +4,17 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
-import { apiGet, ApiError } from '../lib/apiClient';
+import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import type { BookingJson } from '../lib/types';
+import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { Badge } from '../components/ui/Badge';
+import { money } from '../lib/format';
 import { BookingFacts } from './BookingFacts';
+import { CancelDialog } from './CancelDialog';
 import styles from './BookingDetailPage.module.css';
 
+const CANCELLABLE = new Set(['awaiting_payment', 'pending', 'confirmed']);
 const POLL_MS = 2000;
 const POLL_BUDGET_MS = 60_000;
 
@@ -22,7 +26,7 @@ type State =
 
 export function BookingDetailPage() {
   const { id = '' } = useParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const paid = params.get('paid') === '1';
@@ -30,13 +34,19 @@ export function BookingDetailPage() {
   const [attempt, setAttempt] = useState(0);
   const [slow, setSlow] = useState(false);
   const [epoch, setEpoch] = useState(0);
+  const [refunds, setRefunds] = useState<RefundJson[]>([]);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const path = `/me/bookings/${encodeURIComponent(id)}`;
 
   useEffect(() => {
     let live = true;
     setState({ status: 'loading' });
-    apiGet<{ booking: BookingJson }>(path).then(
-      (res) => live && setState({ status: 'ready', booking: res.booking }),
+    apiGet<{ booking: BookingJson; refunds?: RefundJson[] }>(path).then(
+      (res) => {
+        if (!live) return;
+        setRefunds(res.refunds ?? []);
+        setState({ status: 'ready', booking: res.booking });
+      },
       (error) => live && setState(error instanceof ApiError && error.status === 404 ? { status: 'not_found' } : { status: 'error', error }),
     );
     return () => {
@@ -121,6 +131,40 @@ export function BookingDetailPage() {
             <Button to={`${path}/pay`} variant="brand" size="lg" block>
               {t('booking.payNow')}
             </Button>
+          )}
+          {refunds.length > 0 && (
+            <section className={styles.refunds} aria-label={t('cancel.refundsTitle')}>
+              <h2 className={styles.refundsTitle}>{t('cancel.refundsTitle')}</h2>
+              <ul className={styles.refundList}>
+                {refunds.map((r) => (
+                  <li key={r.id} className={styles.refund}>
+                    <span className={styles.refundAmount}>{money(r.amount, r.currency, i18n.language)}</span>
+                    <span>{t(`cancel.method.${r.method}`)}</span>
+                    <Badge tone={r.status === 'succeeded' ? 'success' : r.status === 'failed' ? 'danger' : 'warning'}>
+                      {t(`cancel.refundStatus.${r.status}`)}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {CANCELLABLE.has(booking.status) && (
+            <>
+              <Button variant="secondary" size="lg" block onClick={() => setCancelOpen(true)}>
+                {t('cancel.open')}
+              </Button>
+              <CancelDialog
+                open={cancelOpen}
+                onClose={() => setCancelOpen(false)}
+                loadPreview={() => apiGet<{ preview: CancellationPreview }>(`${path}/cancellation`).then((r) => r.preview)}
+                cancel={(reason) => apiPost<{ booking: BookingJson; refunds: RefundJson[] }>(`${path}/cancel`, reason ? { reason } : {})}
+                onCancelled={(b, rs) => {
+                  setState({ status: 'ready', booking: b });
+                  setRefunds(rs);
+                  setCancelOpen(false);
+                }}
+              />
+            </>
           )}
         </>
       )}

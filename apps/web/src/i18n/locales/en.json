@@ -118,10 +118,16 @@
     "addon_auto": "That extra is added automatically.",
     "invalid_quantity": "Choose a valid quantity for the extras.",
     "addon_out_of_stock": "That extra is out of stock for these times.",
-    "too_many_slots": "You can book at most 12 slots at once."
+    "too_many_slots": "You can book at most 12 slots at once.",
+    "invalid_transition": "This booking can no longer be cancelled."
   },
   "myBookings": {
-    "title": "My bookings"
+    "title": "My bookings",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "noUpcoming": "You have no upcoming bookings.",
+    "noPast": "No past bookings yet.",
+    "findVenues": "Find a venue"
   },
   "profile": {
     "title": "Profile",
@@ -332,5 +338,29 @@
     "paid": "Paid",
     "refunded": "Refunded",
     "partially_refunded": "Partially refunded"
+  },
+  "cancel": {
+    "open": "Cancel booking",
+    "title": "Cancel this booking?",
+    "paid": "Paid so far",
+    "refund": "Your refund ({{percent}}%)",
+    "rule": "{{hours}}+ hours before start: {{percent}}%",
+    "noRule": "No refund rule applies at this time.",
+    "toCard": "{{amount}} will be refunded to your card.",
+    "cashAtVenue": "Collect {{amount}} in cash at the venue.",
+    "noRefund": "This cancellation is not eligible for a refund.",
+    "reason": "Reason (optional)",
+    "confirm": "Cancel booking",
+    "keep": "Keep booking",
+    "refundsTitle": "Refunds",
+    "method": {
+      "card": "Card",
+      "cash": "Cash"
+    },
+    "refundStatus": {
+      "pending": "Pending",
+      "succeeded": "Refunded",
+      "failed": "Failed"
+    }
   }
 }

@@ -13,12 +13,14 @@ import { Owner } from '../../src/tenancy/owner.model';
 import { Role, ensureSystemRoles, systemRole } from '../../src/tenancy/role.model';
 import { Membership } from '../../src/tenancy/membership.model';
 import { ActivityLog } from '../../src/tenancy/activityLog.model';
+import { Venue } from '../../src/venues/venue.model';
+import { seedVenue } from '../helpers/venues';
 
 beforeAll(async () => {
   await startTestDb();
   await Promise.all([
     User.init(), OtpCode.init(), OtpThrottle.init(), RefreshToken.init(),
-    Owner.init(), Role.init(), Membership.init(), ActivityLog.init(),
+    Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -38,6 +40,7 @@ beforeEach(async () => {
     Membership.deleteMany({ ownerId: { $exists: true } }),
     ActivityLog.deleteMany({}).setOptions({ crossTenant: true }),
     Role.deleteMany({ ownerId: { $ne: null } }),
+    Venue.deleteMany({}).setOptions({ crossTenant: true }),
   ]);
   ctx = buildTestApp();
   a = await seedOwner(ctx.services);
@@ -117,7 +120,7 @@ describe('members API', () => {
   });
 
   it('manager cannot be given more than the actor has', async () => {
-    const [v1, v2] = [oid(), oid()];
+    const [v1, v2] = [(await seedVenue(a.ownerId)).id as string, (await seedVenue(a.ownerId)).id as string];
     const hr = await Role.create({ ownerId: a.ownerId, name: 'HR', permissions: ['staff.manage', 'booking.view'] });
     const viewer = await Role.create({ ownerId: a.ownerId, name: 'Viewer', permissions: ['booking.view'] });
     const m = await addMember(ctx.services, a.ownerId, { roleId: String(hr._id), venueIds: [v1] });
@@ -208,5 +211,24 @@ describe('members API', () => {
     const res = await api().get(url(a.ownerId)).set(...bearer(staff.token));
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('forbidden');
+  });
+
+  it('adding or updating a member with unknown venue ids → 404', async () => {
+    const notFound = { error: { code: 'not_found', message: 'Venue not found' } };
+    const random = await add(a.token, { name: 'X', email: 'x@x.com', roleId: staffRoleId, venueIds: [oid()] });
+    expect(random.status).toBe(404);
+    expect(random.body).toEqual(notFound);
+    const b = await seedOwner(ctx.services);
+    const bVenue = (await seedVenue(b.ownerId)).id as string;
+    const foreign = await add(a.token, { name: 'X', email: 'x@x.com', roleId: staffRoleId, venueIds: [bVenue] });
+    expect(foreign.status).toBe(404);
+    expect(foreign.body).toEqual(notFound);
+
+    const mine = (await seedVenue(a.ownerId)).id as string;
+    const ok = await add(a.token, { name: 'X', email: 'x@x.com', roleId: staffRoleId, venueIds: [mine] });
+    expect(ok.status).toBe(201);
+    const res = await api().patch(url(a.ownerId, `/${ok.body.member.id}`)).set(...bearer(a.token)).send({ venueIds: [oid()] });
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual(notFound);
   });
 });

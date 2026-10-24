@@ -12,6 +12,7 @@ import { logActivity } from '../activityLog.model';
 import { assertCanGrant, requirePermission, tenantOf, type TenantContext } from '../context';
 import { Membership } from '../membership.model';
 import { Role } from '../role.model';
+import { Venue } from '../../venues/venue.model';
 
 const objectIdString = z.string().regex(/^[0-9a-f]{24}$/i, 'Must be an id');
 const venueIdsSchema = z
@@ -62,6 +63,13 @@ function assertVenuesWithinActor(t: TenantContext, venueIds: VenueIds): void {
   if (t.venueIds === 'all') return;
   const mine = t.venueIds;
   if (venueIds === 'all' || !venueIds.every((v) => mine.includes(v))) throw escalation();
+}
+
+/** Every listed venue must be one of this owner's; others look missing, like any foreign data. */
+async function assertVenuesExist(t: TenantContext, venueIds: VenueIds): Promise<void> {
+  if (venueIds === 'all' || venueIds.length === 0) return;
+  const found = await Venue.countDocuments({ ownerId: t.ownerId, _id: { $in: venueIds } });
+  if (found !== venueIds.length) throw new AppError(404, 'not_found', 'Venue not found');
 }
 
 const venueIdsOf = (m: { allVenues?: boolean | null; venueIds: unknown[] }): VenueIds =>
@@ -166,6 +174,7 @@ export function membersRouter(services: AppServices): Router {
     const role = await assignableRole(t, input.roleId);
     assertRoleWithinActor(t, role);
     assertVenuesWithinActor(t, input.venueIds);
+    await assertVenuesExist(t, input.venueIds);
     // Outside the transaction: a duplicate-key error would abort it, and the re-find needs to run.
     const user = await findOrCreateUser(input);
     const allVenues = input.venueIds === 'all';
@@ -205,7 +214,10 @@ export function membersRouter(services: AppServices): Router {
     const input = patchSchema.parse(req.body);
     const m = await editableMembership(t, req.params.membershipId as string);
     if (input.roleId !== undefined) assertRoleWithinActor(t, await assignableRole(t, input.roleId));
-    if (input.venueIds !== undefined) assertVenuesWithinActor(t, input.venueIds);
+    if (input.venueIds !== undefined) {
+      assertVenuesWithinActor(t, input.venueIds);
+      await assertVenuesExist(t, input.venueIds);
+    }
     const before = snapshot(m);
     if (input.roleId !== undefined) m.roleId = new mongoose.Types.ObjectId(input.roleId);
     if (input.venueIds !== undefined) {

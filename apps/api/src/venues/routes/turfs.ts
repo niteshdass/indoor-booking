@@ -10,6 +10,9 @@ import { applyPatch, turfSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForTurf, ownerSettings } from '../effective';
 import { Turf, type TurfDoc } from '../turf.model';
 import { Venue } from '../venue.model';
+import { SlotOverride } from '../../schedule/slotOverride.model';
+import { Closure } from '../../schedule/closure.model';
+import { AddonAssignment } from '../../addons/assignment.model';
 import { activeTurfCount, lockVenue, scopedTurf } from '../guards';
 import { changedFields, scopedVenue } from './venues';
 
@@ -187,6 +190,10 @@ export function turfsRouter(services: AppServices): Router {
         if (current?.published && (await activeTurfCount(t, venueId, session, turf._id)) === 0) throw lastActive();
       }
       await Turf.deleteOne({ ownerId: t.ownerId, _id: turf._id }, { session });
+      const own = { ownerId: t.ownerId, turfId: turf._id };
+      await SlotOverride.deleteMany(own, { session });
+      await Closure.deleteMany(own, { session });
+      await AddonAssignment.deleteMany(own, { session });
       await logActivity(
         t,
         { action: 'turf.delete', entity: 'turf', entityId: turf.id as string, venueId, before: snapshot(turf) },

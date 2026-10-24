@@ -22,6 +22,8 @@ import { applyPatch, venueSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForVenue, ownerSettings } from '../effective';
 import { Venue, type VenueDoc } from '../venue.model';
 import { Turf } from '../turf.model';
+import { Closure } from '../../schedule/closure.model';
+import { AddonAssignment } from '../../addons/assignment.model';
 import { Membership } from '../../tenancy/membership.model';
 import { activeTurfCount, lockVenue, venueNotFound } from '../guards';
 
@@ -284,6 +286,9 @@ export function venuesRouter(services: AppServices): Router {
         throw new AppError(409, 'venue_has_turfs', 'Delete or move the turfs first');
       }
       await Venue.deleteOne({ ownerId: t.ownerId, _id: venue._id }, { session });
+      // No turfs are left, so only venue-level rows remain.
+      await Closure.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
+      await AddonAssignment.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
       await Membership.updateMany(
         { ownerId: t.ownerId, venueIds: venue._id },
         { $pull: { venueIds: venue._id } },

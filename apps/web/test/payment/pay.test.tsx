@@ -132,3 +132,63 @@ describe('pay page', () => {
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
   });
 });
+
+describe('pay page edge cases', () => {
+  it('hold expiring during a pending confirm that succeeds still navigates paid', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api({ pay: start(2000, 'pk_edge1') });
+    let resolve!: (v: unknown) => void;
+    h.confirmPayment.mockReturnValue(new Promise((r) => (resolve = r)));
+    const { user, location } = renderApp(PATH, { user: player });
+    await user.click(await payButton());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(screen.queryByText(en.payment.expired)).not.toBeInTheDocument();
+    expect(screen.getByTestId('payment-element')).toBeInTheDocument();
+    await act(async () => resolve({}));
+    await waitFor(() => expect(location().search).toBe('?paid=1'));
+    expect(screen.queryByText(en.payment.expired)).not.toBeInTheDocument();
+  });
+
+  it('confirm error after expiry shows expired', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api({ pay: start(2000, 'pk_edge2') });
+    let resolve!: (v: unknown) => void;
+    h.confirmPayment.mockReturnValue(new Promise((r) => (resolve = r)));
+    const { user } = renderApp(PATH, { user: player });
+    await user.click(await payButton());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await act(async () => resolve({ error: { message: 'declined' } }));
+    expect(await screen.findByText(en.payment.expired)).toBeInTheDocument();
+  });
+
+  it('double click confirms once', async () => {
+    api({ pay: start(600_000, 'pk_edge3') });
+    h.confirmPayment.mockReturnValue(new Promise(() => {}));
+    const { user } = renderApp(PATH, { user: player });
+    const btn = await payButton();
+    await user.dblClick(btn);
+    expect(h.confirmPayment).toHaveBeenCalledTimes(1);
+  });
+
+  it('payments_unavailable shows alert and retry re-posts', async () => {
+    const { calls } = api({ payStatus: 409, pay: { error: { code: 'payments_unavailable', message: 'x' } } });
+    const { user } = renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.errors.payments_unavailable)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.search.retry }));
+    await waitFor(() => expect(calls.filter((c) => c.method === 'POST')).toHaveLength(2));
+  });
+
+  it('loadStripe rejection shows alert and retry recovers', async () => {
+    api({ pay: start(600_000, 'pk_edge5') });
+    h.loadStripe.mockRejectedValueOnce(new Error('net'));
+    const { user } = renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.payment.loadFailed)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.search.retry }));
+    expect(await screen.findByTestId('payment-element')).toBeInTheDocument();
+    expect(h.loadStripe).toHaveBeenCalledTimes(2);
+  });
+});

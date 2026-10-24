@@ -21,6 +21,10 @@ function stripeFor(key: string): Promise<Stripe | null> {
   if (!p) {
     p = loadStripe(key);
     stripes.set(key, p);
+    // A failed load must not stay cached, or Retry could never recover.
+    p.catch(() => {
+      if (stripes.get(key) === p) stripes.delete(key);
+    });
   }
   return p;
 }
@@ -30,7 +34,7 @@ type State =
   | { status: 'ready'; booking: BookingJson; start: PaymentStart }
   | { status: 'redirect' }
   | { status: 'expired'; booking: BookingJson | null }
-  | { status: 'error'; error: unknown };
+  | { status: 'error'; error: unknown; loadFailed?: boolean };
 
 function formatClock(ms: number): string {
   const total = Math.ceil(Math.max(0, ms) / 1000);
@@ -39,7 +43,7 @@ function formatClock(ms: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function PayForm({ id, start }: { id: string; start: PaymentStart }) {
+function PayForm({ id, start, expired, onConfirming }: { id: string; start: PaymentStart; expired: boolean; onConfirming(v: boolean): void }) {
   const { t, i18n } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
@@ -58,10 +62,12 @@ function PayForm({ id, start }: { id: string; start: PaymentStart }) {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements || inflight.current) return;
+    if (!stripe || !elements || inflight.current || expired) return;
     inflight.current = true;
+    onConfirming(true);
     setBusy(true);
     setError(null);
+    let failed = false;
     const paidPath = `/me/bookings/${encodeURIComponent(id)}?paid=1`;
     try {
       const res = await stripe.confirmPayment({
@@ -70,13 +76,22 @@ function PayForm({ id, start }: { id: string; start: PaymentStart }) {
         redirect: 'if_required',
       });
       if (!mounted.current) return;
-      if (res.error) setError(res.error.message ?? t('errors.generic'));
-      else navigate(paidPath);
+      if (res.error) {
+        setError(res.error.message ?? t('errors.generic'));
+        failed = true;
+      } else {
+        // Paid: keep `confirming` set so the page never swaps to Expired before navigation.
+        navigate(paidPath);
+      }
     } catch (err) {
       if (mounted.current) setError(errorMessage(err, t));
+      failed = true;
     } finally {
       inflight.current = false;
-      if (mounted.current) setBusy(false);
+      if (mounted.current) {
+        setBusy(false);
+        if (failed) onConfirming(false);
+      }
     }
   };
 
@@ -108,21 +123,22 @@ function Expired({ slug }: { slug: string | null }) {
 
 function PayElements({ id, booking, start }: { id: string; booking: BookingJson; start: PaymentStart }) {
   const { t, i18n } = useTranslation();
+  const [confirming, setConfirming] = useState(false);
   const { msLeft, expired } = useCountdown(start.holdExpiresAt);
   const stripe = useMemo(() => stripeFor(start.payment.publishableKey), [start.payment.publishableKey]);
   // Computed once per payment start so Elements never sees a changing clientSecret/appearance.
   const options = useMemo(
-    () => ({ clientSecret: start.payment.clientSecret, appearance: stripeAppearance(), locale: i18n.language as 'en' | 'ru' }),
-    [start.payment.clientSecret],
+    () => ({ clientSecret: start.payment.clientSecret, appearance: stripeAppearance(), locale: (i18n.resolvedLanguage === 'en' || i18n.resolvedLanguage === 'ru' ? i18n.resolvedLanguage : 'auto') as 'en' | 'ru' | 'auto' }),
+    [start.payment.clientSecret, i18n.resolvedLanguage],
   );
-  if (expired) return <Expired slug={booking.venue?.slug ?? null} />;
+  if (expired && !confirming) return <Expired slug={booking.venue?.slug ?? null} />;
   return (
     <>
       <p className={styles.hold} aria-live="off">
         {t('payment.holdEndsIn', { time: formatClock(msLeft) })}
       </p>
       <Elements stripe={stripe} options={options}>
-        <PayForm id={id} start={start} />
+        <PayForm id={id} start={start} expired={expired} onConfirming={setConfirming} />
       </Elements>
     </>
   );
@@ -149,6 +165,12 @@ export function PayPage() {
           return;
         }
         const start = await apiPost<PaymentStart>(`/bookings/${encodeURIComponent(id)}/payment`, {});
+        try {
+          await stripeFor(start.payment.publishableKey);
+        } catch (error) {
+          if (live) setState({ status: 'error', error, loadFailed: true });
+          return;
+        }
         if (live) setState({ status: 'ready', booking, start });
       } catch (error) {
         if (!live) return;
@@ -174,7 +196,7 @@ export function PayPage() {
       )}
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>
-          <span>{errorMessage(state.error, t)}</span>
+          <span>{state.loadFailed ? t('payment.loadFailed') : errorMessage(state.error, t)}</span>
           <Button size="sm" variant="secondary" onClick={load}>
             {t('search.retry')}
           </Button>

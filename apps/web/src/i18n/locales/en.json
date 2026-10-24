@@ -292,6 +292,7 @@
     "pay": "Pay",
     "holdEndsIn": "Your slots are held for {{time}}",
     "expired": "Your hold has expired and the slots were released. Please pick your slots again.",
-    "backToVenue": "Back to venue"
+    "backToVenue": "Back to venue",
+    "loadFailed": "Couldn't load the payment form. Please try again."
   }
 }

@@ -28,6 +28,7 @@ const venue: SearchResult = {
   sports: ['futsal'],
   distanceMeters: 1500,
   date: '2026-10-25',
+  rating: null,
   fromPrice: 1000,
   nextFreeSlot: {
     turfId: 't1',

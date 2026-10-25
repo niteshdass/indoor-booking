@@ -16,6 +16,7 @@ export type SearchQuery = {
   available: boolean;
   limit: number;
   cursor: number;
+  sort: 'default' | 'rating';
 };
 
 // Query values are strings; z.coerce would read '' as 0, so numbers go through a regex first.
@@ -55,6 +56,7 @@ const searchQuerySchema = z
     available: flag,
     limit: whole.pipe(z.number().min(1).max(50)),
     cursor: whole,
+    sort: z.literal('rating'),
   })
   .partial()
   .strict()
@@ -90,5 +92,6 @@ export function parseSearchQuery(q: unknown): SearchQuery {
     available: v.available ?? false,
     limit: v.limit ?? 20,
     cursor: v.cursor ?? 0,
+    sort: v.sort ?? 'default',
   };
 }

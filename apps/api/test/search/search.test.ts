@@ -14,13 +14,16 @@ import { Turf } from '../../src/venues/turf.model';
 import { Closure } from '../../src/schedule/closure.model';
 import { SlotOverride } from '../../src/schedule/slotOverride.model';
 import { Booking } from '../../src/bookings/booking.model';
+import { Review } from '../../src/reviews/review.model';
+import { recomputeVenueRating } from '../../src/reviews/rating';
+import mongoose from 'mongoose';
 import { searchConfig } from '../../src/search/routes';
 
 beforeAll(async () => {
   await startTestDb();
   await Promise.all([
     User.init(), Owner.init(), Role.init(), Membership.init(), Venue.init(), Turf.init(),
-    Closure.init(), SlotOverride.init(), Booking.init(),
+    Closure.init(), SlotOverride.init(), Booking.init(), Review.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -37,6 +40,7 @@ beforeEach(async () => {
     Turf.deleteMany({}).setOptions({ crossTenant: true }),
     Closure.deleteMany({}).setOptions({ crossTenant: true }),
     SlotOverride.deleteMany({}).setOptions({ crossTenant: true }),
+    Review.deleteMany({}).setOptions({ crossTenant: true }),
   ]);
   ctx = buildTestApp();
   ownerId = (await seedOwner(ctx.services)).ownerId;
@@ -72,7 +76,7 @@ describe('GET /api/v1/search', () => {
     expect(Object.keys(r ?? {}).sort()).toEqual(
       [
         'slug', 'name', 'address', 'city', 'country', 'currency', 'timezone', 'location', 'photo',
-        'sports', 'distanceMeters', 'date', 'fromPrice', 'nextFreeSlot',
+        'sports', 'distanceMeters', 'date', 'fromPrice', 'nextFreeSlot', 'rating',
       ].sort(),
     );
     expect(r).toMatchObject({
@@ -179,5 +183,52 @@ describe('GET /api/v1/search', () => {
     await listed('Public');
     await listed('Draft', { published: false });
     expect(results(await search()).map((r) => r.name)).toEqual(['Public']);
+  });
+});
+
+describe('GET /api/v1/search?sort=rating', () => {
+  async function rate(venueId: string, stars: number[]) {
+    for (const n of stars) {
+      await Review.create({ ownerId, venueId, bookingId: new mongoose.Types.ObjectId(), playerId: new mongoose.Types.ObjectId(), stars: n });
+    }
+    await recompute(venueId);
+  }
+  async function recompute(venueId: string) {
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(() => recomputeVenueRating(ownerId, venueId, session));
+    } finally {
+      await session.endSession();
+    }
+  }
+
+  it('sort=rating orders by average, then count, then name, unrated last', async () => {
+    const d = await listed('D unrated');
+    const a = await listed('A');
+    const b = await listed('B');
+    const c = await listed('C');
+    await rate(a.venueId, [5, 4]); // 4.5 / 2
+    await rate(b.venueId, [5, 4, 5, 4, 5, 4, 5, 4, 5, 4]); // 4.5 / 10
+    await rate(c.venueId, [5]); // 5.0 / 1
+    const res = await search({ sort: 'rating' });
+    expect(res.status).toBe(200);
+    expect(results(res).map((r) => r.name)).toEqual(['C', 'B', 'A', 'D unrated']);
+    expect(results(res).map((r) => r.rating)).toEqual([
+      { average: 5, count: 1 }, { average: 4.5, count: 10 }, { average: 4.5, count: 2 }, null,
+    ]);
+    void d;
+  });
+
+  it('sort=stars is a 400', async () => {
+    expect((await search({ sort: 'stars' })).status).toBe(400);
+  });
+
+  it('hidden reviews do not count in search rating', async () => {
+    const v = await listed('Rated');
+    await rate(v.venueId, [5, 1]);
+    expect(results(await search())[0]!.rating).toEqual({ average: 3, count: 2 });
+    await Review.updateOne({ venueId: v.venueId, stars: 1 }, { $set: { moderation: 'hidden' } }).setOptions({ crossTenant: true });
+    await recompute(v.venueId);
+    expect(results(await search())[0]!.rating).toEqual({ average: 5, count: 1 });
   });
 });

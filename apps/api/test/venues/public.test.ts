@@ -45,7 +45,7 @@ describe('public venue page', () => {
     const res = await get('green-turf');
     expect(res.status).toBe(200);
     expect(Object.keys(res.body.venue).sort()).toEqual(
-      ['slug', 'name', 'address', 'city', 'country', 'currency', 'timezone', 'location', 'photos', 'amenities', 'turfs'].sort(),
+      ['slug', 'name', 'address', 'city', 'country', 'currency', 'timezone', 'location', 'photos', 'amenities', 'turfs', 'rating'].sort(),
     );
     expect(res.body.venue.location).toEqual({ lat: 23.81, lng: 90.41 });
     expect(res.body.venue.turfs).toHaveLength(1);

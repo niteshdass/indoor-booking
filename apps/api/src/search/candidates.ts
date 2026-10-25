@@ -8,6 +8,12 @@ export type Candidate = { venue: VenueDoc; turfs: TurfDoc[]; distanceMeters: num
 
 type Row = Record<string, unknown> & { turfs: Record<string, unknown>[]; distanceMeters?: number };
 
+/** Top rated first when asked (unrated last), otherwise nearest first, or by name without a location. */
+function sortStage(q: SearchQuery): Record<string, 1 | -1> {
+  if (q.sort === 'rating') return { 'rating.average': -1, 'rating.count': -1, name: 1, _id: 1 };
+  return q.near ? { distanceMeters: 1, _id: 1 } : { name: 1, _id: 1 };
+}
+
 /**
  * Published venues of active owners that have at least one active turf matching the sport and
  * indoor filters, nearest first (or by name without a location). Reads across every tenant.
@@ -46,7 +52,7 @@ export async function findCandidates(q: SearchQuery, skip: number, n: number): P
       },
     },
     { $match: { 'turfs.0': { $exists: true } } },
-    { $sort: q.near ? { distanceMeters: 1, _id: 1 } : { name: 1, _id: 1 } },
+    { $sort: sortStage(q) },
     { $skip: skip },
     { $limit: n },
   ];

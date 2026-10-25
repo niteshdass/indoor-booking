@@ -16,6 +16,7 @@ const r: SearchResult = {
   sports: ['futsal'],
   distanceMeters: null,
   date: '2026-10-25',
+  rating: null,
   fromPrice: 1000,
   nextFreeSlot: null,
 };

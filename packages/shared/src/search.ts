@@ -1,3 +1,4 @@
+import type { RatingSummary } from './reviews';
 import type { Sport } from './venues';
 
 /** Radius presets offered next to "anywhere" and a custom value. */
@@ -34,6 +35,8 @@ export type SearchResult = {
   /** Lowest matching slot price in minor units of `currency`. */
   fromPrice: number | null;
   nextFreeSlot: NextFreeSlot | null;
+  /** Null when the venue has no reviews. */
+  rating: RatingSummary | null;
 };
 
 export type SearchResponse = { results: SearchResult[]; nextCursor: number | null };

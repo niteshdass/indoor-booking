@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from 'express';
 import { SPORTS, localParts, type SearchResponse, type SearchResult } from '@booking/shared';
 import type { AppServices } from '../services';
 import { inWindow, loadDay } from '../schedule/load';
+import { ratingJson } from '../reviews/rating';
 import { findCandidates, type Candidate } from './candidates';
 import { parseSearchQuery, type SearchQuery } from './query';
 import { summarizeDay, type DaySummary } from './summarize';
@@ -91,5 +92,6 @@ function resultJson(c: Candidate, date: string, s: DaySummary): SearchResult {
     date,
     fromPrice: s.fromPrice,
     nextFreeSlot: s.nextFreeSlot,
+    rating: ratingJson(venue.rating),
   };
 }

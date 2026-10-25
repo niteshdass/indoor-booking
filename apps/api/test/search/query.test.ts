@@ -27,6 +27,7 @@ describe('parseSearchQuery', () => {
       available: false,
       limit: 20,
       cursor: 0,
+      sort: 'default',
     });
   });
 
@@ -47,6 +48,7 @@ describe('parseSearchQuery', () => {
         available: 'true',
         limit: '5',
         cursor: '40',
+        sort: 'rating',
       }),
     ).toEqual({
       near: { lat: 23.81, lng: 90.41 },
@@ -61,6 +63,7 @@ describe('parseSearchQuery', () => {
       available: true,
       limit: 5,
       cursor: 40,
+      sort: 'rating',
     });
   });
 

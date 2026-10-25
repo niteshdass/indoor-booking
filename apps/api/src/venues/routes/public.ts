@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { ratingJson } from '../../reviews/rating';
 import { SLUG_RE } from '@booking/shared';
 import { AppError } from '../../errors';
 import { Owner } from '../../tenancy/owner.model';
@@ -41,6 +42,7 @@ export function publicVenuesRouter(): Router {
         location: { lat, lng },
         photos: venue.photos.map((p) => (p.alt == null ? { url: p.url } : { url: p.url, alt: p.alt })),
         amenities: venue.amenities,
+        rating: ratingJson(venue.rating),
         turfs: turfs.map((t) => ({
           id: t.id as string,
           name: t.name,

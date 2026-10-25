@@ -11,7 +11,6 @@ import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatDateTime, formatTime, money } from '../../lib/format';
 import { SeriesStatusBadge } from '../../series/SeriesBadge';
-import { weekdayList } from '../../series/weekdays';
 import { OwnerCancelDialog } from '../bookings/OwnerCancelDialog';
 import { ReasonDialog } from '../bookings/ReasonDialog';
 import { useOwner } from '../OwnerProvider';
@@ -156,7 +155,6 @@ export function SeriesDetailPage() {
           <Fact label={t('owner.venue')}>{venue?.name ?? '—'}</Fact>
           <Fact label={t('owner.bookings.turf')}>{turf?.name ?? '—'}</Fact>
           <Fact label={t('series.owner.schedule')}>{patternSummary(series, turf, lang)}</Fact>
-          <Fact label={t('series.weekdays')}>{weekdayList(series.pattern.weekdays, lang)}</Fact>
           {series.declineReason && <Fact label={t('owner.bookings.reason.recorded')}>{series.declineReason}</Fact>}
         </dl>
       </section>
@@ -180,7 +178,7 @@ export function SeriesDetailPage() {
             <tbody>
               {games.map((g) => (
                 <tr key={g.id}>
-                  <td>{formatDate(g.businessDate, 'UTC', lang)}</td>
+                  <td className={styles.nums}>{formatDate(g.businessDate, 'UTC', lang)}</td>
                   <td className={styles.nums}>
                     {formatTime(g.startAt, tz, lang)} – {formatTime(g.endAt, tz, lang)}
                   </td>

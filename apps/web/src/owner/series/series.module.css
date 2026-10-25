@@ -117,6 +117,8 @@
   color: var(--text-default);
 }
 
+/* Dates, times and amounts stay on one line; the table scrolls sideways on phones instead. */
 .nums {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }

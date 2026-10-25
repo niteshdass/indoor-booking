@@ -26,4 +26,12 @@ describe('i18n locales', () => {
   it('every ru value is a non-empty string', () => {
     for (const [k, v] of r) expect(typeof v === 'string' && v.trim().length > 0, k).toBe(true);
   });
+  // ru calls a venue «площадка» and a turf «корт»; mixing in «поле» or reusing «площадка» for a turf confuses the two.
+  it('ru turf labels say корт and never reuse the venue word', () => {
+    for (const [k, v] of r) expect(/(?<![а-яё])пол(е|я|ей|ями|ям)(?![а-яё])/iu.test(String(v)), k).toBe(false);
+    for (const [k, v] of r) {
+      if (!/(^|\.)turf$/.test(k)) continue;
+      expect(String(v), k).toMatch(/корт/i);
+    }
+  });
 });

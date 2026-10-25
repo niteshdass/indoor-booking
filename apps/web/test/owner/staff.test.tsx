@@ -35,7 +35,7 @@ const membersRoute = (members = [member()]) => ({ path: '/owners/o1/members', bo
 const permPath = (key: string) => key.replace('.', '_') as keyof typeof en.owner.perm;
 
 describe('roles', () => {
-  it('role editor lists all 15 permissions once and disables ones the caller lacks', async () => {
+  it('role editor lists every permission once and disables ones the caller lacks', async () => {
     mockApi([rolesRoute, membersRoute(), ...ownerRoutes({ permissions: [...CALLER] })]);
     const { user } = renderApp(`${URL}?tab=roles`, { user: staffUser });
     await user.click(await screen.findByRole('button', { name: S.roleAdd }));

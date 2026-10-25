@@ -24,7 +24,7 @@ const GROUPS: { id: 'bookings' | 'venues' | 'admin'; perms: Permission[] }[] = [
     perms: ['booking.view', 'booking.create', 'booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'refund.issue'],
   },
   { id: 'venues', perms: ['venue.manage', 'turf.manage', 'pricing.edit', 'slot.override', 'addon.manage'] },
-  { id: 'admin', perms: ['staff.manage', 'settings.edit', 'reports.view'] },
+  { id: 'admin', perms: ['staff.manage', 'settings.edit', 'reports.view', 'review.manage'] },
 ];
 const permLabel = (p: Permission) => `owner.perm.${p.replace('.', '_')}`;
 

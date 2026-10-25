@@ -1048,7 +1048,8 @@
       "addon_manage": "Manage add-ons",
       "staff_manage": "Manage staff and roles",
       "settings_edit": "Edit settings",
-      "reports_view": "View reports"
+      "reports_view": "View reports",
+      "review_manage": "Manage reviews"
     },
     "activity": {
       "title": "Activity",

@@ -11,3 +11,4 @@ export * from './addons';
 export * from './booking';
 export * from './refunds';
 export * from './search';
+export * from './reviews';

@@ -453,6 +453,7 @@
       "createVenue": "Create a venue"
     },
     "walkInGuest": "Walk-in guest",
+    "unknownCustomer": "Unknown customer",
     "schedule": {
       "closed": "Closed",
       "noTurfs": "This venue has no active courts.",

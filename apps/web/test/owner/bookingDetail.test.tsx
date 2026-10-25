@@ -47,6 +47,16 @@ const URL_ = `/owner/${OWNER_ID}/bookings/b1`;
 const GET = '/owners/o1/bookings/b1';
 
 describe('owner booking detail', () => {
+  it.each([
+    ['walkin', en.owner.walkInGuest],
+    ['online', en.owner.unknownCustomer],
+  ] as const)('a %s booking with no customer shows %s', async (source, label) => {
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ source, customer: null, playerId: source === 'online' ? 'gone' : null }) }) }]);
+    renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText('BK-0001')).toBeTruthy();
+    expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+  });
+
   it('booking detail shows customer, slots in venue time and totals', async () => {
     mockApi([
       ...ownerRoutes(),

@@ -13,6 +13,7 @@ import { ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
 import { useOwner } from '../OwnerProvider';
+import { customerLabel } from '../customerLabel';
 import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import type { BookingDetail, PaymentJson, RefundJson } from '../types';
@@ -99,7 +100,7 @@ export function OwnerBookingPage() {
   const starts = b.slots.map((s) => s.startAt).sort();
   const ends = b.slots.map((s) => s.endAt).sort();
   const range = (a: string, z: string) => `${formatTime(a, tz, lang)} – ${formatTime(z, tz, lang)}`;
-  const customerName = b.customer?.name ?? t('owner.walkInGuest');
+  const customerName = customerLabel(b, t);
 
   return (
     <div className={styles.page}>

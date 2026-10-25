@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BOOKING_TONE } from '../../bookings/BookingStatusBadge';
 import { formatTime, money } from '../../lib/format';
+import { customerLabel } from '../customerLabel';
 import type { OwnerBooking, OwnerSlot } from '../types';
 import { ROW_MS, type Layout } from './scheduleLayout';
 import styles from './ScheduleGrid.module.css';
@@ -127,7 +128,7 @@ function BookingBlock({
       <span className={styles.time}>
         {time(Math.min(...starts))} – {time(Math.max(...ends))}
       </span>
-      <span className={styles.name}>{booking.customer?.name ?? t('owner.walkInGuest')}</span>
+      <span className={styles.name}>{customerLabel(booking, t)}</span>
       <span className={styles.state}>{t(`status.${booking.status}`)}</span>
     </Link>
   );

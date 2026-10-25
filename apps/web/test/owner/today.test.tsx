@@ -49,6 +49,18 @@ describe('summarize', () => {
     ]);
     expect(s.upcoming.map((b) => b.id)).toEqual(['soon', 'later']);
   });
+
+  it('summarize compares instants, not strings, for offset and no-millisecond end times', () => {
+    // 07:30+05:00 is 02:30Z, before now (03:00Z); as a string it sorts after '2026-10-26T03:00:00.000Z'.
+    const endedOffset = [slot('2026-10-26T06:00:00+05:00', '2026-10-26T07:30:00+05:00')];
+    // 03:30Z without milliseconds is still ahead of now.
+    const aheadNoMs = [slot('2026-10-26T03:00:00Z', '2026-10-26T03:30:00Z')];
+    const s = summarize([
+      ownerBooking({ id: 'ended', status: 'confirmed', slots: endedOffset }),
+      ownerBooking({ id: 'ahead', status: 'confirmed', slots: aheadNoMs }),
+    ]);
+    expect(s.upcoming.map((b) => b.id)).toEqual(['ahead']);
+  });
 });
 
 describe('Today page', () => {

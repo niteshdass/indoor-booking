@@ -32,7 +32,7 @@ const SLOT_2 = {
   source: 'hours' as const,
 };
 
-function scheduleRoutes(permissions: string[] = ['booking.view', 'booking.create']): Route[] {
+function scheduleRoutes(permissions: string[] = ['booking.view', 'booking.create'], bookings = [ownerBooking({ id: 'b1', status: 'confirmed', customer: { name: 'Ada Player', phone: null, email: null } })]): Route[] {
   const day = slotDay();
   return [
     ...ownerRoutes({ permissions: permissions as never }),
@@ -54,7 +54,7 @@ function scheduleRoutes(permissions: string[] = ['booking.view', 'booking.create
     },
     {
       path: '/owners/o1/bookings',
-      body: { bookings: [ownerBooking({ id: 'b1', status: 'confirmed', customer: { name: 'Ada Player', phone: null, email: null } })] },
+      body: { bookings },
     },
   ];
 }
@@ -72,6 +72,18 @@ describe('Schedule page', () => {
     expect(bookings.query.get('venueId')).toBe('v1');
     expect(bookings.query.get('from')).toBe('2026-10-26');
     expect(bookings.query.get('to')).toBe('2026-10-26');
+  });
+
+  it('labels a missing customer by booking source', async () => {
+    mockApi(
+      scheduleRoutes(undefined, [
+        ownerBooking({ id: 'w', status: 'confirmed', source: 'walkin', playerId: null, customer: null }),
+        ownerBooking({ id: 'o', status: 'confirmed', source: 'online', customer: null }),
+      ]),
+    );
+    renderApp(`/owner/${OWNER_ID}/schedule`, { user: staffUser });
+    expect(await screen.findByText(en.owner.walkInGuest)).toBeTruthy();
+    expect(screen.getByText(en.owner.unknownCustomer)).toBeTruthy();
   });
 
   it('clicking an available slot opens walk-in with the slot prefilled', async () => {

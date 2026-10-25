@@ -9,6 +9,7 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useResource } from '../useResource';
 import { SettingsForm } from './SettingsForm';
+import { StripeGatewayCard } from './StripeGatewayCard';
 import styles from './settings.module.css';
 
 /** Owner-wide defaults (`settings.edit` to change; read-only otherwise). */
@@ -39,6 +40,7 @@ export function SettingsPage() {
         onSave={save}
         disabled={!can('settings.edit')}
       />
+      {can('settings.edit') && <StripeGatewayCard />}
     </div>
   );
 }

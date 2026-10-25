@@ -14,7 +14,9 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import type { OwnerVenue } from '../types';
 import { useResource } from '../useResource';
+import type { OwnerSettings } from '@booking/shared';
 import { TurfList } from './TurfList';
+import { VenueSettingsTab } from './VenueSettingsTab';
 // Not `VenueForm.tsx`: on case-insensitive file systems that name collides with `venueForm.ts`.
 import { VenueForm } from './VenueDetailsForm';
 import styles from './venues.module.css';
@@ -68,11 +70,22 @@ function VenueEditor({ venue }: { venue: OwnerVenue }) {
         </>
       )}
       {tab === 'turfs' && <TurfList venue={venue} />}
-      {/* Task 13 drops the venue settings editor here, Task 16 the add-on assignments. */}
-      {tab === 'settings' && <p className={styles.muted}>{t('owner.comingSoon')}</p>}
+      {tab === 'settings' && <VenueSettings venue={venue} />}
+      {/* Task 16 drops the add-on assignments here. */}
       {tab === 'addons' && <p className={styles.muted}>{t('owner.comingSoon')}</p>}
     </div>
   );
+}
+
+/** Loads the owner's settings (what the venue inherits), then shows the override editor. */
+function VenueSettings({ venue }: { venue: OwnerVenue }) {
+  const { t } = useTranslation();
+  const { ownerId } = useOwner();
+  const res = useResource<{ settings: OwnerSettings }>(ownerPath(ownerId, '/settings'));
+  if (res.state.status === 'loading' || res.state.status === 'idle') return <Spinner label={t('common.loading')} />;
+  // If the owner settings can't be read, fall back to the venue's effective values for the inherited display.
+  const inherited = res.state.status === 'ready' ? res.state.data.settings : null;
+  return <VenueSettingsTab venue={venue} ownerSettings={inherited} onSaved={() => {}} />;
 }
 
 /** Publish/unpublish and delete; both go through the API's guards and show its error. */

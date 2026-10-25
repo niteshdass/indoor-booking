@@ -129,7 +129,10 @@
     "venue_not_ready": "Add an active turf before publishing the venue.",
     "venue_has_turfs": "Delete the venue's turfs first.",
     "slug_taken": "That link name is already taken.",
-    "turf_name_taken": "This venue already has a turf with that name."
+    "turf_name_taken": "This venue already has a turf with that name.",
+    "gateway_account_in_use": "A card payment is still pending on the current Stripe account. Try again once it settles.",
+    "gateway_error": "Stripe couldn't be reached or rejected the request. Try again.",
+    "payments_unconfigured": "Payments aren't configured on this server yet."
   },
   "myBookings": {
     "title": "My bookings",
@@ -676,6 +679,37 @@
         "refund": "Hours must be 0 to 8760 and percent 0 to 100.",
         "window": "Enter a whole number from 1 to 365.",
         "autoReject": "Enter a whole number from 0 to 72."
+      }
+    },
+    "gateway": {
+      "title": "Stripe card payments",
+      "intro": "Connect your own Stripe account so card payments go straight to you.",
+      "mode": {
+        "test": "Test mode",
+        "live": "Live mode"
+      },
+      "account": "Account",
+      "enabled": "Accept card payments",
+      "webhookTitle": "Webhook",
+      "webhookHint": "In Stripe, add an endpoint with this URL and subscribe it to these events.",
+      "webhookUrl": "Webhook URL",
+      "events": "Events",
+      "copy": "Copy",
+      "copied": "Copied.",
+      "notConnected": "Stripe is not connected.",
+      "secretKey": "Secret key",
+      "publishableKey": "Publishable key",
+      "webhookSecret": "Webhook signing secret",
+      "secretHint": "Stored encrypted. It is never shown again.",
+      "connect": "Connect Stripe",
+      "replace": "Replace keys",
+      "cancel": "Cancel",
+      "errors": {
+        "secretKey": "Enter a Stripe secret or restricted key (sk_… or rk_…).",
+        "publishableKey": "Enter a Stripe publishable key (pk_…).",
+        "webhookSecret": "Enter the webhook signing secret (whsec_…).",
+        "mode": "The secret and publishable keys must both be test keys or both be live keys.",
+        "invalidKeys": "Stripe didn't accept these keys. Check them and try again."
       }
     }
   }

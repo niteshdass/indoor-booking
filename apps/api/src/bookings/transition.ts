@@ -39,7 +39,7 @@ export async function transition(
   if (!canTransition(from, to)) throw invalidTransition(from);
   const updated = await Booking.findOneAndUpdate(
     { ownerId: t.ownerId, _id: booking._id, status: from },
-    { $set: { status: to, ...extra } },
+    { $set: { status: to, ...(to === 'completed' ? { completedAt: at } : {}), ...extra } },
     { session, new: true },
   );
   if (!updated) {

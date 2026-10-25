@@ -312,6 +312,14 @@ describe('autoRejectPending', () => {
 });
 
 describe('autoCompleteBookings', () => {
+  it('auto-complete stamps completedAt with the sweep time', async () => {
+    await setup({});
+    const confirmed = await bookAs((await newPlayer()).token, '18:00');
+    advanceTo((await bookingOf(confirmed.id)).endAt);
+    expect(await autoCompleteBookings(now())).toBe(1);
+    expect((await bookingOf(confirmed.id)).completedAt).toEqual(now());
+  });
+
   it('confirmed bookings complete after their end time', async () => {
     const hold = await intentHold('17:00');
     await setup({});

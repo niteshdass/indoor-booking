@@ -321,6 +321,7 @@ describe('check-in and no-show', () => {
     const ok = await post(`/bookings/${id}/check-in`, staff.token);
     expect(ok.status).toBe(200);
     expect(ok.body.booking.status).toBe('completed');
+    expect(ok.body.booking.completedAt).toBe(ctx.services.now().toISOString());
     expect((await gridSlot('18:00')).status).toBe('booked');
 
     const id2 = (await walkin(staff.token, { startAts: [at('20:00').toISOString()] })).body.booking.id as string;

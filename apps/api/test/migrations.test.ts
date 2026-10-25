@@ -25,7 +25,7 @@ import { Refund } from '../src/payments/refund.model';
 import { cancelBooking, type Canceller } from '../src/bookings/cancel';
 import { reconcileRefunds } from '../src/payments/refunds';
 import { Migration } from '../src/migrations/model';
-import { runMigrations } from '../src/migrations';
+import { MIGRATIONS, runMigrations } from '../src/migrations';
 
 beforeAll(async () => {
   await startTestDb();
@@ -140,10 +140,25 @@ describe('runMigrations', () => {
     expect((await rawPayment(a._id))!.excess).toBeUndefined();
   });
 
+  it('backfills completedAt from endAt and marks the prompt as handled', async () => {
+    const { bookingId } = await paid();
+    await Booking.collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(bookingId) },
+      { $set: { status: 'completed' }, $unset: { completedAt: '', reviewRequestedAt: '', reviewedAt: '' } },
+    );
+    const now = ctx.services.now();
+    await runMigrations(now);
+    const raw = await Booking.collection.findOne({ _id: new mongoose.Types.ObjectId(bookingId) });
+    expect(raw!.completedAt).toEqual(raw!.endAt);
+    expect(raw!.reviewRequestedAt).toEqual(now);
+    const step = MIGRATIONS.find((m) => m.id === '2026-10-25-booking-completed-at')!;
+    expect(await step.run(now)).toBe(0);
+  });
+
   it('a second run applies nothing', async () => {
-    expect(await runMigrations(ctx.services.now())).toEqual(['2026-10-24-refund-method', '2026-10-24-payment-excess']);
+    expect(await runMigrations(ctx.services.now())).toEqual(MIGRATIONS.map((m) => m.id));
     expect(await runMigrations(ctx.services.now())).toEqual([]);
-    expect(await Migration.countDocuments({})).toBe(2);
+    expect(await Migration.countDocuments({})).toBe(MIGRATIONS.length);
   });
 
   it('a cancel after migration no longer draws from the old duplicate payment', async () => {

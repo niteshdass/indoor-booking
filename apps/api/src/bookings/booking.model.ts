@@ -63,6 +63,11 @@ const bookingSchema = new mongoose.Schema(
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
     cancelReason: { type: String, default: null },
+    completedAt: { type: Date, default: null },
+    // Set once when a review is posted; never cleared.
+    reviewedAt: { type: Date, default: null },
+    // Set when the review-prompt sweep handles the booking.
+    reviewRequestedAt: { type: Date, default: null },
   },
   { timestamps: true, minimize: false },
 );
@@ -74,6 +79,8 @@ bookingSchema.index({ playerId: 1, startAt: -1 });
 bookingSchema.index({ status: 1, holdExpiresAt: 1, _id: 1 });
 bookingSchema.index({ status: 1, startAt: 1, _id: 1 });
 bookingSchema.index({ status: 1, endAt: 1, _id: 1 });
+// Review-prompt sweep.
+bookingSchema.index({ status: 1, completedAt: 1, _id: 1 });
 bookingSchema.plugin(tenantScoped);
 
 export type BookingDoc = HydratedDocument<InferSchemaType<typeof bookingSchema>>;
@@ -115,6 +122,7 @@ export function bookingJson(b: BookingDoc) {
     cancelledAt: b.cancelledAt ? b.cancelledAt.toISOString() : null,
     cancelledBy: b.cancelledBy ?? null,
     cancelReason: b.cancelReason ?? null,
+    completedAt: b.completedAt ? b.completedAt.toISOString() : null,
     createdAt: b.createdAt.toISOString(),
   };
 }

@@ -1,10 +1,11 @@
+import { Booking } from '../bookings/booking.model';
 import { Payment } from '../bookings/payment.model';
 import { Refund } from '../payments/refund.model';
 import { Migration } from './model';
 
 const cross = { crossTenant: true };
 
-export type MigrationStep = { id: string; run(): Promise<number> };
+export type MigrationStep = { id: string; run(now: Date): Promise<number> };
 
 /** Backfills for databases that predate a schema change; each is idempotent and returns the rows it changed. */
 export const MIGRATIONS: MigrationStep[] = [
@@ -27,6 +28,19 @@ export const MIGRATIONS: MigrationStep[] = [
       return res.modifiedCount;
     },
   },
+  {
+    // Bookings completed before Plan 14 have no completedAt; reviewRequestedAt marks their prompt as handled so
+    // no backlog goes out on deploy.
+    id: '2026-10-25-booking-completed-at',
+    async run(now) {
+      const res = await Booking.updateMany(
+        { status: 'completed', completedAt: null },
+        [{ $set: { completedAt: '$endAt', reviewRequestedAt: now } }],
+        { ...cross, timestamps: false },
+      );
+      return res.modifiedCount;
+    },
+  },
 ];
 
 /** Runs each migration not yet recorded, in order; returns the ids it ran. */
@@ -34,7 +48,7 @@ export async function runMigrations(now: Date): Promise<string[]> {
   const ran: string[] = [];
   for (const m of MIGRATIONS) {
     if (await Migration.exists({ _id: m.id })) continue;
-    const changed = await m.run();
+    const changed = await m.run(now);
     try {
       await Migration.create({ _id: m.id, appliedAt: now, changed });
       ran.push(m.id);

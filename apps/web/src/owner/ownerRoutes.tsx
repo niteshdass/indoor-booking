@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BookingsPage } from './bookings/BookingsPage';
+import { OwnerBookingPage } from './bookings/OwnerBookingPage';
 import { OwnerIndexPage } from './OwnerIndexPage';
 import { OwnerProvider } from './OwnerProvider';
 import { RequirePermission } from './RequirePermission';
@@ -43,7 +44,7 @@ export function OwnerRoutes() {
         <Route index element={<Guarded nav=""><TodayPage /></Guarded>} />
         <Route path="schedule" element={<Guarded nav="schedule"><SchedulePage /></Guarded>} />
         <Route path="bookings" element={<Guarded nav="bookings"><BookingsPage /></Guarded>} />
-        <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><ComingSoon /></Guarded>} />
+        <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><OwnerBookingPage /></Guarded>} />
         <Route path="walk-in" element={<Guarded nav="walk-in"><ComingSoon /></Guarded>} />
         <Route path="venues" element={<Guarded nav="venues"><ComingSoon /></Guarded>} />
         {/* Any member may open these; the pages go read-only without edit permissions. */}

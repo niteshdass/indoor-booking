@@ -103,7 +103,7 @@
     "email_in_use": "That email is already in use.",
     "account_exists": "An account with these details already exists. Please sign in.",
     "too_late": "It's too late to book or change this slot.",
-    "too_early": "This slot isn't open for booking yet.",
+    "too_early": "It's too early for this action on this booking.",
     "payment_in_progress": "A payment for this booking is already in progress.",
     "payments_unavailable": "Online payments are unavailable right now.",
     "outside_window": "That date is outside the booking window.",
@@ -121,7 +121,8 @@
     "invalid_quantity": "Choose a valid quantity for the extras.",
     "addon_out_of_stock": "That extra is out of stock for these times.",
     "too_many_slots": "You can book at most 12 slots at once.",
-    "invalid_transition": "This booking can no longer be cancelled."
+    "invalid_transition": "This booking has changed and can't be updated that way.",
+    "already_paid": "This booking has already been paid in full."
   },
   "myBookings": {
     "title": "My bookings",
@@ -451,7 +452,46 @@
       "empty": "No bookings match these filters.",
       "capped": "Showing the first 500, narrow the range",
       "rangeOrder": "The end date must be on or after the start date.",
-      "rangeMax": "Pick a range of 31 days or fewer."
+      "rangeMax": "Pick a range of 31 days or fewer.",
+      "notFound": "We couldn't find that booking.",
+      "back": "Back to bookings",
+      "details": "Booking details",
+      "date": "Date",
+      "time": "Time",
+      "phone": "Phone",
+      "email": "Email",
+      "slots": "Slots and add-ons",
+      "subtotal": "Subtotal",
+      "addons": "Add-ons",
+      "advance": "Advance required",
+      "refunded": "Refunded",
+      "payments": "Payments",
+      "noPayments": "No payments yet.",
+      "payMethod": "Method",
+      "payAmount": "Amount",
+      "payWhen": "Date",
+      "payStatus": {
+        "pending": "Pending",
+        "succeeded": "Succeeded",
+        "failed": "Failed"
+      },
+      "actions": {
+        "title": "Actions",
+        "confirm": "Confirm",
+        "reject": "Reject",
+        "cancel": "Cancel booking",
+        "checkIn": "Check in",
+        "noShow": "Mark no-show"
+      },
+      "reject": {
+        "title": "Reject this booking?",
+        "confirm": "Reject booking"
+      },
+      "reason": {
+        "label": "Reason (optional)",
+        "back": "Back",
+        "recorded": "Reason"
+      }
     }
   }
 }

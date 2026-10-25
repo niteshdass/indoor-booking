@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { PendingActions } from '../bookings/BookingActions';
 import { Spinner } from '../../components/ui/Spinner';
 import { StatCard } from '../../components/ui/StatCard';
 import { Table } from '../../components/ui/Table';
@@ -47,7 +48,8 @@ export function TodayPage() {
 
 function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { t, i18n } = useTranslation();
-  const { ownerId } = useOwner();
+  const { ownerId, can } = useOwner();
+  const canConfirm = can('booking.confirm');
   const lang = i18n.language;
   const { state, reload } = useResource<{ bookings: OwnerBooking[] }>(
     ownerPath(ownerId, `/bookings?venueId=${encodeURIComponent(venue.id)}`),
@@ -88,6 +90,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
               <th>{t('owner.today.turf')}</th>
               <th>{t('owner.today.customer')}</th>
               <th>{t('owner.today.status')}</th>
+              {canConfirm && <th>{t('owner.bookings.actions.title')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -108,6 +111,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                   <td>
                     <BookingStatusBadge status={b.status} />
                   </td>
+                  {canConfirm && <td>{b.status === 'pending' && <PendingActions id={b.id} onDone={reload} />}</td>}
                 </tr>
               );
             })}

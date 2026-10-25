@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
@@ -81,5 +81,57 @@ describe('Today page', () => {
     expect(await screen.findByText(en.owner.today.noVenues)).toBeTruthy();
     const link = screen.getByRole('link', { name: en.owner.today.createVenue });
     expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/venues/new`);
+  });
+
+  const pendingRoutes = (perms: Parameters<typeof ownerRoutes>[0] = {}) => [
+    ...ownerRoutes(perms),
+    {
+      method: 'GET',
+      path: '/owners/o1/bookings',
+      body: (_c: unknown, n: number) => ({
+        bookings: [
+          ownerBooking({
+            id: 'b',
+            status: n === 0 ? 'pending' : 'confirmed',
+            slots: [slot('2026-10-26T08:00:00.000Z', '2026-10-26T09:00:00.000Z')],
+            customer: { name: 'Bob Pending', phone: null, email: null },
+          }),
+        ],
+      }),
+    },
+  ];
+
+  it('Today confirms a pending row and reloads', async () => {
+    const api = mockApi([
+      ...pendingRoutes({ permissions: ['booking.view', 'booking.confirm'] }),
+      { method: 'POST', path: '/owners/o1/bookings/b/confirm', body: { booking: ownerBooking({ id: 'b', status: 'confirmed' }) } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.confirm }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull());
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+    expect(screen.getByRole('link', { name: /Bob Pending/ })).toBeTruthy();
+  });
+
+  it('Today rejects a pending row with a reason', async () => {
+    const api = mockApi([
+      ...pendingRoutes({ permissions: ['booking.view', 'booking.confirm'] }),
+      { method: 'POST', path: '/owners/o1/bookings/b/reject', body: { booking: ownerBooking({ id: 'b', status: 'rejected' }) } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.reject }));
+    const dialog = await screen.findByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox'), 'closed');
+    await user.click(within(dialog).getByRole('button', { name: en.owner.bookings.reject.confirm }));
+    await waitFor(() => expect(api.calls.some((c) => c.path.endsWith('/reject'))).toBe(true));
+    expect(api.calls.find((c) => c.path.endsWith('/reject'))!.body).toEqual({ reason: 'closed' });
+  });
+
+  it('Today hides confirm and reject without booking.confirm', async () => {
+    mockApi(pendingRoutes());
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('link', { name: /Bob Pending/ });
+    expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull();
+    expect(screen.queryByRole('button', { name: en.owner.bookings.actions.reject })).toBeNull();
   });
 });

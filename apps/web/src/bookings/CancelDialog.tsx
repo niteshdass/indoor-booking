@@ -13,12 +13,12 @@ import styles from './CancelDialog.module.css';
 export const REASON_MAX = 300;
 const FINAL_ERRORS = new Set(['too_late', 'invalid_transition']);
 
-export type CancelDialogProps = {
+export type CancelDialogProps<B = BookingJson> = {
   open: boolean;
   onClose: () => void;
   loadPreview(): Promise<CancellationPreview>;
-  cancel(reason?: string): Promise<{ booking: BookingJson; refunds: RefundJson[] }>;
-  onCancelled(b: BookingJson, refunds: RefundJson[]): void;
+  cancel(reason?: string): Promise<{ booking: B; refunds: RefundJson[] }>;
+  onCancelled(b: B, refunds: RefundJson[]): void;
   /** Extra fields shown above the buttons (the guest flow puts its OTP field here). */
   extra?: ReactNode;
   /** False blocks the confirm button (the guest flow waits for its OTP). */
@@ -27,7 +27,7 @@ export type CancelDialogProps = {
 
 type Load = { status: 'loading' } | { status: 'ready'; preview: CancellationPreview } | { status: 'error'; error: unknown };
 
-export function CancelDialog({ open, onClose, loadPreview, cancel, onCancelled, extra, canConfirm: allowed = true }: CancelDialogProps) {
+export function CancelDialog<B = BookingJson>({ open, onClose, loadPreview, cancel, onCancelled, extra, canConfirm: allowed = true }: CancelDialogProps<B>) {
   const { t, i18n } = useTranslation();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [reason, setReason] = useState('');

@@ -81,6 +81,12 @@ const ruGames = (n: number) => {
   const word = m10 === 1 && m100 !== 11 ? 'игра' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'игры' : 'игр';
   return `${n} ${word}`;
 };
+/** «забронирована/ы/о» agreeing with the count, as «игра/игры/игр» does. */
+const ruBooked = (n: number) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  return m10 === 1 && m100 !== 11 ? 'забронирована' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'забронированы' : 'забронировано';
+};
 const enGames = (n: number) => `${n} ${n === 1 ? 'game' : 'games'}`;
 
 const CLASH_LABELS: Record<Locale, Record<SeriesClashReason, string>> = {
@@ -256,12 +262,12 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
   series_accepted: {
     en: ({ d, gameCount, firstGame }) => ({
       subject: 'Your recurring booking is confirmed',
-      lead: `The venue accepted your recurring booking: ${enGames(gameCount)} are booked.`,
+      lead: `The venue accepted your recurring booking: ${enGames(gameCount)} ${gameCount === 1 ? 'is' : 'are'} booked.`,
       sms: `Recurring booking confirmed: ${enGames(gameCount)}, from ${firstGame}. ${d.reference}`,
     }),
     ru: ({ d, gameCount, firstGame }) => ({
       subject: 'Ваше регулярное бронирование подтверждено',
-      lead: `Площадка приняла ваше регулярное бронирование: ${ruGames(gameCount)} забронировано.`,
+      lead: `Площадка приняла ваше регулярное бронирование: ${ruGames(gameCount)} ${ruBooked(gameCount)}.`,
       sms: `Регулярное бронирование подтверждено: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
     }),
   },
@@ -282,12 +288,12 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
   series_created: {
     en: ({ d, gameCount, firstGame }) => ({
       subject: 'Your recurring booking is set up',
-      lead: `${enGames(gameCount)} are booked for you.`,
+      lead: `${enGames(gameCount)} ${gameCount === 1 ? 'is' : 'are'} booked for you.`,
       sms: `Recurring booking set up: ${enGames(gameCount)}, from ${firstGame}. ${d.reference}`,
     }),
     ru: ({ d, gameCount, firstGame }) => ({
       subject: 'Регулярное бронирование оформлено',
-      lead: `Для вас забронировано: ${ruGames(gameCount)}.`,
+      lead: `${ruGames(gameCount)} ${ruBooked(gameCount)} для вас.`,
       sms: `Регулярное бронирование оформлено: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
     }),
   },
@@ -295,7 +301,7 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
     en: ({ d, gameCount, firstGame }) => ({
       subject: `${gameCount === 1 ? 'A recurring game was' : 'Recurring games were'} cancelled`,
       lead: d.toStaff
-        ? `A player cancelled ${enGames(gameCount)} of a recurring booking.`
+        ? `${d.customerName ?? 'A player'} cancelled ${enGames(gameCount)} of a recurring booking.`
         : `${enGames(gameCount)} of your recurring booking ${gameCount === 1 ? 'was' : 'were'} cancelled.`,
       extra: d.reason ? `Reason: ${d.reason}` : undefined,
       sms: `Cancelled: ${enGames(gameCount)}, ${firstGame}. ${d.reference}`,
@@ -303,7 +309,7 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
     ru: ({ d, gameCount, firstGame }) => ({
       subject: gameCount === 1 ? 'Игра из регулярного бронирования отменена' : 'Игры из регулярного бронирования отменены',
       lead: d.toStaff
-        ? `Игрок отменил регулярное бронирование: ${ruGames(gameCount)}.`
+        ? `${d.customerName ?? 'Игрок'}: отмена в регулярном бронировании, ${ruGames(gameCount)}.`
         : `Отменено в вашем регулярном бронировании: ${ruGames(gameCount)}.`,
       extra: d.reason ? `Причина: ${d.reason}` : undefined,
       sms: `Отменено: ${ruGames(gameCount)}, ${firstGame}. ${d.reference}`,

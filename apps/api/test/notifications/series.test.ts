@@ -91,6 +91,35 @@ describe('renderNotice series events', () => {
   });
 });
 
+describe('series copy agreement', () => {
+  const lead = (event: NoticeEvent, locale: Locale, n: number, over: Partial<NoticeData> = {}) =>
+    renderNotice(event, locale, { ...base, games: base.games!.slice(0, 1), moreGames: n - 1 || undefined, ...over }, 'https://app.test').text.split('\n\n')[0];
+
+  it('agrees the verb with the game count in en', () => {
+    expect(lead('series_created', 'en', 1)).toBe('1 game is booked for you.');
+    expect(lead('series_created', 'en', 5)).toBe('5 games are booked for you.');
+    expect(lead('series_accepted', 'en', 1)).toContain('1 game is booked');
+    expect(lead('series_accepted', 'en', 5)).toContain('5 games are booked');
+  });
+
+  it('agrees the verb with the game count in ru', () => {
+    expect(lead('series_accepted', 'ru', 1)).toContain('1 игра забронирована');
+    expect(lead('series_accepted', 'ru', 2)).toContain('2 игры забронированы');
+    expect(lead('series_accepted', 'ru', 5)).toContain('5 игр забронировано');
+    expect(lead('series_accepted', 'ru', 21)).toContain('21 игра забронирована');
+    expect(lead('series_accepted', 'ru', 12)).toContain('12 игр забронировано');
+    expect(lead('series_created', 'ru', 1)).toContain('1 игра забронирована');
+    expect(lead('series_created', 'ru', 3)).toContain('3 игры забронированы');
+  });
+
+  it('names the player in the staff cancel notice', () => {
+    expect(lead('series_games_cancelled', 'en', 1, { toStaff: true, customerName: 'Pat' })).toBe('Pat cancelled 1 game of a recurring booking.');
+    expect(lead('series_games_cancelled', 'en', 3, { toStaff: true, customerName: 'Pat' })).toBe('Pat cancelled 3 games of a recurring booking.');
+    expect(lead('series_games_cancelled', 'ru', 3, { toStaff: true, customerName: 'Pat' })).toContain('Pat');
+    expect(lead('series_games_cancelled', 'en', 1, { toStaff: true })).toContain('A player');
+  });
+});
+
 describe('noticeBooking series recipients', () => {
   let services: TestServices;
   let owner: Awaited<ReturnType<typeof seedOwner>>;

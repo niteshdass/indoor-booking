@@ -29,6 +29,14 @@ const venueSchema = new mongoose.Schema(
     },
     amenities: { type: [{ type: String, enum: AMENITIES }], default: [] },
     published: { type: Boolean, default: false },
+    /** Aggregate of visible reviews; see reviews/rating.ts. */
+    rating: {
+      type: new mongoose.Schema(
+        { average: { type: Number, default: null }, count: { type: Number, default: 0 } },
+        { _id: false },
+      ),
+      default: () => ({}),
+    },
     /** VenueSettingsOverride: only the keys this venue overrides. */
     settings: { type: Mixed, default: {} },
   },

@@ -5,7 +5,7 @@ import type { AppServices } from '../services';
 import { deliverNotifications } from '../notifications/outbox';
 import { reconcileRefunds } from '../payments/refunds';
 import { JobRun } from './jobRun.model';
-import { autoCompleteBookings, autoRejectPending, expireHolds, sendReminders, sendReviewRequests, warnExpiringHolds } from './sweeps';
+import { autoCompleteBookings, autoDeclineSeries, autoRejectPending, endSeries, expireHolds, sendReminders, sendReviewRequests, warnExpiringHolds } from './sweeps';
 
 export type JobDeps = { config: Config; services: AppServices };
 export type Job = { name: string; everyMs: number; run(now: Date, deps: JobDeps): Promise<unknown> };
@@ -22,6 +22,8 @@ export const JOBS: Job[] = [
   { name: 'reminders', everyMs: 60_000, run: (now) => sendReminders(now) },
   { name: 'hold-warnings', everyMs: 60_000, run: (now) => warnExpiringHolds(now) },
   { name: 'review-requests', everyMs: 300_000, run: (now) => sendReviewRequests(now) },
+  { name: 'series-auto-decline', everyMs: 60_000, run: (now) => autoDeclineSeries(now) },
+  { name: 'series-end', everyMs: 300_000, run: (now) => endSeries(now) },
   { name: 'deliver-notifications', everyMs: 15_000, run: (now, deps) => deliverNotifications(now, deps) },
   { name: 'reconcile-refunds', everyMs: 300_000, run: (now, deps) => reconcileRefunds(now, deps) },
 ];

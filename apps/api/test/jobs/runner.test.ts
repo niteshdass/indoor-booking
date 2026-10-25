@@ -100,6 +100,8 @@ describe('JOBS', () => {
       ['reminders', 60_000],
       ['hold-warnings', 60_000],
       ['review-requests', 300_000],
+      ['series-auto-decline', 60_000],
+      ['series-end', 300_000],
       ['deliver-notifications', 15_000],
       ['reconcile-refunds', 300_000],
     ]);

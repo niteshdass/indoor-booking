@@ -5,7 +5,9 @@ import { AppError } from '../errors';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
 import { Payment } from '../bookings/payment.model';
 import { transition, type Actor } from '../bookings/transition';
+import { logSystemActivity } from '../tenancy/activityLog.model';
 import { noticeBooking } from '../notifications/outbox';
+import { RecurringSeries, type SeriesDoc } from '../series/series.model';
 import { ownerSettings } from '../venues/effective';
 import { lockTurf } from '../venues/guards';
 
@@ -110,7 +112,7 @@ export async function autoRejectPending(now: Date): Promise<number> {
   };
   return sweep(
     'autoRejectPending',
-    { status: 'pending', startAt: { $lte: new Date(now.getTime() + AUTO_REJECT_MAX_HOURS * HOUR) } },
+    { status: 'pending', seriesId: null, startAt: { $lte: new Date(now.getTime() + AUTO_REJECT_MAX_HOURS * HOUR) } },
     'startAt',
     async (b, session) => {
       const moved = await transition(system(b), b, 'rejected', now, session, { rejectReason: AUTO_REJECT_REASON });
@@ -199,4 +201,92 @@ export async function sendReviewRequests(now: Date): Promise<number> {
       return (await noticeBooking('review_request', b, now, session)) > 0;
     },
   );
+}
+
+type SeriesSortKey = 'respondBy' | 'lastEndAt';
+
+/** Keyset-pages the series matching `filter` on (`key`, _id) and runs `step` per series in its own transaction; a throw is logged and skipped. */
+async function sweepSeries(
+  name: string,
+  filter: FilterQuery<SeriesDoc>,
+  key: SeriesSortKey,
+  step: (s: SeriesDoc, session: ClientSession) => Promise<boolean>,
+): Promise<number> {
+  const batch = sweepConfig.batch;
+  let done = 0;
+  let after: SeriesDoc | undefined;
+  for (;;) {
+    const past = after
+      ? { $or: [{ [key]: { $gt: after[key] } }, { [key]: after[key], _id: { $gt: after._id } }] }
+      : {};
+    const page = await RecurringSeries.find({ $and: [filter, past] })
+      .setOptions(cross)
+      .sort({ [key]: 1, _id: 1 })
+      .limit(batch);
+    for (const s of page) {
+      try {
+        if (await runInTransaction((session) => step(s, session))) done += 1;
+      } catch (err) {
+        console.error(`[jobs] ${name} of ${String(s._id)} failed`, err);
+      }
+    }
+    if (page.length < batch) return done;
+    after = page[page.length - 1];
+  }
+}
+
+/**
+ * Declines series requests nobody answered by respondBy, with their pending games. The conditional
+ * update on status 'requested' is the same gate the staff answer and the player's withdraw use, so
+ * whichever moves the series first wins and the other matches nothing.
+ */
+export async function autoDeclineSeries(now: Date): Promise<number> {
+  return sweepSeries('autoDeclineSeries', { status: 'requested', respondBy: { $lte: now } }, 'respondBy', async (s, session) => {
+    const ownerId = String(s.ownerId);
+    const moved = await RecurringSeries.findOneAndUpdate(
+      { ownerId: s.ownerId, _id: s._id, status: 'requested', respondBy: { $lte: now } },
+      { $set: { status: 'declined', decidedAt: now, declineReason: null } },
+      { session, new: true },
+    ).setOptions(cross);
+    if (!moved) return false;
+    const pending = await Booking.find({ ownerId: s.ownerId, seriesId: s._id, status: 'pending' }).sort({ startAt: 1 }).session(session);
+    const games: BookingDoc[] = [];
+    for (const g of pending) {
+      games.push(await transition(system(g), g, 'rejected', now, session, { rejectReason: AUTO_REJECT_REASON }, {}, { log: false }));
+    }
+    await logSystemActivity(
+      ownerId,
+      {
+        action: 'series.decline',
+        entity: 'series',
+        entityId: String(s._id),
+        venueId: String(s.venueId),
+        before: { status: 'requested' },
+        after: { status: 'declined', games: games.length, auto: true },
+      },
+      now,
+      session,
+    );
+    if (games.length > 0) {
+      await noticeBooking('series_declined', games[0]!, now, session, {
+        seriesId: String(s._id),
+        games: games.map((g) => g.startAt.toISOString()),
+        reason: null,
+        autoRejected: true,
+      });
+    }
+    return true;
+  });
+}
+
+/** Moves active series whose last game has finished to ended. Cancelled, declined and withdrawn ones are never touched. */
+export async function endSeries(now: Date): Promise<number> {
+  return sweepSeries('endSeries', { status: 'active', lastEndAt: { $lte: now } }, 'lastEndAt', async (s, session) => {
+    const moved = await RecurringSeries.updateOne(
+      { ownerId: s.ownerId, _id: s._id, status: 'active', lastEndAt: { $lte: now } },
+      { $set: { status: 'ended' } },
+      { session },
+    ).setOptions(cross);
+    return moved.modifiedCount > 0;
+  });
 }

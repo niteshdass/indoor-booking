@@ -153,6 +153,19 @@ describe('owner reviews', () => {
     expect(actions).toEqual(['review.replied', 'review.replied', 'review.reply_deleted']);
   });
 
+  it('lists 20 per page by default', async () => {
+    for (let i = 0; i < 21; i++) await review(vA);
+    const res = await get('/reviews');
+    expect(res.body.reviews).toHaveLength(20);
+    expect(res.body.nextBefore).toBe(res.body.reviews[19].id);
+  });
+
+  it('deleting a missing reply is a quiet 204', async () => {
+    const r = await review(vA);
+    expect((await del(`/reviews/${r.id}/reply`)).status).toBe(204);
+    expect(await ActivityLog.countDocuments({ action: /^review\./ }).setOptions({ crossTenant: true })).toBe(0);
+  });
+
   it('cannot reply to a hidden review', async () => {
     const r = await review(vA, { moderation: 'hidden' });
     const res = await put(`/reviews/${r.id}/reply`, { text: 'Hi' });

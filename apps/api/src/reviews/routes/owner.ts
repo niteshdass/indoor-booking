@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
-import { REVIEW_PAGE_SIZE, type OwnerReviewJson } from '@booking/shared';
+import type { OwnerReviewJson } from '@booking/shared';
 import { User } from '../../auth/user.model';
 import { Booking } from '../../bookings/booking.model';
 import { AppError } from '../../errors';
@@ -15,6 +15,8 @@ import { ownerReviewJson } from '../json';
 import { ratingJson } from '../rating';
 import { Review, type ReviewDoc } from '../review.model';
 import { flagBodySchema, replyBodySchema } from '../schemas';
+
+const OWNER_REVIEW_PAGE_SIZE = 20;
 
 const idQuery = z.string().regex(/^[0-9a-f]{24}$/i, 'Must be an id');
 const listQuery = z
@@ -54,7 +56,7 @@ export function ownerReviewsRouter(services: AppServices): Router {
     const t = tenantOf(req);
     const q = listQuery.parse(req.query);
     if (q.venueId) await scopedVenue(t, q.venueId);
-    const limit = q.limit ?? REVIEW_PAGE_SIZE;
+    const limit = q.limit ?? OWNER_REVIEW_PAGE_SIZE;
     const filter: Record<string, unknown> = {};
     if (q.venueId) filter.venueId = q.venueId;
     if (q.stars) filter.stars = q.stars;

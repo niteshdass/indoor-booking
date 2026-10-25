@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { Stars } from '../components/ui/Stars';
 import { formatDate, formatTime, money } from '../lib/format';
 import type { BookingJson } from '../lib/types';
 import { BookingStatusBadge } from './BookingStatusBadge';
@@ -33,6 +34,12 @@ export function BookingRow({ booking }: { booking: BookingJson }) {
         )}
         <span className={styles.total}>{money(booking.total, booking.currency, lang)}</span>
       </span>
+      {booking.reviewableUntil && (
+        <span className={styles.cue}>
+          <span aria-hidden="true">★</span> {t('reviews.rateCue')}
+        </span>
+      )}
+      {booking.review && <Stars value={Math.round(booking.review.stars)} />}
     </Link>
   );
 }

@@ -149,7 +149,7 @@ export type WalkInAddon = {
 };
 
 /** Task 1: the booking JSON plus customer and turf name; no venue summary on owner responses. */
-export type OwnerBooking = Omit<BookingJson, 'venue' | 'turf'> & {
+export type OwnerBooking = Omit<BookingJson, 'venue' | 'turf' | 'completedAt' | 'review' | 'reviewableUntil'> & {
   customer: { name: string; phone: string | null; email: string | null } | null;
   turf: { name: string } | null;
 };

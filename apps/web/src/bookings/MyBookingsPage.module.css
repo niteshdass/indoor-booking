@@ -138,3 +138,8 @@
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+
+.cue {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

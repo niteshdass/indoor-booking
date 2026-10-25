@@ -1,4 +1,4 @@
-import type { Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
 
 export type { SearchResult, SearchResponse } from '@booking/shared';
 
@@ -97,6 +97,9 @@ export type BookingJson = {
   cancelledBy: 'player' | 'guest' | 'staff' | null;
   cancelReason: string | null;
   createdAt: string;
+  completedAt: string | null;
+  review: OwnReviewJson | null;
+  reviewableUntil: string | null;
   venue: PlayerVenue | null;
   turf: { name: string } | null;
 };

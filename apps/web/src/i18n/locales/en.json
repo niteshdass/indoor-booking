@@ -148,7 +148,12 @@
     "cannot_modify_self": "You can't change your own membership.",
     "owner_membership_locked": "The owner's membership can't be changed.",
     "role_name_taken": "A role with this name already exists.",
-    "system_role_readonly": "System roles cannot be changed."
+    "system_role_readonly": "System roles cannot be changed.",
+    "not_reviewable": "This booking can no longer be reviewed.",
+    "already_reviewed": "You have already reviewed this booking.",
+    "review_locked": "This review can no longer be changed.",
+    "cannot_flag": "This review cannot be flagged.",
+    "cannot_reply": "This review cannot be replied to."
   },
   "myBookings": {
     "title": "My bookings",
@@ -1138,6 +1143,25 @@
   "reviews": {
     "starsLabel": "{{value}} out of 5",
     "starOption_one": "{{count}} star",
-    "starOption_other": "{{count}} stars"
+    "starOption_other": "{{count}} stars",
+    "rate": "Rate your game",
+    "rateCue": "Rate your game",
+    "dialogTitle": "Rate your game",
+    "editTitle": "Edit your review",
+    "stars": "Your rating",
+    "comment": "Comment (optional)",
+    "count": "{{n}}/1000",
+    "submit": "Submit review",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "mine": "Your review",
+    "edit": "Edit",
+    "delete": "Delete",
+    "edited": "Edited",
+    "hidden": "Hidden by moderators",
+    "reply": "Reply from the venue",
+    "deleteTitle": "Delete your review?",
+    "deleteBody": "This cannot be undone and you will not be able to review this booking again.",
+    "deleteConfirm": "Delete review"
   }
 }

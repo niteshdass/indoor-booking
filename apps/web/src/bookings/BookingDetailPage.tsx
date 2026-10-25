@@ -8,6 +8,8 @@ import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { MyReview } from './MyReview';
+import { ReviewDialog } from './ReviewDialog';
 import { BookingFacts } from './BookingFacts';
 import { CancelDialog } from './CancelDialog';
 import { RefundList } from './RefundList';
@@ -38,6 +40,8 @@ export function BookingDetailPage() {
   const [epoch, setEpoch] = useState(0);
   const [refunds, setRefunds] = useState<RefundJson[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const askedForReview = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [cancelledAt, setCancelledAt] = useState(0);
   const path = `/me/bookings/${encodeURIComponent(id)}`;
@@ -59,6 +63,7 @@ export function BookingDetailPage() {
   }, [path, attempt]);
 
   const booking = state.status === 'ready' ? state.booking : null;
+  const reviewable = !!booking?.reviewableUntil;
   const polling = paid && !redirectFailed && booking?.status === 'awaiting_payment' && !slow;
 
   useEffect(() => {
@@ -88,6 +93,14 @@ export function BookingDetailPage() {
       clearTimeout(giveUp);
     };
   }, [polling, epoch, path]);
+
+  // The review request notice links here with ?review=1; open the dialog once, when the booking can be reviewed.
+  useEffect(() => {
+    if (params.get('review') === '1' && reviewable && !askedForReview.current) {
+      askedForReview.current = true;
+      setReviewOpen(true);
+    }
+  }, [params, reviewable]);
 
   useEffect(() => {
     if (cancelledAt > 0) headingRef.current?.focus();
@@ -150,6 +163,31 @@ export function BookingDetailPage() {
             </Button>
           )}
           <RefundList refunds={refunds} />
+          {reviewable && (
+            <Button size="lg" block onClick={() => setReviewOpen(true)}>
+              {t('reviews.rate')}
+            </Button>
+          )}
+          {booking.review && (
+            <MyReview
+              review={booking.review}
+              bookingPath={path}
+              onEdit={() => setReviewOpen(true)}
+              onDeleted={() => setState({ status: 'ready', booking: { ...booking, review: null, reviewableUntil: null } })}
+            />
+          )}
+          {(reviewable || booking.review) && (
+            <ReviewDialog
+              open={reviewOpen}
+              onClose={() => setReviewOpen(false)}
+              bookingPath={path}
+              review={booking.review}
+              onSaved={(review) => {
+                setState({ status: 'ready', booking: { ...booking, review, reviewableUntil: null } });
+                setReviewOpen(false);
+              }}
+            />
+          )}
           {CANCELLABLE.has(booking.status) && (
             <>
               <Button variant="secondary" size="lg" block onClick={() => setCancelOpen(true)}>

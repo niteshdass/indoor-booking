@@ -13,7 +13,7 @@ export function Stars({ value, size = 'sm' }: StarsProps) {
         const fill = halves >= n * 2 ? styles.full : halves === n * 2 - 1 ? styles.half : '';
         return (
           <span key={n} className={styles.star} aria-hidden="true">
-            ★<span className={[styles.fill, fill].join(' ')}>★</span>
+            ☆<span className={[styles.fill, fill].join(' ')}>★</span>
           </span>
         );
       })}

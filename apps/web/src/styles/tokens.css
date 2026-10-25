@@ -56,7 +56,7 @@
   --focus-width: 2px;
   --star-size-sm: 1rem;
   --star-size-md: 1.5rem;
-  --star-empty: var(--border-strong);
+  --star-empty: #7c8493;
   --opacity-muted: 0.55;
   --duration-fast: 150ms;
 
@@ -87,7 +87,7 @@
   --primary-hover: #2b3a4d;
   --primary-fg: #ffffff;
   --focus-ring: 0 0 0 3px rgba(25, 40, 58, 0.12);
-  --star-filled: #f59e0b;
+  --star-filled: #d27005;
   --overlay: rgba(10, 13, 20, 0.5);
 
   --success: #059669;
@@ -116,6 +116,7 @@
   --border-subtle: #222f3d;
   --border-default: #2c3a4b;
   --border-strong: #3d4c5e;
+  --star-empty: #7b8696;
   --text-strong: #f0f3f5;
   --text-default: #cacfd8;
   --text-muted: #99a0ae;
@@ -149,6 +150,7 @@
     --border-subtle: #222f3d;
     --border-default: #2c3a4b;
     --border-strong: #3d4c5e;
+    --star-empty: #7b8696;
     --text-strong: #f0f3f5;
     --text-default: #cacfd8;
     --text-muted: #99a0ae;

@@ -5,7 +5,6 @@ import { currencyExponent, localParts, parseMoney, type AddonSelection } from '@
 import { AddonPicker } from '../../checkout/AddonPicker';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { PhoneInput } from '../../components/ui/PhoneInput';
 import { Select } from '../../components/ui/Select';
 import { Spinner } from '../../components/ui/Spinner';
 import { TextField } from '../../components/ui/TextField';
@@ -17,14 +16,17 @@ import { DateStrip } from '../../venue/DateStrip';
 import { SlotGrid } from '../../venue/SlotGrid';
 import { keepSelectable, toggleSlot } from '../../venue/slotSelection';
 import { PaymentLinkDialog } from '../bookings/PaymentLinkDialog';
+import { CustomerFields, customerErrors, type Customer } from '../CustomerFields';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useVenueParam } from '../shell/useVenueParam';
 import { VenueSelect } from '../shell/VenueSelect';
 import type { OwnerBooking, OwnerSlotDay, OwnerTurf, OwnerVenue, PaymentLink, WalkInAddon } from '../types';
+import { ActiveTurfs } from '../turfs/ActiveTurfs';
 import { useResource } from '../useResource';
 import { walkInEstimate } from './walkInEstimate';
+import common from '../ownerForm.module.css';
 import styles from './WalkInPage.module.css';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -37,9 +39,9 @@ export function WalkInPage() {
   const { t } = useTranslation();
   const [venue] = useVenueParam();
   useOwnerTitle(t('owner.nav.walkIn'));
-  if (!venue) return <p className={styles.empty}>{t('owner.today.noVenues')}</p>;
+  if (!venue) return <p className={common.empty}>{t('owner.today.noVenues')}</p>;
   return (
-    <div className={styles.page}>
+    <div className={common.page}>
       <VenueSelect />
       <WalkInVenue key={venue.id} venue={venue} />
     </div>
@@ -47,23 +49,7 @@ export function WalkInPage() {
 }
 
 function WalkInVenue({ venue }: { venue: OwnerVenue }) {
-  const { t } = useTranslation();
-  const { ownerId } = useOwner();
-  const turfs = useResource<{ turfs: OwnerTurf[] }>(ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}/turfs`));
-  if (turfs.state.status === 'error') {
-    return (
-      <Alert tone="danger">
-        <p className={styles.empty}>{errorMessage(turfs.state.error, t)}</p>
-        <Button variant="secondary" onClick={turfs.reload}>
-          {t('auth.retry')}
-        </Button>
-      </Alert>
-    );
-  }
-  if (turfs.state.status !== 'ready') return <Spinner label={t('common.loading')} />;
-  const active = turfs.state.data.turfs.filter((x) => x.active);
-  if (active.length === 0) return <p className={styles.empty}>{t('owner.walkIn.noTurfs')}</p>;
-  return <WalkInForm venue={venue} turfs={active} />;
+  return <ActiveTurfs venue={venue}>{(turfs) => <WalkInForm venue={venue} turfs={turfs} />}</ActiveTurfs>;
 }
 
 /** Minor units as an input value, e.g. 1000 BDT -> "10.00". */
@@ -85,8 +71,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
 
   const [selected, setSelected] = useState<string[]>([]);
   const [addons, setAddons] = useState<AddonSelection[]>([]);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [customer, setCustomer] = useState<Customer>({ name: '', phone: '' });
   const [method, setMethod] = useState<Method>('unpaid');
   const [cashText, setCashText] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
@@ -141,8 +126,6 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
 
   const currency = rawDay?.currency ?? venue.currency;
   const inWindow = rawDay?.inWindow ?? true;
-  const nameOk = name.trim().length >= 1 && name.trim().length <= 80;
-  const phoneOk = phone !== '';
   let cashAmount: number | undefined;
   let cashOk = true;
   if (method === 'cash' && cashText !== null) {
@@ -157,7 +140,8 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   const submit = async () => {
     if (busy.current || !rawDay || !inWindow || selected.length === 0) return;
     setTried(true);
-    if (!nameOk || !phoneOk || !cashOk) return;
+    const bad = customerErrors(customer);
+    if (bad.name || bad.phone || !cashOk) return;
     busy.current = true;
     setSubmitting(true);
     setError(null);
@@ -168,7 +152,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         date,
         startAts: selected,
         addons,
-        customer: { name: name.trim(), phone },
+        customer: { name: customer.name.trim(), phone: customer.phone },
         payment,
       });
       if (res.payment) setLink({ link: res.payment, bookingId: res.booking.id });
@@ -193,7 +177,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   if (slots.state.status === 'error') {
     grid = (
       <Alert tone="danger">
-        <p className={styles.empty}>{errorMessage(slots.state.error, t)}</p>
+        <p className={common.empty}>{errorMessage(slots.state.error, t)}</p>
         <Button variant="secondary" onClick={slots.reload}>
           {t('auth.retry')}
         </Button>
@@ -202,21 +186,21 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   } else if (!gridDay) {
     grid = <Spinner label={t('common.loading')} />;
   } else if (!inWindow) {
-    grid = <p className={styles.notice}>{t('owner.walkIn.outsideWindow')}</p>;
+    grid = <p className={common.notice}>{t('owner.walkIn.outsideWindow')}</p>;
   } else {
     grid = <SlotGrid day={gridDay} selected={selected} onToggle={(s) => setSelected((prev) => toggleSlot(gridDay.slots, prev, s))} tone="portal" />;
   }
 
   return (
     <form
-      className={styles.form}
+      className={common.form}
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <section className={styles.card}>
+      <section className={common.card}>
         <Select
           layout="stacked"
           label={t('owner.walkIn.turf')}
@@ -224,33 +208,20 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
           options={turfs.map((x) => ({ value: x.id, label: x.name }))}
           onChange={(e) => change({ turf: e.target.value })}
         />
-        <h2 className={styles.heading}>{t('owner.walkIn.date')}</h2>
+        <h2 className={common.heading}>{t('owner.walkIn.date')}</h2>
         <DateStrip today={today} value={date} onChange={(d) => change({ date: d })} timeZone={venue.timezone} />
-        <h2 className={styles.heading}>{t('owner.walkIn.slots')}</h2>
+        <h2 className={common.heading}>{t('owner.walkIn.slots')}</h2>
         {grid}
         {addonRes.state.status === 'ready' && (
           <AddonPicker offered={offered} quoteLines={estimate?.addons ?? []} value={addons} onChange={setAddons} currency={currency} />
         )}
       </section>
 
-      <section className={styles.card}>
-        <h2 className={styles.heading}>{t('owner.walkIn.customer')}</h2>
-        <TextField
-          label={t('owner.walkIn.name')}
-          value={name}
-          maxLength={80}
-          autoComplete="off"
-          error={tried && !nameOk ? t('owner.walkIn.nameRequired') : undefined}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <PhoneInput
-          label={t('owner.walkIn.phoneLabel')}
-          value={phone}
-          onChange={setPhone}
-          error={tried && !phoneOk ? t('owner.walkIn.phoneRequired') : undefined}
-        />
+      <section className={common.card}>
+        <h2 className={common.heading}>{t('owner.walkIn.customer')}</h2>
+        <CustomerFields value={customer} onChange={setCustomer} tried={tried} />
         <fieldset className={styles.methods}>
-          <legend className={styles.heading}>{t('owner.walkIn.payment')}</legend>
+          <legend className={common.heading}>{t('owner.walkIn.payment')}</legend>
           {methods.map((m) => (
             <label key={m.key} className={styles.method}>
               <input type="radio" name="payment" value={m.key} checked={method === m.key} onChange={() => setMethod(m.key)} />
@@ -269,7 +240,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         )}
       </section>
 
-      <section className={styles.card} aria-live="polite">
+      <section className={common.card} aria-live="polite">
         {estimate && (
           <dl className={styles.estimate}>
             <div className={styles.row}>
@@ -288,7 +259,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
             </div>
           </dl>
         )}
-        <p className={styles.hint}>{t('owner.walkIn.estimate')}</p>
+        <p className={common.hint}>{t('owner.walkIn.estimate')}</p>
         {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
         <Button type="submit" size="lg" loading={submitting} disabled={!inWindow || selected.length === 0 || !rawDay}>
           {t('owner.walkIn.submit')}

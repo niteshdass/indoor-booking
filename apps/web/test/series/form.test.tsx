@@ -16,14 +16,15 @@ beforeEach(async () => {
 
 const START: SeriesPattern = { weekdays: ['mon'], startTime: '10:00', slotCount: 1, firstDate: '2026-10-26', endDate: null, count: 10 };
 
-function Harness({ onValue }: { onValue: (p: SeriesPattern) => void }) {
+function Harness({ onValue, slotTimes = ['10:00', '11:00'], slotMinutes = 60 }: { onValue: (p: SeriesPattern) => void; slotTimes?: string[]; slotMinutes?: number }) {
   const [value, setValue] = useState<SeriesPattern>(START);
   return (
     <I18nextProvider i18n={i18n}>
       <SeriesForm
         value={value}
         tone="portal"
-        slotTimes={['10:00', '11:00']}
+        slotTimes={slotTimes}
+        slotMinutes={slotMinutes}
         onChange={(p) => {
           setValue(p);
           onValue(p);
@@ -54,6 +55,26 @@ describe('SeriesForm', () => {
     expect(last.slotCount).toBe(2);
     await user.selectOptions(screen.getByLabelText(en.series.startTime), '11:00');
     expect(last.startTime).toBe('11:00');
+  });
+});
+
+describe('SeriesForm length', () => {
+  it('length options use the turf slot length even with a single slot', () => {
+    render(<Harness onValue={() => {}} slotTimes={['10:00']} slotMinutes={90} />);
+    const labels = Array.from((screen.getByLabelText(en.series.length) as HTMLSelectElement).options).map((o) => o.textContent);
+    expect(labels.slice(0, 3)).toEqual(['1 h 30 min', '3 h', '4 h 30 min']);
+  });
+
+  it('count can be cleared and retyped', async () => {
+    const user = userEvent.setup();
+    let last = START;
+    render(<Harness onValue={(p) => (last = p)} />);
+    const input = screen.getByLabelText(en.series.count) as HTMLInputElement;
+    await user.clear(input);
+    expect(input.value).toBe('');
+    await user.type(input, '12');
+    expect(input.value).toBe('12');
+    expect(last.count).toBe(12);
   });
 });
 

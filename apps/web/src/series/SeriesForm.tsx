@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SERIES_MAX_GAMES, MAX_SLOTS_PER_BOOKING, WEEKDAYS, type Weekday } from '@booking/shared';
 import { Select } from '../components/ui/Select';
@@ -11,20 +11,16 @@ export type SeriesFormProps = {
   onChange: (next: SeriesPattern) => void;
   tone: 'brand' | 'portal';
   slotTimes: string[];
+  /** The turf's slot length in minutes; sizes the Length options. */
+  slotMinutes: number;
 };
 
-const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-
-/** Minutes per slot, read from the gap between the first two start times; one hour when unknown. */
-function slotMinutes(slotTimes: string[]): number {
-  const gap = slotTimes.length >= 2 ? minutes(slotTimes[1]!) - minutes(slotTimes[0]!) : 0;
-  return gap > 0 ? gap : 60;
-}
-
 /** Controlled weekly pattern: weekdays, start time, length, first date and how the series ends. */
-export function SeriesForm({ value, onChange, tone, slotTimes }: SeriesFormProps) {
+export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: SeriesFormProps) {
   const { t, i18n } = useTranslation();
   const groupId = useId();
+  // What the user is typing in the count box; null shows the pattern's count.
+  const [countDraft, setCountDraft] = useState<string | null>(null);
   const mode: 'date' | 'count' = value.count !== null ? 'count' : 'date';
   const set = (patch: Partial<SeriesPattern>) => onChange({ ...value, ...patch });
   const dayName = (index: number) =>
@@ -37,7 +33,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes }: SeriesFormProps
     set({ weekdays: next });
   };
 
-  const per = slotMinutes(slotTimes);
+  const per = slotMinutes;
   const duration = (slots: number) => {
     const total = slots * per;
     const h = Math.floor(total / 60);
@@ -128,10 +124,12 @@ export function SeriesForm({ value, onChange, tone, slotTimes }: SeriesFormProps
             label={t('series.count')}
             min={1}
             max={SERIES_MAX_GAMES}
-            value={value.count ?? ''}
+            value={countDraft ?? String(value.count ?? '')}
+            onBlur={() => setCountDraft(null)}
             onChange={(e) => {
+              setCountDraft(e.target.value);
               const n = Math.floor(Number(e.target.value));
-              set({ count: Number.isFinite(n) && n >= 1 ? Math.min(n, SERIES_MAX_GAMES) : 1 });
+              if (e.target.value.trim() !== '' && Number.isFinite(n) && n >= 1) set({ count: Math.min(n, SERIES_MAX_GAMES) });
             }}
           />
         )}

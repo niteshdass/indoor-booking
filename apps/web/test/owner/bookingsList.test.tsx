@@ -43,6 +43,7 @@ describe('booking filters', () => {
     expect(readFilters(p, v)).toEqual(f);
     expect(readFilters(new URLSearchParams(), v)).toEqual(base);
     expect(readFilters(new URLSearchParams('status=bogus&from=nope'), v)).toEqual(base);
+    expect(readFilters(new URLSearchParams('from=2026-02-31&to=2026-13-01'), v)).toEqual(base);
   });
 
   it('api path never includes q and includes status only when set', () => {
@@ -63,6 +64,8 @@ describe('booking filters', () => {
     expect(matchesQuery(b, 'zed')).toBe(false);
     expect(matchesQuery(b, '')).toBe(true);
     expect(matchesQuery(ownerBooking({ customer: null }), 'ada')).toBe(false);
+    expect(matchesQuery(ownerBooking({ customer: null, guest: { name: 'Gus Guest', phone: '+8801' } }), 'gus')).toBe(true);
+    expect(matchesQuery(b, 'abc')).toBe(false);
   });
 });
 
@@ -114,5 +117,37 @@ describe('Bookings page', () => {
     renderApp(`/owner/${OWNER_ID}/bookings`, { user: staffUser });
     await screen.findByRole('link', { name: 'BK-0001' });
     expect(screen.queryByText(en.owner.bookings.capped)).toBeNull();
+  });
+
+  it('a foreign or garbage turf in the URL is not sent and the select shows all turfs', async () => {
+    const api = mockApi(routes());
+    renderApp(`/owner/${OWNER_ID}/bookings?turf=zzz`, { user: staffUser });
+    await screen.findByRole('link', { name: 'BK-0001' });
+    const calls = api.calls.filter((c) => c.path === '/owners/o1/bookings');
+    expect(calls.every((c) => !c.query.has('turfId'))).toBe(true);
+    expect((screen.getByLabelText(en.owner.bookings.turf) as HTMLSelectElement).value).toBe('');
+  });
+
+  it('a turf of the venue is sent and selected', async () => {
+    const api = mockApi(routes());
+    renderApp(`/owner/${OWNER_ID}/bookings?turf=t1`, { user: staffUser });
+    await screen.findByRole('link', { name: 'BK-0001' });
+    expect(api.calls.find((c) => c.path === '/owners/o1/bookings')!.query.get('turfId')).toBe('t1');
+    expect((screen.getByLabelText(en.owner.bookings.turf) as HTMLSelectElement).value).toBe('t1');
+  });
+
+  it('changing venue clears the turf', async () => {
+    mockApi([
+      ...ownerRoutes({ venues: [v, venue({ id: 'v2', name: 'Arena Two' })] }),
+      { path: '/owners/o1/venues/v1/turfs', body: { turfs: [turf()] } },
+      { path: '/owners/o1/venues/v2/turfs', body: { turfs: [turf({ id: 't9', venueId: 'v2', name: 'Pitch Z' })] } },
+      { path: '/owners/o1/bookings', body: { bookings: [] } },
+    ]);
+    const { user, location } = renderApp(`/owner/${OWNER_ID}/bookings?turf=t1`, { user: staffUser });
+    await screen.findByText(en.owner.bookings.empty);
+    await user.selectOptions(screen.getByLabelText(en.owner.venue), 'v2');
+    const q = new URLSearchParams(location().search);
+    expect(q.get('venue')).toBe('v2');
+    expect(q.has('turf')).toBe(false);
   });
 });

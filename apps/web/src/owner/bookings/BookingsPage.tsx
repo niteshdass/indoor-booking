@@ -33,11 +33,15 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
   const { t } = useTranslation();
   const { ownerId, venues } = useOwner();
   const [params, setParams] = useSearchParams();
-  const filters = readFilters(params, venue);
+  const requested = readFilters(params, venue);
   const today = readFilters(new URLSearchParams(), venue).from;
-  const error = rangeError(filters);
 
   const turfs = useResource<{ turfs: OwnerTurf[] }>(ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}/turfs`));
+  // A turf only counts once the venue's turf list has loaded and contains it; otherwise it is dropped.
+  const known = turfs.state.status === 'ready' && turfs.state.data.turfs.some((x) => x.id === requested.turfId);
+  const filters: BookingFilters = { ...requested, turfId: known ? requested.turfId : null };
+  const waitingForTurfs = requested.turfId !== null && turfs.state.status !== 'ready' && turfs.state.status !== 'error';
+  const error = rangeError(filters);
 
   /** Writes the filters back to the URL, keeping the venue. */
   const update = (patch: Partial<BookingFilters>, venueId = venue.id) => {
@@ -98,7 +102,9 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
           onChange={(e) => update({ q: e.target.value })}
         />
       </div>
-      {error ? (
+      {waitingForTurfs ? (
+        <Spinner label={t('common.loading')} />
+      ) : error ? (
         <Alert tone="danger">{t(error)}</Alert>
       ) : (
         <BookingsList venue={venue} filters={filters} />

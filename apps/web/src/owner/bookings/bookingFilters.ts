@@ -16,6 +16,8 @@ export const BOOKINGS_CAP = 500;
 const MAX_DAYS = 31;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+const isRealDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
+
 const venueToday = (venue: OwnerVenue) => localParts(new Date(), venue.timezone).date;
 
 /** Filters from the URL; `from` and `to` default to the venue-local today. The venue itself is `venue`. */
@@ -23,7 +25,7 @@ export function readFilters(p: URLSearchParams, venue: OwnerVenue): BookingFilte
   const today = venueToday(venue);
   const date = (key: string) => {
     const v = p.get(key);
-    return v && DATE.test(v) ? v : today;
+    return v && DATE.test(v) && isRealDate(v) ? v : today;
   };
   const status = p.get('status');
   return {
@@ -63,8 +65,9 @@ export function matchesQuery(b: OwnerBooking, q: string): boolean {
   if (!needle) return true;
   if (b.reference.toLowerCase().includes(needle)) return true;
   if (b.customer?.name.toLowerCase().includes(needle)) return true;
+  if (b.guest?.name.toLowerCase().includes(needle)) return true;
   const d = digits(needle);
-  return d !== '' && digits(b.customer?.phone ?? '').includes(d);
+  return d !== '' && digits(b.customer?.phone ?? b.guest?.phone ?? '').includes(d);
 }
 
 export function rangeError(f: BookingFilters): 'owner.bookings.rangeOrder' | 'owner.bookings.rangeMax' | null {

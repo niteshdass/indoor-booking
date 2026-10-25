@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { ratingJson } from '../../reviews/rating';
 import { SLUG_RE } from '@booking/shared';
 import { AppError } from '../../errors';
+import { turfNotFound } from '../guards';
 import { Owner } from '../../tenancy/owner.model';
 import { Venue, type VenueDoc } from '../venue.model';
 import { Turf } from '../turf.model';
@@ -18,6 +20,16 @@ export async function publicVenueBySlug(slug: string): Promise<VenueDoc> {
   const owner = await Owner.findById(venue.ownerId, { status: 1 }).lean();
   if (owner?.status !== 'active') throw notFound();
   return venue;
+}
+
+/** Published venue, active owner, active turf, else 404 (same lookup as the public slot grid). */
+export async function publicTurf(slug: string, turfId: string) {
+  const venue = await publicVenueBySlug(slug);
+  const turf = mongoose.isValidObjectId(turfId)
+    ? await Turf.findOne({ ownerId: venue.ownerId, venueId: venue._id, _id: turfId, active: true })
+    : null;
+  if (!turf) throw turfNotFound();
+  return { venue, turf };
 }
 
 /** Unauthenticated venue page; unpublished, unknown and malformed slugs all look the same. */

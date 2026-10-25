@@ -11,10 +11,8 @@ import type { Config } from '../../config';
 import { AppError } from '../../errors';
 import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
-import { turfNotFound } from '../../venues/guards';
 import { effectiveForVenue } from '../../venues/effective';
-import { publicVenueBySlug } from '../../venues/routes/public';
-import { Turf } from '../../venues/turf.model';
+import { publicTurf, publicVenueBySlug } from '../../venues/routes/public';
 import { Booking } from '../booking.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, quoteFor } from '../create';
@@ -99,16 +97,6 @@ export function publicBookingsRouter(
   otpLimiter?: RequestHandler,
 ): Router {
   const router = Router();
-
-  /** Published venue, active owner, active turf, else 404 (same lookup as the public slot grid). */
-  async function publicTurf(slug: string, turfId: string) {
-    const venue = await publicVenueBySlug(slug);
-    const turf = mongoose.isValidObjectId(turfId)
-      ? await Turf.findOne({ ownerId: venue.ownerId, venueId: venue._id, _id: turfId, active: true })
-      : null;
-    if (!turf) throw turfNotFound();
-    return { venue, turf };
-  }
 
   router.post('/venues/:slug/turfs/:turfId/quote', async (req, res) => {
     const input = quoteSchema.parse(req.body);

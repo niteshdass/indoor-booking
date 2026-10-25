@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../../components/ui/Badge';
 import { useOwner } from '../OwnerProvider';
+import { roleLabel } from '../roleLabel';
 import styles from './OwnerShell.module.css';
 
 /** Sidebar header: shows the current team and role, and lists every membership to switch between. */
@@ -51,7 +52,7 @@ export function OwnerSwitcher() {
         onClick={() => setOpen((o) => !o)}
       >
         <span className={styles.switcherName}>{owner.name}</span>
-        <span className={styles.switcherRole}>{membership.role.name}</span>
+        <span className={styles.switcherRole}>{roleLabel(membership.role, t)}</span>
       </button>
       {open && (
         <ul id={listId} role="listbox" aria-label={t('owner.switcher')} className={styles.switcherList}>
@@ -71,7 +72,7 @@ export function OwnerSwitcher() {
               }}
             >
               <span className={styles.switcherName}>{m.ownerName}</span>
-              <span className={styles.switcherRole}>{m.role.name}</span>
+              <span className={styles.switcherRole}>{roleLabel(m.role, t)}</span>
               {m.ownerStatus !== 'active' && <Badge tone="neutral">{t(`owner.status.${m.ownerStatus}`)}</Badge>}
             </li>
           ))}

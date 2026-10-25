@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import { PERMISSIONS } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
+import ru from '../../src/i18n/locales/ru.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { renderApp } from '../helpers/render';
@@ -62,6 +63,17 @@ describe('roles', () => {
     await user.click(within(dialog).getByRole('button', { name: S.save }));
     await waitFor(() => expect(calls.some((c) => c.method === 'POST')).toBe(true));
     expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ name: 'Night desk', permissions: ['booking.view'] });
+  });
+
+  it('system role names are translated, custom names are shown as typed', async () => {
+    await i18n.changeLanguage('ru');
+    mockApi([rolesRoute, membersRoute(), ...ownerRoutes({ permissions: [...CALLER] })]);
+    renderApp(`${URL}?tab=roles`, { user: staffUser });
+    const table = await screen.findByRole('table', { name: ru.owner.staff.tab.roles });
+    expect(within(table).getByText(ru.owner.roleName.owner)).toBeInTheDocument();
+    expect(within(table).getByText(ru.owner.roleName.manager)).toBeInTheDocument();
+    expect(within(table).queryByText('Owner')).toBeNull();
+    expect(within(table).getByText('Front desk')).toBeInTheDocument();
   });
 
   it('system role is read-only and in-use role cannot be deleted', async () => {

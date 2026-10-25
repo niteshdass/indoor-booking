@@ -12,6 +12,7 @@ import { apiDelete, apiPatch, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
+import { roleLabel } from '../roleLabel';
 import { ConfirmDeleteDialog } from '../schedule/ConfirmDeleteDialog';
 import type { Role } from '../types';
 import styles from './staff.module.css';
@@ -67,7 +68,7 @@ export function RoleEditor({ roles, onChanged }: Props) {
               <tr key={r.id}>
                 <td>
                   <span className={styles.nameCell}>
-                    {r.name}
+                    {roleLabel(r, t)}
                     {r.system && <Badge tone="neutral">{t('owner.staff.system')}</Badge>}
                   </span>
                 </td>
@@ -110,7 +111,7 @@ type DialogProps = { open: boolean; role: Role | null; onClose(): void; onSaved(
 /** Create (role null), edit or read-only view. The body is mounted only while open so every opening starts fresh. */
 function RoleDialog({ open, role, onClose, onSaved }: DialogProps) {
   const { t } = useTranslation();
-  const title = !role ? t('owner.staff.roleTitleAdd') : role.system ? t('owner.staff.roleTitleView', { name: role.name }) : t('owner.staff.roleTitleEdit');
+  const title = !role ? t('owner.staff.roleTitleAdd') : role.system ? t('owner.staff.roleTitleView', { name: roleLabel(role, t) }) : t('owner.staff.roleTitleEdit');
   return (
     <Dialog open={open} onClose={onClose} title={title}>
       {open && <RoleBody role={role} onClose={onClose} onSaved={onSaved} />}

@@ -11,6 +11,7 @@ import { apiDelete } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
+import { roleLabel } from '../roleLabel';
 import { ConfirmDeleteDialog } from '../schedule/ConfirmDeleteDialog';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import type { Member, Role } from '../types';
@@ -133,7 +134,7 @@ function MembersTab({ members, roles, onChanged }: { members: Member[]; roles: R
                       {m.user.phone && <span className={styles.num}>{m.user.phone}</span>}
                     </span>
                   </td>
-                  <td>{m.role.name}</td>
+                  <td>{roleLabel(m.role, t)}</td>
                   <td>{venueNames(m.venueIds)}</td>
                   <td>
                     <Badge tone={m.status === 'active' ? 'success' : 'neutral'}>{t(`owner.staff.status.${m.status}`)}</Badge>

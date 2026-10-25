@@ -11,6 +11,7 @@ import { apiPatch, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
+import { roleLabel } from '../roleLabel';
 import type { Member, Role, VenueScope } from '../types';
 import styles from './staff.module.css';
 
@@ -133,7 +134,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
         value={roleId}
         options={assignable.map((r) => ({
           value: r.id,
-          label: reachable(r) ? r.name : t('owner.staff.roleOutOfReach', { name: r.name }),
+          label: reachable(r) ? roleLabel(r, t) : t('owner.staff.roleOutOfReach', { name: roleLabel(r, t) }),
         }))}
         onChange={(e) => setRoleId(e.target.value)}
       />

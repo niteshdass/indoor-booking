@@ -454,6 +454,7 @@
     },
     "walkInGuest": "Walk-in guest",
     "unknownCustomer": "Unknown customer",
+    "roleName": { "owner": "Owner", "manager": "Manager", "staff": "Staff" },
     "schedule": {
       "closed": "Closed",
       "noTurfs": "This venue has no active courts.",

@@ -462,6 +462,7 @@
     },
     "walkInGuest": "Гость без брони",
     "unknownCustomer": "Неизвестный клиент",
+    "roleName": { "owner": "Владелец", "manager": "Менеджер", "staff": "Сотрудник" },
     "schedule": {
       "closed": "Закрыто",
       "noTurfs": "На этой площадке нет активных кортов.",

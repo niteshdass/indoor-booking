@@ -12,6 +12,7 @@ import { OwnerShell } from './shell/OwnerShell';
 import { TodayPage } from './today/TodayPage';
 import { SettingsPage } from './settings/SettingsPage';
 import { WalkInPage } from './walkin/WalkInPage';
+import { TurfEditorPage } from './turfs/TurfEditorPage';
 import { VenueEditorPage } from './venues/VenueEditorPage';
 import { VenuesPage } from './venues/VenuesPage';
 import type { Permission } from './types';
@@ -54,7 +55,7 @@ export function OwnerRoutes() {
         {/* Any member may open these; the pages go read-only without edit permissions. */}
         <Route path="venues/new" element={<Guarded><VenueEditorPage /></Guarded>} />
         <Route path="venues/:venueId" element={<Guarded><VenueEditorPage /></Guarded>} />
-        <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><ComingSoon /></Guarded>} />
+        <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><TurfEditorPage /></Guarded>} />
         <Route path="closures" element={<Guarded nav="closures"><ComingSoon /></Guarded>} />
         <Route path="addons" element={<Guarded nav="addons"><ComingSoon /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />

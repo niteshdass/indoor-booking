@@ -132,7 +132,9 @@
     "turf_name_taken": "This venue already has a turf with that name.",
     "gateway_account_in_use": "A card payment is still pending on the current Stripe account. Try again once it settles.",
     "gateway_error": "Stripe couldn't be reached or rejected the request. Try again.",
-    "payments_unconfigured": "Payments aren't configured on this server yet."
+    "payments_unconfigured": "Payments aren't configured on this server yet.",
+    "turf_has_bookings": "This turf has bookings, so it can't be deleted. Deactivate it instead.",
+    "last_active_turf": "A published venue needs at least one active turf. Unpublish the venue first."
   },
   "myBookings": {
     "title": "My bookings",
@@ -710,6 +712,61 @@
         "webhookSecret": "Enter the webhook signing secret (whsec_…).",
         "mode": "The secret and publishable keys must both be test keys or both be live keys.",
         "invalidKeys": "Stripe didn't accept these keys. Check them and try again."
+      }
+    },
+    "turf": {
+      "title": "Turf",
+      "back": "Back to turfs",
+      "notFound": "We couldn't find that turf.",
+      "tab": {
+        "details": "Details",
+        "hours": "Hours",
+        "pricing": "Pricing",
+        "overrides": "Overrides",
+        "addons": "Add-ons"
+      },
+      "name": "Turf name",
+      "active": "Active (can be booked)",
+      "save": "Save changes",
+      "saved": "Turf saved.",
+      "slotLengthFixed": "The slot length is set when the turf is created and can't be changed.",
+      "delete": "Delete turf",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteBody": "This removes the turf with its overrides and add-on settings. It can't be undone.",
+      "deleteConfirm": "Delete",
+      "deactivate": "Deactivate instead",
+      "hoursTitle": "Opening hours",
+      "hoursHint": "Days set to inherit follow the venue's opening hours.",
+      "saveHours": "Save hours",
+      "hoursSaved": "Hours saved."
+    },
+    "pricing": {
+      "title": "Pricing",
+      "base": "Base price",
+      "baseHint": "Charged per slot when no rule applies ({{currency}}).",
+      "priority": "Date beats weekend, weekend beats weekday, then base.",
+      "unpriced": "Slots show as unavailable until a base price is set.",
+      "tier": {
+        "date": "Specific dates",
+        "weekend": "Weekends",
+        "weekday": "Weekdays"
+      },
+      "rule": "Rule {{n}}",
+      "kind": "Applies to",
+      "price": "Price",
+      "date": "Date",
+      "allDay": "All day",
+      "from": "From",
+      "to": "To",
+      "addRule": "Add rule",
+      "removeRule": "Remove rule",
+      "save": "Save pricing",
+      "saved": "Pricing saved.",
+      "overlap": "Two rules in the same group cover the same hours. Change their times so they don't overlap.",
+      "err": {
+        "price": "Enter an amount such as 12.50.",
+        "date": "Pick a valid date.",
+        "time": "Enter both a start and an end time."
       }
     }
   }

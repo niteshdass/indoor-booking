@@ -14,6 +14,7 @@ import { Venue } from '../../src/venues/venue.model';
 import { Turf } from '../../src/venues/turf.model';
 import { Booking } from '../../src/bookings/booking.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
+import mongoose from 'mongoose';
 import { playerBookingsJson } from '../../src/bookings/playerJson';
 
 beforeAll(async () => {
@@ -99,5 +100,44 @@ describe('player booking JSON', () => {
     const res = await request(ctx.app).get('/api/v1/me/bookings').set(...bearer(token));
     expect(res.body.bookings[0].turf).toBeNull();
     expect(res.body.bookings[0].venue.name).toBe('Arena');
+  });
+  describe('GET /me/bookings window', () => {
+    const DAY = 86_400_000;
+    const insert = async (startAt: Date, over: Record<string, unknown> = {}) => {
+      const user = (await User.findOne({ name: 'Player' }))!;
+      const turf = (await Turf.findOne({ _id: turfId }).setOptions({ crossTenant: true }))!;
+      const [b] = await Booking.insertMany([{
+        ownerId: ownerId, venueId: turf.venueId, turfId, reference: `R${Math.random().toString(36).slice(2, 10)}`,
+        businessDate: startAt.toISOString().slice(0, 10), startAt, endAt: new Date(startAt.getTime() + 3_600_000),
+        slots: [{ startAt, endAt: new Date(startAt.getTime() + 3_600_000), price: 1500 }],
+        currency: 'BDT', subtotal: 1500, addonsTotal: 0, total: 1500, advanceRequired: 0,
+        status: 'confirmed', paymentStatus: 'unpaid', source: 'online', playerId: user._id,
+        policySnapshot: { paymentPolicy: null, refundRules: [] }, ...over,
+      }]);
+      return b!;
+    };
+    const ids = async () =>
+      (await request(ctx.app).get('/api/v1/me/bookings').set(...bearer(token))).body.bookings.map((b: { id: string }) => b.id);
+
+    it("a declined series' rejected games are not listed", async () => {
+      const now = ctx.services.now();
+      const seriesId = new mongoose.Types.ObjectId();
+      const single = await insert(new Date(now.getTime() + DAY));
+      const rejected = await insert(new Date(now.getTime() + 7 * DAY), { seriesId, status: 'rejected' });
+      const got = await ids();
+      expect(got).toContain(String(single._id));
+      expect(got).not.toContain(String(rejected._id));
+    });
+
+    it("a 100+ game series does not hide tomorrow's single booking or yesterday's booking", async () => {
+      const now = ctx.services.now();
+      const seriesId = new mongoose.Types.ObjectId();
+      for (let i = 0; i < 101; i++) await insert(new Date(now.getTime() + (10 + i) * DAY), { seriesId });
+      const tomorrow = await insert(new Date(now.getTime() + DAY));
+      const yesterday = await insert(new Date(now.getTime() - DAY));
+      const got = await ids();
+      expect(got).toContain(String(tomorrow._id));
+      expect(got).toContain(String(yesterday._id));
+    });
   });
 });

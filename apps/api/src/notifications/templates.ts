@@ -272,18 +272,32 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
     }),
   },
   series_declined: {
-    en: ({ d }) => ({
-      subject: 'Your recurring booking was declined',
-      lead: 'Sorry, the venue declined your recurring booking request.',
-      extra: d.reason ? `Reason: ${d.reason}` : undefined,
-      sms: `The venue declined your recurring booking request. ${d.reference}`,
-    }),
-    ru: ({ d }) => ({
-      subject: 'Ваше регулярное бронирование отклонено',
-      lead: 'К сожалению, площадка отклонила вашу заявку на регулярное бронирование.',
-      extra: d.reason ? `Причина: ${d.reason}` : undefined,
-      sms: `Площадка отклонила заявку на регулярное бронирование. ${d.reference}`,
-    }),
+    en: ({ d }) =>
+      d.autoRejected
+        ? {
+            subject: 'Your recurring booking request expired',
+            lead: 'Your recurring booking request was not answered in time, so it has been closed.',
+            sms: `Your recurring booking request expired without an answer. ${d.reference}`,
+          }
+        : {
+            subject: 'Your recurring booking was declined',
+            lead: 'Sorry, the venue declined your recurring booking request.',
+            extra: d.reason ? `Reason: ${d.reason}` : undefined,
+            sms: `The venue declined your recurring booking request. ${d.reference}`,
+          },
+    ru: ({ d }) =>
+      d.autoRejected
+        ? {
+            subject: 'Заявка на регулярное бронирование истекла',
+            lead: 'На вашу заявку на регулярное бронирование не ответили вовремя, поэтому она закрыта.',
+            sms: `Заявка на регулярное бронирование истекла без ответа. ${d.reference}`,
+          }
+        : {
+            subject: 'Ваше регулярное бронирование отклонено',
+            lead: 'К сожалению, площадка отклонила вашу заявку на регулярное бронирование.',
+            extra: d.reason ? `Причина: ${d.reason}` : undefined,
+            sms: `Площадка отклонила заявку на регулярное бронирование. ${d.reference}`,
+          },
   },
   series_created: {
     en: ({ d, gameCount, firstGame }) => ({

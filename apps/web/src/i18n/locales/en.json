@@ -160,7 +160,7 @@
     "series_no_free_dates": "None of these dates is free.",
     "series_too_soon": "The first game is too soon to wait for an answer.",
     "series_request_limit": "You already have 3 requests waiting for an answer.",
-    "series_request_open": "You already have a request waiting for an answer for this slot.",
+    "series_request_open": "This game is part of a weekly request that hasn't been answered yet. The request is answered or withdrawn as a whole.",
     "series_not_requested": "This series is no longer waiting for an answer."
   },
   "myBookings": {

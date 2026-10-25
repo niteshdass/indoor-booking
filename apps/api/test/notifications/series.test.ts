@@ -77,6 +77,20 @@ describe('renderNotice series events', () => {
     expect(ru.text).toMatch(/[а-я]/i);
   });
 
+  it('an auto-declined series says it expired and shows no reason', () => {
+    const d = { ...base, autoRejected: true, reason: 'Closed' };
+    const en = renderNotice('series_declined', 'en', d, 'https://app.test');
+    expect(en.subject).toBe('Your recurring booking request expired');
+    expect(en.text).toContain('Your recurring booking request was not answered in time, so it has been closed.');
+    expect(en.sms).toContain('Your recurring booking request expired without an answer. REF1');
+    expect(en.text).not.toMatch(/Reason|Closed|declined/);
+    const ru = renderNotice('series_declined', 'ru', d, 'https://app.test');
+    expect(ru.subject).toBe('Заявка на регулярное бронирование истекла');
+    expect(ru.text).toContain('На вашу заявку на регулярное бронирование не ответили вовремя, поэтому она закрыта.');
+    expect(ru.sms).toContain('Заявка на регулярное бронирование истекла без ответа. REF1');
+    expect(ru.text).not.toMatch(/Причина|Closed/);
+  });
+
   it('moreGames shows +N more / ещё N', () => {
     expect(renderNotice('series_created', 'en', { ...base, moreGames: 12 }, 'https://app.test').text).toContain('+12 more');
     expect(renderNotice('series_created', 'ru', { ...base, moreGames: 12 }, 'https://app.test').text).toContain('ещё 12');

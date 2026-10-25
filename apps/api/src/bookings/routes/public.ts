@@ -195,10 +195,14 @@ export function publicBookingsRouter(
   });
 
   router.get('/me/bookings', requireAuth(config, services), async (req, res) => {
-    const bookings = await Booking.find({ playerId: req.auth!.userId })
-      .setOptions({ crossTenant: true })
-      .sort({ startAt: -1 })
-      .limit(100);
+    // Rejected series games are summarized by the series card. Window around now so a long series cannot hide near bookings.
+    const now = services.now();
+    const mine = { playerId: req.auth!.userId, $nor: [{ seriesId: { $ne: null }, status: 'rejected' }] };
+    const [upcoming, past] = await Promise.all([
+      Booking.find({ ...mine, endAt: { $gt: now } }).setOptions({ crossTenant: true }).sort({ startAt: 1 }).limit(100),
+      Booking.find({ ...mine, endAt: { $lte: now } }).setOptions({ crossTenant: true }).sort({ startAt: -1 }).limit(100),
+    ]);
+    const bookings = [...upcoming, ...past];
     res.json({ bookings: await playerBookingsJson(bookings, services.now()) });
   });
 

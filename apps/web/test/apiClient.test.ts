@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiGet, apiPost, apiPatch, setAccessToken, setRefreshHandler } from '../src/lib/apiClient';
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete, setAccessToken, setRefreshHandler } from '../src/lib/apiClient';
 import { mockApi, type Call } from './helpers/api';
 
 function mockFetch(status: number, body: unknown) {
@@ -88,5 +88,23 @@ describe('apiClient auth', () => {
     await expect(apiPatch('/me', { name: 'A' })).resolves.toEqual({ ok: true });
     expect(calls[0]).toMatchObject({ method: 'PATCH', body: { name: 'A' } });
     expect(calls[0]!.headers.get('content-type')).toBe('application/json');
+  });
+
+  it('apiPut sends PUT with JSON body', async () => {
+    const { calls } = mockApi([{ method: 'PUT', path: '/x', body: { ok: true } }]);
+    await expect(apiPut('/x', { a: 1 })).resolves.toEqual({ ok: true });
+    expect(calls[0]).toMatchObject({ method: 'PUT', body: { a: 1 } });
+    expect(calls[0]!.headers.get('content-type')).toBe('application/json');
+  });
+
+  it('apiDelete resolves on 204', async () => {
+    const { calls } = mockApi([{ method: 'DELETE', path: '/x/1', status: 204, body: undefined }]);
+    await expect(apiDelete('/x/1')).resolves.toBeUndefined();
+    expect(calls[0]).toMatchObject({ method: 'DELETE' });
+  });
+
+  it('apiDelete throws ApiError on 409', async () => {
+    mockApi([{ method: 'DELETE', path: '/x/1', status: 409, body: { error: { code: 'role_in_use', message: 'x' } } }]);
+    await expect(apiDelete('/x/1')).rejects.toMatchObject({ name: 'ApiError', status: 409, code: 'role_in_use' });
   });
 });

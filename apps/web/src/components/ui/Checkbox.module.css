@@ -1,0 +1,48 @@
+.field {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.input {
+  flex: none;
+  width: var(--space-4);
+  height: var(--space-4);
+  margin: var(--space-1) 0 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.input:focus-visible {
+  outline: var(--focus-width) solid var(--text-strong);
+  outline-offset: var(--space-1);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.input:disabled + .text .label {
+  cursor: not-allowed;
+  opacity: var(--opacity-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}

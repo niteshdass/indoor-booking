@@ -37,7 +37,13 @@
   --control-sm: 32px;
   --control-md: 36px;
   --control-lg: 40px;
-  --table-row: 52px;
+  --table-row: 3.25rem;
+  --sidebar-width: 15rem;
+  --schedule-row: 1.5rem;
+  --schedule-col-min: 9rem;
+  --schedule-time-col: 3.5rem;
+  --status-bar: 3px;
+  --qr-size: 12rem;
   --container-narrow: 28rem;
   --field-min: 10rem;
   --map-height: 32rem;

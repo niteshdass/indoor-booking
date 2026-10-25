@@ -13,11 +13,13 @@ import { CheckoutPage } from './checkout/CheckoutPage';
 import { BookingDetailPage } from './bookings/BookingDetailPage';
 import { PayPage } from './payment/PayPage';
 import { LookupPage } from './lookup/LookupPage';
+import { OwnerRoutes } from './owner/ownerRoutes';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/owner/*" element={<RequireAuth><OwnerRoutes /></RequireAuth>} />
       <Route element={<AppShell />}>
         <Route path="/" element={<SearchPage />} />
         <Route path="/venues/:slug" element={<VenuePage />} />

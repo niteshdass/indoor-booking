@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { TextField } from '../components/ui/TextField';
 import { apiPatch } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { PublicUser } from '../lib/types';
+import { useResource } from '../owner/useResource';
+import type { OwnerMembership } from '../owner/types';
 import { useAuth } from './useAuth';
 import styles from './auth.module.css';
 
@@ -19,6 +22,8 @@ export function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const teams = useResource<{ memberships: OwnerMembership[] }>('/me/memberships');
+  const isMember = teams.state.status === 'ready' && teams.state.data.memberships.length > 0;
 
   if (!user) return null;
 
@@ -80,6 +85,14 @@ export function ProfilePage() {
           <span className={styles.readonlyValue}>{user.phone ?? t('profile.notSet')}</span>
         </div>
         {user.hasGoogle && <Badge tone="info">{t('profile.google')}</Badge>}
+
+        {isMember && (
+          <Card>
+            <Button to="/owner" variant="secondary" size="lg" block>
+              {t('owner.portalLink')}
+            </Button>
+          </Card>
+        )}
 
         <Button variant="secondary" size="lg" block onClick={() => void leave()}>
           {t('profile.signOut')}

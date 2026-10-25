@@ -381,5 +381,14 @@
     "signIn": "Sign in",
     "sendCode": "Send code",
     "codeNote": "We will text a code to the phone number on this booking to confirm the cancellation."
+  },
+  "owner": {
+    "notFound": "We couldn't find that team.",
+    "inactive": "This team is not active right now.",
+    "noAccess": "You don't have access to this page.",
+    "noTeams": "You are not a member of any team yet.",
+    "portalLink": "Open owner portal",
+    "comingSoon": "Coming soon.",
+    "pickTeam": "Choose a team"
   }
 }

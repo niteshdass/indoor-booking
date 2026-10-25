@@ -134,7 +134,10 @@
     "gateway_error": "Stripe couldn't be reached or rejected the request. Try again.",
     "payments_unconfigured": "Payments aren't configured on this server yet.",
     "turf_has_bookings": "This turf has bookings, so it can't be deleted. Deactivate it instead.",
-    "last_active_turf": "A published venue needs at least one active turf. Unpublish the venue first."
+    "last_active_turf": "A published venue needs at least one active turf. Unpublish the venue first.",
+    "override_overlap": "This slot overlaps another slot on this turf. Change its times.",
+    "slot_not_found": "No slot starts at that time. Pick one of the turf's slots.",
+    "override_too_long": "An extra slot must end by the end of the next day."
   },
   "myBookings": {
     "title": "My bookings",
@@ -768,6 +771,105 @@
         "date": "Pick a valid date.",
         "time": "Enter both a start and an end time."
       }
+    },
+    "override": {
+      "title": "Slot overrides",
+      "intro": "Block, change or add slots on a date or every week. Overrides win over the turf's normal hours.",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "add": "Add override",
+      "empty": "No overrides in this month.",
+      "col": {
+        "when": "When",
+        "type": "Type",
+        "time": "Time",
+        "price": "Price",
+        "reason": "Reason"
+      },
+      "type": {
+        "block": "Block",
+        "modify": "Modify slot",
+        "add": "Extra slot",
+        "close": "Close day"
+      },
+      "allDay": "All day",
+      "modifies": "{{slot}} becomes {{range}}",
+      "recurrence": "{{days}} from {{from}}",
+      "recurrenceUntil": "{{days}} from {{from}} to {{until}}",
+      "none": "—",
+      "formTitle": "New override",
+      "typeLabel": "Type",
+      "whenLabel": "Applies to",
+      "whenDate": "One date",
+      "whenRecurring": "Every week",
+      "date": "Date",
+      "weekdays": "Weekdays",
+      "from": "First date",
+      "until": "Last date (optional)",
+      "start": "Start",
+      "end": "End",
+      "nextDay": "Ends the next day.",
+      "slotStart": "Slot to change",
+      "slotPick": "Choose a slot",
+      "slotsLoading": "Loading slots…",
+      "slotsNone": "This date has no slots to change.",
+      "price": "Price (optional)",
+      "reason": "Reason (optional)",
+      "existingBookings": "Existing bookings are not cancelled.",
+      "save": "Save override",
+      "deleteTitle": "Delete this override?",
+      "deleteBody": "The turf goes back to its normal slots for these dates.",
+      "deleteConfirm": "Delete override",
+      "err": {
+        "date": "Pick a valid date.",
+        "weekdays": "Pick at least one weekday.",
+        "from": "Pick a valid first date.",
+        "until": "The last date can't be before the first.",
+        "time": "Enter the time as HH:MM.",
+        "slotStart": "Enter the slot start as HH:MM.",
+        "price": "Enter an amount such as 12.50.",
+        "reason": "Use at most 200 characters."
+      },
+      "delete": "Delete"
+    },
+    "closures": {
+      "title": "Closures",
+      "intro": "Close a whole owner, venue or turf for a range of dates. Existing bookings are not cancelled.",
+      "venue": "Venue",
+      "turf": "Turf",
+      "allVenues": "All venues",
+      "allTurfs": "All turfs",
+      "add": "Add closure",
+      "empty": "No closures.",
+      "col": {
+        "scope": "Applies to",
+        "range": "Dates",
+        "reason": "Reason"
+      },
+      "scopeOwner": "Whole business",
+      "scopeLabel": "Close",
+      "scopeVenue": "A venue",
+      "scopeTurf": "A turf",
+      "ownerWide": "All venues (owner-wide)",
+      "formTitle": "New closure",
+      "from": "From",
+      "to": "To",
+      "reason": "Reason (optional)",
+      "save": "Save closure",
+      "deleteTitle": "Delete this closure?",
+      "deleteBody": "Bookings open again for these dates.",
+      "deleteConfirm": "Delete closure",
+      "noTurfs": "This venue has no turfs.",
+      "err": {
+        "from": "Pick a valid first date.",
+        "to": "Pick a valid last date.",
+        "order": "The last date can't be before the first.",
+        "long": "A closure can last at most 366 days.",
+        "venue": "Pick a venue.",
+        "turf": "Pick a turf.",
+        "reason": "Use at most 200 characters."
+      },
+      "delete": "Delete"
     }
   }
 }

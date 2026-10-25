@@ -6,6 +6,7 @@ import { OwnerBookingPage } from './bookings/OwnerBookingPage';
 import { OwnerIndexPage } from './OwnerIndexPage';
 import { OwnerProvider } from './OwnerProvider';
 import { RequirePermission } from './RequirePermission';
+import { ClosuresPage } from './schedule/ClosuresPage';
 import { SchedulePage } from './schedule/SchedulePage';
 import { NAV } from './shell/nav';
 import { OwnerShell } from './shell/OwnerShell';
@@ -56,7 +57,7 @@ export function OwnerRoutes() {
         <Route path="venues/new" element={<Guarded><VenueEditorPage /></Guarded>} />
         <Route path="venues/:venueId" element={<Guarded><VenueEditorPage /></Guarded>} />
         <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><TurfEditorPage /></Guarded>} />
-        <Route path="closures" element={<Guarded nav="closures"><ComingSoon /></Guarded>} />
+        <Route path="closures" element={<Guarded nav="closures"><ClosuresPage /></Guarded>} />
         <Route path="addons" element={<Guarded nav="addons"><ComingSoon /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
         <Route path="staff" element={<Guarded nav="staff"><ComingSoon /></Guarded>} />

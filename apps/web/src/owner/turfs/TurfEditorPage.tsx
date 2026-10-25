@@ -11,6 +11,7 @@ import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { HoursEditor } from '../settings/HoursEditor';
 import { hoursPatch } from '../settings/settingsPatch';
+import { OverridesTab } from '../schedule/OverridesTab';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import type { OwnerTurf, OwnerVenue, WeeklyHours } from '../types';
 import { useResource } from '../useResource';
@@ -63,8 +64,9 @@ function TurfEditor({ turf, venue, onChange }: { turf: OwnerTurf; venue: OwnerVe
           onSaved={(pricing) => onChange({ ...turf, pricing })}
         />
       )}
-      {/* Task 15 drops the slot overrides here, Task 16 the add-on assignments. */}
-      {(tab === 'overrides' || tab === 'addons') && <p className={styles.muted}>{t('owner.comingSoon')}</p>}
+      {tab === 'overrides' && <OverridesTab turf={turf} venue={venue} />}
+      {/* Task 16 drops the add-on assignments here. */}
+      {tab === 'addons' && <p className={styles.muted}>{t('owner.comingSoon')}</p>}
     </div>
   );
 }

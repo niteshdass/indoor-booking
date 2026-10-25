@@ -12,3 +12,4 @@ export * from './booking';
 export * from './refunds';
 export * from './search';
 export * from './reviews';
+export * from './series';

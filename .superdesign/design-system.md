@@ -87,7 +87,7 @@ Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set,
 Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inverted in dark mode; the map frame, pins and the "Search this area" button use surface, border and primary tokens. Pins are DOM-built (venue names are untrusted text), keyboard-focusable, and labelled with the venue name and price. Below lg a List/Map segmented toggle (`aria-pressed`) shows one at a time; at lg and up list and map sit side by side with the map sticky.
 
 ## Components
-- Buttons: primary (solid), secondary (outline, surface bg), ghost, danger; sizes sm/md/lg; icon-only square. Label weight 500. On public pages the main CTA (Book, Pay) uses `--brand` with `--brand-fg`.
+- Buttons: primary (solid), secondary (outline, surface bg), ghost, danger; sizes sm/md/lg; icon-only square. Label weight 500. On public pages the main CTA (Book, Pay) uses `--brand` with `--brand-fg`. Ghost buttons are for row actions in tables; a remove action standing alone inside a form (remove rule, remove photo) is secondary so it reads as a button.
 - Inputs/selects: 36px, 1px border, label above (13px/500), helper 12px muted, error 12px danger. Selects in toolbars, filters and switchers may put a muted label beside the control (`layout="inline"`); selects inside forms keep the label above (`layout="stacked"`) so they line up with text fields. Phone input has a country prefix; OTP input is 6 single-digit boxes.
 - Badges: pill, 12px/500, soft bg + fg from status colors; neutral badge uses subtle bg + muted text.
   - Booking status: confirmed = success, pending payment = warning, cancelled = danger, completed = neutral, refunded = info.
@@ -107,7 +107,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
   - Held (another player is checking out): warning soft bg + warning fg.
   - Blocked / maintenance: subtle bg with 45° stripes in border-subtle.
   - Past: text-subtle, not clickable.
-- **Schedule (owner)**: courts as columns, time as rows (30/60 min); booking blocks use status soft bg + 3px left border in status fg; current-time line in danger.
+- **Schedule (owner)**: courts as columns, time as rows (30/60 min); booking blocks use status soft bg + 3px left border in status fg; current-time line in danger, drawn behind each cell's text row so it never strikes through a label.
 - **Booking summary card**: venue, court, date, time range, line items, total 20px/600 tabular, CTA full width.
 - **Price**: always formatted with the owner's currency and locale via `Intl.NumberFormat`; never hand-built strings.
 

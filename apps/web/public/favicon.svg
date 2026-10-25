@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .tile { fill: #19283a; }
+    .mark { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #f0f3f5; }
+      .mark { fill: #0e121b; }
+    }
+  </style>
+  <rect class="tile" width="32" height="32" rx="7" />
+  <rect class="mark" x="7" y="8" width="8" height="7" rx="1.5" />
+  <rect class="mark" x="17" y="8" width="8" height="7" rx="1.5" opacity=".45" />
+  <rect class="mark" x="7" y="17" width="8" height="7" rx="1.5" opacity=".45" />
+  <rect class="mark" x="17" y="17" width="8" height="7" rx="1.5" />
+</svg>

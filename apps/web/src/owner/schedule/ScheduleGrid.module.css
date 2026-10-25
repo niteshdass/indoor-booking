@@ -8,6 +8,8 @@
 .grid {
   display: grid;
   position: relative;
+  /* Keeps the cell text layer (above the now-line) from stacking over the drawer or dialogs. */
+  isolation: isolate;
   min-width: min-content;
 }
 
@@ -41,8 +43,8 @@
   border-left: 1px solid var(--border-subtle);
 }
 
+/* No z-index here: a stacking context would trap .text below the now-line overlay. */
 .cell {
-  z-index: 1;
   display: flex;
   min-width: 0;
   min-height: 0;
@@ -51,14 +53,11 @@
 
 .slot,
 .booking {
+  --cell-bg: var(--bg-surface);
   flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: baseline;
-  gap: 0 var(--space-2);
+  display: block;
   min-width: 0;
-  padding: var(--space-1) var(--space-2);
+  padding: 0 var(--space-2) var(--space-1);
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -66,6 +65,19 @@
   font-size: var(--text-xs);
   text-align: start;
   text-decoration: none;
+}
+
+/* The text row sits above the now-line on an opaque copy of the cell colour, so the line passes behind it. */
+.text {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  margin-inline: calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2) 0;
+  background: linear-gradient(var(--cell-bg), var(--cell-bg)), var(--bg-surface);
 }
 
 .time,
@@ -79,6 +91,7 @@
 }
 
 .booking {
+  --cell-bg: var(--booking-bg);
   border-width: 0;
   border-inline-start: var(--status-bar) solid var(--booking-fg);
   background: var(--booking-bg);
@@ -126,6 +139,7 @@ button.slot {
 }
 
 button.slot:hover {
+  --cell-bg: var(--bg-hover);
   background: var(--bg-hover);
 }
 
@@ -139,6 +153,7 @@ button.slot:hover {
 
 .slot_booked,
 .slot_past {
+  --cell-bg: var(--bg-subtle);
   background: var(--bg-subtle);
   border-color: transparent;
   color: var(--text-subtle);
@@ -150,6 +165,7 @@ button.slot:hover {
 }
 
 .slot_pending {
+  --cell-bg: var(--warning-soft);
   background: var(--warning-soft);
   border-color: transparent;
   color: var(--warning);
@@ -160,6 +176,7 @@ button.slot:hover {
 }
 
 .slot_blocked {
+  --cell-bg: var(--bg-subtle);
   background: repeating-linear-gradient(45deg, var(--bg-subtle) 0 var(--space-1), var(--bg-surface) var(--space-1) var(--space-2));
   color: var(--text-subtle);
 }

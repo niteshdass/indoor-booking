@@ -111,6 +111,9 @@ describe('Schedule page', () => {
     const line = screen.getByTestId('now-line');
     expect(line.getAttribute('aria-hidden')).toBe('true');
     expect(line.style.top).toContain('var(--schedule-row)');
+    // Cell text sits in its own layer so the line passes behind it, not through it.
+    const booking = screen.getByRole('link', { name: /Ada Player/ });
+    expect(within(booking).getByText('Ada Player').parentElement!.className).toMatch(/text/);
     first.unmount();
 
     renderApp(`/owner/${OWNER_ID}/schedule?date=2026-10-27`, { user: staffUser });

@@ -32,13 +32,13 @@ export function TurfEditorPage() {
     ownerPath(ownerId, `/venues/${encodeURIComponent(venueId)}/turfs/${encodeURIComponent(turfId)}`),
   );
   const turf = res.state.status === 'ready' ? res.state.data.turf : undefined;
-  useOwnerTitle(turf?.name ?? t('owner.turf.title'));
+  const venue = venues.find((v) => v.id === venueId);
+  useOwnerTitle(turf ? (venue ? t('owner.turf.pageTitle', { turf: turf.name, venue: venue.name }) : turf.name) : t('owner.turf.title'));
 
   if (!turf) {
     if (res.state.status === 'error') return <Alert tone="warning">{t('owner.turf.notFound')}</Alert>;
     return <Spinner label={t('common.loading')} />;
   }
-  const venue = venues.find((v) => v.id === venueId);
   return <TurfEditor key={turf.id} turf={turf} venue={venue} onChange={(next) => res.set({ turf: next })} />;
 }
 

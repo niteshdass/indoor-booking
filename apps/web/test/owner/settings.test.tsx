@@ -107,6 +107,17 @@ describe('SettingsForm', () => {
     expect(await screen.findByText(S.saved)).toBeTruthy();
   });
 
+  it('owner level auto-reject card has its own heading', () => {
+    renderForm('owner');
+    const card = screen.getByRole('region', { name: S.autoRejectTitle });
+    expect(within(card).getByLabelText(S.autoReject)).toBeTruthy();
+  });
+
+  it('refund rule remove is a visible secondary button', async () => {
+    renderForm('owner', { effective: { ...DEFAULTS, refundRules: [{ minHoursBefore: 24, percent: 50 }] } });
+    expect(screen.getByRole('button', { name: i18n.t('owner.settings.removeRule', { n: 1 }) }).className).toMatch(/secondary/);
+  });
+
   it('venue level inherit on refund rules sends null', async () => {
     const user = userEvent.setup();
     const stored: StoredSettings = { refundRules: [{ minHoursBefore: 24, percent: 50 }] };

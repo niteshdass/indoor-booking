@@ -154,7 +154,7 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
                 {fieldError(`rule.${i}.range`) && <p className={styles.error}>{fieldError(`rule.${i}.range`)}</p>}
                 {editable && (
                   <div>
-                    <Button variant="ghost" onClick={() => edit({ ...draft, rules: draft.rules.filter((_, j) => j !== i) })}>
+                    <Button variant="secondary" onClick={() => edit({ ...draft, rules: draft.rules.filter((_, j) => j !== i) })}>
                       {t('owner.pricing.removeRule')}
                     </Button>
                   </div>

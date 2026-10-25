@@ -194,7 +194,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
               onChange={(e) => setPhoto(i, { alt: e.target.value })}
             />
             {!readOnly && (
-              <Button variant="ghost" onClick={() => set('photos', draft.photos.filter((_, j) => j !== i))}>
+              <Button variant="secondary" onClick={() => set('photos', draft.photos.filter((_, j) => j !== i))}>
                 {t('owner.venues.removePhoto', { n: i + 1 })}
               </Button>
             )}

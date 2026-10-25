@@ -159,6 +159,18 @@ describe('turf editor', () => {
     expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({ name: 'Pitch B' });
   });
 
+  it('page title names the venue as well as the turf', async () => {
+    mockApi([{ path: TURF, body: { turf: turf() } }, ...ownerRoutes()]);
+    renderApp(URL, { user: staffUser });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Pitch A · Arena One' })).toBeTruthy();
+  });
+
+  it('pricing rule remove is a visible secondary button', async () => {
+    mockApi([{ path: TURF, body: { turf: turf({ pricing: { base: 1000, rules: [{ kind: 'weekend', price: 2000 }] } }) } }, ...ownerRoutes({ permissions: [...MANAGE] })]);
+    renderApp(`${URL}?tab=pricing`, { user: staffUser });
+    expect((await screen.findByRole('button', { name: P.removeRule })).className).toMatch(/secondary/);
+  });
+
   it('turf details are read-only without turf.manage', async () => {
     mockApi([{ path: TURF, body: { turf: turf() } }, ...ownerRoutes()]);
     renderApp(URL, { user: staffUser });

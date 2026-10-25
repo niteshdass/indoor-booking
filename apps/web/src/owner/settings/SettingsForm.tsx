@@ -304,7 +304,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
                 onChange={(e) => setRule(i, { percent: toNum(e.target.value) })}
               />
               {!locked('refundRules') && (
-                <Button variant="ghost" onClick={() => setRules(rules.filter((_, j) => j !== i))}>
+                <Button variant="secondary" onClick={() => setRules(rules.filter((_, j) => j !== i))}>
                   {t('owner.settings.removeRule', { n: i + 1 })}
                 </Button>
               )}
@@ -338,7 +338,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
       )}
 
       {!venue && (
-        <section className={styles.card}>
+        <Section title={t('owner.settings.autoRejectTitle')} inheritable={false} inheriting={false} onInherit={() => {}}>
           <TextField
             label={t('owner.settings.autoReject')}
             hint={t('owner.settings.autoRejectHint')}
@@ -350,7 +350,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
             error={showErr('autoReject', 'owner.settings.errors.autoReject')}
             onChange={(e) => edit({ ...draft, pendingAutoRejectHours: toNum(e.target.value) })}
           />
-        </section>
+        </Section>
       )}
 
       {!disabled && (

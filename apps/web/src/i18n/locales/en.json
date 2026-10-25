@@ -687,6 +687,7 @@
       "windowTitle": "Booking window",
       "bookingWindow": "Days ahead players can book",
       "windowHint": "1 to 365 days.",
+      "autoRejectTitle": "Pending bookings",
       "autoReject": "Auto-reject pending bookings after (hours)",
       "autoRejectHint": "0 to 72 hours.",
       "errors": {
@@ -731,6 +732,7 @@
     },
     "turf": {
       "title": "Turf",
+      "pageTitle": "{{turf}} · {{venue}}",
       "back": "Back to turfs",
       "notFound": "We couldn't find that turf.",
       "tab": {

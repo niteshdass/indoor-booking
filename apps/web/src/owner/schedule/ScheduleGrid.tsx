@@ -28,13 +28,13 @@ export function ScheduleGrid({ layout, timeZone, currency, now, onSlot, bookingH
 
   const slotCell = (turfId: string, slot: OwnerSlot) => {
     const label = (
-      <>
+      <span className={styles.text}>
         <span className={styles.time}>{formatTime(slot.startAt, timeZone, lang)}</span>
         {slot.status === 'available' && slot.price !== null && (
           <span className={styles.price}>{money(slot.price, currency, lang)}</span>
         )}
         {slot.status !== 'available' && <span className={styles.state}>{t(slotStateKey(slot.status))}</span>}
-      </>
+      </span>
     );
     const cls = [styles.slot, styles[`slot_${slot.status}`]].join(' ');
     if (slot.status === 'available' && onSlot) {
@@ -125,11 +125,13 @@ function BookingBlock({
   const ends = booking.slots.map((s) => Date.parse(s.endAt));
   return (
     <Link to={href} className={[styles.booking, styles[`tone_${BOOKING_TONE[booking.status]}`]].join(' ')}>
-      <span className={styles.time}>
-        {time(Math.min(...starts))} – {time(Math.max(...ends))}
+      <span className={styles.text}>
+        <span className={styles.time}>
+          {time(Math.min(...starts))} – {time(Math.max(...ends))}
+        </span>
+        <span className={styles.name}>{customerLabel(booking, t)}</span>
+        <span className={styles.state}>{t(`status.${booking.status}`)}</span>
       </span>
-      <span className={styles.name}>{customerLabel(booking, t)}</span>
-      <span className={styles.state}>{t(`status.${booking.status}`)}</span>
     </Link>
   );
 }

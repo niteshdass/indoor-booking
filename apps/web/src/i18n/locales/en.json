@@ -431,6 +431,27 @@
       "closed": "Closed",
       "noTurfs": "This venue has no active courts.",
       "noSlots": "No time slots on this day."
+    },
+    "bookings": {
+      "turf": "Turf",
+      "from": "From",
+      "to": "To",
+      "status": "Status",
+      "search": "Search reference, name or phone",
+      "allTurfs": "All turfs",
+      "allStatuses": "All statuses",
+      "reference": "Reference",
+      "when": "Date and time",
+      "customer": "Customer",
+      "total": "Total",
+      "paid": "Paid",
+      "source": "Source",
+      "sourceOnline": "Online",
+      "sourceWalkin": "Walk-in",
+      "empty": "No bookings match these filters.",
+      "capped": "Showing the first 500, narrow the range",
+      "rangeOrder": "The end date must be on or after the start date.",
+      "rangeMax": "Pick a range of 31 days or fewer."
     }
   }
 }

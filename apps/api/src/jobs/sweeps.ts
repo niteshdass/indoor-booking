@@ -1,3 +1,4 @@
+import { REVIEW_WINDOW_DAYS } from '@booking/shared';
 import type { ClientSession, FilterQuery } from 'mongoose';
 import { runInTransaction } from '../db';
 import { AppError } from '../errors';
@@ -13,6 +14,9 @@ export const SWEEP_BATCH = 200;
 export const sweepConfig = { batch: SWEEP_BATCH };
 export const REMINDER_LEAD_MINUTES = 120;
 export const HOLD_WARNING_MINUTES = 10;
+export const REVIEW_REQUEST_DELAY_MINUTES = 180;
+/** Matches REVIEW_WINDOW_DAYS: no point asking once the review window has closed. */
+const REVIEW_REQUEST_MAX_DAYS = REVIEW_WINDOW_DAYS;
 /** Stored on the booking for staff; the customer's notice is worded by its template, per locale. */
 const AUTO_REJECT_REASON = 'Not confirmed in time';
 /** pendingAutoRejectHours is at most 72, so nothing starting later can be due. */
@@ -46,7 +50,7 @@ async function eachBooking(
   return done;
 }
 
-type SortKey = 'holdExpiresAt' | 'startAt' | 'endAt';
+type SortKey = 'holdExpiresAt' | 'startAt' | 'endAt' | 'completedAt';
 
 /**
  * Walks every booking matching `filter` in pages of `sweepConfig.batch`, keyset-paginated on
@@ -164,5 +168,35 @@ export async function warnExpiringHolds(now: Date): Promise<number> {
     'holdExpiresAt',
     async (b, session) => (await noticeBooking('hold_expiring', b, now, session)) > 0,
     withLink,
+  );
+}
+
+/**
+ * Asks players to review a game some time after it completed. Marks the booking first, so a player
+ * with no verified contact is not revisited; returns true only when a notice was queued.
+ */
+export async function sendReviewRequests(now: Date): Promise<number> {
+  return sweep(
+    'sendReviewRequests',
+    {
+      status: 'completed',
+      playerId: { $ne: null },
+      reviewedAt: null,
+      reviewRequestedAt: null,
+      completedAt: {
+        $lte: new Date(now.getTime() - REVIEW_REQUEST_DELAY_MINUTES * MIN),
+        $gt: new Date(now.getTime() - REVIEW_REQUEST_MAX_DAYS * 24 * HOUR),
+      },
+    },
+    'completedAt',
+    async (b, session) => {
+      const marked = await Booking.updateOne(
+        { ownerId: b.ownerId, _id: b._id, reviewRequestedAt: null },
+        { $set: { reviewRequestedAt: now } },
+        { session },
+      );
+      if (marked.modifiedCount === 0) return false;
+      return (await noticeBooking('review_request', b, now, session)) > 0;
+    },
   );
 }

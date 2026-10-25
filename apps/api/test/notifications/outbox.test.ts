@@ -123,6 +123,20 @@ describe('noticeBooking recipients', () => {
     expect(all.filter((r) => r.channel === 'sms').map((r) => r.to)).toEqual(['+8801955555555']);
   });
 
+  it('review_posted goes to members with review.manage covering the venue', async () => {
+    const otherVenue = (await seedVenue(owner.ownerId)).id as string;
+    await addMember(services, owner.ownerId, { roleKey: 'staff', venueIds: 'all' });
+    await addMember(services, owner.ownerId, { roleKey: 'manager', venueIds: [otherVenue] });
+    const p = await player({ name: 'Pat Player' });
+    const booking = await seedBooking({ playerId: p._id, status: 'completed' });
+    expect(await notice('review_posted', booking, { stars: 5, comment: 'Great lights' })).toBe(1);
+    const [row] = await rows();
+    const ownerUser = await User.findById(owner.userId);
+    expect(row).toMatchObject({ channel: 'email', to: ownerUser!.email });
+    expect(row!.data).toMatchObject({ ownerId: String(owner.ownerId), stars: 5, comment: 'Great lights', customerName: 'Pat P.' });
+    expect(await notice('review_posted', booking, { stars: 5, comment: 'Great lights' })).toBe(0);
+  });
+
   it('the same event twice inserts once', async () => {
     const p = await player();
     const booking = await seedBooking({ playerId: p._id });
@@ -260,6 +274,17 @@ describe('deliverNotifications', () => {
     expect(await deliver()).toEqual({ sent: 0, failed: 0, dropped: 1 });
     expect(services.sms.sent).toHaveLength(0);
     expect(await Notification.findOne({}).setOptions(cross)).toMatchObject({ status: 'failed', lastError: 'stale' });
+  });
+
+  it('review_request is dropped as stale once the booking is reviewed', async () => {
+    const p = await player();
+    const booking = await seedBooking({ playerId: p._id, status: 'completed' });
+    await notice('review_request', booking);
+    await Booking.updateOne({ ownerId: owner.ownerId, _id: booking._id }, { $set: { reviewedAt: new Date() } });
+    expect(await deliver()).toEqual({ sent: 0, failed: 0, dropped: 2 });
+    expect(await Notification.find({}).setOptions(cross)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ status: 'failed', lastError: 'stale' })]),
+    );
   });
 
   it('a hold_expiring notice is dropped once the booking is paid', async () => {

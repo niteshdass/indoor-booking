@@ -9,6 +9,8 @@ export const NOTICE_EVENTS = [
   'booking_reminder',
   'hold_expiring',
   'staff_new_pending',
+  'review_request',
+  'review_posted',
 ] as const;
 export type NoticeEvent = (typeof NOTICE_EVENTS)[number];
 
@@ -29,6 +31,11 @@ export type NoticeData = {
   autoRejected?: boolean;
   customerName?: string;
   holdExpiresAt?: string;
+  /** review_posted: the owner whose reviews page the notice links to. */
+  ownerId?: string;
+  stars?: number;
+  /** At most 140 characters, cut with an ellipsis. */
+  comment?: string | null;
 };
 
 type Ctx = {
@@ -161,6 +168,32 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       sms: `Новая заявка от ${d.customerName ?? 'клиента'}. ${d.reference}`,
     }),
   },
+  review_request: {
+    en: ({ d }) => ({
+      subject: `How was your game? (${d.reference})`,
+      lead: `Thanks for playing at ${d.venueName}. Rate the venue to help other players choose.`,
+      sms: `How was ${d.venueName}? Rate your game:`,
+    }),
+    ru: ({ d }) => ({
+      subject: `Как прошла игра? (${d.reference})`,
+      lead: `Спасибо, что играли на площадке ${d.venueName}. Оцените её — это поможет другим игрокам с выбором.`,
+      sms: `Как вам ${d.venueName}? Оцените игру:`,
+    }),
+  },
+  review_posted: {
+    en: ({ d }) => ({
+      subject: `New review: ${d.stars} of 5 (${d.reference})`,
+      lead: `${d.customerName ?? 'A player'} rated ${d.venueName} ${d.stars} out of 5.`,
+      extra: d.comment ? `"${d.comment}"` : undefined,
+      sms: `New ${d.stars}/5 review for ${d.venueName}. ${d.reference}`,
+    }),
+    ru: ({ d }) => ({
+      subject: `Новый отзыв: ${d.stars} из 5 (${d.reference})`,
+      lead: `Новая оценка площадки ${d.venueName}: ${d.stars} из 5 от ${d.customerName ?? 'игрока'}.`,
+      extra: d.comment ? `«${d.comment}»` : undefined,
+      sms: `Новый отзыв ${d.stars}/5 о площадке ${d.venueName}. ${d.reference}`,
+    }),
+  },
 };
 
 const LABELS: Record<Locale, { reference: string; link: string }> = {
@@ -174,7 +207,14 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
   const dateTime = (iso: string) => plain(fmt({ dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)));
   const time = (iso: string) => plain(fmt({ timeStyle: 'short' }).format(new Date(iso)));
 
-  const link = event === 'staff_new_pending' ? `${appUrl}/dashboard/bookings/${d.bookingId}` : `${appUrl}/b/${d.reference}`;
+  const link =
+    event === 'staff_new_pending'
+      ? `${appUrl}/dashboard/bookings/${d.bookingId}`
+      : event === 'review_request'
+        ? `${appUrl}/me/bookings/${d.bookingId}?review=1`
+        : event === 'review_posted'
+          ? `${appUrl}/owner/${d.ownerId}/reviews`
+          : `${appUrl}/b/${d.reference}`;
   const ctx: Ctx = {
     d,
     when: `${d.venueName}, ${d.turfName}\n${dateTime(d.startAt)} - ${time(d.endAt)}`,

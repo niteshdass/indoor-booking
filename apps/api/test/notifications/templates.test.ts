@@ -23,7 +23,8 @@ describe('notification templates', () => {
         const out = renderNotice(event, l, data, appUrl);
         expect(out.subject).not.toBe('');
         expect(out.text).toContain('BK7Q2M');
-        expect(out.sms).toContain('BK7Q2M');
+        // The review_request sms is link-only by design.
+        if (event !== 'review_request') expect(out.sms).toContain('BK7Q2M');
       }
       expect(renderNotice(event, 'ru', data, appUrl).text).not.toBe(renderNotice(event, 'en', data, appUrl).text);
     }
@@ -76,5 +77,21 @@ describe('notification templates', () => {
   it('staff notice links to the dashboard, others to the booking page', () => {
     expect(renderNotice('staff_new_pending', 'en', data, appUrl).text).toContain('https://app.test/dashboard/bookings/b1');
     expect(renderNotice('booking_confirmed', 'en', data, appUrl).text).toContain('https://app.test/b/BK7Q2M');
+  });
+
+  it('review_request links to the booking with the review dialog open', () => {
+    for (const l of LOCALES) {
+      expect(renderNotice('review_request', l, data, appUrl).text).toContain('/me/bookings/b1?review=1');
+    }
+  });
+
+  it('review_posted links to the owner reviews page and quotes the comment', () => {
+    const d = { ...data, ownerId: 'o1', stars: 4, comment: 'Great lights' };
+    const en = renderNotice('review_posted', 'en', d, appUrl);
+    const ru = renderNotice('review_posted', 'ru', d, appUrl);
+    expect(en.text).toContain('/owner/o1/reviews');
+    expect(en.text).toContain('"Great lights"');
+    expect(ru.text).toContain('«Great lights»');
+    expect(en.subject).toBe('New review: 4 of 5 (BK7Q2M)');
   });
 });

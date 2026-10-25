@@ -29,6 +29,7 @@ import {
   autoRejectPending,
   expireHolds,
   sendReminders,
+  sendReviewRequests,
   sweepConfig,
   warnExpiringHolds,
 } from '../../src/jobs/sweeps';
@@ -439,5 +440,58 @@ describe('warnExpiringHolds', () => {
     expect(await warnExpiringHolds(now())).toBe(1);
     const rows = await notices('hold_expiring');
     expect(rows.map((r) => String(r.bookingId))).toEqual([walkin.body.booking.id]);
+  });
+});
+
+describe('sendReviewRequests', () => {
+  async function completed(over: Record<string, unknown> = {}) {
+    const p = await User.create({ name: 'Pat Player', email: `r${Math.random()}@test.local`, emailVerified: true });
+    const startAt = new Date(now().getTime() - 5 * HOUR);
+    const endAt = new Date(now().getTime() - 4 * HOUR);
+    const b = await Booking.create({
+      ownerId: owner.ownerId, venueId, turfId, reference: `RV${Math.random().toString(36).slice(2, 8)}`,
+      businessDate: '2026-01-01', startAt, endAt, slots: [{ startAt, endAt, price: 5000 }], currency: 'BDT',
+      subtotal: 5000, addonsTotal: 0, total: 5000, advanceRequired: 0, status: 'completed', paymentStatus: 'unpaid',
+      source: 'online', policySnapshot: {}, playerId: p._id, completedAt: new Date(now().getTime() - 180 * MIN), ...over,
+    });
+    return { b, p };
+  }
+
+  it('asks the player three hours after completion, once', async () => {
+    const { b, p } = await completed({ completedAt: new Date(now().getTime() - 179 * MIN) });
+    expect(await sendReviewRequests(now())).toBe(0);
+    ctx.services.clock.advance(MIN);
+    expect(await sendReviewRequests(now())).toBe(1);
+    const rows = await notices('review_request');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ channel: 'email', to: p.email });
+    expect((await bookingOf(b.id)).reviewRequestedAt).toEqual(now());
+    expect(await sendReviewRequests(now())).toBe(0);
+  });
+
+  it('skips guests, reviewed bookings and ones completed over 30 days ago', async () => {
+    await completed({ playerId: null, guest: { name: 'Gus', phone: PHONE } });
+    await completed({ reviewedAt: new Date() });
+    await completed({ completedAt: new Date(now().getTime() - 31 * 24 * HOUR) });
+    expect(await sendReviewRequests(now())).toBe(0);
+    expect(await notices('review_request')).toHaveLength(0);
+  });
+
+  it('a player with no verified contact is marked requested but queued nothing', async () => {
+    const { b, p } = await completed();
+    await User.updateOne({ _id: p._id }, { $set: { emailVerified: false } });
+    expect(await sendReviewRequests(now())).toBe(0);
+    expect(await notices('review_request')).toHaveLength(0);
+    expect((await bookingOf(b.id)).reviewRequestedAt).toEqual(now());
+  });
+
+  it('pages past rows it marked without queueing', async () => {
+    sweepConfig.batch = 1;
+    for (let i = 0; i < 3; i++) {
+      const { p } = await completed({ completedAt: new Date(now().getTime() - (200 + i) * MIN) });
+      if (i < 2) await User.updateOne({ _id: p._id }, { $set: { emailVerified: false } });
+    }
+    expect(await sendReviewRequests(now())).toBe(1);
+    expect(await Booking.countDocuments({ reviewRequestedAt: { $ne: null } }).setOptions(cross)).toBe(3);
   });
 });

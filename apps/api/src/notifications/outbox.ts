@@ -1,5 +1,5 @@
 import type { ClientSession } from 'mongoose';
-import type { Locale } from '@booking/shared';
+import { reviewerName, type Locale } from '@booking/shared';
 import type { Config } from '../config';
 import { User } from '../auth/user.model';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
@@ -32,10 +32,13 @@ function contactsOf(user: { email?: string | null; emailVerified?: boolean; phon
   return out;
 }
 
-/** Active members who can confirm bookings at the booking's venue: email if they have one, else SMS. */
-async function staffRecipients(booking: BookingDoc, session: ClientSession): Promise<Recipient[]> {
+const COMMENT_MAX = 140;
+const clip = (s: string) => (s.length > COMMENT_MAX ? `${s.slice(0, COMMENT_MAX - 1)}…` : s);
+
+/** Active members holding `permission` at the booking's venue: email if they have one, else SMS. */
+async function staffRecipients(booking: BookingDoc, permission: string, session: ClientSession): Promise<Recipient[]> {
   const ownerId = String(booking.ownerId);
-  const roles = await Role.find({ permissions: 'booking.confirm' }).setOptions({ ...cross, session }).select('_id');
+  const roles = await Role.find({ permissions: permission }).setOptions({ ...cross, session }).select('_id');
   const members = await Membership.find({
     ownerId,
     status: 'active',
@@ -60,7 +63,7 @@ export async function noticeBooking(
   booking: BookingDoc,
   now: Date,
   session: ClientSession,
-  extra: { amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string } = {},
+  extra: { amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string; stars?: number; comment?: string | null } = {},
 ): Promise<number> {
   const ownerId = String(booking.ownerId);
   // One at a time: a transaction session cannot run operations in parallel.
@@ -82,12 +85,17 @@ export async function noticeBooking(
     ...(extra.amount === undefined ? {} : { amount: extra.amount }),
     ...(extra.reason === undefined ? {} : { reason: extra.reason }),
     ...(extra.autoRejected ? { autoRejected: true } : {}),
-    customerName: booking.guest?.name ?? player?.name ?? undefined,
+    customerName:
+      event === 'review_posted' ? (reviewerName(player?.name) ?? undefined) : (booking.guest?.name ?? player?.name ?? undefined),
+    ...(event === 'review_posted' ? { ownerId } : {}),
+    ...(extra.stars === undefined ? {} : { stars: extra.stars }),
+    ...(extra.comment ? { comment: clip(extra.comment) } : {}),
     ...(booking.holdExpiresAt ? { holdExpiresAt: booking.holdExpiresAt.toISOString() } : {}),
   };
 
   let recipients: Recipient[];
-  if (event === 'staff_new_pending') recipients = await staffRecipients(booking, session);
+  if (event === 'staff_new_pending') recipients = await staffRecipients(booking, 'booking.confirm', session);
+  else if (event === 'review_posted') recipients = await staffRecipients(booking, 'review.manage', session);
   else if (player) recipients = contactsOf(player);
   else recipients = booking.guest ? [{ channel: 'sms', to: booking.guest.phone }] : [];
 
@@ -122,6 +130,10 @@ export async function noticeBooking(
 
 /** True when the thing the notice is about no longer holds, so sending it would mislead. */
 async function isStale(event: NoticeEvent, ownerId: unknown, bookingId: unknown): Promise<boolean> {
+  if (event === 'review_request') {
+    const booking = await Booking.findOne({ ownerId, _id: bookingId }).select('status reviewedAt');
+    return !booking || !!booking.reviewedAt || booking.status !== 'completed';
+  }
   const wanted = event === 'booking_reminder' ? 'confirmed' : event === 'hold_expiring' ? 'awaiting_payment' : null;
   if (!wanted) return false;
   const booking = await Booking.findOne({ ownerId, _id: bookingId }).select('status');

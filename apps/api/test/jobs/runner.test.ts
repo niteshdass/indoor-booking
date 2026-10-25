@@ -99,6 +99,7 @@ describe('JOBS', () => {
       ['auto-complete', 300_000],
       ['reminders', 60_000],
       ['hold-warnings', 60_000],
+      ['review-requests', 300_000],
       ['deliver-notifications', 15_000],
       ['reconcile-refunds', 300_000],
     ]);

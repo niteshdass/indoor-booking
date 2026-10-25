@@ -51,6 +51,7 @@ export function ownerReviewJson(r: ReviewDoc, authorName: string | null | undefi
     bookingId: String(r.bookingId),
     reference,
     flag: r.flag ? { at: r.flag.at.toISOString(), reason: r.flag.reason ?? null } : null,
+    flagCleared: r.flagCleared ?? false,
     hidden: r.moderation === 'hidden',
   };
 }

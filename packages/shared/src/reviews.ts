@@ -24,6 +24,8 @@ export type OwnerReviewJson = PublicReviewJson & {
   bookingId: string;
   reference: string;
   flag: { at: string; reason: string | null } | null;
+  /** The platform team kept it after a flag, so it cannot be flagged again. */
+  flagCleared: boolean;
   hidden: boolean;
 };
 

@@ -1,4 +1,4 @@
-import { DEFAULT_OWNER_SETTINGS } from '@booking/shared';
+import { DEFAULT_OWNER_SETTINGS, type OwnerReviewJson } from '@booking/shared';
 import type { PublicUser } from '../../src/lib/types';
 import type {
   ActivityItem,
@@ -187,6 +187,25 @@ export function activityItem(over: Partial<ActivityItem> = {}): ActivityItem {
     before: null,
     after: null,
     at: '2026-10-25T20:30:00.000Z',
+    ...over,
+  };
+}
+
+export function ownerReview(over: Partial<OwnerReviewJson> = {}): OwnerReviewJson {
+  return {
+    id: 'r1',
+    stars: 4,
+    comment: 'Great pitch',
+    reviewer: 'Karim H.',
+    createdAt: '2026-10-20T10:00:00.000Z',
+    edited: false,
+    reply: null,
+    venueId: 'v1',
+    bookingId: 'b1',
+    reference: 'BK-0001',
+    flag: null,
+    flagCleared: false,
+    hidden: false,
     ...over,
   };
 }

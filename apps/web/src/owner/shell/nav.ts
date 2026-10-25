@@ -13,5 +13,6 @@ export const NAV: NavItem[] = [
   { to: 'addons', key: 'owner.nav.addons', perms: ['addon.manage'] },
   { to: 'settings', key: 'owner.nav.settings', perms: ['settings.edit'] },
   { to: 'staff', key: 'owner.nav.staff', perms: ['staff.manage'] },
+  { to: 'reviews', key: 'owner.nav.reviews', perms: ['review.manage'] },
   { to: 'activity', key: 'owner.nav.activity', perms: ['reports.view'] },
 ];

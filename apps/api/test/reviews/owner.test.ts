@@ -200,6 +200,8 @@ describe('owner reviews', () => {
     const res = await post(`/reviews/${kept.id}/flag`);
     expect(res.status).toBe(409);
     expect(res.body.error?.code ?? res.body.code).toBe('cannot_flag');
+    const listed = await get(`/reviews?venueId=${vA}`);
+    expect(listed.body.reviews.find((x: { id: string }) => x.id === kept.id).flagCleared).toBe(true);
     const hidden = await review(vA, { moderation: 'hidden' });
     expect((await post(`/reviews/${hidden.id}/flag`)).status).toBe(409);
   });

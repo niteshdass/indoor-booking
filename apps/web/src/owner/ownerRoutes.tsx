@@ -8,6 +8,7 @@ import { OwnerIndexPage } from './OwnerIndexPage';
 import { OwnerProvider } from './OwnerProvider';
 import { RequirePermission } from './RequirePermission';
 import { ClosuresPage } from './schedule/ClosuresPage';
+import { ReviewsPage } from './reviews/ReviewsPage';
 import { SchedulePage } from './schedule/SchedulePage';
 import { NAV } from './shell/nav';
 import { OwnerShell } from './shell/OwnerShell';
@@ -58,6 +59,7 @@ export function OwnerRoutes() {
         <Route path="addons" element={<Guarded nav="addons"><AddonsPage /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
         <Route path="staff" element={<Guarded nav="staff"><StaffPage /></Guarded>} />
+        <Route path="reviews" element={<Guarded nav="reviews"><ReviewsPage /></Guarded>} />
         <Route path="activity" element={<Guarded nav="activity"><ActivityPage /></Guarded>} />
       </Route>
     </Routes>

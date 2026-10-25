@@ -443,6 +443,7 @@
       "addons": "Add-ons",
       "settings": "Settings",
       "staff": "Staff",
+      "reviews": "Reviews",
       "activity": "Activity",
       "playerSite": "Player site"
     },
@@ -1141,6 +1142,33 @@
         "owner_create": "Team created",
         "unknown": "Unknown action: {{action}}"
       }
+    },
+    "reviews": {
+      "title": "Reviews",
+      "retry": "Try again",
+      "empty": "No reviews match these filters.",
+      "filterVenue": "Venue",
+      "filterStars": "Rating",
+      "allVenues": "All venues",
+      "allStars": "All ratings",
+      "flagged": "Flagged — awaiting review",
+      "hidden": "Hidden",
+      "reply": "Reply",
+      "replyField": "Your reply",
+      "replyCount": "{{n}}/1000",
+      "replySave": "Save reply",
+      "cancel": "Cancel",
+      "replyEdit": "Edit reply",
+      "replyDelete": "Delete reply",
+      "deleteTitle": "Delete this reply?",
+      "deleteBody": "The reply will no longer show on the venue page.",
+      "deleteConfirm": "Delete",
+      "flag": "Flag",
+      "flagTitle": "Flag this review",
+      "flagReason": "Reason (optional)",
+      "flagCount": "{{n}}/500",
+      "flagHint": "The review stays visible until the platform team checks it.",
+      "flagSubmit": "Flag review"
     }
   },
   "reviews": {

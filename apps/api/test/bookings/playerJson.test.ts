@@ -88,7 +88,7 @@ describe('player booking JSON', () => {
 
   it('runs no query for an empty list', async () => {
     const spy = vi.spyOn(Venue, 'find');
-    expect(await playerBookingsJson([])).toEqual([]);
+    expect(await playerBookingsJson([], new Date())).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });

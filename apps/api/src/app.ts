@@ -17,6 +17,7 @@ import { publicVenuesRouter } from './venues/routes/public';
 import { publicSlotsRouter } from './schedule/routes/publicSlots';
 import { publicAddonsRouter } from './addons/routes/publicAddons';
 import { publicBookingsRouter } from './bookings/routes/public';
+import { playerReviewsRouter } from './reviews/routes/player';
 import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 
@@ -73,6 +74,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(publicAddonsRouter());
   api.use(searchRouter(deps.services, limited ? authLimiter(300) : undefined));
   api.use(publicBookingsRouter(deps.config, deps.services, limited ? authLimiter(20) : undefined));
+  api.use(playerReviewsRouter(deps.config, deps.services));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
 
   deps.extraRoutes?.(api);

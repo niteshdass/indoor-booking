@@ -1,0 +1,193 @@
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.grid {
+  display: grid;
+  position: relative;
+  min-width: min-content;
+}
+
+.corner,
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.head {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.label {
+  padding-inline: var(--space-2);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lane {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.cell {
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 var(--space-1);
+}
+
+.slot,
+.booking {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--text-xs);
+  text-align: start;
+  text-decoration: none;
+}
+
+.time,
+.price {
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.booking {
+  border-width: 0;
+  border-inline-start: var(--status-bar) solid var(--booking-fg);
+  background: var(--booking-bg);
+  color: var(--booking-fg);
+}
+
+.booking:focus-visible,
+.slot:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tone_success {
+  --booking-bg: var(--success-soft);
+  --booking-fg: var(--success);
+}
+
+.tone_warning {
+  --booking-bg: var(--warning-soft);
+  --booking-fg: var(--warning);
+}
+
+.tone_danger {
+  --booking-bg: var(--danger-soft);
+  --booking-fg: var(--danger);
+}
+
+.tone_info {
+  --booking-bg: var(--info-soft);
+  --booking-fg: var(--info);
+}
+
+.tone_neutral {
+  --booking-bg: var(--bg-subtle);
+  --booking-fg: var(--text-muted);
+}
+
+.slot {
+  background: var(--bg-surface);
+  color: var(--text-strong);
+}
+
+button.slot {
+  cursor: pointer;
+}
+
+button.slot:hover {
+  background: var(--bg-hover);
+}
+
+.price {
+  color: var(--text-muted);
+}
+
+.state {
+  color: var(--text-muted);
+}
+
+.slot_booked,
+.slot_past {
+  background: var(--bg-subtle);
+  border-color: transparent;
+  color: var(--text-subtle);
+}
+
+.slot_booked .state,
+.slot_past .state {
+  color: var(--text-subtle);
+}
+
+.slot_pending {
+  background: var(--warning-soft);
+  border-color: transparent;
+  color: var(--warning);
+}
+
+.slot_pending .state {
+  color: var(--warning);
+}
+
+.slot_blocked {
+  background: repeating-linear-gradient(45deg, var(--bg-subtle) 0 var(--space-1), var(--bg-surface) var(--space-1) var(--space-2));
+  color: var(--text-subtle);
+}
+
+.slot_blocked .state {
+  color: var(--text-subtle);
+}
+
+.closed {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: repeating-linear-gradient(45deg, var(--bg-subtle) 0 var(--space-1), var(--bg-surface) var(--space-1) var(--space-2));
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.overlay {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.now {
+  position: absolute;
+  inset-inline: 0;
+  height: var(--schedule-now-line);
+  background: var(--danger);
+}

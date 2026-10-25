@@ -425,6 +425,12 @@
       "status": "Status",
       "noVenues": "Create a venue to start taking bookings.",
       "createVenue": "Create a venue"
+    },
+    "walkInGuest": "Walk-in guest",
+    "schedule": {
+      "closed": "Closed",
+      "noTurfs": "This venue has no active courts.",
+      "noSlots": "No time slots on this day."
     }
   }
 }

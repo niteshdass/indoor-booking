@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { BookingStatus, PaymentStatus } from '@booking/shared';
 import { Badge, type Tone } from '../components/ui/Badge';
 
-const BOOKING_TONE: Record<BookingStatus, Tone> = {
+export const BOOKING_TONE: Record<BookingStatus, Tone> = {
   confirmed: 'success',
   awaiting_payment: 'warning',
   pending: 'warning',

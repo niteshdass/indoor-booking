@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { renderHook, act, screen, waitFor, within } from '@testing-library/react';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
+import { useBookingAction } from '../../src/owner/bookings/BookingActions';
 import { availableActions } from '../../src/owner/bookings/availableActions';
 import type { BookingDetail, Permission } from '../../src/owner/types';
 import { renderApp } from '../helpers/render';
@@ -104,6 +105,33 @@ describe('owner booking detail', () => {
     expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull();
   });
 
+  it('useBookingAction ignores a second run while one is in flight', async () => {
+    const api = mockApi([
+      { method: 'POST', path: '/owners/o1/bookings/b1/confirm', body: () => ({ booking: ownerBooking() }) },
+    ]);
+    const { result } = renderHook(() => useBookingAction('o1', 'b1'));
+    let both: unknown[] = [];
+    await act(async () => {
+      both = await Promise.all([result.current.run('confirm'), result.current.run('confirm')]);
+    });
+    expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+    expect(both.filter((x) => x === null)).toHaveLength(1);
+  });
+
+  it('a failed reject shows the error once', async () => {
+    mockApi([
+      ...ownerRoutes({ permissions: OWNER_PERMS }),
+      { path: GET, body: detail() },
+      { method: 'POST', path: `${GET}/reject`, status: 500, body: { error: { code: 'boom', message: 'x' } } },
+    ]);
+    const { user } = renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.reject }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: en.owner.bookings.reject.confirm }));
+    await within(dialog).findByRole('alert');
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
   it('a 409 on confirm shows the error and reloads the booking', async () => {
     const api = mockApi([
       ...ownerRoutes({ permissions: OWNER_PERMS }),
@@ -149,7 +177,7 @@ describe('owner booking detail', () => {
       },
       {
         path: `${GET}/cancellation`,
-        body: { preview: { percent: 100, amount: 1000, rule: null, amountPaid: 1000, amountRefunded: 0, currency: 'BDT', card: 1000, cash: 0 } },
+        body: { preview: { percent: 100, amount: 1000, rule: null, amountPaid: 1000, amountRefunded: 0, currency: 'BDT', card: 600, cash: 400 } },
       },
       {
         method: 'POST',
@@ -160,7 +188,11 @@ describe('owner booking detail', () => {
     const { user } = renderApp(URL_, { user: staffUser });
     await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.cancel }));
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByText(/100%/)).toBeTruthy();
+    expect(await within(dialog).findByText(/Customer refund \(100%\)/)).toBeTruthy();
+    expect(within(dialog).getByText(/BDT\s6\.00 goes back to the customer's card/)).toBeTruthy();
+    expect(within(dialog).getByText(/Hand back BDT\s4\.00 in cash/)).toBeTruthy();
+    expect(within(dialog).queryByText(/Your refund/)).toBeNull();
+    expect(within(dialog).queryByText(en.cancel.noRule)).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: en.cancel.confirm }));
     expect(await screen.findByText(en.status.cancelled)).toBeTruthy();
     expect(await screen.findByText(en.cancel.refundsTitle)).toBeTruthy();

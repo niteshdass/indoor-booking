@@ -78,7 +78,7 @@ export function BookingActions({ booking, onUpdated, onCancelled, onConflict }: 
 
   return (
     <section className={styles.actions} aria-label={t('owner.bookings.actions.title')}>
-      {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+      {error !== null && !rejectOpen && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <div className={styles.buttons}>
         {actions.map((a) => {
           switch (a) {
@@ -132,6 +132,7 @@ export function BookingActions({ booking, onUpdated, onCancelled, onConflict }: 
         }}
       />
       <CancelDialog<OwnerBooking>
+        audience="staff"
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
         loadPreview={() => apiGet<{ preview: CancellationPreview }>(`${base}/cancellation`).then((r) => r.preview)}
@@ -149,7 +150,7 @@ export function BookingActions({ booking, onUpdated, onCancelled, onConflict }: 
 export function PendingActions({ id, onDone }: { id: string; onDone(): void }) {
   const { t } = useTranslation();
   const { ownerId } = useOwner();
-  const { run, pending, error } = useBookingAction(ownerId, id);
+  const { run, pending, error } = useBookingAction(ownerId, id, onDone);
   const [rejectOpen, setRejectOpen] = useState(false);
 
   return (

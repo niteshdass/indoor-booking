@@ -23,11 +23,13 @@ export type CancelDialogProps<B = BookingJson> = {
   extra?: ReactNode;
   /** False blocks the confirm button (the guest flow waits for its OTP). */
   canConfirm?: boolean;
+  /** Whose copy the preview uses: the owner portal passes 'staff' (default 'player'). */
+  audience?: 'player' | 'staff';
 };
 
 type Load = { status: 'loading' } | { status: 'ready'; preview: CancellationPreview } | { status: 'error'; error: unknown };
 
-export function CancelDialog<B = BookingJson>({ open, onClose, loadPreview, cancel, onCancelled, extra, canConfirm: allowed = true }: CancelDialogProps<B>) {
+export function CancelDialog<B = BookingJson>({ open, onClose, loadPreview, cancel, onCancelled, extra, canConfirm: allowed = true, audience = 'player' }: CancelDialogProps<B>) {
   const { t, i18n } = useTranslation();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [reason, setReason] = useState('');
@@ -87,7 +89,7 @@ export function CancelDialog<B = BookingJson>({ open, onClose, loadPreview, canc
             </div>
           )}
           {load.status === 'error' && <Alert tone="danger">{errorMessage(load.error, t)}</Alert>}
-          {load.status === 'ready' && <PreviewBody preview={load.preview} lang={i18n.language} />}
+          {load.status === 'ready' && <PreviewBody preview={load.preview} lang={i18n.language} audience={audience} />}
           {load.status === 'ready' && (
             <>
               <div className={styles.field}>
@@ -126,8 +128,9 @@ export function CancelDialog<B = BookingJson>({ open, onClose, loadPreview, canc
   );
 }
 
-function PreviewBody({ preview, lang }: { preview: CancellationPreview; lang: string }) {
+function PreviewBody({ preview, lang, audience }: { preview: CancellationPreview; lang: string; audience: 'player' | 'staff' }) {
   const { t } = useTranslation();
+  const staff = audience === 'staff';
   const fmt = (n: number) => money(n, preview.currency, lang);
   const paid = preview.amountPaid - preview.amountRefunded;
   if (paid <= 0) return <p className={styles.note}>{t('cancel.nothingPaid')}</p>;
@@ -139,21 +142,23 @@ function PreviewBody({ preview, lang }: { preview: CancellationPreview; lang: st
           <dd>{fmt(paid)}</dd>
         </div>
         <div className={[styles.row, styles.refund].join(' ')}>
-          <dt>{t('cancel.refund', { percent: preview.percent })}</dt>
+          <dt>{t(staff ? 'owner.cancel.refund' : 'cancel.refund', { percent: preview.percent })}</dt>
           <dd>{fmt(preview.amount)}</dd>
         </div>
       </dl>
-      <p className={[styles.note, styles.muted].join(' ')}>
-        {preview.rule && preview.rule.minHoursBefore !== null
-          ? t('cancel.rule', { hours: preview.rule.minHoursBefore, percent: preview.rule.percent })
-          : t('cancel.noRule')}
-      </p>
+      {(!staff || preview.rule) && (
+        <p className={[styles.note, styles.muted].join(' ')}>
+          {preview.rule && preview.rule.minHoursBefore !== null
+            ? t('cancel.rule', { hours: preview.rule.minHoursBefore, percent: preview.rule.percent })
+            : t('cancel.noRule')}
+        </p>
+      )}
       {preview.amount === 0 ? (
         <p className={styles.note}>{t('cancel.noRefund')}</p>
       ) : (
         <>
-          {preview.card > 0 && <p className={styles.note}>{t('cancel.toCard', { amount: fmt(preview.card) })}</p>}
-          {preview.cash > 0 && <p className={styles.note}>{t('cancel.cashAtVenue', { amount: fmt(preview.cash) })}</p>}
+          {preview.card > 0 && <p className={styles.note}>{t(staff ? 'owner.cancel.toCard' : 'cancel.toCard', { amount: fmt(preview.card) })}</p>}
+          {preview.cash > 0 && <p className={styles.note}>{t(staff ? 'owner.cancel.cashHandBack' : 'cancel.cashAtVenue', { amount: fmt(preview.cash) })}</p>}
         </>
       )}
     </>

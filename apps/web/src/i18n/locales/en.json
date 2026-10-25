@@ -492,6 +492,11 @@
         "back": "Back",
         "recorded": "Reason"
       }
+    },
+    "cancel": {
+      "refund": "Customer refund ({{percent}}%)",
+      "toCard": "{{amount}} goes back to the customer's card.",
+      "cashHandBack": "Hand back {{amount}} in cash (recorded as a pending cash refund)."
     }
   }
 }

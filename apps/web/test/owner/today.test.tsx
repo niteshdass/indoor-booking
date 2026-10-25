@@ -134,4 +134,14 @@ describe('Today page', () => {
     expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull();
     expect(screen.queryByRole('button', { name: en.owner.bookings.actions.reject })).toBeNull();
   });
+
+  it('Today reloads the list when a confirm hits a 409', async () => {
+    const api = mockApi([
+      ...pendingRoutes({ permissions: ['booking.view', 'booking.confirm'] }),
+      { method: 'POST', path: '/owners/o1/bookings/b/confirm', status: 409, body: { error: { code: 'invalid_transition', message: 'x' } } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.confirm }));
+    await waitFor(() => expect(api.calls.filter((c) => c.method === 'GET' && c.path === '/owners/o1/bookings')).toHaveLength(2));
+  });
 });

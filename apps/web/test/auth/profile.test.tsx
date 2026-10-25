@@ -72,7 +72,7 @@ describe('ResetPasswordPage', () => {
     expect(await screen.findByText(en.auth.reset.success)).toBeInTheDocument();
     expect(api.calls[0]?.body).toEqual({ token: 'abc', password: 'newpassword1' });
     expect(screen.getByRole('link', { name: en.auth.reset.toLogin })).toHaveAttribute('href', '/login');
-    expect(h.location().search).toBe('');
+    await waitFor(() => expect(h.location().search).toBe(''));
   });
 
   it('invalid_reset_token shows message and request-new link', async () => {

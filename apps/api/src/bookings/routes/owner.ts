@@ -22,14 +22,15 @@ import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Booking } from '../booking.model';
 import { ownerBookingJson, ownerBookingsJson } from '../ownerJson';
-import { cancelBooking, previewCancellation } from '../cancel';
+import { assertSeriesAnswered, cancelBooking, previewCancellation } from '../cancel';
 import { createBooking } from '../create';
 import { Payment, type PaymentDoc } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
 import { addonsSchema, startAtsSchema } from './public';
 
 const MAX_RANGE_DAYS = 31;
-const LIST_LIMIT = 500;
+/** Rows per list response; the series list pages with the same size. */
+export const LIST_LIMIT = 500;
 const CHECK_IN_LEAD_MS = 60 * 60_000;
 /** Statuses that still take a cash payment. */
 const CASH_STATUSES: readonly BookingStatus[] = ['pending', 'confirmed', 'completed', 'no_show'];
@@ -70,6 +71,14 @@ const invalidAmount = (max: number) =>
 const daysBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 86_400_000;
 
 const tooEarly = () => new AppError(409, 'too_early', 'It is too early for this action');
+
+/** The registered player a walk-in names, or null; 400 player_not_found for an unknown id. */
+export async function walkinPlayerId(id: string | undefined): Promise<string | null> {
+  if (id === undefined) return null;
+  const player = mongoose.isValidObjectId(id) ? await User.exists({ _id: id }) : null;
+  if (!player) throw new AppError(400, 'player_not_found', 'No such player');
+  return id;
+}
 
 /** Mounted on ownerRouter. */
 export function ownerBookingsRouter(config: Config, services: AppServices): Router {
@@ -128,13 +137,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const input = walkinSchema.parse(req.body);
     const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
     const phone = normalizePhone(input.customer.phone);
-    let playerId: string | null = null;
-    if (input.customer.playerId !== undefined) {
-      const id = input.customer.playerId;
-      const player = mongoose.isValidObjectId(id) ? await User.exists({ _id: id }) : null;
-      if (!player) throw new AppError(400, 'player_not_found', 'No such player');
-      playerId = id;
-    }
+    const playerId = await walkinPlayerId(input.customer.playerId);
     const now = services.now();
     const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'walkin' as const, now };
 
@@ -223,6 +226,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
   router.post('/bookings/:bookingId/confirm', requirePermission('booking.confirm'), async (req, res) => {
     const t = tenantOf(req);
     const booking = await scopedBooking(t, req.params.bookingId as string);
+    await assertSeriesAnswered(booking);
     // Staff confirm only pending guest bookings; an awaiting_payment hold confirms by payment.
     if (booking.status !== 'pending') throw invalidTransition(booking.status);
     const updated = await runInTransaction(async (session) => {
@@ -238,6 +242,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const t = tenantOf(req);
     const { reason } = rejectSchema.parse(req.body ?? {});
     const booking = await scopedBooking(t, req.params.bookingId as string);
+    await assertSeriesAnswered(booking);
     const updated = await runInTransaction(async (session) => {
       const now = services.now();
       const moved = await transition(t, booking, 'rejected', now, session, { rejectReason: reason || null });

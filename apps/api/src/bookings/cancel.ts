@@ -8,6 +8,7 @@ import { allocateRefund, dispatchRefund, reserveRefunds } from '../payments/refu
 import { noticeBooking } from '../notifications/outbox';
 import type { AppServices } from '../services';
 import type { TenantContext } from '../tenancy/context';
+import { RecurringSeries } from '../series/series.model';
 import { Booking, type BookingDoc } from './booking.model';
 import { Payment, type PaymentDoc } from './payment.model';
 import { invalidTransition, transition, type Actor } from './transition';
@@ -30,6 +31,20 @@ export type CancellationPreview = {
 
 const CANCELLABLE: readonly BookingStatus[] = ['awaiting_payment', 'pending', 'confirmed'];
 
+export const seriesRequestOpen = () =>
+  new AppError(409, 'series_request_open', 'This series request is still waiting for an answer');
+
+/**
+ * A game of a series request waiting for an answer moves only with its series (accept, decline,
+ * withdraw), never on its own. The series never returns to requested, so a check outside the
+ * transaction cannot go stale in the unsafe direction.
+ */
+export async function assertSeriesAnswered(booking: BookingDoc): Promise<void> {
+  if (!booking.seriesId) return;
+  const open = await RecurringSeries.exists({ ownerId: booking.ownerId, _id: booking.seriesId, status: 'requested' });
+  if (open) throw seriesRequestOpen();
+}
+
 function assertCancellable(booking: BookingDoc, kind: Canceller['kind'], now: Date) {
   if (!CANCELLABLE.includes(booking.status as BookingStatus)) throw invalidTransition(booking.status);
   if (kind !== 'staff' && now >= booking.startAt) throw new AppError(409, 'too_late', 'This booking has already started');
@@ -50,6 +65,7 @@ const actorOf = (by: Canceller): Actor =>
 
 /** What cancelling now would refund, and how it splits between card and cash. Throws what cancelBooking would. */
 export async function previewCancellation(booking: BookingDoc, by: Canceller['kind'], now: Date): Promise<CancellationPreview> {
+  await assertSeriesAnswered(booking);
   assertCancellable(booking, by, now);
   const { percent, amount, rule } = refundFor(booking, by, now);
   const payments: PaymentDoc[] = await Payment.find({ ownerId: booking.ownerId, bookingId: booking._id });
@@ -109,6 +125,7 @@ export async function cancelBooking(
   const { kind } = by;
   const now = deps.services.now();
   const ownerId = String(booking.ownerId);
+  await assertSeriesAnswered(booking);
   assertCancellable(booking, kind, now);
   await closeOpenPayment(booking, deps);
 

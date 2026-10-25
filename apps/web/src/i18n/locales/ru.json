@@ -462,7 +462,11 @@
     },
     "walkInGuest": "Гость без брони",
     "unknownCustomer": "Неизвестный клиент",
-    "roleName": { "owner": "Владелец", "manager": "Менеджер", "staff": "Сотрудник" },
+    "roleName": {
+      "owner": "Владелец",
+      "manager": "Менеджер",
+      "staff": "Сотрудник"
+    },
     "schedule": {
       "closed": "Закрыто",
       "noTurfs": "На этой площадке нет активных кортов.",
@@ -1138,5 +1142,12 @@
         "unknown": "Неизвестное действие: {{action}}"
       }
     }
+  },
+  "reviews": {
+    "starsLabel": "{{value}} из 5",
+    "starOption_one": "{{count}} звезда",
+    "starOption_few": "{{count}} звезды",
+    "starOption_many": "{{count}} звёзд",
+    "starOption_other": "{{count}} звезды"
   }
 }

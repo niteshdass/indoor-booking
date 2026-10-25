@@ -1,0 +1,64 @@
+.group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+}
+
+.row {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-md);
+  min-height: var(--control-md);
+  cursor: pointer;
+}
+
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.glyph {
+  font-size: var(--star-size-md);
+  line-height: 1;
+  color: var(--star-empty);
+  border-radius: var(--radius-sm);
+}
+
+.on {
+  color: var(--star-filled);
+}
+
+.input:focus-visible + .glyph {
+  outline: var(--focus-width) solid var(--text-strong);
+  outline-offset: var(--space-1);
+}
+
+.text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

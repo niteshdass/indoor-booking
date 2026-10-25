@@ -1,0 +1,35 @@
+.stars {
+  display: inline-flex;
+  line-height: 1;
+}
+
+.sm {
+  font-size: var(--star-size-sm);
+}
+
+.md {
+  font-size: var(--star-size-md);
+}
+
+.star {
+  position: relative;
+  display: inline-block;
+  color: var(--star-empty);
+}
+
+.fill {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  width: 0;
+  overflow: hidden;
+  color: var(--star-filled);
+}
+
+.half {
+  width: 50%;
+}
+
+.full {
+  width: 100%;
+}

@@ -109,6 +109,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
   - Past: text-subtle, not clickable.
 - **Schedule (owner)**: courts as columns, time as rows (30/60 min); booking blocks use status soft bg + 3px left border in status fg; current-time line in danger, drawn behind each cell's text row so it never strikes through a label.
 - **Booking summary card**: venue, court, date, time range, line items, total 20px/600 tabular, CTA full width.
+- **Ratings**: stars use `--star-filled` (amber, lighter in dark) over `--star-empty`, 16px (`--star-size-sm`) or 24px (`--star-size-md`), drawn to the nearest half. An average shows as stars plus the number. Input stars are a radio group (arrow keys, visible focus ring) with a 36px (`--control-md`) hit area; the glyph is decorative and the label text names the radio.
 - **Price**: always formatted with the owner's currency and locale via `Intl.NumberFormat`; never hand-built strings.
 
 ## Venue page

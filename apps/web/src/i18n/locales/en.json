@@ -454,7 +454,11 @@
     },
     "walkInGuest": "Walk-in guest",
     "unknownCustomer": "Unknown customer",
-    "roleName": { "owner": "Owner", "manager": "Manager", "staff": "Staff" },
+    "roleName": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "staff": "Staff"
+    },
     "schedule": {
       "closed": "Closed",
       "noTurfs": "This venue has no active courts.",
@@ -1130,5 +1134,10 @@
         "unknown": "Unknown action: {{action}}"
       }
     }
+  },
+  "reviews": {
+    "starsLabel": "{{value}} out of 5",
+    "starOption_one": "{{count}} star",
+    "starOption_other": "{{count}} stars"
   }
 }

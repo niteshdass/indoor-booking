@@ -20,10 +20,20 @@ export async function scopedBooking(t: TenantContext, bookingId: string): Promis
   return booking;
 }
 
+/** Options for `transition`. */
+export type TransitionOptions = {
+  /**
+   * false skips the `booking.<to>` activity row (member or system). For moves that are one act on
+   * a whole series (accept, decline, withdraw, auto-decline), where the caller logs one `series.*`
+   * row instead of one row per game.
+   */
+  log?: boolean;
+};
+
 /**
  * Moves a booking to `to` with a conditional update on its current status, so when two staff act
  * at once the loser matches nothing and gets 409. Frees the slot locks for freeing statuses and
- * logs `booking.<to>`. Call inside the transaction that carries `session`.
+ * logs `booking.<to>` unless `opts.log` is false. Call inside the transaction that carries `session`.
  */
 export async function transition(
   t: Actor,
@@ -34,6 +44,7 @@ export async function transition(
   extra: Record<string, unknown> = {},
   /** Extra fields for the activity log's `after` only. */
   logExtra: Record<string, unknown> = {},
+  opts: TransitionOptions = {},
 ): Promise<BookingDoc> {
   const from = booking.status as BookingStatus;
   if (!canTransition(from, to)) throw invalidTransition(from);
@@ -49,6 +60,7 @@ export async function transition(
   if (SLOT_FREEING_STATUSES.includes(to)) {
     await SlotLock.deleteMany({ ownerId: t.ownerId, bookingId: booking._id }, { session });
   }
+  if (opts.log === false) return updated;
   const entry = {
     action: `booking.${to}`,
     entity: 'booking',

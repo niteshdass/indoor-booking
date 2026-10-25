@@ -14,12 +14,15 @@ import { noticeBooking } from '../../notifications/outbox';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
 import { Booking, type BookingDoc } from '../../bookings/booking.model';
-import { LIST_LIMIT, walkinPlayerId } from '../../bookings/routes/owner';
+import { walkinPlayerId } from '../../bookings/routes/owner';
 import { transition } from '../../bookings/transition';
 import { bookSeries, seriesAvailability } from '../engine';
 import { cancelFutureGames } from '../cancelFuture';
 import { ownerSeriesSchema, reasonSchema, seriesPatternSchema } from '../schemas';
 import { RecurringSeries, seriesJson, type SeriesDoc } from '../series.model';
+
+/** Series per list page; each carries up to SERIES_MAX_GAMES games. */
+export const SERIES_PAGE_SIZE = 50;
 
 const idQuery = z.string().regex(/^[0-9a-f]{24}$/i, 'Must be an id');
 
@@ -120,11 +123,11 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
     const rows = await tenantRepo(RecurringSeries, t, { venueField: 'venueId' })
       .find(filter)
       .sort({ _id: -1 })
-      .limit(LIST_LIMIT + 1);
-    const page = rows.slice(0, LIST_LIMIT);
+      .limit(SERIES_PAGE_SIZE + 1);
+    const page = rows.slice(0, SERIES_PAGE_SIZE);
     res.json({
       series: await seriesListJson(t.ownerId, page),
-      nextBefore: rows.length > LIST_LIMIT ? String(page[page.length - 1]!._id) : null,
+      nextBefore: rows.length > SERIES_PAGE_SIZE ? String(page[page.length - 1]!._id) : null,
     });
   });
 
@@ -143,8 +146,9 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
     const series = await scopedSeries(t, seriesId);
     return runInTransaction(async (session) => {
       const now = services.now();
+      // A lapsed request can only be declined: accepting it could confirm games already under way.
       const moved = await RecurringSeries.findOneAndUpdate(
-        { ownerId: t.ownerId, _id: series._id, status: 'requested' },
+        { ownerId: t.ownerId, _id: series._id, status: 'requested', ...(accept ? { respondBy: { $gt: now } } : {}) },
         {
           $set: {
             status: accept ? 'active' : 'declined',
@@ -160,14 +164,10 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
         .sort({ startAt: 1 })
         .session(session);
       const games: BookingDoc[] = [];
-      // A null userId: the per-game rows are system effects, the member's act is the series log.
-      const actor = { ownerId: t.ownerId, userId: null };
+      // One act on the whole series: the series row below is its only activity record.
       for (const g of pending) {
-        games.push(
-          accept
-            ? await transition(actor, g, 'confirmed', now, session)
-            : await transition(actor, g, 'rejected', now, session, { rejectReason: reason }),
-        );
+        const extra = accept ? {} : { rejectReason: reason };
+        games.push(await transition(t, g, accept ? 'confirmed' : 'rejected', now, session, extra, {}, { log: false }));
       }
       await logActivity(
         t,

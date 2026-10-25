@@ -39,24 +39,56 @@ export async function cancelFutureGames(
   });
   const cancelled: BookingDoc[] = [];
   const kept: { booking: BookingDoc; code: string }[] = [];
+  /** A non-AppError stops the loop; the games already cancelled are still summed up, then it rethrows. */
+  let failure: { err: unknown } | null = null;
   for (const game of future) {
     try {
       const out = await cancelBooking(game, by, { reason, notify: false }, deps);
       cancelled.push(out.booking);
     } catch (err) {
-      if (!(err instanceof AppError)) throw err;
+      if (!(err instanceof AppError)) {
+        failure = { err };
+        break;
+      }
+      // Cancelled or rejected by someone else meanwhile: not ours, and not still booked either.
+      if (err.code === 'invalid_transition') {
+        const at = deps.services.now();
+        const holding = await Booking.exists({ ownerId, _id: game._id, ...holdingFilter(at) });
+        if (!holding) continue;
+      }
       kept.push({ booking: game, code: err.code });
     }
   }
-  if (cancelled.length === 0) return { cancelled, kept };
+  if (cancelled.length > 0) {
+    try {
+      await summarise(fresh, cancelled, kept, by, reason, deps);
+    } catch (err) {
+      // The loop's own failure is the one to report; this one is only logged.
+      if (!failure) throw err;
+      console.error(`[series] summary of ${String(series._id)} failed after a cancel error`, err);
+    }
+  }
+  if (failure) throw failure.err;
+  return { cancelled, kept };
+}
 
+/** One transaction after the loop: status and lastEndAt, the summary notice and the series.cancel log. */
+async function summarise(
+  series: SeriesDoc,
+  cancelled: BookingDoc[],
+  kept: { booking: BookingDoc; code: string }[],
+  by: Canceller,
+  reason: string | undefined,
+  deps: { config: Config; services: AppServices },
+) {
+  const ownerId = String(series.ownerId);
   await runInTransaction(async (session) => {
     const at = deps.services.now();
     const left = await Booking.exists({ ownerId, seriesId: series._id, startAt: { $gt: at }, ...holdingFilter(at) }).session(session);
     const last = await Booking.findOne({ ownerId, seriesId: series._id, status: { $nin: [...SLOT_FREEING_STATUSES] } })
       .sort({ endAt: -1 })
       .session(session);
-    const before = fresh.status;
+    const before = series.status;
     // Only a live series becomes cancelled; conditional on the status read, so a concurrent change wins.
     const status = !left && before === 'active' ? 'cancelled' : before;
     await RecurringSeries.updateOne(
@@ -91,5 +123,4 @@ export async function cancelFutureGames(
       session,
     );
   });
-  return { cancelled, kept };
 }

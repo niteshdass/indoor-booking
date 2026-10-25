@@ -286,6 +286,26 @@ describe('owner series: list and detail', () => {
   });
 });
 
+describe('owner series: paging', () => {
+  it('pages 50 at a time with nextBefore', async () => {
+    const at0 = at('18:00', TUE[0]!);
+    await RecurringSeries.insertMany(
+      Array.from({ length: 51 }, () => ({
+        ownerId: a.ownerId, venueId: v1, turfId: t1, source: 'walkin', guest: { name: 'G', phone: PHONE },
+        weekdays: ['tue'], startTime: '18:00', slotCount: 1, firstDate: TUE[0], count: 1, status: 'active',
+        currency: 'BDT', firstStartAt: at0, lastEndAt: new Date(at0.getTime() + 3_600_000),
+      })),
+    );
+    const ids = (await RecurringSeries.find({}).setOptions(cross).sort({ _id: -1 })).map((x) => String(x._id));
+    const one = await get('/series', a.token);
+    expect(one.body.series.map((x: { id: string }) => x.id)).toEqual(ids.slice(0, 50));
+    expect(one.body.nextBefore).toBe(ids[49]);
+    const two = await get(`/series?before=${one.body.nextBefore}`, a.token);
+    expect(two.body.series.map((x: { id: string }) => x.id)).toEqual(ids.slice(50));
+    expect(two.body.nextBefore).toBeNull();
+  });
+});
+
 describe('owner series: answering', () => {
   it('accept confirms every pending game and sends one series_accepted', async () => {
     const { seriesId, gameIds } = await seedRequest();
@@ -301,12 +321,35 @@ describe('owner series: answering', () => {
     expect(rows.map((r) => [r.event, r.to])).toEqual([['series_accepted', player.email]]);
     expect(String(rows[0]!.bookingId)).toBe(gameIds[0]);
     expect(await ActivityLog.countDocuments({ ownerId: a.ownerId, action: 'series.accept', entityId: seriesId })).toBe(1);
-    // The member's act is the series row; the per-game moves are system rows.
-    expect(await ActivityLog.countDocuments({ ownerId: a.ownerId, action: 'booking.confirmed', actorId: { $ne: null } })).toBe(0);
+    // The series row is the only record of the answer: no per-game rows, member or system.
+    expect(await ActivityLog.countDocuments({ ownerId: a.ownerId, entityId: { $in: gameIds } })).toBe(0);
+    expect(await ActivityLog.countDocuments({ ownerId: a.ownerId, action: /^booking\./ })).toBe(0);
 
     const again = await post(`/series/${seriesId}/accept`, manager.token);
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe('series_not_requested');
+  });
+
+  it('accept after respondBy → 409 series_not_requested; decline still works', async () => {
+    const { seriesId, gameIds } = await seedRequest();
+    const s = (await RecurringSeries.findById(seriesId).setOptions(cross))!;
+    await setClock(s.respondBy!.toISOString());
+    const late = await post(`/series/${seriesId}/accept`, a.token);
+    expect(late.status).toBe(409);
+    expect(late.body.error.code).toBe('series_not_requested');
+    const games = await Booking.find({ _id: { $in: gameIds } }).setOptions(cross);
+    expect(games.every((g) => g.status === 'pending')).toBe(true);
+    expect((await RecurringSeries.findById(seriesId).setOptions(cross))!.status).toBe('requested');
+    const declined = await post(`/series/${seriesId}/decline`, a.token);
+    expect(declined.status).toBe(200);
+    expect(declined.body.series.status).toBe('declined');
+  });
+
+  it('accept just before respondBy succeeds', async () => {
+    const { seriesId } = await seedRequest();
+    const s = (await RecurringSeries.findById(seriesId).setOptions(cross))!;
+    await setClock(new Date(s.respondBy!.getTime() - 1).toISOString());
+    expect((await post(`/series/${seriesId}/accept`, a.token)).status).toBe(200);
   });
 
   it('staff without booking.confirm cannot answer', async () => {
@@ -328,6 +371,7 @@ describe('owner series: answering', () => {
     expect(rows.map((r) => r.event)).toEqual(['series_declined']);
     expect(rows[0]!.data).toMatchObject({ reason: 'Турнир' });
     expect(await ActivityLog.countDocuments({ ownerId: a.ownerId, action: 'series.decline' })).toBe(1);
+    expect(await ActivityLog.countDocuments({ ownerId: a.ownerId, entityId: { $in: gameIds } })).toBe(0);
 
     await setClock('2026-01-06T00:00:00Z');
     const single = await post(`/venues/${v1}/turfs/${t1}/bookings`, a.token, {

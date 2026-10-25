@@ -29,8 +29,7 @@ import { invalidTransition, scopedBooking, transition } from '../transition';
 import { addonsSchema, startAtsSchema } from './public';
 
 const MAX_RANGE_DAYS = 31;
-/** Rows per list response; the series list pages with the same size. */
-export const LIST_LIMIT = 500;
+const LIST_LIMIT = 500;
 const CHECK_IN_LEAD_MS = 60 * 60_000;
 /** Statuses that still take a cash payment. */
 const CASH_STATUSES: readonly BookingStatus[] = ['pending', 'confirmed', 'completed', 'no_show'];

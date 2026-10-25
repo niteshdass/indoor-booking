@@ -16,7 +16,10 @@ export const BOOKINGS_CAP = 500;
 const MAX_DAYS = 31;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-const isRealDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
+const isRealDate = (v: string) => {
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(v);
+};
 
 const venueToday = (venue: OwnerVenue) => localParts(new Date(), venue.timezone).date;
 

@@ -1,0 +1,227 @@
+.shell {
+  min-height: 100vh;
+  background: var(--bg-page);
+}
+
+/* Below lg the sidebar is a drawer; from lg it is fixed and always visible. */
+.sidebar {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: var(--sidebar-width);
+  max-width: 100%;
+  padding: var(--space-4);
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border-inline-end: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform var(--duration-fast),
+    visibility var(--duration-fast);
+}
+
+[dir='rtl'] .sidebar {
+  transform: translateX(100%);
+}
+
+.sidebar.open {
+  transform: none;
+  visibility: visible;
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  background: var(--overlay);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-inline: var(--space-4);
+  padding-block: var(--space-3);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-lg);
+  min-height: var(--control-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background: var(--bg-hover);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.userName {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+}
+
+.content {
+  flex: 1;
+  padding: var(--space-4);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-md);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.link:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.active,
+.active:hover {
+  background: var(--bg-subtle);
+  color: var(--text-strong);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-default);
+}
+
+.playerLink {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.switcher {
+  position: relative;
+}
+
+.switcherButton,
+.switcherOption {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.switcherButton:hover,
+.switcherOption:hover {
+  background: var(--bg-hover);
+}
+
+.switcherName {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.switcherRole {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.switcherList {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1);
+  list-style: none;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.switcherOption {
+  border-color: transparent;
+}
+
+.switcherOption[aria-selected='true'] {
+  background: var(--bg-subtle);
+}
+
+@media (min-width: 1024px) {
+  .sidebar,
+  [dir='rtl'] .sidebar {
+    transform: none;
+    visibility: visible;
+    box-shadow: none;
+  }
+
+  .scrim,
+  .menuButton {
+    display: none;
+  }
+
+  .main {
+    margin-inline-start: var(--sidebar-width);
+  }
+
+  .content {
+    padding: var(--space-6);
+  }
+}

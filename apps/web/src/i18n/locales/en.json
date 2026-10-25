@@ -389,6 +389,28 @@
     "noTeams": "You are not a member of any team yet.",
     "portalLink": "Open owner portal",
     "comingSoon": "Coming soon.",
-    "pickTeam": "Choose a team"
+    "pickTeam": "Choose a team",
+    "menu": "Menu",
+    "switcher": "Switch team",
+    "venue": "Venue",
+    "status": {
+      "active": "Active",
+      "pending_approval": "Pending approval",
+      "suspended": "Suspended"
+    },
+    "nav": {
+      "label": "Owner portal",
+      "today": "Today",
+      "schedule": "Schedule",
+      "bookings": "Bookings",
+      "walkIn": "Walk-in",
+      "venues": "Venues",
+      "closures": "Closures",
+      "addons": "Add-ons",
+      "settings": "Settings",
+      "staff": "Staff",
+      "activity": "Activity",
+      "playerSite": "Player site"
+    }
   }
 }

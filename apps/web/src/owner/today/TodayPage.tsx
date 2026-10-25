@@ -99,7 +99,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
               const ends = b.slots.map((s) => s.endAt).sort();
               return (
                 <tr key={b.id}>
-                  <td>
+                  <td className={styles.time}>
                     {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
                   </td>
                   <td>{b.turf?.name ?? '—'}</td>

@@ -88,7 +88,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
 
 ## Components
 - Buttons: primary (solid), secondary (outline, surface bg), ghost, danger; sizes sm/md/lg; icon-only square. Label weight 500. On public pages the main CTA (Book, Pay) uses `--brand` with `--brand-fg`.
-- Inputs/selects: 36px, 1px border, label above (13px/500), helper 12px muted, error 12px danger. Phone input has a country prefix; OTP input is 6 single-digit boxes.
+- Inputs/selects: 36px, 1px border, label above (13px/500), helper 12px muted, error 12px danger. Selects in toolbars, filters and switchers may put a muted label beside the control (`layout="inline"`); selects inside forms keep the label above (`layout="stacked"`) so they line up with text fields. Phone input has a country prefix; OTP input is 6 single-digit boxes.
 - Badges: pill, 12px/500, soft bg + fg from status colors; neutral badge uses subtle bg + muted text.
   - Booking status: confirmed = success, pending payment = warning, cancelled = danger, completed = neutral, refunded = info.
   - Member status: active = success, invited = info, disabled = neutral.

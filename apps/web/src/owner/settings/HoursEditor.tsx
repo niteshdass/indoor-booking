@@ -50,6 +50,7 @@ export function HoursEditor({ value, inherited, onChange, disabled }: Props) {
           <div key={day} className={styles.hoursRow}>
             <Select
               label={names[day]}
+              layout="stacked"
               value={mode}
               options={options}
               disabled={disabled}

@@ -9,6 +9,7 @@ import { Dialog } from '../src/components/ui/Dialog';
 import { Tabs } from '../src/components/ui/Tabs';
 import { Checkbox } from '../src/components/ui/Checkbox';
 import { StatCard } from '../src/components/ui/StatCard';
+import { Select } from '../src/components/ui/Select';
 
 function Harness() {
   const [open, setOpen] = useState(false);
@@ -23,6 +24,18 @@ function Harness() {
 }
 
 describe('ui', () => {
+  it('select is inline by default and stacks its label for forms', () => {
+    const opts = [{ value: 'a', label: 'A' }];
+    render(
+      <>
+        <Select label="Filter" options={opts} />
+        <Select label="Role" layout="stacked" options={opts} />
+      </>,
+    );
+    expect(screen.getByLabelText('Filter').parentElement!.className).not.toMatch(/stacked/);
+    expect(screen.getByLabelText('Role').parentElement!.className).toMatch(/stacked/);
+  });
+
   it('button with `to` renders a brand-styled router link', () => {
     render(
       <MemoryRouter>

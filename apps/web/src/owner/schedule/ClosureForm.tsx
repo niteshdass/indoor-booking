@@ -90,6 +90,7 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
     <form className={styles.body} onSubmit={submit} noValidate>
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <Select
+        layout="stacked"
         label={t('owner.closures.scopeLabel')}
         value={scope}
         options={scopes.map((s) => ({
@@ -100,6 +101,7 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
       />
       {scope !== 'owner' && (
         <Select
+          layout="stacked"
           label={t('owner.closures.venue')}
           value={venueId}
           options={venues.map((v) => ({ value: v.id, label: v.name }))}
@@ -112,6 +114,7 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
       {scope === 'turf' && (
         <>
           <Select
+            layout="stacked"
             label={t('owner.closures.turf')}
             value={turf?.id ?? ''}
             options={turfs.map((x) => ({ value: x.id, label: x.name }))}

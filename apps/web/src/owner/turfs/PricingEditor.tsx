@@ -99,6 +99,7 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
                 <legend className={styles.legend}>{t('owner.pricing.rule', { n: i + 1 })}</legend>
                 <div className={styles.ruleFields}>
                   <Select
+                    layout="stacked"
                     label={t('owner.pricing.kind')}
                     value={r.kind}
                     disabled={!editable}

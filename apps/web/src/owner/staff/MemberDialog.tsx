@@ -110,6 +110,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
           <p className={styles.muted}>{t('owner.staff.noInvite')}</p>
           <TextField label={t('owner.staff.field.name')} value={name} error={err('name')} onChange={(e) => setName(e.target.value)} />
           <Select
+            layout="stacked"
             label={t('owner.staff.field.contactType')}
             value={contact}
             options={(['email', 'phone'] as const).map((c) => ({ value: c, label: t(`owner.staff.contact.${c}`) }))}
@@ -130,6 +131,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
         </>
       )}
       <Select
+        layout="stacked"
         label={t('owner.staff.field.role')}
         value={roleId}
         options={assignable.map((r) => ({
@@ -141,6 +143,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
       {err('role') && <p className={styles.error}>{err('role')}</p>}
       {member && (
         <Select
+          layout="stacked"
           label={t('owner.staff.field.status')}
           value={status}
           options={(['active', 'disabled'] as const).map((s) => ({ value: s, label: t(`owner.staff.status.${s}`) }))}

@@ -218,6 +218,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
         <>
           <div className={styles.grid}>
             <Select
+              layout="stacked"
               label={t('owner.settings.paymentType')}
               value={policy.type}
               disabled={locked('paymentPolicy')}

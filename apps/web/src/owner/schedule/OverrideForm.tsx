@@ -90,12 +90,14 @@ function OverrideFormBody({ onClose, turf, currency, onCreated }: Omit<Props, 'o
     <form className={styles.body} onSubmit={submit} noValidate>
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <Select
+        layout="stacked"
         label={t('owner.override.typeLabel')}
         value={d.type}
         options={TYPES.map((x) => ({ value: x, label: t(`owner.override.type.${x}`) }))}
         onChange={(e) => set({ type: e.target.value as OverrideType, slotStart: '' })}
       />
       <Select
+        layout="stacked"
         label={t('owner.override.whenLabel')}
         value={d.when}
         options={[
@@ -132,6 +134,7 @@ function OverrideFormBody({ onClose, turf, currency, onCreated }: Omit<Props, 'o
         (pickSlot ? (
           <>
             <Select
+              layout="stacked"
               label={t('owner.override.slotStart')}
               value={d.slotStart}
               disabled={!day}

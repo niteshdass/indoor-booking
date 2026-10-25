@@ -143,6 +143,7 @@ function TurfCreateForm({ venueId, base }: { venueId: string; base: string }) {
       </fieldset>
       <Checkbox label={t('owner.venues.indoorLabel')} checked={indoor} onChange={setIndoor} />
       <Select
+        layout="stacked"
         label={t('owner.venues.slotLength')}
         value={slotLength}
         onChange={(e) => setSlotLength(e.target.value)}

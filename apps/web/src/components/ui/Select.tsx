@@ -4,14 +4,16 @@ import styles from './Select.module.css';
 export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> & {
   label: string;
   size?: 'md' | 'lg';
+  /** `inline` puts the label beside the control (toolbars, switchers); `stacked` puts it above, like TextField, for forms. */
+  layout?: 'inline' | 'stacked';
   options: { value: string; label: string }[];
 };
 
-export function Select({ label, options, size = 'md', id, className, ...rest }: SelectProps) {
+export function Select({ label, options, size = 'md', layout = 'inline', id, className, ...rest }: SelectProps) {
   const auto = useId();
   const selectId = id ?? auto;
   return (
-    <div className={[styles.field, className].filter(Boolean).join(' ')}>
+    <div className={[styles.field, layout === 'stacked' && styles.stacked, className].filter(Boolean).join(' ')}>
       <label htmlFor={selectId} className={styles.label}>
         {label}
       </label>

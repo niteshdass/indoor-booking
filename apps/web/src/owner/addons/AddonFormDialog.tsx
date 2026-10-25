@@ -71,6 +71,7 @@ function AddonFormBody({ addon, onClose, onSaved }: Omit<Props, 'open'>) {
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <TextField label={t('owner.addons.field.name')} maxLength={NAME_MAX} value={d.name} error={err('name')} onChange={(e) => set({ name: e.target.value })} />
       <Select
+        layout="stacked"
         label={t('owner.addons.field.type')}
         value={d.pricingType}
         options={ADDON_PRICING_TYPES.map((x) => ({ value: x, label: t(`owner.addons.type.${x}`) }))}

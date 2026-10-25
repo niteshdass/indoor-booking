@@ -23,6 +23,10 @@
   color: var(--text-strong);
 }
 
+.time {
+  white-space: nowrap;
+}
+
 .empty {
   margin: 0;
   color: var(--text-muted);

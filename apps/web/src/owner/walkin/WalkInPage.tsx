@@ -218,6 +218,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     >
       <section className={styles.card}>
         <Select
+          layout="stacked"
           label={t('owner.walkIn.turf')}
           value={turf.id}
           options={turfs.map((x) => ({ value: x.id, label: x.name }))}

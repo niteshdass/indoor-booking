@@ -66,10 +66,15 @@ describe('owner picker', () => {
 
 describe('OwnerProvider', () => {
   it('loads the three resources, remembers the owner and renders the route', async () => {
-    const api = mockApi(ownerRoutes());
+    const api = mockApi([...ownerRoutes(), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
     const h = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
-    expect(await screen.findByText(en.owner.comingSoon)).toBeInTheDocument();
-    expect(api.calls.map((c) => c.path).sort()).toEqual(['/me/memberships', `/owners/${OWNER_ID}`, `/owners/${OWNER_ID}/venues`]);
+    expect(await screen.findByText(en.owner.today.collected)).toBeInTheDocument();
+    expect(api.calls.map((c) => c.path).sort()).toEqual([
+      '/me/memberships',
+      `/owners/${OWNER_ID}`,
+      `/owners/${OWNER_ID}/bookings`, // the Today page
+      `/owners/${OWNER_ID}/venues`,
+    ]);
     expect(localStorage.getItem('owner.last')).toBe(OWNER_ID);
     expect(h.location().pathname).toBe(`/owner/${OWNER_ID}`);
   });

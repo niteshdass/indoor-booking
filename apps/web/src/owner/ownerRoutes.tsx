@@ -6,6 +6,7 @@ import { OwnerProvider } from './OwnerProvider';
 import { RequirePermission } from './RequirePermission';
 import { NAV } from './shell/nav';
 import { OwnerShell } from './shell/OwnerShell';
+import { TodayPage } from './today/TodayPage';
 import type { Permission } from './types';
 
 function ComingSoon() {
@@ -37,7 +38,7 @@ export function OwnerRoutes() {
           </OwnerProvider>
         }
       >
-        <Route index element={<Guarded nav=""><ComingSoon /></Guarded>} />
+        <Route index element={<Guarded nav=""><TodayPage /></Guarded>} />
         <Route path="schedule" element={<Guarded nav="schedule"><ComingSoon /></Guarded>} />
         <Route path="bookings" element={<Guarded nav="bookings"><ComingSoon /></Guarded>} />
         <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><ComingSoon /></Guarded>} />

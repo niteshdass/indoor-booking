@@ -411,6 +411,20 @@
       "staff": "Staff",
       "activity": "Activity",
       "playerSite": "Player site"
+    },
+    "today": {
+      "bookings": "Bookings today",
+      "collected": "Collected",
+      "collectedHint": "Paid for today's bookings, minus refunds",
+      "pending": "Waiting for confirmation",
+      "upcoming": "Coming up",
+      "none": "No upcoming bookings today.",
+      "time": "Time",
+      "turf": "Turf",
+      "customer": "Customer",
+      "status": "Status",
+      "noVenues": "Create a venue to start taking bookings.",
+      "createVenue": "Create a venue"
     }
   }
 }

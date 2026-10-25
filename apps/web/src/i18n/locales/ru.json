@@ -153,7 +153,15 @@
     "already_reviewed": "Вы уже оставили отзыв об этом бронировании.",
     "review_locked": "Этот отзыв больше нельзя изменить.",
     "cannot_flag": "Нельзя пожаловаться на этот отзыв.",
-    "cannot_reply": "Нельзя ответить на этот отзыв."
+    "cannot_reply": "Нельзя ответить на этот отзыв.",
+    "series_too_long": "Серия может длиться не более примерно шести месяцев. Выберите более раннюю дату окончания.",
+    "series_too_many_games": "В серии может быть не более 100 игр.",
+    "series_past_start": "Первая дата уже прошла.",
+    "series_no_free_dates": "Ни одна из этих дат не свободна.",
+    "series_too_soon": "До первой игры слишком мало времени, чтобы ждать ответа.",
+    "series_request_limit": "У вас уже есть 3 заявки, ожидающие ответа.",
+    "series_request_open": "У вас уже есть заявка на это время, ожидающая ответа.",
+    "series_not_requested": "Эта серия больше не ждёт ответа."
   },
   "myBookings": {
     "title": "Мои брони",
@@ -446,6 +454,7 @@
       "schedule": "Расписание",
       "bookings": "Брони",
       "walkIn": "Без записи",
+      "series": "Серии",
       "venues": "Площадки",
       "closures": "Закрытия",
       "addons": "Дополнения",
@@ -1102,7 +1111,8 @@
         "payment": "Платёж",
         "payment_gateway": "Платёжный шлюз",
         "refund": "Возврат",
-        "review": "Отзыв"
+        "review": "Отзыв",
+        "series": "Серия"
       },
       "action": {
         "settings_update": "Настройки обновлены",
@@ -1153,7 +1163,12 @@
         "review_replied": "Ответ на отзыв",
         "review_reply_deleted": "Ответ на отзыв удалён",
         "review_flagged": "Отзыв отмечен для проверки",
-        "unknown": "Неизвестное действие: {{action}}"
+        "unknown": "Неизвестное действие: {{action}}",
+        "series_create": "Серия создана",
+        "series_accept": "Серия принята",
+        "series_decline": "Серия отклонена",
+        "series_withdraw": "Заявка на серию отозвана",
+        "series_cancel": "Серия отменена"
       }
     },
     "reviews": {
@@ -1221,5 +1236,45 @@
     "cardLabel_few": "Оценка {{value}} из 5, {{count}} отзыва",
     "cardLabel_many": "Оценка {{value}} из 5, {{count}} отзывов",
     "cardLabel_other": "Оценка {{value}} из 5, {{count}} отзыва"
+  },
+  "series": {
+    "title": "Серии",
+    "newTitle": "Новая серия",
+    "weekdays": "Дни недели",
+    "startTime": "Время начала",
+    "length": "Длительность",
+    "firstDate": "Первая дата",
+    "ends": "Окончание",
+    "endsOnDate": "В указанную дату",
+    "endsAfter": "После нескольких игр",
+    "endDate": "Последняя дата",
+    "count": "Число игр",
+    "durationH": "{{h}} ч",
+    "durationHM": "{{h}} ч {{m}} мин",
+    "durationM": "{{m}} мин",
+    "noSlots": "На первую дату нет свободных интервалов. Выберите другую дату.",
+    "check": "Проверить даты",
+    "checking": "Проверяем",
+    "book_one": "Забронировать {{count}} игру",
+    "book_few": "Забронировать {{count}} игры",
+    "book_many": "Забронировать {{count}} игр",
+    "book_other": "Забронировать {{count}} игры",
+    "reason": {
+      "closed": "Закрыто",
+      "past": "Уже прошло",
+      "taken": "Уже занято",
+      "blocked": "Заблокировано",
+      "outside_hours": "Вне часов работы"
+    },
+    "footer_one": "{{count}} игра · {{total}}",
+    "footer_few": "{{count}} игры · {{total}}",
+    "footer_many": "{{count}} игр · {{total}}",
+    "footer_other": "{{count}} игры · {{total}}",
+    "skipped_one": "Пропущена {{count}} дата",
+    "skipped_few": "Пропущено {{count}} даты",
+    "skipped_many": "Пропущено {{count}} дат",
+    "skipped_other": "Пропущено {{count}} даты",
+    "previewLabel": "Даты серии",
+    "listPlaceholder": "Список серий скоро появится."
   }
 }

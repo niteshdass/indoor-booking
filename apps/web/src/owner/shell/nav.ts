@@ -8,6 +8,7 @@ export const NAV: NavItem[] = [
   { to: 'schedule', key: 'owner.nav.schedule', perms: ['booking.view'] },
   { to: 'bookings', key: 'owner.nav.bookings', perms: ['booking.view'] },
   { to: 'walk-in', key: 'owner.nav.walkIn', perms: ['booking.create'] },
+  { to: 'series', key: 'owner.nav.series', perms: ['booking.view'] },
   { to: 'venues', key: 'owner.nav.venues', perms: [] },
   { to: 'closures', key: 'owner.nav.closures', perms: ['slot.override', 'settings.edit'], any: true },
   { to: 'addons', key: 'owner.nav.addons', perms: ['addon.manage'] },

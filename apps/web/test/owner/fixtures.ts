@@ -1,4 +1,4 @@
-import { DEFAULT_OWNER_SETTINGS, type OwnerReviewJson } from '@booking/shared';
+import { DEFAULT_OWNER_SETTINGS, type OwnerReviewJson, type SeriesJson, type SeriesPreview } from '@booking/shared';
 import type { PublicUser } from '../../src/lib/types';
 import type {
   ActivityItem,
@@ -207,6 +207,40 @@ export function ownerReview(over: Partial<OwnerReviewJson> = {}): OwnerReviewJso
     flag: null,
     flagCleared: false,
     hidden: false,
+    ...over,
+  };
+}
+
+export function seriesPreview(over: Partial<SeriesPreview> = {}): SeriesPreview {
+  return {
+    currency: 'BDT',
+    freeCount: 2,
+    total: 2000,
+    dates: [
+      { date: '2026-10-26', status: 'free', startAt: '2026-10-26T04:00:00.000Z', endAt: '2026-10-26T05:00:00.000Z', price: 1000 },
+      { date: '2026-11-02', status: 'clash', reason: 'taken' },
+      { date: '2026-11-09', status: 'free', startAt: '2026-11-09T04:00:00.000Z', endAt: '2026-11-09T05:00:00.000Z', price: 1000 },
+    ],
+    ...over,
+  };
+}
+
+export function seriesJson(over: Partial<SeriesJson> = {}): SeriesJson {
+  return {
+    id: 's1',
+    venueId: 'v1',
+    turfId: 't1',
+    status: 'active',
+    source: 'walkin',
+    pattern: { weekdays: ['mon'], startTime: '10:00', slotCount: 1, firstDate: '2026-10-26', endDate: null, count: 3 },
+    currency: 'BDT',
+    player: null,
+    guest: { name: 'Ada Walker', phone: '+8801712345678' },
+    skipped: [],
+    respondBy: null,
+    declineReason: null,
+    createdAt: '2026-10-25T04:00:00.000Z',
+    games: [],
     ...over,
   };
 }

@@ -35,6 +35,7 @@ describe('owner nav', () => {
       en.owner.nav.schedule,
       en.owner.nav.bookings,
       en.owner.nav.walkIn,
+      en.owner.nav.series,
       en.owner.nav.venues,
     ]);
   });

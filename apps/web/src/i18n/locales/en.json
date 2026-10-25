@@ -153,7 +153,15 @@
     "already_reviewed": "You have already reviewed this booking.",
     "review_locked": "This review can no longer be changed.",
     "cannot_flag": "This review cannot be flagged.",
-    "cannot_reply": "This review cannot be replied to."
+    "cannot_reply": "This review cannot be replied to.",
+    "series_too_long": "A series can run for at most about six months. Pick an earlier end.",
+    "series_too_many_games": "A series can have at most 100 games.",
+    "series_past_start": "The first date has already passed.",
+    "series_no_free_dates": "None of these dates is free.",
+    "series_too_soon": "The first game is too soon to wait for an answer.",
+    "series_request_limit": "You already have 3 requests waiting for an answer.",
+    "series_request_open": "You already have a request waiting for an answer for this slot.",
+    "series_not_requested": "This series is no longer waiting for an answer."
   },
   "myBookings": {
     "title": "My bookings",
@@ -438,6 +446,7 @@
       "schedule": "Schedule",
       "bookings": "Bookings",
       "walkIn": "Walk-in",
+      "series": "Series",
       "venues": "Venues",
       "closures": "Closures",
       "addons": "Add-ons",
@@ -1094,7 +1103,8 @@
         "payment": "Payment",
         "payment_gateway": "Payment gateway",
         "refund": "Refund",
-        "review": "Review"
+        "review": "Review",
+        "series": "Series"
       },
       "action": {
         "settings_update": "Settings updated",
@@ -1145,7 +1155,12 @@
         "review_replied": "Review replied to",
         "review_reply_deleted": "Review reply deleted",
         "review_flagged": "Review flagged",
-        "unknown": "Unknown action: {{action}}"
+        "unknown": "Unknown action: {{action}}",
+        "series_create": "Series created",
+        "series_accept": "Series accepted",
+        "series_decline": "Series declined",
+        "series_withdraw": "Series withdrawn",
+        "series_cancel": "Series cancelled"
       }
     },
     "reviews": {
@@ -1207,5 +1222,39 @@
     "showMore": "Show more",
     "cardLabel_one": "Rated {{value}} out of 5 from {{count}} review",
     "cardLabel_other": "Rated {{value}} out of 5 from {{count}} reviews"
+  },
+  "series": {
+    "title": "Series",
+    "newTitle": "New series",
+    "weekdays": "Days of the week",
+    "startTime": "Start time",
+    "length": "Length",
+    "firstDate": "First date",
+    "ends": "Ends",
+    "endsOnDate": "On date",
+    "endsAfter": "After a number of games",
+    "endDate": "Last date",
+    "count": "Number of games",
+    "durationH": "{{h}} h",
+    "durationHM": "{{h}} h {{m}} min",
+    "durationM": "{{m}} min",
+    "noSlots": "There are no time slots on the first date. Pick another first date.",
+    "check": "Check dates",
+    "checking": "Checking",
+    "book_one": "Book {{count}} game",
+    "book_other": "Book {{count}} games",
+    "reason": {
+      "closed": "Closed",
+      "past": "Already passed",
+      "taken": "Already booked",
+      "blocked": "Blocked",
+      "outside_hours": "Outside opening hours"
+    },
+    "footer_one": "{{count}} game · {{total}}",
+    "footer_other": "{{count}} games · {{total}}",
+    "skipped_one": "{{count}} date skipped",
+    "skipped_other": "{{count}} dates skipped",
+    "previewLabel": "Dates in this series",
+    "listPlaceholder": "Series list is coming soon."
   }
 }

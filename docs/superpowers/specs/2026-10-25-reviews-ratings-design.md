@@ -18,7 +18,7 @@ Players who have actually played at a venue rate it, so other players can choose
 - Guest (signed-out) reviews.
 - Court-level or per-aspect ratings (surface, staff, facilities).
 - Threaded conversations; notifying players of owner replies.
-- The Super Admin screen for the moderation queue (Plan 18). This plan builds its API only.
+- Admin hide/keep of flagged reviews, the platform-scope guard and the Super Admin moderation screen (all Plan 18). This plan stores flags so Plan 18 can act on them.
 - Photos in reviews, helpful votes, review search.
 
 ## Anti-goals (would make this a failure even if it works)
@@ -48,15 +48,20 @@ Players who have actually played at a venue rate it, so other players can choose
 - **Public reviewer name:** first name plus last initial ("Karim H."), derived when serving, never stored as a copy. A user with a one-word name shows that word.
 - **Edits of a review** keep the original `createdAt`, set `editedAt`, and show "edited" publicly. If a review's stars or text change after the owner replied, the reply stays.
 - **A player deleting their review** removes it fully (with any reply and flag). The booking can then not be reviewed again.
-- **Aggregate:** each venue stores `rating: { average, count }`, counting only visible reviews, recomputed from the reviews collection inside the same transaction as any change (post, edit, delete, admin hide/keep). Average is stored to one decimal place for display; sorting uses the stored value. Venues with no reviews have `count: 0` and no average, and show "No reviews yet".
+- **Aggregate:** each venue stores `rating: { average, count }`, counting only visible reviews, recomputed from the reviews collection inside the same transaction as any change (post, edit, delete; Plan 18 adds hide/keep). Average is stored to one decimal place for display; sorting uses the stored value. Venues with no reviews have `count: 0` and no average, and show "No reviews yet".
 - **"Top rated" sort:** by average descending, then count descending, then name. Venues with no reviews come last. It sits next to the existing name / distance sorts and keeps all existing filters.
-- **Moderation states:** `visible` (default) and `hidden`. A flag records who flagged it, when and an optional reason (at most 500 characters); flagging again while a flag is open does nothing. Admin "keep" clears the flag and the review cannot be flagged again; admin "hide" sets `hidden`, which removes it from public lists and the aggregate. The author still sees their own hidden review, marked as hidden, and can no longer edit it.
-- **Admin API:** routes under the platform scope, guarded by a platform-scope role permission (`review.moderate`, platform scope only, not in owner `PERMISSIONS`). With no platform users yet, tests create a platform role directly. Endpoints: list flagged reviews, hide, keep.
-- **Review prompt timing:** sent 3 hours after the booking completes, only if the player has not already reviewed and the window is still open; at most once per booking (outbox dedupe key). Uses the player's locale and existing channels. The link opens the review form for that booking.
+- **Moderation (decided by the user: admin side deferred to Plan 18):** Plan 14 stores a `moderation` state on each review, always `visible` for now, plus flag data: who flagged it, when, and an optional reason (at most 500 characters). Flagging again while a flag is open does nothing. Public lists and the aggregate already exclude anything not `visible`, so Plan 18 only has to add hide/keep and its guard. Plan 18's rules: "keep" clears the flag and the review cannot be flagged again; "hide" removes it from public lists and the aggregate; the author still sees their hidden review, marked hidden, and cannot edit it.
+- **Review prompt timing:** sent 3 hours after the booking completes, only if the player has not already reviewed and the window is still open; at most once per booking (outbox dedupe key). Uses the owner's default locale, like every other notice (users have no locale field today), and the existing channels. The link opens My bookings with the review dialog open for that booking; a signed-out player signs in first and lands there.
 - **New-review notice:** to members with `review.manage` covering that venue, through the existing outbox (same pattern as `staff_new_pending`), with the stars and the start of the comment.
 - **Player UI:** "Rate your game" button on past completed bookings in My bookings while the window is open; the form is a dialog with five star buttons (radio group, keyboard accessible) and a textarea. After posting, the booking shows the player's stars with Edit/Delete while editable.
 - **Owner UI:** a "Reviews" item in the owner sidebar (shown with `review.manage`): average and count per venue at the top, a list filterable by venue and by stars, each with reply (inline form) and flag (dialog with optional reason). Flagged reviews show a "Flagged — awaiting review" badge.
 - **Public UI:** the venue page gets a Reviews section under the slot grid: average shown as stars plus number, count, then 10 reviews per page, newest first, each with stars, reviewer name, date, comment, "edited" mark and the owner's reply. Search cards show "★ 4.6 (23)" or nothing when there are no reviews.
+- **Notices use the existing outbox:** two new events (`review_request`, `review_posted`) in `NOTICE_EVENTS` with EN and RU templates, keyed by the review's booking like the other events. `review_posted` fires once when a review is posted, not on edits.
+- **Completion time:** a new `completedAt` on bookings, set wherever a booking moves to `completed` (auto-complete sweep and manual completion). A migration backfills existing completed bookings from `endAt`, so games from the last 30 days can still be reviewed. The 3-hour prompt is a new sweep that finds bookings with `completedAt` at least 3 hours ago, no review and no prompt sent yet.
+- **Review records** carry `ownerId`, `venueId` and the player's user id, so public reads and owner scoping need no joins through bookings. Aggregate updates use the transactions the API already runs on its replica set. "Top rated" uses the search's existing offset cursor.
+- **Staff venue scope:** a member who covers only some venues sees, replies to and flags only those venues' reviews, and the per-venue summary shows only those venues.
+- **Moderation edge cases:** a flagged (still visible) review can still be edited by its author and the flag stays open. For Plan 18: hidden reviews cannot be replied to or flagged, hide and keep are final (no un-hide), and neither notifies the author.
+- **Removed venues or players:** an inactive venue keeps its reviews and aggregate; it is not public anyway. There is no account deletion today, so nothing is designed for it here.
 - **Rate limits:** posting and editing reviews and replies go through the API's normal write limits; no extra limiter.
 
 ## Constraints
@@ -71,6 +76,6 @@ Players who have actually played at a venue rate it, so other players can choose
 
 ## Left to the builder
 
-- Collection and field names beyond those above, index choices, route paths (following existing `/api/v1` conventions for public, player, owner and platform routes).
+- Collection and field names beyond those above, index choices, route paths (following existing `/api/v1` conventions for public, player, owner).
 - Pagination mechanics (match existing list endpoints).
 - Exact copy wording, within the design system's voice.

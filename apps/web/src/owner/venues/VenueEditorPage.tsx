@@ -15,6 +15,7 @@ import { useOwnerTitle } from '../shell/OwnerShell';
 import type { OwnerVenue } from '../types';
 import { useResource } from '../useResource';
 import type { OwnerSettings } from '@booking/shared';
+import { AssignmentsPanel } from '../addons/AssignmentsTable';
 import { TurfList } from './TurfList';
 import { VenueSettingsTab } from './VenueSettingsTab';
 // Not `VenueForm.tsx`: on case-insensitive file systems that name collides with `venueForm.ts`.
@@ -71,8 +72,7 @@ function VenueEditor({ venue }: { venue: OwnerVenue }) {
       )}
       {tab === 'turfs' && <TurfList venue={venue} />}
       {tab === 'settings' && <VenueSettings venue={venue} />}
-      {/* Task 16 drops the add-on assignments here. */}
-      {tab === 'addons' && <p className={styles.muted}>{t('owner.comingSoon')}</p>}
+      {tab === 'addons' && <AssignmentsPanel venue={venue} />}
     </div>
   );
 }

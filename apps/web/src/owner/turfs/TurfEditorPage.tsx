@@ -7,6 +7,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Tabs } from '../../components/ui/Tabs';
 import { apiPatch } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
+import { AssignmentsPanel } from '../addons/AssignmentsTable';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { HoursEditor } from '../settings/HoursEditor';
@@ -65,8 +66,7 @@ function TurfEditor({ turf, venue, onChange }: { turf: OwnerTurf; venue: OwnerVe
         />
       )}
       {tab === 'overrides' && <OverridesTab turf={turf} venue={venue} />}
-      {/* Task 16 drops the add-on assignments here. */}
-      {tab === 'addons' && <p className={styles.muted}>{t('owner.comingSoon')}</p>}
+      {tab === 'addons' && (venue ? <AssignmentsPanel venue={venue} turfId={turf.id} /> : <Alert tone="warning">{t('owner.venues.notFound')}</Alert>)}
     </div>
   );
 }

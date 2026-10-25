@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { AddonsPage } from './addons/AddonsPage';
 import { BookingsPage } from './bookings/BookingsPage';
 import { OwnerBookingPage } from './bookings/OwnerBookingPage';
 import { OwnerIndexPage } from './OwnerIndexPage';
@@ -58,7 +59,7 @@ export function OwnerRoutes() {
         <Route path="venues/:venueId" element={<Guarded><VenueEditorPage /></Guarded>} />
         <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><TurfEditorPage /></Guarded>} />
         <Route path="closures" element={<Guarded nav="closures"><ClosuresPage /></Guarded>} />
-        <Route path="addons" element={<Guarded nav="addons"><ComingSoon /></Guarded>} />
+        <Route path="addons" element={<Guarded nav="addons"><AddonsPage /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
         <Route path="staff" element={<Guarded nav="staff"><ComingSoon /></Guarded>} />
         <Route path="activity" element={<Guarded nav="activity"><ComingSoon /></Guarded>} />

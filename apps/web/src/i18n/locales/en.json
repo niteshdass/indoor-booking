@@ -137,7 +137,9 @@
     "last_active_turf": "A published venue needs at least one active turf. Unpublish the venue first.",
     "override_overlap": "This slot overlaps another slot on this turf. Change its times.",
     "slot_not_found": "No slot starts at that time. Pick one of the turf's slots.",
-    "override_too_long": "An extra slot must end by the end of the next day."
+    "override_too_long": "An extra slot must end by the end of the next day.",
+    "price_override_required": "Set a price override: this add-on is priced in a different currency from the venue.",
+    "addon_name_taken": "An add-on with this name already exists."
   },
   "myBookings": {
     "title": "My bookings",
@@ -870,6 +872,75 @@
         "reason": "Use at most 200 characters."
       },
       "delete": "Delete"
+    },
+    "addons": {
+      "title": "Add-on catalogue",
+      "intro": "Extras players can add to a booking, such as bibs or equipment. Switch them on per venue or turf below.",
+      "add": "New add-on",
+      "empty": "No add-ons yet.",
+      "ownerWideOnly": "Only members with access to every venue can change the add-on catalogue.",
+      "col": {
+        "name": "Name",
+        "type": "Pricing",
+        "price": "Price",
+        "maxQuantity": "Max qty",
+        "stock": "Stock",
+        "auto": "Auto"
+      },
+      "type": {
+        "per_booking": "Per booking",
+        "per_unit": "Per unit",
+        "per_hour": "Per hour"
+      },
+      "unlimited": "Unlimited",
+      "none": "—",
+      "autoBadge": "Auto",
+      "edit": "Edit",
+      "delete": "Delete",
+      "formTitleNew": "New add-on",
+      "formTitleEdit": "Edit add-on",
+      "field": {
+        "name": "Name",
+        "type": "Pricing type",
+        "price": "Price ({{currency}})",
+        "maxQuantity": "Max quantity",
+        "stock": "Stock",
+        "stockHint": "Leave blank for unlimited."
+      },
+      "autoTitle": "Automatic",
+      "autoApply": "Add automatically",
+      "autoHint": "Added to every matching booking. Needs unlimited stock and cannot be per unit.",
+      "autoAllDay": "All day",
+      "autoStart": "From",
+      "autoEnd": "Until",
+      "nextDay": "Ends the next day",
+      "outdoorOnly": "Outdoor turfs only",
+      "autoConflict": "Automatic add-ons cannot be per unit or have a stock limit.",
+      "save": "Save",
+      "deleteTitle": "Delete {{name}}?",
+      "deleteBody": "It is removed from every venue and turf. Existing bookings keep it.",
+      "deleteConfirm": "Delete add-on",
+      "err": {
+        "name": "Enter a name of up to 60 characters.",
+        "price": "Enter an amount such as 12.50.",
+        "maxQuantity": "Enter a whole number from 1 to 99.",
+        "stock": "Enter a whole number from 0 to 9999, or leave blank.",
+        "time": "Enter both a start and an end time."
+      },
+      "offeredHint": "Only add-ons switched on here are offered",
+      "assign": {
+        "title": "Add-ons offered",
+        "none": "Create add-ons in the catalogue first.",
+        "enabled": "Offered",
+        "enabledLabel": "Enabled",
+        "override": "Price override",
+        "overrideLabel": "{{name}} price override ({{currency}}), blank for the catalogue price",
+        "stockLabel": "{{name}} stock, blank for unlimited",
+        "save": "Save",
+        "saveLabel": "Save {{name}}",
+        "remove": "Remove",
+        "removeLabel": "Remove {{name}}"
+      }
     }
   }
 }

@@ -52,7 +52,8 @@ export type CreateBookingInput = QuoteInput & {
   afterInsert?: (session: ClientSession, booking: BookingDoc, payment: PaymentDoc | null) => Promise<void>;
 };
 
-const REFERENCE_ATTEMPTS = 5;
+/** Attempts at a fresh booking reference before a duplicate is given up on. */
+export const REFERENCE_ATTEMPTS = 5;
 
 /**
  * A Stripe Checkout Session must expire at least 30 minutes after Stripe creates it, and it expires
@@ -62,12 +63,27 @@ export const LINK_HOLD_MINUTES = 32;
 
 const slotTaken = () => new AppError(409, 'slot_taken', 'That slot was just booked');
 
-const keyHas = (err: unknown, key: string) =>
+/** A duplicate-key error on an index containing `key`. */
+export const keyHas = (err: unknown, key: string) =>
   isDuplicateKeyError(err) && Object.hasOwn((err as { keyPattern?: object }).keyPattern ?? {}, key);
 
 type Range = { startAt: Date; endAt: Date };
-const rangeOf = (slots: Range[]): Range => ({ startAt: slots[0]!.startAt, endAt: slots[slots.length - 1]!.endAt });
-const overlapping = (r: Range) => ({ startAt: { $lt: r.endAt }, endAt: { $gt: r.startAt } });
+export const rangeOf = (slots: Range[]): Range => ({ startAt: slots[0]!.startAt, endAt: slots[slots.length - 1]!.endAt });
+export const overlapping = (r: Range) => ({ startAt: { $lt: r.endAt }, endAt: { $gt: r.startAt } });
+
+/** One SlotLock per slot of `bookingId`; the unique {turfId, startAt} index refuses a slot already held. */
+export async function lockSlots(
+  ownerId: string,
+  turfId: unknown,
+  bookingId: unknown,
+  slots: { startAt: Date }[],
+  session: ClientSession,
+): Promise<void> {
+  await SlotLock.create(
+    slots.map((s) => ({ ownerId, turfId, startAt: s.startAt, bookingId })),
+    { session, ordered: true },
+  );
+}
 
 /** The selected add-ons that have a stock limit. */
 export const limited = (offered: OfferedAddon[], selection: AddonSelection[]) =>
@@ -239,10 +255,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
         ],
         { session },
       );
-      await SlotLock.create(
-        quote.slots.map((s) => ({ ownerId, turfId: turf._id, startAt: s.startAt, bookingId: booking!._id })),
-        { session, ordered: true },
-      );
+      await lockSlots(ownerId, turf._id, booking!._id, quote.slots, session);
       const paymentRow = takeCash
         ? { method: 'cash', amount: amountPaid, status: 'succeeded', recordedBy: cash.recordedBy }
         : card

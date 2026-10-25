@@ -624,6 +624,59 @@
         "turfName": "Enter a name of up to 60 characters.",
         "sports": "Choose at least one sport."
       }
+    },
+    "hours": {
+      "open": "Open",
+      "closed": "Closed",
+      "inherit": "Inherit",
+      "opens": "Opens",
+      "closes": "Closes",
+      "nextDay": "Ends the next day",
+      "inherited": "Inherited: {{hours}}"
+    },
+    "settings": {
+      "inherit": "Inherit from owner",
+      "save": "Save settings",
+      "saved": "Settings saved.",
+      "hoursTitle": "Opening hours",
+      "hoursInheriting": "Using the owner's opening hours.",
+      "weekendTitle": "Weekend days",
+      "weekendHint": "Weekend pricing rules apply on these days.",
+      "paymentTitle": "Advance payment",
+      "paymentType": "Payment required",
+      "percent": "Percent of the total",
+      "amount": "Amount ({{currency}})",
+      "payment": {
+        "none": "None",
+        "full": "Full amount",
+        "partial_percent": "Percent of total",
+        "partial_fixed": "Fixed amount"
+      },
+      "paymentNote": "Any advance payment turns guest booking off: players must sign in.",
+      "guestTitle": "Guest booking",
+      "guestAllowed": "Allow booking without an account",
+      "guestOtp": "Require a phone code for guests",
+      "refundTitle": "Refund rules",
+      "refundNone": "No rules: cancellations are not refunded.",
+      "refundHint": "The first rule a cancellation still meets applies.",
+      "refundHours": "Hours before start",
+      "refundPercent": "Refund percent",
+      "addRule": "Add rule",
+      "removeRule": "Remove rule {{n}}",
+      "duplicate": "Each hours value can be used once.",
+      "windowTitle": "Booking window",
+      "bookingWindow": "Days ahead players can book",
+      "windowHint": "1 to 365 days.",
+      "autoReject": "Auto-reject pending bookings after (hours)",
+      "autoRejectHint": "0 to 72 hours.",
+      "errors": {
+        "hours": "Set an opening and closing time for every open day.",
+        "percent": "Enter a percent above 0 and below 100.",
+        "amount": "Enter an amount above zero.",
+        "refund": "Hours must be 0 to 8760 and percent 0 to 100.",
+        "window": "Enter a whole number from 1 to 365.",
+        "autoReject": "Enter a whole number from 0 to 72."
+      }
     }
   }
 }

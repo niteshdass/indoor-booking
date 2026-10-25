@@ -85,6 +85,16 @@
   color: var(--brand-fg);
 }
 
+.selectedPortal {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-fg);
+}
+
+.selectedPortal .price {
+  color: var(--primary-fg);
+}
+
 .booked,
 .unavailable {
   background: var(--bg-subtle);
@@ -161,6 +171,11 @@
 .swatch_selected {
   background: var(--brand);
   border-color: var(--brand);
+}
+
+.swatch_selectedPortal {
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .swatch_pending {

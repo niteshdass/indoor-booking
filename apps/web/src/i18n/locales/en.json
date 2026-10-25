@@ -123,7 +123,9 @@
     "too_many_slots": "You can book at most 12 slots at once.",
     "invalid_transition": "This booking has changed and can't be updated that way.",
     "already_paid": "This booking has already been paid in full.",
-    "invalid_amount": "That amount is not valid for this booking."
+    "invalid_amount": "That amount is not valid for this booking.",
+    "player_not_found": "No player account matches that customer.",
+    "nothing_to_pay": "This booking has nothing to pay, so a payment link is not needed."
   },
   "myBookings": {
     "title": "My bookings",
@@ -522,6 +524,28 @@
       "recordCash": "Record as cash",
       "recordPaidOut": "Record cash paid out",
       "title": "Settle refunds"
+    },
+    "walkIn": {
+      "turf": "Turf",
+      "date": "Date",
+      "slots": "Time slots",
+      "outsideWindow": "This date is outside the booking window, so walk-ins cannot be added.",
+      "noTurfs": "This venue has no active turfs.",
+      "customer": "Customer",
+      "name": "Customer name",
+      "nameRequired": "Enter the customer name (up to 80 characters).",
+      "phoneLabel": "Phone",
+      "phoneRequired": "Enter the customer phone number.",
+      "payment": "Payment",
+      "cash": "Cash received now",
+      "link": "Send a payment link",
+      "unpaid": "Pay later (nothing paid yet)",
+      "cashAmount": "Cash amount",
+      "cashInvalid": "Enter an amount above zero.",
+      "estimate": "Estimated, the final price is set when you book",
+      "estimateSlots": "Time slots",
+      "estimateTotal": "Total",
+      "submit": "Create booking"
     }
   }
 }

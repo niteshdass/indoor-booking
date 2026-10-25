@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import en from '../../src/i18n/locales/en.json';
+import ru from '../../src/i18n/locales/ru.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { activityLabel, changedKeys } from '../../src/owner/activity/activityText';
@@ -75,6 +76,27 @@ describe('ActivityPage', () => {
     expect(table.getByText(A.system)).toBeTruthy();
     // 20:30Z is 02:30 the next morning in Asia/Dhaka (+06).
     expect(table.getAllByText(/02:30/).length).toBe(2);
+  });
+
+  it('review actions and entity render translated in ru', async () => {
+    await i18n.changeLanguage('ru');
+    const actions = ['review.posted', 'review.replied', 'review.reply_deleted', 'review.flagged'];
+    mockApi([
+      {
+        path: '/owners/o1/activity',
+        body: { items: actions.map((action, i) => activityItem({ id: `r${i}`, action, entity: 'review', entityId: `rv${i}` })), nextBefore: null },
+      },
+      ...routes(),
+    ]);
+    renderApp(URL, { user: staffUser });
+    const table = within(await screen.findByRole('table'));
+    const R = ru.owner.activity;
+    for (const k of ['review_posted', 'review_replied', 'review_reply_deleted', 'review_flagged'] as const) {
+      expect(R.action[k]).toBeTruthy();
+      expect(table.getByText(R.action[k])).toBeTruthy();
+    }
+    expect(table.getAllByText(R.entity.review)).toHaveLength(4);
+    expect(table.queryByText(/review/)).toBeNull();
   });
 
   it('booking entries link to the booking detail', async () => {

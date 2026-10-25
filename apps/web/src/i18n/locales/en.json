@@ -1093,7 +1093,8 @@
         "booking": "Booking",
         "payment": "Payment",
         "payment_gateway": "Payment gateway",
-        "refund": "Refund"
+        "refund": "Refund",
+        "review": "Review"
       },
       "action": {
         "settings_update": "Settings updated",
@@ -1140,6 +1141,10 @@
         "refund_failed": "Refund failed",
         "refund_late_success": "Refund succeeded late",
         "owner_create": "Team created",
+        "review_posted": "Review posted",
+        "review_replied": "Review replied to",
+        "review_reply_deleted": "Review reply deleted",
+        "review_flagged": "Review flagged",
         "unknown": "Unknown action: {{action}}"
       }
     },

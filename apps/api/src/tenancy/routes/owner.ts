@@ -18,6 +18,7 @@ import { catalogueRouter } from '../../addons/routes/catalogue';
 import { assignmentsRouter } from '../../addons/routes/assignments';
 import { ownerBookingsRouter } from '../../bookings/routes/owner';
 import { gatewaysRouter } from '../../payments/routes/gateways';
+import { ownerReviewsRouter } from '../../reviews/routes/owner';
 import { refundsRouter } from '../../payments/routes/refunds';
 
 /** Everything under /owners/:ownerId; later plans mount their routers on the returned router. */
@@ -64,6 +65,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(ownerBookingsRouter(config, services));
   router.use(gatewaysRouter(config, services));
   router.use(refundsRouter(config, services));
+  router.use(ownerReviewsRouter(services));
 
   return router;
 }

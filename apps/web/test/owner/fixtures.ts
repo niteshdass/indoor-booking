@@ -136,6 +136,7 @@ export function ownerBooking(over: Partial<OwnerBooking> = {}): OwnerBooking {
     source: 'online',
     playerId: 'u1',
     guest: null,
+    seriesId: null,
     rejectReason: null,
     cancelledAt: null,
     cancelledBy: null,

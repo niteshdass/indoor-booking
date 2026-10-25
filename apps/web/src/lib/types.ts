@@ -93,6 +93,7 @@ export type BookingJson = {
   source: 'online' | 'walkin';
   playerId: string | null;
   guest: { name: string; phone: string } | null;
+  seriesId: string | null;
   rejectReason: string | null;
   cancelledAt: string | null;
   cancelledBy: 'player' | 'guest' | 'staff' | null;

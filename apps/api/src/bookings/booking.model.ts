@@ -59,6 +59,8 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
     createdBy: { type: ObjectId, ref: 'User', default: null },
+    /** The recurring series this booking is a game of, if any. */
+    seriesId: { type: ObjectId, ref: 'RecurringSeries', default: null },
     rejectReason: { type: String, default: null },
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
@@ -75,6 +77,7 @@ bookingSchema.index({ ownerId: 1, turfId: 1, startAt: 1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, businessDate: 1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, startAt: 1, endAt: 1 });
 bookingSchema.index({ playerId: 1, startAt: -1 });
+bookingSchema.index({ ownerId: 1, seriesId: 1, startAt: 1 });
 // Cross-tenant lifecycle sweeps (jobs/sweeps.ts), paged on (time, _id).
 bookingSchema.index({ status: 1, holdExpiresAt: 1, _id: 1 });
 bookingSchema.index({ status: 1, startAt: 1, _id: 1 });
@@ -118,6 +121,7 @@ export function bookingJson(b: BookingDoc) {
     source: b.source,
     playerId: b.playerId ? String(b.playerId) : null,
     guest: b.guest ? { name: b.guest.name, phone: b.guest.phone } : null,
+    seriesId: b.seriesId ? String(b.seriesId) : null,
     rejectReason: b.rejectReason ?? null,
     cancelledAt: b.cancelledAt ? b.cancelledAt.toISOString() : null,
     cancelledBy: b.cancelledBy ?? null,

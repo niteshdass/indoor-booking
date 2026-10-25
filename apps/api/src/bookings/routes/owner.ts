@@ -20,7 +20,8 @@ import { tenantRepo } from '../../tenancy/repo';
 import { noticeBooking } from '../../notifications/outbox';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
-import { Booking, bookingJson } from '../booking.model';
+import { Booking } from '../booking.model';
+import { ownerBookingJson, ownerBookingsJson } from '../ownerJson';
 import { cancelBooking, previewCancellation } from '../cancel';
 import { createBooking } from '../create';
 import { Payment, type PaymentDoc } from '../payment.model';
@@ -98,7 +99,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       .find(filter)
       .sort({ startAt: 1 })
       .limit(LIST_LIMIT);
-    res.json({ bookings: bookings.map(bookingJson) });
+    res.json({ bookings: await ownerBookingsJson(bookings) });
   });
 
   router.get('/bookings/:bookingId', requirePermission('booking.view'), async (req, res) => {
@@ -106,7 +107,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const booking = await scopedBooking(t, req.params.bookingId as string);
     const payments = await Payment.find({ ownerId: t.ownerId, bookingId: booking._id }).sort({ _id: 1 });
     const refunds = await Refund.find({ ownerId: t.ownerId, bookingId: booking._id }).sort({ _id: 1 });
-    res.json({ booking: bookingJson(booking), payments: payments.map(paymentJson), refunds: refunds.map(refundJson) });
+    res.json({ booking: await ownerBookingJson(booking), payments: payments.map(paymentJson), refunds: refunds.map(refundJson) });
   });
 
   router.get('/bookings/:bookingId/cancellation', requirePermission('booking.view'), async (req, res) => {
@@ -119,7 +120,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const { reason } = cancelSchema.parse(req.body ?? {});
     const booking = await scopedBooking(t, req.params.bookingId as string);
     const out = await cancelBooking(booking, { kind: 'staff', t }, { reason: reason || undefined }, { config, services });
-    res.json({ booking: bookingJson(out.booking), refunds: out.refunds.map(refundJson) });
+    res.json({ booking: await ownerBookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
   router.post('/venues/:venueId/turfs/:turfId/bookings', requirePermission('booking.create'), async (req, res) => {
@@ -189,12 +190,12 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       },
     });
     if (!linkPayment) {
-      res.status(201).json({ booking: bookingJson(booking) });
+      res.status(201).json({ booking: await ownerBookingJson(booking) });
       return;
     }
     // After commit: a Stripe failure leaves the hold in place for the re-issue route.
     const { url } = await startLink(booking, linkPayment, { config, services });
-    res.status(201).json({ booking: bookingJson(booking), payment: linkJson(linkPayment, url) });
+    res.status(201).json({ booking: await ownerBookingJson(booking), payment: linkJson(linkPayment, url) });
   });
 
   router.post('/bookings/:bookingId/payments/link', requirePermission('booking.create'), async (req, res) => {
@@ -230,7 +231,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       await noticeBooking('booking_confirmed', moved, now, session);
       return moved;
     });
-    res.json({ booking: bookingJson(updated) });
+    res.json({ booking: await ownerBookingJson(updated) });
   });
 
   router.post('/bookings/:bookingId/reject', requirePermission('booking.confirm'), async (req, res) => {
@@ -243,7 +244,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       await noticeBooking('booking_rejected', moved, now, session, { reason: reason || null });
       return moved;
     });
-    res.json({ booking: bookingJson(updated) });
+    res.json({ booking: await ownerBookingJson(updated) });
   });
 
   router.post('/bookings/:bookingId/check-in', requirePermission('booking.checkin'), async (req, res) => {
@@ -254,7 +255,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const updated = await runInTransaction((session) =>
       transition(t, booking, 'completed', services.now(), session),
     );
-    res.json({ booking: bookingJson(updated) });
+    res.json({ booking: await ownerBookingJson(updated) });
   });
 
   router.post('/bookings/:bookingId/no-show', requirePermission('booking.checkin'), async (req, res) => {
@@ -265,7 +266,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const updated = await runInTransaction((session) =>
       transition(t, booking, 'no_show', services.now(), session),
     );
-    res.json({ booking: bookingJson(updated) });
+    res.json({ booking: await ownerBookingJson(updated) });
   });
 
   router.post('/bookings/:bookingId/payments/cash', requirePermission('payment.mark_cash'), async (req, res) => {
@@ -321,7 +322,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       );
       return { updated, payment: payment! };
     });
-    res.status(201).json({ booking: bookingJson(updated), payment: paymentJson(payment) });
+    res.status(201).json({ booking: await ownerBookingJson(updated), payment: paymentJson(payment) });
   });
 
   return router;

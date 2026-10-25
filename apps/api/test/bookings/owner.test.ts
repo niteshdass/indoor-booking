@@ -118,6 +118,17 @@ const gridSlot = async (hm: string) => {
   return (res.body.day.slots as { startAt: string; status: string }[]).find((s) => s.startAt === at(hm).toISOString())!;
 };
 
+describe('owner booking JSON', () => {
+  it('list and detail responses carry customer and turf', async () => {
+    const id = await pendingBooking();
+    const turfName = (await Turf.findById(t1).setOptions({ crossTenant: true }))!.name;
+    const list = await get(`/bookings?venueId=${v1}&from=${D}&to=${D}`, a.token);
+    expect(list.body.bookings[0]).toMatchObject({ customer: { name: 'Guest', phone: PHONE }, turf: { name: turfName } });
+    const one = await get(`/bookings/${id}`, a.token);
+    expect(one.body.booking).toMatchObject({ customer: { name: 'Guest', phone: PHONE }, turf: { name: turfName } });
+  });
+});
+
 describe('walk-in with cash', () => {
   it('records the booking and payment, logs both, links a real player', async () => {
     const res = await walkin(staff.token, { payment: { method: 'cash' } });

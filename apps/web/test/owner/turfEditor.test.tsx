@@ -5,7 +5,7 @@ import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { draftFromPricing, pricingFromDraft, type PricingDraft } from '../../src/owner/turfs/pricingForm';
 import { renderApp } from '../helpers/render';
-import { mockApi } from '../helpers/api';
+import { mockApi, type Call } from '../helpers/api';
 import { OWNER_ID, ownerRoutes, staffUser, turf } from './fixtures';
 
 beforeEach(async () => {
@@ -188,7 +188,7 @@ describe('turf editor', () => {
   it('deactivating from the delete dialog updates the form and a later save does not reactivate', async () => {
     const { calls } = mockApi([
       { method: 'DELETE', path: TURF, status: 409, body: { error: { code: 'turf_has_bookings', message: 'x' } } },
-      { method: 'PATCH', path: TURF, body: (c) => ({ turf: turf((c.body as { name?: string }).name ? { name: 'Pitch B', active: false } : { active: false }) }) },
+      { method: 'PATCH', path: TURF, body: (c: Call) => ({ turf: turf((c.body as { name?: string }).name ? { name: 'Pitch B', active: false } : { active: false }) }) },
       { path: TURF, body: { turf: turf() } },
       ...ownerRoutes({ permissions: [...MANAGE] }),
     ]);

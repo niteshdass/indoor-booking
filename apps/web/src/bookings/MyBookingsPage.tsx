@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
@@ -6,7 +6,9 @@ import { Spinner } from '../components/ui/Spinner';
 import { apiGet } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson } from '../lib/types';
+import type { PlayerSeries } from '../series/types';
 import { BookingRow } from './BookingRow';
+import { MySeries } from './MySeries';
 import styles from './MyBookingsPage.module.css';
 
 const UPCOMING_STATUSES = new Set(['awaiting_payment', 'pending', 'confirmed']);
@@ -16,7 +18,7 @@ type Tab = (typeof TABS)[number];
 const startMs = (b: BookingJson) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
 const endMs = (b: BookingJson) => Math.max(...b.slots.map((s) => Date.parse(s.endAt)));
 
-type State = { status: 'loading' } | { status: 'ready'; bookings: BookingJson[] } | { status: 'error'; error: unknown };
+type State = { status: 'loading' } | { status: 'ready'; bookings: BookingJson[]; series: PlayerSeries[] } | { status: 'error'; error: unknown };
 
 export function MyBookingsPage() {
   const { t } = useTranslation();
@@ -24,24 +26,45 @@ export function MyBookingsPage() {
   const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState<Tab>('upcoming');
 
+  // The series list is a bonus: if it fails the bookings still show, series games included.
+  const fetchAll = useCallback(
+    () =>
+      Promise.all([
+        apiGet<{ bookings: BookingJson[] }>('/me/bookings'),
+        apiGet<{ series: PlayerSeries[] }>('/me/series').catch(() => ({ series: [] as PlayerSeries[] })),
+      ]),
+    [],
+  );
+
   useEffect(() => {
     let live = true;
     setState({ status: 'loading' });
-    apiGet<{ bookings: BookingJson[] }>('/me/bookings').then(
-      (res) => live && setState({ status: 'ready', bookings: res.bookings }),
+    fetchAll().then(
+      ([b, s]) => live && setState({ status: 'ready', bookings: b.bookings, series: s.series }),
       (error) => live && setState({ status: 'error', error }),
     );
     return () => {
       live = false;
     };
-  }, [attempt]);
+  }, [attempt, fetchAll]);
+
+  // After a series action: refetch in place, keeping what is on screen (no spinner, cards keep their state).
+  const refresh = useCallback(() => {
+    fetchAll().then(
+      ([b, s]) => setState({ status: 'ready', bookings: b.bookings, series: s.series }),
+      () => undefined,
+    );
+  }, [fetchAll]);
 
   const { upcoming, past } = useMemo(() => {
     const up: BookingJson[] = [];
     const ps: BookingJson[] = [];
     if (state.status === 'ready') {
       const now = Date.now();
+      const inSeries = new Set(state.series.map((s) => s.id));
       for (const b of state.bookings) {
+        // Games of a listed series live on its card.
+        if (b.seriesId && inSeries.has(b.seriesId)) continue;
         const isUp = b.slots.length > 0 && UPCOMING_STATUSES.has(b.status) && endMs(b) > now;
         (isUp ? up : ps).push(b);
       }
@@ -70,6 +93,7 @@ export function MyBookingsPage() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t('myBookings.title')}</h1>
+      {state.status === 'ready' && <MySeries series={state.series} onChanged={refresh} />}
       <div className={styles.tabs} role="tablist" aria-label={t('myBookings.title')} onKeyDown={onTabKey}>
         {TABS.map((k) => {
           const active = k === tab;

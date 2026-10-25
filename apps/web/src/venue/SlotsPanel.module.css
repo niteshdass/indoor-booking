@@ -30,6 +30,10 @@
   color: var(--text-default);
 }
 
+.weekly {
+  align-self: flex-start;
+}
+
 .loading {
   display: flex;
   justify-content: center;

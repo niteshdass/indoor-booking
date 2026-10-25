@@ -9,6 +9,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Table } from '../../components/ui/Table';
 import { apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
+import { formatDateTime } from '../../lib/format';
 import { SeriesStatusBadge } from '../../series/SeriesBadge';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
@@ -17,7 +18,7 @@ import { useVenueParam } from '../shell/useVenueParam';
 import { VenueSelect } from '../shell/VenueSelect';
 import type { OwnerTurf, OwnerVenue } from '../types';
 import { useResource } from '../useResource';
-import { dateRange, dateTime, patternSummary, seriesCustomer } from './seriesText';
+import { dateRange, patternSummary, seriesCustomer } from './seriesText';
 import styles from './series.module.css';
 
 type Page = { series: SeriesJson[]; nextBefore: string | null };
@@ -160,7 +161,7 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
                 <td>
                   <SeriesStatusBadge status={s.status} />
                   {s.status === 'requested' && s.respondBy && (
-                    <span className={styles.sub}>{t('series.owner.answerBy', { when: dateTime(s.respondBy, venue.timezone, lang) })}</span>
+                    <span className={styles.sub}>{t('series.owner.answerBy', { when: formatDateTime(s.respondBy, venue.timezone, lang) })}</span>
                   )}
                 </td>
               </tr>

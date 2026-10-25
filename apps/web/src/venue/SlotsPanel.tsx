@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../auth/useAuth';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
@@ -19,6 +20,7 @@ type Props = { slug: string; turfId: string; turfName: string; date: string; tab
 /** Slots of one turf and date plus the selection. Mount it with a key of turf and date so the selection resets. */
 export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
   const { t, i18n } = useTranslation();
+  const { status: auth } = useAuth();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
@@ -69,6 +71,16 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
       <div className={styles.main}>
         <h2 className={styles.title}>{t('venue.slotsRegion')}</h2>
         <p className={styles.caption}>{t('venue.selected', { turf: turfName, date: formatDate(date, 'UTC', i18n.language) })}</p>
+        {auth === 'signedIn' && (
+          <Button
+            to={`/venues/${encodeURIComponent(slug)}/series?turfId=${encodeURIComponent(turfId)}&date=${date}`}
+            variant="secondary"
+            size="lg"
+            className={styles.weekly}
+          >
+            {t('series.player.requestLink')}
+          </Button>
+        )}
         {state.status === 'loading' && (
           <div className={styles.loading}>
             <Spinner label={t('common.loading')} />

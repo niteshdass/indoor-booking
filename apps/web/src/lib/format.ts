@@ -29,6 +29,11 @@ export function formatDate(isoOrDate: string, timeZone: string, lang: string): s
   }).format(new Date(bare ? `${isoOrDate}T00:00:00Z` : isoOrDate));
 }
 
+/** Date and time of an instant in the venue's zone. */
+export function formatDateTime(iso: string, timeZone: string, lang: string): string {
+  return `${formatDate(iso, timeZone, lang)} ${formatTime(iso, timeZone, lang)}`;
+}
+
 export function formatDistance(meters: number, lang: string): string {
   if (meters < 1000) {
     return new Intl.NumberFormat(lang, { style: 'unit', unit: 'meter', unitDisplay: 'short', maximumFractionDigits: 0 }).format(meters);

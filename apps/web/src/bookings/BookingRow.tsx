@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Stars } from '../components/ui/Stars';
 import { formatDate, formatTime, money } from '../lib/format';
 import type { BookingJson } from '../lib/types';
+import { SeriesBadge } from '../series/SeriesBadge';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import styles from './MyBookingsPage.module.css';
 
@@ -18,7 +19,10 @@ export function BookingRow({ booking }: { booking: BookingJson }) {
     <Link to={`/me/bookings/${encodeURIComponent(booking.id)}`} className={styles.row}>
       <span className={styles.top}>
         {booking.venue ? <span className={styles.venue}>{booking.venue.name}</span> : <span />}
-        <BookingStatusBadge status={booking.status} />
+        <span className={styles.badges}>
+          {booking.seriesId && <SeriesBadge />}
+          <BookingStatusBadge status={booking.status} />
+        </span>
       </span>
       <span className={styles.meta}>
         {booking.turf && <span>{booking.turf.name}</span>}

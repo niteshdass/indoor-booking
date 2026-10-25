@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { SeriesJson } from '@booking/shared';
-import { formatDate, formatTime } from '../../lib/format';
+import { formatDate } from '../../lib/format';
 import { weekdayList } from '../../series/weekdays';
 import type { OwnerTurf } from '../types';
 
@@ -29,9 +29,4 @@ export function dateRange(s: SeriesJson, lang: string): string {
   const last = dates[dates.length - 1] ?? s.pattern.endDate;
   const f = (d: string) => formatDate(d, 'UTC', lang);
   return last && last !== first ? `${f(first)} – ${f(last)}` : f(first);
-}
-
-/** Date and time of an instant in the venue's zone. */
-export function dateTime(iso: string, timeZone: string, lang: string): string {
-  return `${formatDate(iso, timeZone, lang)} ${formatTime(iso, timeZone, lang)}`;
 }

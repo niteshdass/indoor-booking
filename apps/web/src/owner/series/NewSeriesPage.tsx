@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { addDays, localParts, weekdayOf, type SeriesJson, type SeriesPattern, type SeriesPreview } from '@booking/shared';
+import { localParts, type SeriesJson, type SeriesPattern, type SeriesPreview } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
 import { apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
+import { defaultPatternFrom, ISO_DATE, isPatternOk, patternBody, useStartTimeSync } from '../../series/pattern';
 import { SeriesForm } from '../../series/SeriesForm';
 import { SeriesPreviewList } from '../../series/SeriesPreviewList';
 import { CustomerFields, customerErrors, type Customer } from '../CustomerFields';
@@ -44,14 +45,7 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
   const navigate = useNavigate();
   const today = localParts(new Date(), venue.timezone).date;
   const [turfId, setTurfId] = useState(turfs[0]!.id);
-  const [pattern, setPattern] = useState<SeriesPattern>(() => ({
-    weekdays: [weekdayOf(addDays(today, 1))],
-    startTime: '',
-    slotCount: 1,
-    firstDate: addDays(today, 1),
-    endDate: null,
-    count: 10,
-  }));
+  const [pattern, setPattern] = useState<SeriesPattern>(() => defaultPatternFrom(today));
   const [preview, setPreview] = useState<SeriesPreview | null>(null);
   const [customer, setCustomer] = useState<Customer>({ name: '', phone: '' });
   const [tried, setTried] = useState(false);
@@ -62,16 +56,11 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
 
   const turf = turfs.find((x) => x.id === turfId) ?? turfs[0]!;
   const base = ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(turfId)}`);
-  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(pattern.firstDate);
+  const validDate = ISO_DATE.test(pattern.firstDate);
   const slots = useResource<{ day: OwnerSlotDay }>(`${base}/slots?date=${validDate ? pattern.firstDate : today}`);
   const slotTimes = slots.state.status === 'ready' ? slots.state.data.day.slots.map((s) => s.localStart) : [];
-  const timesKey = slotTimes.join(',');
 
-  // Keep the start time on one the first date offers.
-  useEffect(() => {
-    if (slots.state.status !== 'ready') return;
-    setPattern((p) => (slotTimes.includes(p.startTime) || slotTimes.length === 0 ? p : { ...p, startTime: slotTimes[0]! }));
-  }, [timesKey, slots.state.status]);
+  useStartTimeSync(slotTimes, slots.state.status === 'ready', setPattern);
 
   const edit = (next: SeriesPattern) => {
     setPattern(next);
@@ -79,17 +68,8 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
     setError(null);
   };
 
-  const endOk = pattern.count !== null ? pattern.count >= 1 : pattern.endDate !== null && pattern.endDate >= pattern.firstDate;
-  const patternOk = pattern.weekdays.length > 0 && pattern.startTime !== '' && validDate && endOk;
-
-  const body = {
-    weekdays: pattern.weekdays,
-    startTime: pattern.startTime,
-    slotCount: pattern.slotCount,
-    firstDate: pattern.firstDate,
-    endDate: pattern.endDate,
-    count: pattern.count,
-  };
+  const patternOk = isPatternOk(pattern);
+  const body = patternBody(pattern);
 
   const checkDates = async () => {
     if (!patternOk) return;

@@ -35,3 +35,7 @@
 .title:focus {
   outline: none;
 }
+
+.series {
+  display: flex;
+}

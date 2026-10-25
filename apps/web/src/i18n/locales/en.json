@@ -1286,6 +1286,33 @@
       "cancelGame": "Cancel this game",
       "skippedTitle": "Skipped dates",
       "kept": "Could not cancel: {{dates}}"
+    },
+    "player": {
+      "requestLink": "Request weekly booking",
+      "requestTitle": "Request weekly booking",
+      "turf": "Court",
+      "intro": "Pick the days and time, check which dates are free, then send the request. The venue answers before the first game.",
+      "send": "Send request",
+      "sending": "Sending",
+      "sent": "Request sent. The venue will answer by {{when}}.",
+      "toBookings": "Go to My bookings",
+      "myTitle": "Weekly bookings",
+      "answerBy": "The venue will answer by {{when}}",
+      "reason": "Reason: {{reason}}",
+      "nextGames_one": "Next game ({{count}})",
+      "nextGames_other": "Next games ({{count}})",
+      "skippedDates_one": "Skipped date ({{count}})",
+      "skippedDates_other": "Skipped dates ({{count}})",
+      "withdraw": "Withdraw request",
+      "cancelFuture": "Cancel all future games",
+      "cancelFutureTitle_one": "Cancel {{count}} game?",
+      "cancelFutureTitle_other": "Cancel {{count}} games?",
+      "cancelFutureBody": "Games that already started stay as they are.",
+      "cancelFutureConfirm": "Cancel games",
+      "keep": "Keep games",
+      "cancelled_one": "{{count}} game cancelled.",
+      "cancelled_other": "{{count}} games cancelled.",
+      "kept": "Could not cancel: {{dates}}"
     }
   }
 }

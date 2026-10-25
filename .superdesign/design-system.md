@@ -95,6 +95,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
   - Member status: active = success, invited = info, disabled = neutral.
   - Series status: requested = warning, active = success, declined and cancelled = danger, withdrawn and ended = neutral. The "Series" marker on a booking is an info badge; it links to the series except inside a schedule block.
 - Cards: surface bg, 1px border, xs shadow.
+- Player series: the request page (`/venues/:slug/series`, brand tone, 28rem column) and the "Weekly bookings" cards above the My bookings tabs reuse the card, badge and `<details>` disclosure patterns; a series game in the single-bookings list shows the plain info "Series" badge, and on its detail page the badge links to the card.
 - Tables: header 12px/500 muted, sentence case (no uppercase), rows separated by 1px subtle border, hover = subtle bg.
 - Sidebar nav: 14px/500 items, 36px tall, active = subtle bg + strong text, inactive = muted text.
 - Owner switcher: top of sidebar; owner name 14px/600 + role 12px muted; dropdown lists memberships.

@@ -14,6 +14,7 @@ import { BookingDetailPage } from './bookings/BookingDetailPage';
 import { PayPage } from './payment/PayPage';
 import { LookupPage } from './lookup/LookupPage';
 import { OwnerRoutes } from './owner/ownerRoutes';
+import { RequestSeriesPage } from './series/RequestSeriesPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export function AppRoutes() {
@@ -24,6 +25,7 @@ export function AppRoutes() {
         <Route path="/" element={<SearchPage />} />
         <Route path="/venues/:slug" element={<VenuePage />} />
         <Route path="/venues/:slug/checkout" element={<CheckoutPage />} />
+        <Route path="/venues/:slug/series" element={<RequireAuth><RequestSeriesPage /></RequireAuth>} />
         <Route path="/lookup" element={<LookupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

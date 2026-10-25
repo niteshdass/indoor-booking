@@ -8,6 +8,7 @@ import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { SeriesBadge } from '../series/SeriesBadge';
 import { MyReview } from './MyReview';
 import { ReviewDialog } from './ReviewDialog';
 import { BookingFacts } from './BookingFacts';
@@ -156,6 +157,11 @@ export function BookingDetailPage() {
                 {t('booking.refresh')}
               </Button>
             </Alert>
+          )}
+          {booking.seriesId && (
+            <div className={styles.series}>
+              <SeriesBadge href={`/me/bookings#series-${encodeURIComponent(booking.seriesId)}`} />
+            </div>
           )}
           <BookingFacts booking={booking} />
           {showPayNow && (

@@ -9,7 +9,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { Table } from '../../components/ui/Table';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { formatDate, formatTime, money } from '../../lib/format';
+import { formatDate, formatDateTime, formatTime, money } from '../../lib/format';
 import { SeriesStatusBadge } from '../../series/SeriesBadge';
 import { weekdayList } from '../../series/weekdays';
 import { OwnerCancelDialog } from '../bookings/OwnerCancelDialog';
@@ -19,7 +19,7 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import type { OwnerTurf } from '../types';
 import { useResource } from '../useResource';
-import { dateTime, patternSummary, seriesCustomer } from './seriesText';
+import { patternSummary, seriesCustomer } from './seriesText';
 import styles from './series.module.css';
 
 /** The statuses a staff member can still cancel a game from. */
@@ -125,7 +125,7 @@ export function SeriesDetailPage() {
       </header>
 
       {series.status === 'requested' && series.respondBy && (
-        <Alert tone="warning">{t('series.owner.answerBy', { when: dateTime(series.respondBy, tz, lang) })}</Alert>
+        <Alert tone="warning">{t('series.owner.answerBy', { when: formatDateTime(series.respondBy, tz, lang) })}</Alert>
       )}
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       {kept !== null && kept.length > 0 && <Alert tone="warning">{t('series.owner.kept', { dates: kept.join(', ') })}</Alert>}

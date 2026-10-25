@@ -18,6 +18,7 @@ const venue: PublicVenue = {
   location: { lat: 1, lng: 2 },
   photos: [],
   amenities: [],
+  rating: null,
   turfs: [{ id: 't1', name: 'Court A', sports: ['futsal'], indoor: true, slotLengthMin: 60 }],
 };
 const START = '2026-01-01T12:00:00.000Z';

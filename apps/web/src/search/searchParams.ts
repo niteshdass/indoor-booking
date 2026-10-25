@@ -12,6 +12,7 @@ export type Criteria = {
   minPrice: number | null; // minor units
   maxPrice: number | null; // minor units
   available: boolean;
+  sort: 'default' | 'rating';
 };
 
 export const EMPTY_CRITERIA: Criteria = {
@@ -26,6 +27,7 @@ export const EMPTY_CRITERIA: Criteria = {
   minPrice: null,
   maxPrice: null,
   available: false,
+  sort: 'default',
 };
 
 // Same grammar as the API's query parser (apps/api/src/search/query.ts).
@@ -100,6 +102,7 @@ export function criteriaFromParams(p: URLSearchParams): Criteria {
     minPrice,
     maxPrice,
     available: p.get('available') === 'true',
+    sort: p.get('sort') === 'rating' ? 'rating' : 'default',
   };
 }
 
@@ -122,6 +125,7 @@ export function criteriaToParams(c: Criteria): URLSearchParams {
   if (c.minPrice !== null) p.set('minPrice', String(c.minPrice));
   if (c.maxPrice !== null) p.set('maxPrice', String(c.maxPrice));
   if (c.available) p.set('available', 'true');
+  if (c.sort === 'rating') p.set('sort', 'rating');
   return p;
 }
 

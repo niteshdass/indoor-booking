@@ -16,6 +16,7 @@ const full: Criteria = {
   minPrice: 1000,
   maxPrice: 5050,
   available: true,
+  sort: 'rating',
 };
 const parse = (qs: string) => criteriaFromParams(new URLSearchParams(qs));
 
@@ -67,6 +68,16 @@ describe('search params', () => {
     expect(parse('currency=ZZZ').currency).toBeNull();
     expect(parse('currency=USD&minPrice=abc').minPrice).toBeNull();
     expect(parse('indoor=maybe').indoor).toBeNull();
+  });
+  it('searchParams round-trips sort and drops unknown values', () => {
+    expect(criteriaToParams({ ...EMPTY_CRITERIA, sort: 'rating' }).toString()).toBe('sort=rating');
+    expect(criteriaToParams({ ...EMPTY_CRITERIA, sort: 'default' }).has('sort')).toBe(false);
+    expect(parse('sort=rating').sort).toBe('rating');
+    expect(parse('sort=price').sort).toBe('default');
+    expect(parse('sort=default').sort).toBe('default');
+    expect(parse('').sort).toBe('default');
+    expect(apiQuery({ ...EMPTY_CRITERIA, sort: 'rating' }, 0)).toContain('sort=rating');
+    expect(apiQuery(EMPTY_CRITERIA, 0)).not.toContain('sort');
   });
   it('apiQuery of empty criteria', () => {
     expect(apiQuery(EMPTY_CRITERIA, 0)).toBe('?limit=20&cursor=0');

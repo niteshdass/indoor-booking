@@ -21,6 +21,7 @@ const venue: PublicVenue = {
   location: { lat: 1, lng: 2 },
   photos: [],
   amenities: [],
+  rating: null,
   turfs: [{ id: 't1', name: 'Court A', sports: ['futsal'], indoor: true, slotLengthMin: 60 }],
 };
 

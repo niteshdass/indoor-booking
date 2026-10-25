@@ -229,7 +229,10 @@
     },
     "searchArea": "Search this area",
     "mapLabel": "Map of results",
-    "pinAria": "{{name}}, {{price}}"
+    "pinAria": "{{name}}, {{price}}",
+    "sort": "Sort",
+    "sortDefault": "Recommended",
+    "sortRating": "Top rated"
   },
   "sports": {
     "football": "Football",
@@ -1162,6 +1165,14 @@
     "reply": "Reply from the venue",
     "deleteTitle": "Delete your review?",
     "deleteBody": "This cannot be undone and you will not be able to review this booking again.",
-    "deleteConfirm": "Delete review"
+    "deleteConfirm": "Delete review",
+    "title": "Reviews",
+    "summaryCount_one": "{{count}} review",
+    "summaryCount_other": "{{count}} reviews",
+    "none": "No reviews yet",
+    "player": "Player",
+    "showMore": "Show more",
+    "cardLabel_one": "Rated {{value}} out of 5 from {{count}} review",
+    "cardLabel_other": "Rated {{value}} out of 5 from {{count}} reviews"
   }
 }

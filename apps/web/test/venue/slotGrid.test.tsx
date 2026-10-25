@@ -109,6 +109,7 @@ const venue: PublicVenue = {
   location: { lat: 1, lng: 2 },
   photos: [],
   amenities: [],
+  rating: null,
   turfs: [{ id: 't1', name: 'Court A', sports: ['futsal'], indoor: true, slotLengthMin: 60 }],
 };
 
@@ -154,6 +155,7 @@ describe('VenuePage slots', () => {
     vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     mockApi([
       { path: '/venues/arena-one', body: { venue } },
+      { path: '/venues/arena-one/reviews', body: { reviews: [], nextBefore: null } },
       { path: '/venues/arena-one/turfs/t1/slots', status: 500, body: { error: { code: 'internal', message: 'x' } } },
     ]);
     renderApp('/venues/arena-one?date=2026-10-25');
@@ -209,6 +211,7 @@ describe('VenuePage slots', () => {
     vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     mockApi([
       { path: '/venues/arena-one', body: { venue } },
+      { path: '/venues/arena-one/reviews', body: { reviews: [], nextBefore: null } },
       {
         path: '/venues/arena-one/turfs/t1/slots',
         body: (_c: unknown, n: number) =>

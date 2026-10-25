@@ -1,4 +1,4 @@
-import type { OwnReviewJson, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
 
 export type { SearchResult, SearchResponse } from '@booking/shared';
 
@@ -28,6 +28,7 @@ export type PublicVenue = {
   photos: { url: string; alt?: string }[];
   amenities: Amenity[];
   turfs: PublicTurf[];
+  rating: RatingSummary | null;
 };
 
 export type SlotJson = {

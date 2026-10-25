@@ -12,6 +12,7 @@ import type { PublicVenue } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { DateStrip } from './DateStrip';
 import { PhotoStrip } from './PhotoStrip';
+import { ReviewsSection } from './ReviewsSection';
 import { SlotsPanel } from './SlotsPanel';
 import styles from './VenuePage.module.css';
 
@@ -187,6 +188,8 @@ export function VenuePage() {
       ) : (
         <p className={styles.empty}>{t('venue.noTurfs')}</p>
       )}
+
+      <ReviewsSection slug={slug} timeZone={venue.timezone} rating={venue.rating} />
     </main>
   );
 }

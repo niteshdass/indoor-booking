@@ -55,6 +55,41 @@ describe('SearchPage', () => {
     expect(screen.getByText(/Court A/)).toBeInTheDocument();
   });
 
+  it('result card shows rating only when rated', async () => {
+    mockApi([
+      {
+        path: '/search',
+        body: {
+          results: [
+            { ...venue, rating: { average: 4.6, count: 23 } },
+            { ...venue, slug: 'arena-two', name: 'Arena Two', rating: null },
+          ],
+          nextCursor: null,
+        },
+      },
+    ]);
+    renderApp('/');
+    await screen.findByText('Arena Two');
+    const rated = screen.getByLabelText('Rated 4.6 out of 5 from 23 reviews');
+    expect(rated).toHaveTextContent('4.6');
+    expect(rated).toHaveTextContent('(23)');
+    expect(screen.getAllByLabelText(/Rated .* out of 5/)).toHaveLength(1);
+  });
+
+  it('top rated sort writes sort=rating and the API call carries it', async () => {
+    const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user, location } = renderApp('/');
+    await screen.findByText('Arena One');
+    expect(api.calls[0]!.query.has('sort')).toBe(false);
+    await user.selectOptions(screen.getByLabelText('Sort'), 'rating');
+    await user.click(screen.getByRole('button', { name: en.search.submit }));
+    await waitFor(() => expect(location().search).toContain('sort=rating'));
+    await waitFor(() => expect(api.calls.some((c) => c.query.get('sort') === 'rating')).toBe(true));
+    await user.selectOptions(screen.getByLabelText('Sort'), 'default');
+    await user.click(screen.getByRole('button', { name: en.search.submit }));
+    await waitFor(() => expect(location().search).not.toContain('sort'));
+  });
+
   it('submitting form updates URL and refetches', async () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
     const { user, location } = renderApp('/');

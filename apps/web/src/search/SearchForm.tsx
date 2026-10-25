@@ -175,6 +175,10 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     { value: 'custom', label: t('search.customOption') },
   ];
   const sportOptions = [{ value: '', label: t('search.anySport') }, ...SPORTS.map((s) => ({ value: s, label: t(`sports.${s}`) }))];
+  const sortOptions = [
+    { value: 'default', label: t('search.sortDefault') },
+    { value: 'rating', label: t('search.sortRating') },
+  ];
   const indoorOptions = [
     { value: '', label: t('search.indoorAny') },
     { value: 'indoor', label: t('search.indoor') },
@@ -230,6 +234,15 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
         value={draft.sport ?? ''}
         onChange={(e) => patch({ sport: e.target.value ? (e.target.value as Criteria['sport']) : null })}
         options={sportOptions}
+        className={styles.stacked}
+      />
+
+      <Select
+        size="lg"
+        label={t('search.sort')}
+        value={draft.sort}
+        onChange={(e) => patch({ sort: e.target.value === 'rating' ? 'rating' : 'default' })}
+        options={sortOptions}
         className={styles.stacked}
       />
 

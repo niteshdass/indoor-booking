@@ -35,3 +35,8 @@ export function formatDistance(meters: number, lang: string): string {
   }
   return new Intl.NumberFormat(lang, { style: 'unit', unit: 'kilometer', unitDisplay: 'short', maximumFractionDigits: 1 }).format(meters / 1000);
 }
+
+/** Average rating with one decimal, in the locale's separator (4.6 / 4,6). */
+export function formatRating(average: number, lang: string): string {
+  return new Intl.NumberFormat(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(average);
+}

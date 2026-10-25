@@ -18,6 +18,7 @@ const venue: PublicVenue = {
   location: { lat: 1, lng: 2 },
   photos: [{ url: 'http://x/1.jpg', alt: 'Pitch view' }, { url: 'http://x/2.jpg' }],
   amenities: ['parking', 'wifi'],
+  rating: null,
   turfs: [
     { id: 't1', name: 'Court A', sports: ['futsal'], indoor: true, slotLengthMin: 60 },
     { id: 't2', name: 'Court B', sports: ['tennis'], indoor: false, slotLengthMin: 60 },

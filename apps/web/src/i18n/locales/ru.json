@@ -235,7 +235,10 @@
     },
     "searchArea": "Искать в этой области",
     "mapLabel": "Карта результатов",
-    "pinAria": "{{name}}, {{price}}"
+    "pinAria": "{{name}}, {{price}}",
+    "sort": "Сортировка",
+    "sortDefault": "По умолчанию",
+    "sortRating": "С высоким рейтингом"
   },
   "sports": {
     "football": "Футбол",
@@ -1172,6 +1175,18 @@
     "reply": "Ответ площадки",
     "deleteTitle": "Удалить отзыв?",
     "deleteBody": "Это нельзя отменить, и вы не сможете оставить отзыв об этом бронировании снова.",
-    "deleteConfirm": "Удалить отзыв"
+    "deleteConfirm": "Удалить отзыв",
+    "title": "Отзывы",
+    "summaryCount_one": "{{count}} отзыв",
+    "summaryCount_few": "{{count}} отзыва",
+    "summaryCount_many": "{{count}} отзывов",
+    "summaryCount_other": "{{count}} отзыва",
+    "none": "Пока нет отзывов",
+    "player": "Игрок",
+    "showMore": "Показать ещё",
+    "cardLabel_one": "Оценка {{value}} из 5, {{count}} отзыв",
+    "cardLabel_few": "Оценка {{value}} из 5, {{count}} отзыва",
+    "cardLabel_many": "Оценка {{value}} из 5, {{count}} отзывов",
+    "cardLabel_other": "Оценка {{value}} из 5, {{count}} отзыва"
   }
 }

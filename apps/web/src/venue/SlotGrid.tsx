@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { money } from '../lib/format';
+import { moneyShort } from '../lib/format';
 import type { SlotDay, SlotJson } from '../lib/types';
 import styles from './SlotGrid.module.css';
 
@@ -26,7 +26,7 @@ function Cell({ slot, currency, selected, portal, onToggle }: { slot: SlotJson; 
       onClick={onToggle}
     >
       <span className={styles.time}>{slot.localStart}</span>
-      <span className={styles.price}>{stateLabel ?? money(slot.price ?? 0, currency, i18n.language)}</span>
+      <span className={styles.price}>{stateLabel ?? moneyShort(slot.price ?? 0, currency, i18n.language)}</span>
     </button>
   );
 }

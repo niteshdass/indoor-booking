@@ -17,6 +17,11 @@ describe('format', () => {
     expect(f.money(1500, 'JPY', 'en')).toContain('1,500');
     expect(f.money(1500, 'KWD', 'en')).toContain('1.500');
   });
+  it('moneyShort drops the fraction only when it is zero', () => {
+    expect(f.moneyShort(200_000, 'BDT', 'en')).toBe('BDT\u00a02,000');
+    expect(f.moneyShort(200_050, 'BDT', 'en')).toBe('BDT\u00a02,000.50');
+    expect(f.moneyShort(1500, 'KWD', 'en')).toBe('KWD\u00a01.500');
+  });
   it('formatDistance', () => {
     expect(f.formatDistance(850, 'en')).toBe('850 m');
     expect(f.formatDistance(12_345, 'en')).toBe('12.3 km');

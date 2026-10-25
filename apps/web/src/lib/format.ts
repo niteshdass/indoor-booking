@@ -1,7 +1,14 @@
-import { formatMoney } from '@booking/shared';
+import { currencyExponent, formatMoney } from '@booking/shared';
 
 export function money(minor: number, currency: string, lang: string): string {
   return formatMoney(minor, currency, lang);
+}
+
+/** Like `money`, but a whole amount drops its zero fraction (BDT 2,000), for tight spaces such as slot cells. */
+export function moneyShort(minor: number, currency: string, lang: string): string {
+  const unit = 10 ** currencyExponent(currency);
+  if (minor % unit !== 0) return money(minor, currency, lang);
+  return new Intl.NumberFormat(lang, { style: 'currency', currency, maximumFractionDigits: 0 }).format(minor / unit);
 }
 
 /** Wall-clock time of an instant in the venue's zone, 24-hour. */

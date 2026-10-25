@@ -21,6 +21,8 @@ import { Payment } from '../../src/bookings/payment.model';
 import { PaymentGatewayAccount } from '../../src/payments/gateway.model';
 import { WebhookEvent } from '../../src/payments/webhookEvent.model';
 import { Refund } from '../../src/payments/refund.model';
+import { Notification } from '../../src/notifications/notification.model';
+import { Types } from 'mongoose';
 import { AppError } from '../../src/errors';
 import { cancelBooking, previewCancellation, type Canceller } from '../../src/bookings/cancel';
 
@@ -53,7 +55,7 @@ let secret: string;
 beforeEach(async () => {
   await Promise.all([
     User.deleteMany({}), Owner.deleteMany({}), Membership.deleteMany({ ownerId: { $exists: true } }),
-    ...[ActivityLog, Venue, Turf, Booking, SlotLock, Payment, PaymentGatewayAccount, WebhookEvent, Refund].map(
+    ...[ActivityLog, Venue, Turf, Booking, SlotLock, Payment, PaymentGatewayAccount, WebhookEvent, Refund, Notification].map(
       (m) => (m as typeof Venue).deleteMany({}).setOptions(cross),
     ),
   ]);
@@ -145,6 +147,37 @@ describe('cancelBooking', () => {
     const log = await ActivityLog.findOne({ ownerId: owner.ownerId, action: 'booking.cancelled' }).lean();
     expect(String(log!.actorId)).toBe(player.userId);
     expect(log!.after).toMatchObject({ status: 'cancelled', refund: { amount: 1200, percent: 40 } });
+  });
+
+  it('a series game cancel sends one series_games_cancelled and no booking_cancelled', async () => {
+    const { player, bookingId } = await paid();
+    await User.updateOne({ _id: player.userId }, { $set: { emailVerified: true } });
+    await Booking.updateOne({ _id: bookingId }, { $set: { seriesId: new Types.ObjectId() } }).setOptions(cross);
+    await Notification.deleteMany({}).setOptions(cross);
+    ctx.services.clock.advance(10 * HOUR);
+    await cancelBooking(await bookingOf(bookingId), playerBy(player), {}, deps());
+    // The card refund still sends its own refund_issued notice.
+    const rows = await Notification.find({ event: { $ne: 'refund_issued' } }).setOptions(cross);
+    expect(rows.map((r) => r.event)).toEqual(['series_games_cancelled']);
+    expect(rows[0]!.data).toMatchObject({ games: [(await bookingOf(bookingId)).startAt.toISOString()] });
+    await Notification.deleteMany({}).setOptions(cross);
+    const second = await paid();
+    await User.updateOne({ _id: second.player.userId }, { $set: { emailVerified: true } });
+    await Booking.updateOne({ _id: second.bookingId }, { $set: { seriesId: new Types.ObjectId() } }).setOptions(cross);
+    await Notification.deleteMany({}).setOptions(cross);
+    await cancelBooking(await bookingOf(second.bookingId), staff(), {}, deps());
+    const byStaff = await Notification.find({ event: { $ne: 'refund_issued' } }).setOptions(cross);
+    expect(byStaff.map((r) => r.event)).toEqual(['series_games_cancelled']);
+    expect(byStaff[0]!.to).toBe((await User.findById(second.player.userId))!.email);
+  });
+
+  it('notify:false sends nothing', async () => {
+    const { player, bookingId } = await paid();
+    await User.updateOne({ _id: player.userId }, { $set: { emailVerified: true } });
+    await Booking.updateOne({ _id: bookingId }, { $set: { seriesId: new Types.ObjectId() } }).setOptions(cross);
+    await Notification.deleteMany({}).setOptions(cross);
+    await cancelBooking(await bookingOf(bookingId), playerBy(player), { notify: false }, deps());
+    expect(await Notification.countDocuments({ event: { $ne: 'refund_issued' } }).setOptions(cross)).toBe(0);
   });
 
   it('player cancel inside the last rule refunds nothing', async () => {

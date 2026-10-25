@@ -1,5 +1,5 @@
 import type { ClientSession } from 'mongoose';
-import { reviewerName, type Locale } from '@booking/shared';
+import { reviewerName, type Locale, type SeriesClashReason } from '@booking/shared';
 import type { Config } from '../config';
 import { User } from '../auth/user.model';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
@@ -32,6 +32,9 @@ function contactsOf(user: { email?: string | null; emailVerified?: boolean; phon
   return out;
 }
 
+const SERIES_GAMES_LISTED = 30;
+const isSeriesEvent = (event: NoticeEvent) => event.startsWith('series_');
+
 const COMMENT_MAX = 140;
 const clip = (s: string) => (s.length > COMMENT_MAX ? `${s.slice(0, COMMENT_MAX - 1)}…` : s);
 
@@ -63,7 +66,15 @@ export async function noticeBooking(
   booking: BookingDoc,
   now: Date,
   session: ClientSession,
-  extra: { amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string; stars?: number; comment?: string | null } = {},
+  extra: {
+    amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string; stars?: number; comment?: string | null;
+    seriesId?: string;
+    games?: string[];
+    skipped?: { date: string; reason: SeriesClashReason }[];
+    kept?: string[];
+    /** Series events that go to staff instead of the player. */
+    toStaff?: boolean;
+  } = {},
 ): Promise<number> {
   const ownerId = String(booking.ownerId);
   // One at a time: a transaction session cannot run operations in parallel.
@@ -90,11 +101,24 @@ export async function noticeBooking(
     ...(event === 'review_posted' ? { ownerId } : {}),
     ...(extra.stars === undefined ? {} : { stars: extra.stars }),
     ...(extra.comment ? { comment: clip(extra.comment) } : {}),
+    ...(isSeriesEvent(event)
+      ? {
+          ownerId,
+          ...(extra.seriesId ? { seriesId: extra.seriesId } : {}),
+          games: (extra.games ?? []).slice(0, SERIES_GAMES_LISTED),
+          ...((extra.games?.length ?? 0) > SERIES_GAMES_LISTED ? { moreGames: extra.games!.length - SERIES_GAMES_LISTED } : {}),
+          ...(extra.skipped?.length ? { skipped: extra.skipped } : {}),
+          ...(extra.kept?.length ? { kept: extra.kept } : {}),
+          ...(extra.toStaff ? { toStaff: true } : {}),
+        }
+      : {}),
     ...(booking.holdExpiresAt ? { holdExpiresAt: booking.holdExpiresAt.toISOString() } : {}),
   };
 
   let recipients: Recipient[];
-  if (event === 'staff_new_pending') recipients = await staffRecipients(booking, 'booking.confirm', session);
+  if (event === 'series_requested' || (event === 'series_games_cancelled' && extra.toStaff)) {
+    recipients = await staffRecipients(booking, 'booking.confirm', session);
+  } else if (event === 'staff_new_pending') recipients = await staffRecipients(booking, 'booking.confirm', session);
   else if (event === 'review_posted') recipients = await staffRecipients(booking, 'review.manage', session);
   else if (player) recipients = contactsOf(player);
   else recipients = booking.guest ? [{ channel: 'sms', to: booking.guest.phone }] : [];

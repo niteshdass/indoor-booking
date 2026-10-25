@@ -1,4 +1,4 @@
-import { formatMoney, type Locale } from '@booking/shared';
+import { formatMoney, type Locale, type SeriesClashReason } from '@booking/shared';
 
 export const NOTICE_EVENTS = [
   'booking_pending',
@@ -11,6 +11,11 @@ export const NOTICE_EVENTS = [
   'staff_new_pending',
   'review_request',
   'review_posted',
+  'series_requested',
+  'series_accepted',
+  'series_declined',
+  'series_created',
+  'series_games_cancelled',
 ] as const;
 export type NoticeEvent = (typeof NOTICE_EVENTS)[number];
 
@@ -36,6 +41,15 @@ export type NoticeData = {
   stars?: number;
   /** At most 140 characters, cut with an ellipsis. */
   comment?: string | null;
+  seriesId?: string;
+  /** Series events: ISO starts, ascending, at most 30 listed; `moreGames` counts the rest. */
+  games?: string[];
+  moreGames?: number;
+  skipped?: { date: string; reason: SeriesClashReason }[];
+  /** Games that stay booked (ISO starts). */
+  kept?: string[];
+  /** series_games_cancelled: the notice goes to staff, so it links to the series page. */
+  toStaff?: boolean;
 };
 
 type Ctx = {
@@ -46,12 +60,45 @@ type Ctx = {
   holdUntil: string;
   money: string;
   link: string;
+  /** Series events: the games, one per line, with a "+N more" tail. */
+  gameLines: string;
+  /** Number of games in the series notice, listed or not. */
+  gameCount: number;
+  /** Local date and time of the first listed game. */
+  firstGame: string;
+  /** Skipped and kept dates, translated; empty when there are none. */
+  skippedKept: string;
 };
 type Parts = { subject: string; lead: string; extra?: string; sms: string };
 type Builder = (c: Ctx) => Parts;
 
 // Newer ICU puts a narrow no-break space before AM/PM; plain spaces read the same and survive every mail/SMS client.
 const plain = (s: string) => s.replace(new RegExp('[\u202f\u00a0]', 'g'), ' ');
+
+const ruGames = (n: number) => {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  const word = m10 === 1 && m100 !== 11 ? 'игра' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'игры' : 'игр';
+  return `${n} ${word}`;
+};
+const enGames = (n: number) => `${n} ${n === 1 ? 'game' : 'games'}`;
+
+const CLASH_LABELS: Record<Locale, Record<SeriesClashReason, string>> = {
+  en: {
+    closed: 'the venue is closed',
+    past: 'already in the past',
+    taken: 'already booked',
+    blocked: 'the court is blocked',
+    outside_hours: 'outside opening hours',
+  },
+  ru: {
+    closed: 'площадка закрыта',
+    past: 'время уже прошло',
+    taken: 'уже занято',
+    blocked: 'корт недоступен',
+    outside_hours: 'вне часов работы',
+  },
+};
 
 const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
   booking_pending: {
@@ -194,11 +241,81 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       sms: `Новый отзыв ${d.stars}/5 о площадке ${d.venueName}. ${d.reference}`,
     }),
   },
+  series_requested: {
+    en: ({ d, gameCount, firstGame }) => ({
+      subject: `New recurring booking request (${d.reference})`,
+      lead: `${d.customerName ?? 'A customer'} asked to book ${enGames(gameCount)} on a repeating schedule. Please accept or decline.`,
+      sms: `Recurring request from ${d.customerName ?? 'a customer'}: ${enGames(gameCount)}, from ${firstGame}. ${d.reference}`,
+    }),
+    ru: ({ d, gameCount, firstGame }) => ({
+      subject: `Новая заявка на регулярное бронирование (${d.reference})`,
+      lead: `${d.customerName ?? 'Клиент'} просит забронировать корт на регулярной основе: ${ruGames(gameCount)}. Примите или отклоните заявку.`,
+      sms: `Заявка на регулярные игры от ${d.customerName ?? 'клиента'}: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
+    }),
+  },
+  series_accepted: {
+    en: ({ d, gameCount, firstGame }) => ({
+      subject: 'Your recurring booking is confirmed',
+      lead: `The venue accepted your recurring booking: ${enGames(gameCount)} are booked.`,
+      sms: `Recurring booking confirmed: ${enGames(gameCount)}, from ${firstGame}. ${d.reference}`,
+    }),
+    ru: ({ d, gameCount, firstGame }) => ({
+      subject: 'Ваше регулярное бронирование подтверждено',
+      lead: `Площадка приняла ваше регулярное бронирование: ${ruGames(gameCount)} забронировано.`,
+      sms: `Регулярное бронирование подтверждено: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
+    }),
+  },
+  series_declined: {
+    en: ({ d }) => ({
+      subject: 'Your recurring booking was declined',
+      lead: 'Sorry, the venue declined your recurring booking request.',
+      extra: d.reason ? `Reason: ${d.reason}` : undefined,
+      sms: `The venue declined your recurring booking request. ${d.reference}`,
+    }),
+    ru: ({ d }) => ({
+      subject: 'Ваше регулярное бронирование отклонено',
+      lead: 'К сожалению, площадка отклонила вашу заявку на регулярное бронирование.',
+      extra: d.reason ? `Причина: ${d.reason}` : undefined,
+      sms: `Площадка отклонила заявку на регулярное бронирование. ${d.reference}`,
+    }),
+  },
+  series_created: {
+    en: ({ d, gameCount, firstGame }) => ({
+      subject: 'Your recurring booking is set up',
+      lead: `${enGames(gameCount)} are booked for you.`,
+      sms: `Recurring booking set up: ${enGames(gameCount)}, from ${firstGame}. ${d.reference}`,
+    }),
+    ru: ({ d, gameCount, firstGame }) => ({
+      subject: 'Регулярное бронирование оформлено',
+      lead: `Для вас забронировано: ${ruGames(gameCount)}.`,
+      sms: `Регулярное бронирование оформлено: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
+    }),
+  },
+  series_games_cancelled: {
+    en: ({ d, gameCount, firstGame }) => ({
+      subject: `${gameCount === 1 ? 'A recurring game was' : 'Recurring games were'} cancelled`,
+      lead: d.toStaff
+        ? `A player cancelled ${enGames(gameCount)} of a recurring booking.`
+        : `${enGames(gameCount)} of your recurring booking ${gameCount === 1 ? 'was' : 'were'} cancelled.`,
+      extra: d.reason ? `Reason: ${d.reason}` : undefined,
+      sms: `Cancelled: ${enGames(gameCount)}, ${firstGame}. ${d.reference}`,
+    }),
+    ru: ({ d, gameCount, firstGame }) => ({
+      subject: gameCount === 1 ? 'Игра из регулярного бронирования отменена' : 'Игры из регулярного бронирования отменены',
+      lead: d.toStaff
+        ? `Игрок отменил регулярное бронирование: ${ruGames(gameCount)}.`
+        : `Отменено в вашем регулярном бронировании: ${ruGames(gameCount)}.`,
+      extra: d.reason ? `Причина: ${d.reason}` : undefined,
+      sms: `Отменено: ${ruGames(gameCount)}, ${firstGame}. ${d.reference}`,
+    }),
+  },
 };
 
-const LABELS: Record<Locale, { reference: string; link: string }> = {
-  en: { reference: 'Reference', link: 'Details' },
-  ru: { reference: 'Номер', link: 'Подробности' },
+const SERIES_EVENTS: readonly NoticeEvent[] = NOTICE_EVENTS.filter((e) => e.startsWith('series_'));
+
+const LABELS: Record<Locale, { reference: string; link: string; more: (n: number) => string; skipped: string; kept: string }> = {
+  en: { reference: 'Reference', link: 'Details', more: (n) => `+${n} more`, skipped: 'Skipped', kept: 'Still booked' },
+  ru: { reference: 'Номер', link: 'Подробности', more: (n) => `ещё ${n}`, skipped: 'Пропущено', kept: 'Остаются в силе' },
 };
 
 /** Renders one event for the recipient's locale. Pure: no DB, no clock, so it is safe to call at delivery time. */
@@ -207,8 +324,24 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
   const dateTime = (iso: string) => plain(fmt({ dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso)));
   const time = (iso: string) => plain(fmt({ timeStyle: 'short' }).format(new Date(iso)));
 
-  const link =
-    event === 'staff_new_pending'
+  const isSeries = SERIES_EVENTS.includes(event);
+  const labels = LABELS[locale];
+  const day = (date: string) => plain(new Intl.DateTimeFormat(locale, { timeZone: 'UTC', dateStyle: 'medium' }).format(new Date(`${date}T00:00:00Z`)));
+  const games = d.games ?? [];
+  const gameLines = [...games.map(dateTime), ...(d.moreGames ? [labels.more(d.moreGames)] : [])].join('\n');
+  const skippedKept = [
+    d.skipped?.length ? `${labels.skipped}:\n${d.skipped.map((s) => `${day(s.date)} - ${CLASH_LABELS[locale][s.reason]}`).join('\n')}` : '',
+    d.kept?.length ? `${labels.kept}:\n${d.kept.map(dateTime).join('\n')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  const staffSeries = event === 'series_requested' || (event === 'series_games_cancelled' && d.toStaff);
+
+  const link = isSeries
+    ? staffSeries
+      ? `${appUrl}/owner/${d.ownerId}/series/${d.seriesId}`
+      : `${appUrl}/me/bookings`
+    : event === 'staff_new_pending'
       ? `${appUrl}/dashboard/bookings/${d.bookingId}`
       : event === 'review_request'
         ? `${appUrl}/me/bookings/${d.bookingId}?review=1`
@@ -222,9 +355,13 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
     holdUntil: d.holdExpiresAt ? time(d.holdExpiresAt) : '',
     money: d.amount ? formatMoney(d.amount, d.currency, locale) : '',
     link,
+    gameLines,
+    gameCount: games.length + (d.moreGames ?? 0) || 1,
+    firstGame: games[0] ? dateTime(games[0]) : dateTime(d.startAt),
+    skippedKept,
   };
   const p = BUILDERS[event][locale](ctx);
-  const labels = LABELS[locale];
-  const text = [p.lead, p.extra, ctx.when, `${labels.reference}: ${d.reference}`, `${labels.link}: ${link}`].filter(Boolean).join('\n\n');
+  const where = isSeries ? `${d.venueName}, ${d.turfName}` : ctx.when;
+  const text = [p.lead, p.extra, where, isSeries ? gameLines : '', isSeries ? skippedKept : '', `${labels.reference}: ${d.reference}`, `${labels.link}: ${link}`].filter(Boolean).join('\n\n');
   return { subject: p.subject, text, sms: `${p.sms} ${link}` };
 }

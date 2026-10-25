@@ -103,7 +103,7 @@ async function closeOpenPayment(booking: BookingDoc, deps: { config: Config; ser
 export async function cancelBooking(
   booking: BookingDoc,
   by: Canceller,
-  input: { reason?: string },
+  input: { reason?: string; notify?: boolean },
   deps: { config: Config; services: AppServices },
 ): Promise<{ booking: BookingDoc; refunds: RefundDoc[] }> {
   const { kind } = by;
@@ -148,9 +148,21 @@ export async function cancelBooking(
         session,
       );
     }
-    await noticeBooking('booking_cancelled', cancelled, now, session, {
-      amount: reserved.reduce((sum, r) => sum + r.amount, 0),
-    });
+    if (input.notify !== false) {
+      if (cancelled.seriesId) {
+        // One notice per cancelled game; a bulk series cancel passes notify:false and sends its own summary.
+        await noticeBooking('series_games_cancelled', cancelled, now, session, {
+          seriesId: String(cancelled.seriesId),
+          games: [cancelled.startAt.toISOString()],
+          toStaff: kind !== 'staff',
+          reason: input.reason ?? null,
+        });
+      } else {
+        await noticeBooking('booking_cancelled', cancelled, now, session, {
+          amount: reserved.reduce((sum, r) => sum + r.amount, 0),
+        });
+      }
+    }
     return reserved;
   });
 

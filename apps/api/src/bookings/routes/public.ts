@@ -15,7 +15,7 @@ import { turfNotFound } from '../../venues/guards';
 import { effectiveForVenue } from '../../venues/effective';
 import { publicVenueBySlug } from '../../venues/routes/public';
 import { Turf } from '../../venues/turf.model';
-import { Booking } from '../booking.model';
+import { Booking, type BookingDoc } from '../booking.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, quoteFor } from '../create';
 import { startIntent } from '../../payments/intent';
@@ -77,6 +77,11 @@ async function guestBooking(reference: string, rawPhone: string, opts: { unowned
   // A walk-in linked to a player carries guest.phone too; only that player may cancel it.
   if (!booking || (opts.unowned && booking.playerId)) throw bookingNotFound();
   return booking;
+}
+
+/** What a guest sees: a review belongs to the signed-in player, never to whoever holds the reference and phone. */
+async function guestBookingJson(b: BookingDoc, now: Date) {
+  return { ...(await playerBookingJson(b, now)), review: null, reviewableUntil: null };
 }
 
 const quoteJson = (q: BookingQuote, currency: string) => ({
@@ -172,13 +177,13 @@ export function publicBookingsRouter(
         ...base,
         who: { playerId: null, guest: { name: g.name, phone }, createdBy: null },
       });
-      res.status(201).json({ booking: await playerBookingJson(booking, services.now()) });
+      res.status(201).json({ booking: await guestBookingJson(booking, services.now()) });
     },
   );
 
   router.get('/bookings/lookup', async (req, res) => {
     const q = lookupQuery.parse(req.query);
-    res.json({ booking: await playerBookingJson(await guestBooking(q.reference, q.phone), services.now()) });
+    res.json({ booking: await guestBookingJson(await guestBooking(q.reference, q.phone), services.now()) });
   });
 
   router.get('/bookings/lookup/cancellation', async (req, res) => {
@@ -203,7 +208,7 @@ export function publicBookingsRouter(
     await previewCancellation(booking, 'guest', services.now());
     await verifyOtp(booking.guest!.phone, 'guest_cancel', q.otpCode, services);
     const out = await cancelBooking(booking, { kind: 'guest', ownerId: String(booking.ownerId) }, { reason: q.reason || undefined }, { config, services });
-    res.json({ booking: await playerBookingJson(out.booking, services.now()), refunds: out.refunds.map(refundJson) });
+    res.json({ booking: await guestBookingJson(out.booking, services.now()), refunds: out.refunds.map(refundJson) });
   });
 
   router.get('/me/bookings', requireAuth(config, services), async (req, res) => {

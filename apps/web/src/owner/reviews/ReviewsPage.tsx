@@ -61,6 +61,9 @@ export function ReviewsPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<unknown>(null);
 
+  // Extra pages belong to one filter set; drop them as soon as the filters change.
+  if (more && more.key !== key) setMore(null);
+
   const setFilter = (name: string, value: string) => {
     const next = new URLSearchParams(params);
     if (value) next.set(name, value);

@@ -193,6 +193,50 @@ describe('owner Reviews page', () => {
     expect(screen.queryByRole('button', { name: R.flag })).toBeNull();
   });
 
+  it('flag reason does not carry over to another review', async () => {
+    const api = mockApi([
+      list([ownerReview(), ownerReview({ id: 'r2', comment: 'Second' })]),
+      { method: 'POST', path: `/owners/${OWNER_ID}/reviews/r2/flag`, body: { review: ownerReview({ id: 'r2', flag: { at: '2026-10-22T10:00:00.000Z', reason: null } }) } },
+      ...owner(),
+    ]);
+    const { user } = renderApp(URL, { user: staffUser });
+    await screen.findByText('Great pitch');
+    await user.click(screen.getAllByRole('button', { name: R.flag })[0]!);
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(R.flagReason), 'Spam');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: R.cancel }));
+    await user.click(screen.getAllByRole('button', { name: R.flag })[1]!);
+    const field = within(screen.getByRole('dialog')).getByLabelText(R.flagReason) as HTMLTextAreaElement;
+    expect(field.value).toBe('');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: R.flagSubmit }));
+    await vi.waitFor(() => expect(api.calls.some((c) => c.method === 'POST')).toBe(true));
+    expect(api.calls.find((c) => c.method === 'POST')!.body).toEqual({});
+  });
+
+  it('returning to a filter after Show more does not keep stale pages', async () => {
+    mockApi([
+      {
+        path: `/owners/${OWNER_ID}/reviews`,
+        body: (call: Call) =>
+          call.query.get('stars') === '5'
+            ? { reviews: [ownerReview({ id: 'r5', comment: 'Perfect' })], nextBefore: null, summary }
+            : call.query.get('before') === 'r1'
+              ? { reviews: [ownerReview({ id: 'r0', comment: 'Older one' })], nextBefore: null, summary }
+              : { reviews: [ownerReview()], nextBefore: 'r1', summary },
+      },
+      ...owner(),
+    ]);
+    const { user } = renderApp(URL, { user: staffUser });
+    await screen.findByText('Great pitch');
+    await user.click(screen.getByRole('button', { name: en.reviews.showMore }));
+    await screen.findByText('Older one');
+    await user.selectOptions(screen.getByLabelText(R.filterStars), '5');
+    await screen.findByText('Perfect');
+    await user.selectOptions(screen.getByLabelText(R.filterStars), '');
+    await screen.findByText('Great pitch');
+    expect(screen.queryByText('Older one')).toBeNull();
+    expect(screen.getByRole('button', { name: en.reviews.showMore })).toBeTruthy();
+  });
+
   it('renders in Russian', async () => {
     await i18n.changeLanguage('ru');
     mockApi([list([ownerReview({ flag: { at: '2026-10-21T10:00:00.000Z', reason: null } })]), ...owner()]);

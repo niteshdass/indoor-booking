@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { REVIEW_FLAG_REASON_MAX } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
@@ -16,6 +16,14 @@ export function FlagDialog({ open, onClose, onSubmit }: FlagDialogProps) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+
+  // The dialog stays mounted, so clear it whenever it closes.
+  useEffect(() => {
+    if (!open) {
+      setReason('');
+      setError(null);
+    }
+  }, [open]);
 
   const close = () => {
     if (busy) return;

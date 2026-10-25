@@ -139,7 +139,16 @@
     "slot_not_found": "No slot starts at that time. Pick one of the turf's slots.",
     "override_too_long": "An extra slot must end by the end of the next day.",
     "price_override_required": "Set a price override: this add-on is priced in a different currency from the venue.",
-    "addon_name_taken": "An add-on with this name already exists."
+    "addon_name_taken": "An add-on with this name already exists.",
+    "already_member": "This person is already a member.",
+    "email_unverified": "That email belongs to an account that has not verified it yet. Ask them to verify it, or use their phone instead.",
+    "role_not_assignable": "The owner role cannot be assigned.",
+    "privilege_escalation": "You can't grant access that you don't have yourself.",
+    "role_in_use": "Reassign the role's members before deleting it.",
+    "cannot_modify_self": "You can't change your own membership.",
+    "owner_membership_locked": "The owner's membership can't be changed.",
+    "role_name_taken": "A role with this name already exists.",
+    "system_role_readonly": "System roles cannot be changed."
   },
   "myBookings": {
     "title": "My bookings",
@@ -941,6 +950,102 @@
         "remove": "Remove",
         "removeLabel": "Remove {{name}}"
       }
+    },
+    "staff": {
+      "title": "Staff",
+      "tab": {
+        "members": "Members",
+        "roles": "Roles"
+      },
+      "noInvite": "No invitation is sent. They sign in with this email or phone to get access.",
+      "allVenues": "All venues",
+      "retry": "Try again",
+      "col": {
+        "name": "Name",
+        "contact": "Email / phone",
+        "role": "Role",
+        "venues": "Venues",
+        "status": "Status",
+        "perms": "Permissions",
+        "membersCount": "Members"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "you": "You",
+      "memberAdd": "Add member",
+      "memberEmpty": "No members yet.",
+      "edit": "Edit",
+      "remove": "Remove",
+      "view": "View",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save",
+      "memberTitleAdd": "Add member",
+      "memberTitleEdit": "Edit {{name}}",
+      "field": {
+        "name": "Name",
+        "contactType": "Contact by",
+        "email": "Email",
+        "phone": "Phone",
+        "role": "Role",
+        "status": "Status",
+        "venueAccess": "Venue access",
+        "allVenues": "All venues",
+        "roleName": "Role name"
+      },
+      "contact": {
+        "email": "Email",
+        "phone": "Phone"
+      },
+      "err": {
+        "name": "Enter a name.",
+        "email": "Enter a valid email address.",
+        "phone": "Enter a phone number.",
+        "venues": "Pick at least one venue.",
+        "role": "Choose a role.",
+        "roleName": "Enter a role name of up to 50 characters.",
+        "perms": "Pick at least one permission."
+      },
+      "roleOutOfReach": "{{name}} (includes access you do not have)",
+      "removeTitle": "Remove {{name}}?",
+      "removeBody": "They lose access to this team immediately.",
+      "removeConfirm": "Remove member",
+      "roleAdd": "Add role",
+      "roleTitleAdd": "Add role",
+      "roleTitleEdit": "Edit role",
+      "roleTitleView": "{{name}} permissions",
+      "system": "System",
+      "roleEmpty": "No roles.",
+      "group": {
+        "bookings": "Bookings",
+        "venues": "Venues",
+        "admin": "Admin"
+      },
+      "cannotGrant": "You don't have this permission, so you can't grant it.",
+      "systemReadonly": "System roles are read-only.",
+      "inUse": "Reassign its members before deleting this role.",
+      "deleteRoleTitle": "Delete {{name}}?",
+      "deleteRoleBody": "The role is removed. It has no members.",
+      "deleteRoleConfirm": "Delete role"
+    },
+    "perm": {
+      "booking_view": "View bookings",
+      "booking_create": "Create bookings",
+      "booking_confirm": "Confirm or reject bookings",
+      "booking_cancel": "Cancel bookings",
+      "booking_checkin": "Check in and mark no-shows",
+      "payment_mark_cash": "Record cash payments",
+      "refund_issue": "Issue refunds",
+      "venue_manage": "Manage venues",
+      "turf_manage": "Manage turfs",
+      "pricing_edit": "Edit pricing",
+      "slot_override": "Override slots and closures",
+      "addon_manage": "Manage add-ons",
+      "staff_manage": "Manage staff and roles",
+      "settings_edit": "Edit settings",
+      "reports_view": "View reports"
     }
   }
 }

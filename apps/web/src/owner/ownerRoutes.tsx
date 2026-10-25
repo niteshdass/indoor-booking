@@ -13,6 +13,7 @@ import { NAV } from './shell/nav';
 import { OwnerShell } from './shell/OwnerShell';
 import { TodayPage } from './today/TodayPage';
 import { SettingsPage } from './settings/SettingsPage';
+import { StaffPage } from './staff/StaffPage';
 import { WalkInPage } from './walkin/WalkInPage';
 import { TurfEditorPage } from './turfs/TurfEditorPage';
 import { VenueEditorPage } from './venues/VenueEditorPage';
@@ -61,7 +62,7 @@ export function OwnerRoutes() {
         <Route path="closures" element={<Guarded nav="closures"><ClosuresPage /></Guarded>} />
         <Route path="addons" element={<Guarded nav="addons"><AddonsPage /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
-        <Route path="staff" element={<Guarded nav="staff"><ComingSoon /></Guarded>} />
+        <Route path="staff" element={<Guarded nav="staff"><StaffPage /></Guarded>} />
         <Route path="activity" element={<Guarded nav="activity"><ComingSoon /></Guarded>} />
       </Route>
     </Routes>

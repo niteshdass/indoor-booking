@@ -81,6 +81,13 @@ describe('pricingFromDraft', () => {
     expect(pricingFromDraft({ base: '1', rules: [d1, { ...d1, allDay: false, start: '10:00', end: '11:00' }] }, 'BDT').ok).toBe(false);
   });
 
+  it('round-trips through the draft for 0, 2 and 3 decimal currencies', () => {
+    for (const [currency, base, price] of [['JPY', 1500, 800], ['BDT', 1050, 5], ['KWD', 1234, 1000]] as const) {
+      const p = { base, rules: [{ kind: 'weekend' as const, price }, { kind: 'date' as const, date: '2026-12-25', range: { start: '18:00', end: '22:00' }, price: base }] };
+      expect(pricingFromDraft(draftFromPricing(p, currency, 'en'), currency)).toEqual({ ok: true, pricing: p });
+    }
+  });
+
   it('rejects an empty base, bad prices, dates and times', () => {
     const res = pricingFromDraft(
       { base: '', rules: [rule({ price: 'abc' }), rule({ kind: 'date', date: '2026-02-30', allDay: false, start: '', end: '10:00' })] },
@@ -176,6 +183,27 @@ describe('turf editor', () => {
     await user.click(within(dialog).getByRole('button', { name: T.deactivate }));
     await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')).toBeTruthy());
     expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({ active: false });
+  });
+
+  it('deactivating from the delete dialog updates the form and a later save does not reactivate', async () => {
+    const { calls } = mockApi([
+      { method: 'DELETE', path: TURF, status: 409, body: { error: { code: 'turf_has_bookings', message: 'x' } } },
+      { method: 'PATCH', path: TURF, body: (c) => ({ turf: turf((c.body as { name?: string }).name ? { name: 'Pitch B', active: false } : { active: false }) }) },
+      { path: TURF, body: { turf: turf() } },
+      ...ownerRoutes({ permissions: [...MANAGE] }),
+    ]);
+    const { user } = renderApp(URL, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: T.delete }));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: T.deleteConfirm }));
+    await user.click(await within(dialog).findByRole('button', { name: T.deactivate }));
+    await waitFor(() => expect((screen.getByLabelText(T.active) as HTMLInputElement).checked).toBe(false));
+    const name = screen.getByLabelText(T.name);
+    await user.clear(name);
+    await user.type(name, 'Pitch B');
+    await user.click(screen.getByRole('button', { name: T.save }));
+    await waitFor(() => expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(2));
+    expect(calls.filter((c) => c.method === 'PATCH')[1]!.body).toEqual({ name: 'Pitch B' });
   });
 
   it('turf delete success returns to the venue turfs tab', async () => {

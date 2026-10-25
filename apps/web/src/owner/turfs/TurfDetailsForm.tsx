@@ -35,6 +35,15 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
   const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState(false);
 
+  /** Takes the server's turf as the new baseline so the draft and the diff agree with it. */
+  const adopt = (next: OwnerTurf) => {
+    setName(next.name);
+    setSports(next.sports);
+    setIndoor(next.indoor);
+    setActive(next.active);
+    onSaved(next);
+  };
+
   const nameError = name.trim().length < 1 || name.trim().length > NAME_MAX ? t('owner.venues.err.turfName') : undefined;
   const sportsError = sports.length === 0 ? t('owner.venues.err.sports') : undefined;
 
@@ -56,7 +65,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
     setBusy(true);
     try {
       const res = await apiPatch<{ turf: OwnerTurf }>(path, body);
-      onSaved(res.turf);
+      adopt(res.turf);
       setDone(true);
     } catch (err) {
       setError(err);
@@ -108,7 +117,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
           </div>
         )}
       </form>
-      {editable && <DeleteTurf turf={turf} path={path} onDeactivated={onSaved} />}
+      {editable && <DeleteTurf turf={turf} path={path} onDeactivated={adopt} />}
     </div>
   );
 }

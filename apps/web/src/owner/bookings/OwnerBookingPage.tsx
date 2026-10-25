@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { AddonLine } from '@booking/shared';
 import { BookingStatusBadge, PaymentStatusBadge } from '../../bookings/BookingStatusBadge';
-import { RefundList } from '../../bookings/RefundList';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -19,6 +18,7 @@ import { useOwnerTitle } from '../shell/OwnerShell';
 import type { BookingDetail, PaymentJson, RefundJson } from '../types';
 import { useResource } from '../useResource';
 import { BookingActions } from './BookingActions';
+import { OwnerRefunds } from './OwnerRefunds';
 import styles from './OwnerBookingPage.module.css';
 
 function addonLabel(a: AddonLine, t: TFunction): string {
@@ -44,6 +44,13 @@ export function OwnerBookingPage() {
       if (data) set({ ...data, booking });
     },
     [data, set],
+  );
+  const paid = useCallback(
+    (booking: BookingDetail['booking']) => {
+      updated(booking);
+      reload();
+    },
+    [updated, reload],
   );
   const cancelled = useCallback(
     (booking: BookingDetail['booking'], refunds: RefundJson[]) => {
@@ -108,6 +115,7 @@ export function OwnerBookingPage() {
       <BookingActions
         booking={b}
         onUpdated={updated}
+        onPaid={paid}
         onCancelled={cancelled}
         onConflict={reload}
       />
@@ -195,7 +203,7 @@ export function OwnerBookingPage() {
         )}
       </section>
 
-      <RefundList refunds={refunds} />
+      <OwnerRefunds refunds={refunds} onChanged={reload} />
     </div>
   );
 }

@@ -122,7 +122,8 @@
     "addon_out_of_stock": "That extra is out of stock for these times.",
     "too_many_slots": "You can book at most 12 slots at once.",
     "invalid_transition": "This booking has changed and can't be updated that way.",
-    "already_paid": "This booking has already been paid in full."
+    "already_paid": "This booking has already been paid in full.",
+    "invalid_amount": "That amount is not valid for this booking."
   },
   "myBookings": {
     "title": "My bookings",
@@ -481,7 +482,9 @@
         "reject": "Reject",
         "cancel": "Cancel booking",
         "checkIn": "Check in",
-        "noShow": "Mark no-show"
+        "noShow": "Mark no-show",
+        "markCash": "Mark cash paid",
+        "paymentLink": "Show payment link"
       },
       "reject": {
         "title": "Reject this booking?",
@@ -497,6 +500,28 @@
       "refund": "Customer refund ({{percent}}%)",
       "toCard": "{{amount}} goes back to the customer's card.",
       "cashHandBack": "Hand back {{amount}} in cash (recorded as a pending cash refund)."
+    },
+    "cash": {
+      "title": "Record a cash payment",
+      "amount": "Amount received",
+      "confirm": "Record payment",
+      "back": "Back",
+      "invalid": "Enter an amount above zero and no more than what is still due."
+    },
+    "link": {
+      "title": "Payment link",
+      "amount": "Amount due",
+      "url": "Link",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "qr": "QR code for the payment link",
+      "close": "Close"
+    },
+    "refunds": {
+      "retry": "Retry refund",
+      "recordCash": "Record as cash",
+      "recordPaidOut": "Record cash paid out",
+      "title": "Settle refunds"
     }
   }
 }

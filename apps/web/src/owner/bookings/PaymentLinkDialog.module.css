@@ -1,0 +1,50 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+/* The library's own black-on-white palette is kept: a scanner needs that contrast in both themes. */
+.qr {
+  align-self: center;
+  width: var(--qr-size);
+  height: var(--qr-size);
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.amount {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-default);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.copyRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.url {
+  flex: 1 1 var(--field-min);
+}
+
+.copied {
+  min-height: var(--space-4);
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--success);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}

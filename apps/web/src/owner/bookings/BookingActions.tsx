@@ -8,8 +8,10 @@ import { errorMessage } from '../../lib/errors';
 import type { CancellationPreview } from '../../lib/types';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
-import type { OwnerBooking, RefundJson } from '../types';
+import type { OwnerBooking, PaymentLink, RefundJson } from '../types';
 import { availableActions } from './availableActions';
+import { CashDialog } from './CashDialog';
+import { PaymentLinkDialog } from './PaymentLinkDialog';
 import { ReasonDialog } from './ReasonDialog';
 import styles from './BookingActions.module.css';
 
@@ -54,18 +56,23 @@ export function useBookingAction(ownerId: string, id: string, onConflict?: () =>
 type Props = {
   booking: OwnerBooking;
   onUpdated(b: OwnerBooking): void;
+  /** A cash payment was recorded: the page shows the new booking and reloads the payments table. */
+  onPaid(b: OwnerBooking): void;
   onCancelled(b: OwnerBooking, refunds: RefundJson[]): void;
   /** A 409 means the booking changed under us: the page reloads it. */
   onConflict(): void;
 };
 
 /** The action buttons and their dialogs for one booking. Buttons disable together while any action is pending. */
-export function BookingActions({ booking, onUpdated, onCancelled, onConflict }: Props) {
+export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConflict }: Props) {
   const { t } = useTranslation();
   const { ownerId, can } = useOwner();
   const { run, pending, error } = useBookingAction(ownerId, booking.id, onConflict);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [cashOpen, setCashOpen] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [link, setLink] = useState<PaymentLink | null>(null);
   const actions = availableActions(booking, can);
   const base = ownerPath(ownerId, `/bookings/${encodeURIComponent(booking.id)}`);
 
@@ -112,8 +119,19 @@ export function BookingActions({ booking, onUpdated, onCancelled, onConflict }: 
                   {t('owner.bookings.actions.noShow')}
                 </Button>
               );
+            case 'markCash':
+              return (
+                <Button key={a} variant="secondary" disabled={pending} onClick={() => setCashOpen(true)}>
+                  {t('owner.bookings.actions.markCash')}
+                </Button>
+              );
+            case 'paymentLink':
+              return (
+                <Button key={a} variant="secondary" disabled={pending} onClick={() => setLinkOpen(true)}>
+                  {t('owner.bookings.actions.paymentLink')}
+                </Button>
+              );
             default:
-              // markCash and paymentLink: Task 9 adds their buttons here.
               return null;
           }
         })}
@@ -129,6 +147,32 @@ export function BookingActions({ booking, onUpdated, onCancelled, onConflict }: 
           if (!b) return;
           setRejectOpen(false);
           onUpdated(b);
+        }}
+      />
+      <CashDialog
+        open={cashOpen}
+        booking={booking}
+        onClose={() => setCashOpen(false)}
+        onConflict={onConflict}
+        onRecorded={(b) => {
+          setCashOpen(false);
+          onPaid(b);
+        }}
+      />
+      <PaymentLinkDialog
+        open={linkOpen}
+        link={link}
+        onClose={() => setLinkOpen(false)}
+        load={async () => {
+          try {
+            const res = await apiPost<{ payment: PaymentLink }>(`${base}/payments/link`, {});
+            setLink(res.payment);
+            return res.payment;
+          } catch (e) {
+            setLink(null);
+            if (e instanceof ApiError && e.status === 409) onConflict();
+            throw e;
+          }
         }}
       />
       <CancelDialog<OwnerBooking>

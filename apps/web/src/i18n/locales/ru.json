@@ -1275,6 +1275,39 @@
     "skipped_many": "Пропущено {{count}} дат",
     "skipped_other": "Пропущено {{count}} даты",
     "previewLabel": "Даты серии",
-    "listPlaceholder": "Список серий скоро появится."
+    "badge": "Серия",
+    "status": {
+      "requested": "Запрос",
+      "active": "Действует",
+      "declined": "Отклонена",
+      "withdrawn": "Отозвана",
+      "cancelled": "Отменена",
+      "ended": "Завершена"
+    },
+    "owner": {
+      "newSeries": "Новая серия",
+      "empty": "Серий пока нет.",
+      "schedule": "Расписание",
+      "dates": "Даты",
+      "games": "Игры",
+      "answerBy": "Ответить до {{when}}",
+      "showMore": "Показать ещё",
+      "back": "Все серии",
+      "notFound": "Такой серии нет.",
+      "details": "Данные серии",
+      "noGames": "В серии нет игр.",
+      "accept": "Принять",
+      "decline": "Отклонить",
+      "declineTitle": "Отклонить серию",
+      "cancelFuture": "Отменить все будущие игры",
+      "cancelFutureTitle_one": "Отменить {{count}} игру?",
+      "cancelFutureTitle_few": "Отменить {{count}} игры?",
+      "cancelFutureTitle_many": "Отменить {{count}} игр?",
+      "cancelFutureTitle_other": "Отменить {{count}} игры?",
+      "cancelFutureConfirm": "Отменить игры",
+      "cancelGame": "Отменить игру",
+      "skippedTitle": "Пропущенные даты",
+      "kept": "Не удалось отменить: {{dates}}"
+    }
   }
 }

@@ -1,16 +1,15 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CancelDialog } from '../../bookings/CancelDialog';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { apiGet, apiPost, ApiError } from '../../lib/apiClient';
+import { apiPost, ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import type { CancellationPreview } from '../../lib/types';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerBooking, PaymentLink, RefundJson } from '../types';
 import { availableActions } from './availableActions';
 import { CashDialog } from './CashDialog';
+import { OwnerCancelDialog } from './OwnerCancelDialog';
 import { PaymentLinkDialog } from './PaymentLinkDialog';
 import { ReasonDialog } from './ReasonDialog';
 import styles from './BookingActions.module.css';
@@ -175,12 +174,10 @@ export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConf
           }
         }}
       />
-      <CancelDialog<OwnerBooking>
-        audience="staff"
+      <OwnerCancelDialog
+        bookingId={booking.id}
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
-        loadPreview={() => apiGet<{ preview: CancellationPreview }>(`${base}/cancellation`).then((r) => r.preview)}
-        cancel={(reason) => apiPost<{ booking: OwnerBooking; refunds: RefundJson[] }>(`${base}/cancel`, reason ? { reason } : {})}
         onCancelled={(b, refunds) => {
           setCancelOpen(false);
           onCancelled(b, refunds);

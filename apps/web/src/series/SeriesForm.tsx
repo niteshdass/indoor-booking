@@ -4,6 +4,7 @@ import { SERIES_MAX_GAMES, MAX_SLOTS_PER_BOOKING, WEEKDAYS, type Weekday } from 
 import { Select } from '../components/ui/Select';
 import { TextField } from '../components/ui/TextField';
 import styles from './series.module.css';
+import { weekdayName } from './weekdays';
 import type { SeriesPattern } from './types';
 
 export type SeriesFormProps = {
@@ -23,9 +24,6 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
   const [countDraft, setCountDraft] = useState<string | null>(null);
   const mode: 'date' | 'count' = value.count !== null ? 'count' : 'date';
   const set = (patch: Partial<SeriesPattern>) => onChange({ ...value, ...patch });
-  const dayName = (index: number) =>
-    // 2024-01-01 is a Monday; index walks Mon..Sun.
-    new Intl.DateTimeFormat(i18n.language, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, 0, 1 + index)));
 
   const toggle = (day: Weekday) => {
     const on = value.weekdays.includes(day);
@@ -58,7 +56,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
               aria-pressed={value.weekdays.includes(day)}
               onClick={() => toggle(day)}
             >
-              {dayName(i)}
+              {weekdayName(i18n.language, i)}
             </button>
           ))}
         </div>

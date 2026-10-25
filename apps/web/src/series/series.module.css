@@ -130,3 +130,8 @@
   font-weight: var(--weight-regular);
   color: var(--text-muted);
 }
+
+.badgeLink {
+  display: inline-flex;
+  text-decoration: none;
+}

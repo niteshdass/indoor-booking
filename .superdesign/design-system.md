@@ -93,6 +93,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
 - Badges: pill, 12px/500, soft bg + fg from status colors; neutral badge uses subtle bg + muted text.
   - Booking status: confirmed = success, pending payment = warning, cancelled = danger, completed = neutral, refunded = info.
   - Member status: active = success, invited = info, disabled = neutral.
+  - Series status: requested = warning, active = success, declined and cancelled = danger, withdrawn and ended = neutral. The "Series" marker on a booking is an info badge; it links to the series except inside a schedule block.
 - Cards: surface bg, 1px border, xs shadow.
 - Tables: header 12px/500 muted, sentence case (no uppercase), rows separated by 1px subtle border, hover = subtle bg.
 - Sidebar nav: 14px/500 items, 36px tall, active = subtle bg + strong text, inactive = muted text.

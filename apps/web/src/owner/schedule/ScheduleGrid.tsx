@@ -1,6 +1,7 @@
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { BOOKING_TONE } from '../../bookings/BookingStatusBadge';
+import { SeriesBadge } from '../../series/SeriesBadge';
 import { formatTime, money } from '../../lib/format';
 import { customerLabel } from '../customerLabel';
 import type { OwnerBooking, OwnerSlot } from '../types';
@@ -131,6 +132,11 @@ function BookingBlock({
         </span>
         <span className={styles.name}>{customerLabel(booking, t)}</span>
         <span className={styles.state}>{t(`status.${booking.status}`)}</span>
+        {booking.seriesId && (
+          <span className={styles.state}>
+            <SeriesBadge />
+          </span>
+        )}
       </span>
     </Link>
   );

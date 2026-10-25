@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { Table } from '../../components/ui/Table';
+import { SeriesBadge } from '../../series/SeriesBadge';
 import { ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
@@ -110,6 +111,7 @@ export function OwnerBookingPage() {
         <div className={styles.badges}>
           <BookingStatusBadge status={b.status} />
           <PaymentStatusBadge status={b.paymentStatus} />
+          {b.seriesId && <SeriesBadge href={`/owner/${encodeURIComponent(ownerId)}/series/${encodeURIComponent(b.seriesId)}`} />}
         </div>
       </header>
 

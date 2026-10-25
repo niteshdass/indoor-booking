@@ -1255,6 +1255,37 @@
     "skipped_one": "{{count}} date skipped",
     "skipped_other": "{{count}} dates skipped",
     "previewLabel": "Dates in this series",
-    "listPlaceholder": "Series list is coming soon."
+    "badge": "Series",
+    "status": {
+      "requested": "Requested",
+      "active": "Active",
+      "declined": "Declined",
+      "withdrawn": "Withdrawn",
+      "cancelled": "Cancelled",
+      "ended": "Ended"
+    },
+    "owner": {
+      "newSeries": "New series",
+      "empty": "No series yet.",
+      "schedule": "Schedule",
+      "dates": "Dates",
+      "games": "Games",
+      "answerBy": "Answer by {{when}}",
+      "showMore": "Show more",
+      "back": "All series",
+      "notFound": "This series does not exist.",
+      "details": "Series details",
+      "noGames": "No games in this series.",
+      "accept": "Accept",
+      "decline": "Decline",
+      "declineTitle": "Decline this series",
+      "cancelFuture": "Cancel all future games",
+      "cancelFutureTitle_one": "Cancel {{count}} game?",
+      "cancelFutureTitle_other": "Cancel {{count}} games?",
+      "cancelFutureConfirm": "Cancel games",
+      "cancelGame": "Cancel this game",
+      "skippedTitle": "Skipped dates",
+      "kept": "Could not cancel: {{dates}}"
+    }
   }
 }

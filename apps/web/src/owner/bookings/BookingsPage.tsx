@@ -9,6 +9,7 @@ import { Select } from '../../components/ui/Select';
 import { Spinner } from '../../components/ui/Spinner';
 import { Table } from '../../components/ui/Table';
 import { TextField } from '../../components/ui/TextField';
+import { SeriesBadge } from '../../series/SeriesBadge';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
 import { useOwner } from '../OwnerProvider';
@@ -162,6 +163,11 @@ function BookingsList({ venue, filters }: { venue: OwnerVenue; filters: BookingF
                     <Link to={encodeURIComponent(b.id)} className={styles.link}>
                       {b.reference}
                     </Link>
+                    {b.seriesId && (
+                      <span className={styles.time}>
+                        <SeriesBadge href={`/owner/${encodeURIComponent(ownerId)}/series/${encodeURIComponent(b.seriesId)}`} />
+                      </span>
+                    )}
                   </td>
                   <td>
                     {formatDate(b.businessDate, venue.timezone, lang)}

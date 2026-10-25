@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Route, Routes } from 'react-router';
 import { ActivityPage } from './activity/ActivityPage';
 import { AddonsPage } from './addons/AddonsPage';
@@ -12,11 +11,13 @@ import { ClosuresPage } from './schedule/ClosuresPage';
 import { ReviewsPage } from './reviews/ReviewsPage';
 import { SchedulePage } from './schedule/SchedulePage';
 import { NAV } from './shell/nav';
-import { OwnerShell, useOwnerTitle } from './shell/OwnerShell';
+import { OwnerShell } from './shell/OwnerShell';
 import { TodayPage } from './today/TodayPage';
 import { SettingsPage } from './settings/SettingsPage';
 import { StaffPage } from './staff/StaffPage';
 import { NewSeriesPage } from './series/NewSeriesPage';
+import { SeriesDetailPage } from './series/SeriesDetailPage';
+import { SeriesListPage } from './series/SeriesListPage';
 import { WalkInPage } from './walkin/WalkInPage';
 import { TurfEditorPage } from './turfs/TurfEditorPage';
 import { VenueEditorPage } from './venues/VenueEditorPage';
@@ -32,13 +33,6 @@ function Guarded({ nav, perm, any, children }: { nav?: string; perm?: Permission
       {children}
     </RequirePermission>
   );
-}
-
-/** Stands in until the series list ships. */
-function SeriesPlaceholder() {
-  const { t } = useTranslation();
-  useOwnerTitle(t('series.title'));
-  return <p>{t('series.listPlaceholder')}</p>;
 }
 
 /** The `/owner/*` tree. */
@@ -60,7 +54,8 @@ export function OwnerRoutes() {
         <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><OwnerBookingPage /></Guarded>} />
         <Route path="walk-in" element={<Guarded nav="walk-in"><WalkInPage /></Guarded>} />
         <Route path="series/new" element={<Guarded perm={['booking.create']}><NewSeriesPage /></Guarded>} />
-        <Route path="series" element={<Guarded nav="series"><SeriesPlaceholder /></Guarded>} />
+        <Route path="series/:seriesId" element={<Guarded perm={['booking.view']}><SeriesDetailPage /></Guarded>} />
+        <Route path="series" element={<Guarded nav="series"><SeriesListPage /></Guarded>} />
         <Route path="venues" element={<Guarded nav="venues"><VenuesPage /></Guarded>} />
         {/* Any member may open these; the pages go read-only without edit permissions. */}
         <Route path="venues/new" element={<Guarded><VenueEditorPage /></Guarded>} />

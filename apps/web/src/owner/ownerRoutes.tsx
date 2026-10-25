@@ -11,6 +11,8 @@ import { NAV } from './shell/nav';
 import { OwnerShell } from './shell/OwnerShell';
 import { TodayPage } from './today/TodayPage';
 import { WalkInPage } from './walkin/WalkInPage';
+import { VenueEditorPage } from './venues/VenueEditorPage';
+import { VenuesPage } from './venues/VenuesPage';
 import type { Permission } from './types';
 
 function ComingSoon() {
@@ -47,10 +49,10 @@ export function OwnerRoutes() {
         <Route path="bookings" element={<Guarded nav="bookings"><BookingsPage /></Guarded>} />
         <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><OwnerBookingPage /></Guarded>} />
         <Route path="walk-in" element={<Guarded nav="walk-in"><WalkInPage /></Guarded>} />
-        <Route path="venues" element={<Guarded nav="venues"><ComingSoon /></Guarded>} />
+        <Route path="venues" element={<Guarded nav="venues"><VenuesPage /></Guarded>} />
         {/* Any member may open these; the pages go read-only without edit permissions. */}
-        <Route path="venues/new" element={<Guarded><ComingSoon /></Guarded>} />
-        <Route path="venues/:venueId" element={<Guarded><ComingSoon /></Guarded>} />
+        <Route path="venues/new" element={<Guarded><VenueEditorPage /></Guarded>} />
+        <Route path="venues/:venueId" element={<Guarded><VenueEditorPage /></Guarded>} />
         <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><ComingSoon /></Guarded>} />
         <Route path="closures" element={<Guarded nav="closures"><ComingSoon /></Guarded>} />
         <Route path="addons" element={<Guarded nav="addons"><ComingSoon /></Guarded>} />

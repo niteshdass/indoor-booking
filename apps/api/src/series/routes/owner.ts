@@ -18,6 +18,7 @@ import { walkinPlayerId } from '../../bookings/routes/owner';
 import { transition } from '../../bookings/transition';
 import { bookSeries, seriesAvailability } from '../engine';
 import { cancelFutureGames } from '../cancelFuture';
+import { declineSeriesGames } from '../decline';
 import { ownerSeriesSchema, reasonSchema, seriesPatternSchema } from '../schemas';
 import { RecurringSeries, seriesJson, type SeriesDoc } from '../series.model';
 
@@ -160,14 +161,16 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
         { session, new: true },
       );
       if (!moved) throw notRequested();
-      const pending = await Booking.find({ ownerId: t.ownerId, seriesId: series._id, status: 'pending' })
-        .sort({ startAt: 1 })
-        .session(session);
-      const games: BookingDoc[] = [];
-      // One act on the whole series: the series row below is its only activity record.
-      for (const g of pending) {
-        const extra = accept ? {} : { rejectReason: reason };
-        games.push(await transition(t, g, accept ? 'confirmed' : 'rejected', now, session, extra, {}, { log: false }));
+      let games: BookingDoc[];
+      if (accept) {
+        const pending = await Booking.find({ ownerId: t.ownerId, seriesId: series._id, status: 'pending' })
+          .sort({ startAt: 1 })
+          .session(session);
+        games = [];
+        // One act on the whole series: the series row below is its only activity record.
+        for (const g of pending) games.push(await transition(t, g, 'confirmed', now, session, {}, {}, { log: false }));
+      } else {
+        games = await declineSeriesGames(series, t, { rejectReason: reason, noticeReason: reason }, now, session);
       }
       await logActivity(
         t,
@@ -182,11 +185,10 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
         now,
         session,
       );
-      if (games.length > 0) {
-        await noticeBooking(accept ? 'series_accepted' : 'series_declined', games[0]!, now, session, {
+      if (accept && games.length > 0) {
+        await noticeBooking('series_accepted', games[0]!, now, session, {
           seriesId: series.id as string,
           games: games.map((g) => g.startAt.toISOString()),
-          ...(accept ? {} : { reason }),
         });
       }
       return moved;

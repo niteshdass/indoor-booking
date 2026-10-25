@@ -114,6 +114,22 @@ describe('autoDeclineSeries', () => {
     expect(await notices('series_declined')).toHaveLength(1);
   });
 
+  it('the notice carries the skipped dates', async () => {
+    const startAt = new Date('2026-01-13T12:00:00Z'); // 18:00 Dhaka
+    const endAt = new Date(startAt.getTime() + 3_600_000);
+    const b = await Booking.create({
+      ownerId: owner.ownerId, venueId, turfId, reference: 'RSKIP0001', businessDate: '2026-01-13', startAt, endAt,
+      slots: [{ startAt, endAt, price: 1000 }], currency: 'BDT', subtotal: 1000, addonsTotal: 0, total: 1000,
+      advanceRequired: 0, status: 'confirmed', paymentStatus: 'unpaid', source: 'online',
+      guest: { name: 'Other', phone: '+8801722222222' }, policySnapshot: { paymentPolicy: { type: 'none' }, refundRules: [] },
+    });
+    await SlotLock.create({ ownerId: owner.ownerId, turfId, startAt, bookingId: b._id });
+    const { seriesId } = await seedSeries();
+    expect(await autoDeclineSeries((await seriesOf(seriesId)).respondBy!)).toBe(1);
+    const rows = await notices('series_declined');
+    expect(rows[0]!.data).toMatchObject({ skipped: [{ date: '2026-01-13', reason: 'taken' }] });
+  });
+
   it('accept vs auto-decline race leaves one outcome', async () => {
     const { seriesId } = await seedSeries();
     const respondBy = (await seriesOf(seriesId)).respondBy!;

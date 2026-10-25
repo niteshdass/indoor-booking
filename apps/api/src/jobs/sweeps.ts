@@ -7,6 +7,7 @@ import { Payment } from '../bookings/payment.model';
 import { transition, type Actor } from '../bookings/transition';
 import { logSystemActivity } from '../tenancy/activityLog.model';
 import { noticeBooking } from '../notifications/outbox';
+import { declineSeriesGames } from '../series/decline';
 import { RecurringSeries, type SeriesDoc } from '../series/series.model';
 import { ownerSettings } from '../venues/effective';
 import { lockTurf } from '../venues/guards';
@@ -30,58 +31,69 @@ const HOUR = 60 * MIN;
 
 const system = (b: BookingDoc): Actor => ({ ownerId: String(b.ownerId), userId: null });
 
+type Row = { _id: unknown };
+/** Reads one page: the rows matching the filter, in `sort` order, at most `limit`. */
+type PageReader<T> = (filter: FilterQuery<T>, sort: Record<string, 1>, limit: number) => PromiseLike<T[]>;
+
 /**
- * Runs `step` for each booking in its own transaction and counts those it reports as done. A booking
- * whose status moved on since it was selected (a 409 from transition) is skipped quietly; any other
- * throw is logged and the sweep goes on.
+ * Runs `step` for each row in its own transaction and counts those it reports as done. A row whose
+ * status moved on since it was selected (a 409 from transition) is skipped quietly; any other throw
+ * is logged and the sweep goes on.
  */
-async function eachBooking(
+async function eachRow<T extends Row>(
   name: string,
-  bookings: BookingDoc[],
-  step: (b: BookingDoc, session: ClientSession) => Promise<boolean>,
+  rows: T[],
+  step: (row: T, session: ClientSession) => Promise<boolean>,
 ): Promise<number> {
   let done = 0;
-  for (const b of bookings) {
+  for (const row of rows) {
     try {
-      if (await runInTransaction((session) => step(b, session))) done += 1;
+      if (await runInTransaction((session) => step(row, session))) done += 1;
     } catch (err) {
       if (err instanceof AppError && err.code === 'invalid_transition') continue;
-      console.error(`[jobs] ${name} of ${String(b._id)} failed`, err);
+      console.error(`[jobs] ${name} of ${String(row._id)} failed`, err);
     }
   }
   return done;
 }
 
-type SortKey = 'holdExpiresAt' | 'startAt' | 'endAt' | 'completedAt';
-
 /**
- * Walks every booking matching `filter` in pages of `sweepConfig.batch`, keyset-paginated on
+ * Walks every row of `model` matching `filter` in pages of `sweepConfig.batch`, keyset-paginated on
  * (`key`, _id), so rows a sweep selects but leaves alone never hold back the ones behind them.
- * `pick` narrows each page to the bookings to act on; `step` runs per booking as in eachBooking.
+ * `pick` narrows each page to the rows to act on; `step` runs per row as in eachRow.
  */
-async function sweep(
+async function sweepModel<T extends Row, K extends string>(
+  read: PageReader<T>,
   name: string,
-  filter: FilterQuery<BookingDoc>,
-  key: SortKey,
-  step: (b: BookingDoc, session: ClientSession) => Promise<boolean>,
-  pick: (page: BookingDoc[]) => Promise<BookingDoc[]> | BookingDoc[] = (page) => page,
+  filter: FilterQuery<T>,
+  key: K,
+  step: (row: T, session: ClientSession) => Promise<boolean>,
+  pick: (page: T[]) => Promise<T[]> | T[] = (page) => page,
 ): Promise<number> {
   const batch = sweepConfig.batch;
   let done = 0;
-  let after: BookingDoc | undefined;
+  let after: T | undefined;
   for (;;) {
-    const past = after
-      ? { $or: [{ [key]: { $gt: after[key] } }, { [key]: after[key], _id: { $gt: after._id } }] }
-      : {};
-    const page = await Booking.find({ $and: [filter, past] })
-      .setOptions(cross)
-      .sort({ [key]: 1, _id: 1 })
-      .limit(batch);
-    done += await eachBooking(name, await pick(page), step);
+    const keyOf = (r: T) => (r as Record<string, unknown>)[key];
+    const past = after ? { $or: [{ [key]: { $gt: keyOf(after) } }, { [key]: keyOf(after), _id: { $gt: after._id } }] } : {};
+    const page: T[] = await read({ $and: [filter, past] }, { [key]: 1, _id: 1 }, batch);
+    done += await eachRow(name, await pick(page), step);
     if (page.length < batch) return done;
     after = page[page.length - 1];
   }
 }
+
+type SortKey = 'holdExpiresAt' | 'startAt' | 'endAt' | 'completedAt';
+
+const sweep = (
+  name: string,
+  filter: FilterQuery<BookingDoc>,
+  key: SortKey,
+  step: (b: BookingDoc, session: ClientSession) => Promise<boolean>,
+  pick?: (page: BookingDoc[]) => Promise<BookingDoc[]> | BookingDoc[],
+) => sweepModel<BookingDoc, SortKey>(
+    (f, sort, limit) => Booking.find(f).setOptions(cross).sort(sort).limit(limit),
+    name, filter, key, step, pick);
 
 /** Expires lapsed payment holds and frees their slots. The payment and its intent stay for the late-payment path. */
 export async function expireHolds(now: Date): Promise<number> {
@@ -205,35 +217,14 @@ export async function sendReviewRequests(now: Date): Promise<number> {
 
 type SeriesSortKey = 'respondBy' | 'lastEndAt';
 
-/** Keyset-pages the series matching `filter` on (`key`, _id) and runs `step` per series in its own transaction; a throw is logged and skipped. */
-async function sweepSeries(
+const sweepSeries = (
   name: string,
   filter: FilterQuery<SeriesDoc>,
   key: SeriesSortKey,
   step: (s: SeriesDoc, session: ClientSession) => Promise<boolean>,
-): Promise<number> {
-  const batch = sweepConfig.batch;
-  let done = 0;
-  let after: SeriesDoc | undefined;
-  for (;;) {
-    const past = after
-      ? { $or: [{ [key]: { $gt: after[key] } }, { [key]: after[key], _id: { $gt: after._id } }] }
-      : {};
-    const page = await RecurringSeries.find({ $and: [filter, past] })
-      .setOptions(cross)
-      .sort({ [key]: 1, _id: 1 })
-      .limit(batch);
-    for (const s of page) {
-      try {
-        if (await runInTransaction((session) => step(s, session))) done += 1;
-      } catch (err) {
-        console.error(`[jobs] ${name} of ${String(s._id)} failed`, err);
-      }
-    }
-    if (page.length < batch) return done;
-    after = page[page.length - 1];
-  }
-}
+) => sweepModel<SeriesDoc, SeriesSortKey>(
+    (f, sort, limit) => RecurringSeries.find(f).setOptions(cross).sort(sort).limit(limit),
+    name, filter, key, step);
 
 /**
  * Declines series requests nobody answered by respondBy, with their pending games. The conditional
@@ -249,11 +240,13 @@ export async function autoDeclineSeries(now: Date): Promise<number> {
       { session, new: true },
     ).setOptions(cross);
     if (!moved) return false;
-    const pending = await Booking.find({ ownerId: s.ownerId, seriesId: s._id, status: 'pending' }).sort({ startAt: 1 }).session(session);
-    const games: BookingDoc[] = [];
-    for (const g of pending) {
-      games.push(await transition(system(g), g, 'rejected', now, session, { rejectReason: AUTO_REJECT_REASON }, {}, { log: false }));
-    }
+    const games = await declineSeriesGames(
+      s,
+      { ownerId, userId: null },
+      { rejectReason: AUTO_REJECT_REASON, noticeReason: null, auto: true },
+      now,
+      session,
+    );
     await logSystemActivity(
       ownerId,
       {
@@ -267,14 +260,6 @@ export async function autoDeclineSeries(now: Date): Promise<number> {
       now,
       session,
     );
-    if (games.length > 0) {
-      await noticeBooking('series_declined', games[0]!, now, session, {
-        seriesId: String(s._id),
-        games: games.map((g) => g.startAt.toISOString()),
-        reason: null,
-        autoRejected: true,
-      });
-    }
     return true;
   });
 }

@@ -358,6 +358,14 @@ describe('owner series: answering', () => {
     expect((await post(`/series/${seriesId}/decline`, staff.token)).status).toBe(403);
   });
 
+  it('decline notice carries the skipped dates', async () => {
+    await seedBooking(TUE[1]!, '18:00');
+    const { seriesId } = await seedRequest();
+    expect((await post(`/series/${seriesId}/decline`, a.token)).status).toBe(200);
+    const rows = await notices();
+    expect(rows[0]!.data).toMatchObject({ skipped: [{ date: TUE[1], reason: 'taken' }] });
+  });
+
   it('decline rejects every game with the reason and frees the slots', async () => {
     const { seriesId, gameIds } = await seedRequest();
     const res = await post(`/series/${seriesId}/decline`, a.token, { reason: 'Турнир' });

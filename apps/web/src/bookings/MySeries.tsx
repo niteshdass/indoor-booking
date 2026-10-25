@@ -8,13 +8,11 @@ import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { formatDate, formatDateTime, formatTime } from '../lib/format';
 import { SeriesStatusBadge } from '../series/SeriesBadge';
+import { nextGames } from '../series/nextGames';
 import type { PlayerSeries, SeriesJson } from '../series/types';
 import { weekdayList } from '../series/weekdays';
 import { BookingStatusBadge } from './BookingStatusBadge';
 import styles from './MySeries.module.css';
-
-/** Games that are still alive; a player can cancel these. */
-const OPEN_GAME = new Set(['pending', 'awaiting_payment', 'confirmed']);
 
 type CancelResult = { series: SeriesJson; cancelled: string[]; kept: { id: string; code: string }[] };
 
@@ -55,7 +53,7 @@ function SeriesCard({ series, onChanged }: { series: PlayerSeries; onChanged: ()
 
   const games = [...series.games].sort((a, b) => a.startAt.localeCompare(b.startAt));
   const now = Date.now();
-  const next = games.filter((g) => OPEN_GAME.has(g.status) && Date.parse(g.endAt) > now);
+  const next = nextGames(series.games, now);
   const cancellable = next.filter((g) => Date.parse(g.startAt) > now);
   const first = games[0];
   const time = first

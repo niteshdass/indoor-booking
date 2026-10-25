@@ -1342,7 +1342,8 @@
       "cancelled_few": "Отменено {{count}} игры.",
       "cancelled_many": "Отменено {{count}} игр.",
       "cancelled_other": "Отменено {{count}} игры.",
-      "kept": "Не удалось отменить: {{dates}}"
+      "kept": "Не удалось отменить: {{dates}}",
+      "sentNoDate": "Запрос отправлен."
     }
   }
 }

@@ -6,6 +6,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { apiGet } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson } from '../lib/types';
+import { nextGames } from '../series/nextGames';
 import type { PlayerSeries } from '../series/types';
 import { BookingRow } from './BookingRow';
 import { MySeries } from './MySeries';
@@ -52,7 +53,8 @@ export function MyBookingsPage() {
   const refresh = useCallback(() => {
     fetchAll().then(
       ([b, s]) => setState({ status: 'ready', bookings: b.bookings, series: s.series }),
-      () => undefined,
+      // A failed reload must not leave the stale card's actions usable: show the page error with retry instead.
+      (error) => setState({ status: 'error', error }),
     );
   }, [fetchAll]);
 
@@ -61,10 +63,10 @@ export function MyBookingsPage() {
     const ps: BookingJson[] = [];
     if (state.status === 'ready') {
       const now = Date.now();
-      const inSeries = new Set(state.series.map((s) => s.id));
+      // Only the games a series card lists under "Next games" leave the single list; past, cancelled and rejected ones stay.
+      const onCard = new Set(state.series.flatMap((s) => nextGames(s.games, now).map((g) => g.id)));
       for (const b of state.bookings) {
-        // Games of a listed series live on its card.
-        if (b.seriesId && inSeries.has(b.seriesId)) continue;
+        if (onCard.has(b.id)) continue;
         const isUp = b.slots.length > 0 && UPCOMING_STATUSES.has(b.status) && endMs(b) > now;
         (isUp ? up : ps).push(b);
       }

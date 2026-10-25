@@ -1312,7 +1312,8 @@
       "keep": "Keep games",
       "cancelled_one": "{{count}} game cancelled.",
       "cancelled_other": "{{count}} games cancelled.",
-      "kept": "Could not cancel: {{dates}}"
+      "kept": "Could not cancel: {{dates}}",
+      "sentNoDate": "Request sent."
     }
   }
 }

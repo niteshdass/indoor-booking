@@ -83,7 +83,9 @@ function Request({ venue }: { venue: PublicVenue }) {
     return (
       <div className={styles.sent}>
         <Alert tone="success">
-          {t('series.player.sent', { when: sent.respondBy ? formatDateTime(sent.respondBy, venue.timezone, lang) : '' })}
+          {sent.respondBy
+            ? t('series.player.sent', { when: formatDateTime(sent.respondBy, venue.timezone, lang) })
+            : t('series.player.sentNoDate')}
         </Alert>
         <Button to="/me/bookings" variant="brand" size="lg">
           {t('series.player.toBookings')}

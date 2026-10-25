@@ -145,4 +145,17 @@ describe('request weekly booking', () => {
     await user.click(screen.getByRole('button', { name: ru.series.check }));
     expect(await screen.findByRole('button', { name: ru.series.player.send })).toBeInTheDocument();
   });
+
+  it('confirms without a date when the venue gave no answer-by time', async () => {
+    mockApi([
+      ...baseRoutes(),
+      { method: 'POST', path: PREVIEW, body: { preview: seriesPreview() } },
+      { method: 'POST', path: CREATE, status: 201, body: { series: seriesJson({ status: 'requested', respondBy: null }) } },
+    ]);
+    const { user } = renderApp(URL, { user: player });
+    await waitFor(() => expect(screen.getByLabelText(en.series.startTime)).toHaveValue('10:00'));
+    await user.click(screen.getByRole('button', { name: en.series.check }));
+    await user.click(await screen.findByRole('button', { name: en.series.player.send }));
+    expect(await screen.findByText(en.series.player.sentNoDate)).toBeInTheDocument();
+  });
 });

@@ -59,17 +59,13 @@ export function ReviewDialog({ open, onClose, bookingPath, review, onSaved }: Re
       {open && (
         <div className={styles.body}>
           <StarInput name="review-stars" legend={t('reviews.stars')} value={stars} onChange={setStars} />
-          <div>
-            <Textarea
-              label={t('reviews.comment')}
-              value={comment}
-              maxLength={REVIEW_COMMENT_MAX}
-              onChange={(e) => setComment(e.target.value)}
-            />
-            <p className={styles.counter} aria-live="off">
-              {t('reviews.count', { n: comment.length })}
-            </p>
-          </div>
+          <Textarea
+            label={t('reviews.comment')}
+            hint={t('reviews.count', { n: comment.length })}
+            value={comment}
+            maxLength={REVIEW_COMMENT_MAX}
+            onChange={(e) => setComment(e.target.value)}
+          />
           {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
           <div className={styles.actions}>
             <Button variant="secondary" disabled={submitting} onClick={onClose}>

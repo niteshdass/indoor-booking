@@ -76,12 +76,13 @@ describe('player review', () => {
     expect(submit).toBeDisabled();
     await user.click(within(dialog).getByRole('radio', { name: '4 stars' }));
     await user.type(within(dialog).getByLabelText(en.reviews.comment), 'Nice');
-    expect(within(dialog).getByText('4/1000')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(en.reviews.comment)).toHaveAccessibleDescription('4/1000');
     await user.click(submit);
     expect(await screen.findByText('Nice')).toBeInTheDocument();
     expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({ stars: 4, comment: 'Nice' });
     expect(screen.getByRole('img', { name: i18n.t('reviews.starsLabel', { value: 4 }) })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: en.reviews.rate })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
   });
 
   it('?review=1 opens the dialog', async () => {
@@ -94,6 +95,13 @@ describe('player review', () => {
     mockApi([{ path: '/me/bookings/b1', body: { booking: booking({ reviewableUntil: null }), refunds: [] } }]);
     renderApp('/me/bookings/b1?review=1', { user: player });
     await screen.findByText('Arena One');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('?review=1 does not open when already reviewed', async () => {
+    mockApi([{ path: '/me/bookings/b1', body: { booking: booking({ reviewableUntil: null, review: review() as never }), refunds: [] } }]);
+    renderApp('/me/bookings/b1?review=1', { user: player });
+    await screen.findByText('Nice');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
@@ -117,6 +125,8 @@ describe('player review', () => {
     await user.click(within(dialog).getByRole('button', { name: en.reviews.deleteConfirm }));
     await vi.waitFor(() => expect(api.calls.some((c) => c.method === 'DELETE')).toBe(true));
     await vi.waitFor(() => expect(screen.queryByText('Nice')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: en.reviews.rate })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveFocus();
   });
 
   it('a locked review has no edit or delete', async () => {
@@ -178,9 +188,9 @@ describe('player review', () => {
         },
       },
     ]);
-    renderApp('/me/bookings', { user: player });
+    const { user } = renderApp('/me/bookings', { user: player });
     await screen.findByRole('tabpanel');
-    await (await import('@testing-library/user-event')).default.setup().click(screen.getByRole('tab', { name: en.myBookings.past }));
+    await user.click(screen.getByRole('tab', { name: en.myBookings.past }));
     const links = within(screen.getByRole('tabpanel')).getAllByRole('link');
     expect(within(links[0]!).getByText(en.reviews.rateCue)).toBeInTheDocument();
     expect(within(links[1]!).getByRole('img', { name: i18n.t('reviews.starsLabel', { value: 3 }) })).toBeInTheDocument();

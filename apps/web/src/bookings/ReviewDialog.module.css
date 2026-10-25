@@ -4,14 +4,6 @@
   gap: var(--space-4);
 }
 
-.counter {
-  align-self: flex-end;
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;

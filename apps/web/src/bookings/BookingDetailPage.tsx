@@ -43,6 +43,7 @@ export function BookingDetailPage() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const askedForReview = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  // Bumped whenever the control that opened a dialog unmounts (cancel, first review, review deleted), to refocus the heading.
   const [cancelledAt, setCancelledAt] = useState(0);
   const path = `/me/bookings/${encodeURIComponent(id)}`;
 
@@ -173,7 +174,10 @@ export function BookingDetailPage() {
               review={booking.review}
               bookingPath={path}
               onEdit={() => setReviewOpen(true)}
-              onDeleted={() => setState({ status: 'ready', booking: { ...booking, review: null, reviewableUntil: null } })}
+              onDeleted={() => {
+                setState({ status: 'ready', booking: { ...booking, review: null, reviewableUntil: null } });
+                setCancelledAt((n) => n + 1);
+              }}
             />
           )}
           {(reviewable || booking.review) && (
@@ -185,6 +189,7 @@ export function BookingDetailPage() {
               onSaved={(review) => {
                 setState({ status: 'ready', booking: { ...booking, review, reviewableUntil: null } });
                 setReviewOpen(false);
+                if (!booking.review) setCancelledAt((n) => n + 1);
               }}
             />
           )}

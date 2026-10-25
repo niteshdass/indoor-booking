@@ -37,6 +37,7 @@ Tab underline token: `--tab-underline` 2px (active turf tab underline on the ven
 Portal layout tokens (not themed): `--sidebar-width` 15rem (owner portal sidebar), `--table-row` 3.25rem (52px table row).
 Schedule tokens (not themed): `--schedule-row` 1.5rem (one 15-minute row), `--schedule-col-min` 9rem (narrowest turf column), `--schedule-time-col` 3.5rem (time label column).
 Status and payment tokens (not themed): `--status-bar` 3px (left border on schedule booking blocks), `--schedule-now-line` 2px (thickness of the current-time line), `--qr-size` 12rem (payment link QR code).
+Review token: `--reply-rule` 2px (left rule beside an owner reply on a review; not themed).
 Photo strip tokens: `--photo-height` 12rem and `--photo-width` 18rem (venue page photo strip tiles; not themed).
 Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
 Disabled and busy token: `--opacity-muted` 0.55 (disabled buttons, a summary that is re-quoting; not themed). Motion token: `--duration-fast` 150ms (short opacity transitions; not themed).

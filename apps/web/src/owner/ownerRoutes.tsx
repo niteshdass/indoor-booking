@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Route, Routes } from 'react-router';
-import { useTranslation } from 'react-i18next';
+import { ActivityPage } from './activity/ActivityPage';
 import { AddonsPage } from './addons/AddonsPage';
 import { BookingsPage } from './bookings/BookingsPage';
 import { OwnerBookingPage } from './bookings/OwnerBookingPage';
@@ -20,11 +20,6 @@ import { VenueEditorPage } from './venues/VenueEditorPage';
 import { VenuesPage } from './venues/VenuesPage';
 import type { Permission } from './types';
 
-function ComingSoon() {
-  const { t } = useTranslation();
-  return <p>{t('owner.comingSoon')}</p>;
-}
-
 /** Guards a page with the permissions of its NAV entry, or with explicit ones for routes outside the nav. */
 function Guarded({ nav, perm, any, children }: { nav?: string; perm?: Permission[]; any?: boolean; children: ReactNode }) {
   const item = nav === undefined ? undefined : NAV.find((n) => n.to === nav);
@@ -36,7 +31,7 @@ function Guarded({ nav, perm, any, children }: { nav?: string; perm?: Permission
   );
 }
 
-/** The `/owner/*` tree. Later tasks replace each placeholder with its page. */
+/** The `/owner/*` tree. */
 export function OwnerRoutes() {
   return (
     <Routes>
@@ -63,7 +58,7 @@ export function OwnerRoutes() {
         <Route path="addons" element={<Guarded nav="addons"><AddonsPage /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
         <Route path="staff" element={<Guarded nav="staff"><StaffPage /></Guarded>} />
-        <Route path="activity" element={<Guarded nav="activity"><ComingSoon /></Guarded>} />
+        <Route path="activity" element={<Guarded nav="activity"><ActivityPage /></Guarded>} />
       </Route>
     </Routes>
   );

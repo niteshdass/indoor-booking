@@ -1,6 +1,7 @@
 import { DEFAULT_OWNER_SETTINGS } from '@booking/shared';
 import type { PublicUser } from '../../src/lib/types';
 import type {
+  ActivityItem,
   Member,
   Membership,
   OwnerBooking,
@@ -173,4 +174,19 @@ export function ownerRoutes(
     { path: '/me/memberships', body: { memberships: [ownerMembership({ permissions, venueIds })] } },
     { path: `/owners/${OWNER_ID}/venues`, body: { venues: opts.venues ?? [venue()] } },
   ];
+}
+
+export function activityItem(over: Partial<ActivityItem> = {}): ActivityItem {
+  return {
+    id: 'a1',
+    action: 'turf.update',
+    entity: 'turf',
+    entityId: 't1',
+    venueId: 'v1',
+    actor: { id: 'u1', name: 'Sam Staff' },
+    before: null,
+    after: null,
+    at: '2026-10-25T20:30:00.000Z',
+    ...over,
+  };
 }

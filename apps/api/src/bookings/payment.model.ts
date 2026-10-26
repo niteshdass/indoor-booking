@@ -10,6 +10,8 @@ const paymentSchema = new mongoose.Schema(
     bookingId: { type: ObjectId, ref: 'Booking', required: true },
     gateway: { type: String, default: null },
     gatewayAccountId: { type: String, default: null },
+    /** The gateway mode (test or live) whose keys took the payment; null for cash and rows from before modes. */
+    gatewayMode: { type: String, enum: ['test', 'live', null], default: null },
     method: { type: String, enum: ['card', 'cash', 'wallet'], required: true },
     /** Minor units of `currency`. */
     amount: { type: Number, required: true, min: 0 },

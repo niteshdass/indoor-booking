@@ -7,16 +7,31 @@ import type { AppServices } from '../services';
 
 const { ObjectId } = mongoose.Schema.Types;
 
-const gatewaySchema = new mongoose.Schema(
+export const GATEWAY_MODES = ['test', 'live'] as const;
+export type GatewayMode = (typeof GATEWAY_MODES)[number];
+
+/** One mode's keys. Test and live keys of one Stripe account share its account id. */
+const keySetSchema = new mongoose.Schema(
   {
-    ownerId: { type: ObjectId, ref: 'Owner', required: true },
-    gateway: { type: String, enum: ['stripe'], required: true },
     /** Sealed JSON `{ secretKey, webhookSecret }`; never returned by the API. */
     credentialsEncrypted: { type: String, required: true },
     /** Public by design: the web Payment Element needs it. */
     publishableKey: { type: String, required: true },
     accountId: { type: String, required: true },
-    mode: { type: String, enum: ['test', 'live'], required: true },
+  },
+  { _id: false },
+);
+
+const gatewaySchema = new mongoose.Schema(
+  {
+    ownerId: { type: ObjectId, ref: 'Owner', required: true },
+    gateway: { type: String, enum: ['stripe'], required: true },
+    keys: {
+      test: { type: keySetSchema, default: null },
+      live: { type: keySetSchema, default: null },
+    },
+    /** The mode new payments are taken in; its keys are always present. */
+    mode: { type: String, enum: GATEWAY_MODES, required: true },
     enabled: { type: Boolean, required: true },
   },
   { timestamps: true },
@@ -29,18 +44,37 @@ export type PaymentGatewayAccountDoc = InstanceType<typeof PaymentGatewayAccount
 
 export const credentialsAad = (ownerId: string, gateway: string) => `${ownerId}:${gateway}`;
 
-/** The owner's gateway row with decrypted credentials; null when absent, unknown or no encryption key. Ignores `enabled`. */
+export type LoadedGateway = {
+  row: PaymentGatewayAccountDoc;
+  mode: GatewayMode;
+  accountId: string;
+  publishableKey: string;
+  creds: GatewayCredentials;
+  gateway: PaymentGateway;
+};
+
+/** Decrypts one mode's keys of a loaded row; null when that mode has none. */
+export function unsealMode(row: PaymentGatewayAccountDoc, mode: GatewayMode, config: Config, gateway: PaymentGateway): LoadedGateway | null {
+  const set = row.keys?.[mode];
+  if (!set || !config.paymentsKey) return null;
+  const creds = JSON.parse(open(set.credentialsEncrypted, config.paymentsKey, credentialsAad(String(row.ownerId), gateway.key))) as GatewayCredentials;
+  return { row, mode, accountId: set.accountId, publishableKey: set.publishableKey, creds, gateway };
+}
+
+/**
+ * The owner's gateway with one mode's decrypted keys: `mode` (a payment's own) or else the active one.
+ * Null when absent, unknown, that mode has no keys, or no encryption key. Ignores `enabled`.
+ */
 export async function loadGateway(
   ownerId: string,
   key: string,
   config: Config,
   services: AppServices,
-  session?: ClientSession,
-): Promise<{ row: PaymentGatewayAccountDoc; creds: GatewayCredentials; gateway: PaymentGateway } | null> {
+  opts: { mode?: GatewayMode | null; session?: ClientSession } = {},
+): Promise<LoadedGateway | null> {
   const gateway = gatewayFor(services, key);
   if (!gateway || !config.paymentsKey) return null;
-  const row = await PaymentGatewayAccount.findOne({ ownerId, gateway: key }).session(session ?? null);
+  const row = await PaymentGatewayAccount.findOne({ ownerId, gateway: key }).session(opts.session ?? null);
   if (!row) return null;
-  const creds = JSON.parse(open(row.credentialsEncrypted, config.paymentsKey, credentialsAad(ownerId, key))) as GatewayCredentials;
-  return { row, creds, gateway };
+  return unsealMode(row, (opts.mode ?? row.mode) as GatewayMode, config, gateway);
 }

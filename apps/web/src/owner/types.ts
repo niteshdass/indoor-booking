@@ -196,9 +196,9 @@ export type GatewayView = {
   gateway: 'stripe';
   connected: boolean;
   enabled: boolean;
+  /** The active mode: new payments use its keys. */
   mode: 'test' | 'live' | null;
-  accountId: string | null;
-  publishableKey: string | null;
+  accounts: Record<'test' | 'live', { accountId: string; publishableKey: string } | null>;
   webhookUrl: string;
   webhookEvents: string[];
   updatedAt: string | null;

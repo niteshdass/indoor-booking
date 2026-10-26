@@ -8,7 +8,7 @@ import { SlotLock } from '../bookings/slotLock.model';
 import type { AppServices } from '../services';
 import { Venue } from '../venues/venue.model';
 import { GatewayError } from './gateway';
-import { loadGateway } from './gateway.model';
+import { loadGateway, type GatewayMode } from './gateway.model';
 
 export const paymentsUnavailable = () =>
   new AppError(409, 'payments_unavailable', 'Online payment is not available for this booking');
@@ -34,7 +34,7 @@ export async function expireHold(booking: BookingDoc, now: Date): Promise<void> 
 export async function pendingCardPayment(
   booking: BookingDoc,
   kind: 'intent' | 'link',
-  fields: { amount: number; gateway: string; gatewayAccountId: string; groupId?: unknown },
+  fields: { amount: number; gateway: string; gatewayAccountId: string; gatewayMode: GatewayMode; groupId?: unknown },
 ): Promise<PaymentDoc> {
   const ownerId = String(booking.ownerId);
   try {
@@ -85,7 +85,7 @@ export async function startIntent(
   if (!loaded || !loaded.row.enabled || !venue || !loaded.gateway.supports(venue.country, booking.currency)) {
     throw paymentsUnavailable();
   }
-  const { row, creds, gateway } = loaded;
+  const { creds, gateway } = loaded;
 
   const owing = held.filter((b) => b.advanceRequired - b.amountPaid >= 1);
   if (owing.length === 0) throw paymentsUnavailable();
@@ -95,7 +95,8 @@ export async function startIntent(
       await pendingCardPayment(b, 'intent', {
         amount: b.advanceRequired - b.amountPaid,
         gateway: gateway.key,
-        gatewayAccountId: row.accountId,
+        gatewayAccountId: loaded.accountId,
+        gatewayMode: loaded.mode,
         ...(b.groupId ? { groupId: b.groupId } : {}),
       }),
     );
@@ -125,7 +126,7 @@ export async function startIntent(
     await Payment.updateMany({ ownerId, _id: { $in: unset.map((p) => p._id) } }, { $set: { gatewayRef: created.gatewayRef } });
     for (const p of unset) p.gatewayRef = created.gatewayRef;
   }
-  return { payment: lead, amount, clientSecret: created.clientSecret, publishableKey: row.publishableKey };
+  return { payment: lead, amount, clientSecret: created.clientSecret, publishableKey: loaded.publishableKey };
 }
 
 /** Creates (or, by idempotency key, replays) the Checkout Session of a pending walk-in `link` payment. */
@@ -136,9 +137,9 @@ export async function startLink(
 ): Promise<{ url: string }> {
   const { config, services } = ctx;
   const ownerId = String(booking.ownerId);
-  const loaded = await loadGateway(ownerId, payment.gateway ?? '', config, services);
+  const loaded = await loadGateway(ownerId, payment.gateway ?? '', config, services, { mode: payment.gatewayMode as GatewayMode | null });
   // The webhook verifies with the account that took the payment, so the link must be on it too.
-  if (!loaded || loaded.row.accountId !== payment.gatewayAccountId || !booking.holdExpiresAt) {
+  if (!loaded || loaded.accountId !== payment.gatewayAccountId || !booking.holdExpiresAt) {
     throw paymentsUnavailable();
   }
   const { creds, gateway } = loaded;

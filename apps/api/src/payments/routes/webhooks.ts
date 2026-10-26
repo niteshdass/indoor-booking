@@ -5,7 +5,8 @@ import { isDuplicateKeyError, runInTransaction } from '../../db';
 import { AppError } from '../../errors';
 import type { AppServices } from '../../services';
 import { applyEvent } from '../apply';
-import { loadGateway } from '../gateway.model';
+import { GatewayError, gatewayFor, type GatewayEvent } from '../gateway';
+import { GATEWAY_MODES, PaymentGatewayAccount, unsealMode } from '../gateway.model';
 import { dispatchRefund } from '../refunds';
 import { WebhookEvent } from '../webhookEvent.model';
 
@@ -22,12 +23,26 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
   router.post('/:gateway/:ownerId', async (req, res) => {
     const { gateway: key, ownerId } = req.params;
     if (!mongoose.isValidObjectId(ownerId)) throw endpointNotFound();
-    const loaded = await loadGateway(ownerId, key, config, services);
-    if (!loaded) throw endpointNotFound();
-    const { gateway, creds } = loaded;
+    const gateway = gatewayFor(services, key);
+    const row = gateway && config.paymentsKey ? await PaymentGatewayAccount.findOne({ ownerId, gateway: key }) : null;
+    const modes = row && gateway ? GATEWAY_MODES.map((m) => unsealMode(row, m, config, gateway)).filter((m) => m !== null) : [];
+    if (!gateway || modes.length === 0) throw endpointNotFound();
 
+    // Test and live deliveries share the URL; each is signed with its own mode's secret.
     const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-    const event = gateway.handleWebhook(creds, rawBody, req.get('stripe-signature'));
+    const signature = req.get('stripe-signature');
+    let event: GatewayEvent | null = null;
+    let lastError: unknown;
+    for (const m of modes) {
+      try {
+        event = gateway.handleWebhook(m.creds, rawBody, signature);
+        break;
+      } catch (err) {
+        if (!(err instanceof GatewayError && err.code === 'invalid_signature')) throw err;
+        lastError = err;
+      }
+    }
+    if (!event) throw lastError;
 
     const now = services.now();
     let refundIds: string[] = [];

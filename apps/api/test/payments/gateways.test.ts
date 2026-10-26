@@ -57,8 +57,8 @@ describe('owner gateway settings', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
       {
-        gateway: 'stripe', connected: false, enabled: false, mode: null, accountId: null,
-        publishableKey: null, webhookUrl: webhookUrl(), webhookEvents: expect.arrayContaining(['refund.updated', 'refund.failed']), updatedAt: null,
+        gateway: 'stripe', connected: false, enabled: false, mode: null, accounts: { test: null, live: null },
+        webhookUrl: webhookUrl(), webhookEvents: expect.arrayContaining(['refund.updated', 'refund.failed']), updatedAt: null,
       },
     ]);
   });
@@ -67,24 +67,25 @@ describe('owner gateway settings', () => {
     const res = await put();
     expect(res.status).toBe(200);
     expect(res.body.gateway).toMatchObject({
-      connected: true, enabled: true, mode: 'test', accountId: 'acct_test_abc123',
-      publishableKey: 'pk_test_abc123', webhookUrl: webhookUrl(),
+      connected: true, enabled: true, mode: 'test',
+      accounts: { test: { accountId: 'acct_test_abc123', publishableKey: 'pk_test_abc123' }, live: null },
+      webhookUrl: webhookUrl(),
     });
     expect(JSON.stringify(res.body)).not.toMatch(/sk_test_|whsec_/);
 
     const list = await api().get(base()).set(...bearer(a.token));
-    expect(list.body[0]).toMatchObject({ connected: true, accountId: res.body.gateway.accountId });
+    expect(list.body[0]).toMatchObject({ connected: true, accounts: res.body.gateway.accounts });
     expect(JSON.stringify(list.body)).not.toMatch(/sk_test_|whsec_/);
 
     const row = (await PaymentGatewayAccount.findOne({ ownerId: a.ownerId }))!;
-    expect(row.credentialsEncrypted).not.toMatch(/sk_test_|whsec_/);
-    expect(JSON.parse(open(row.credentialsEncrypted, ctx.config.paymentsKey!, `${a.ownerId}:stripe`))).toEqual({
+    expect(row.keys!.test!.credentialsEncrypted).not.toMatch(/sk_test_|whsec_/);
+    expect(JSON.parse(open(row.keys!.test!.credentialsEncrypted, ctx.config.paymentsKey!, `${a.ownerId}:stripe`))).toEqual({
       secretKey: valid.secretKey, webhookSecret: valid.webhookSecret,
     });
 
     const logs = await ActivityLog.find({ ownerId: a.ownerId, action: 'payment_gateway.connect' }).lean();
     expect(logs).toHaveLength(1);
-    expect(logs[0]!.after).toEqual({ gateway: 'stripe', mode: 'test', accountId: res.body.gateway.accountId, enabled: true });
+    expect(logs[0]!.after).toEqual({ gateway: 'stripe', mode: 'test', enabled: true, accounts: { test: 'acct_test_abc123', live: null } });
     expect(JSON.stringify(logs[0])).not.toMatch(/sk_test_|whsec_/);
   });
 
@@ -188,7 +189,7 @@ describe('owner gateway settings', () => {
       const p = await pendingCard(accountId);
       const res = await put({ ...valid, secretKey: 'sk_test_second' });
       expect(res.status).toBe(200);
-      expect((await PaymentGatewayAccount.findOne({ ownerId: a.ownerId }))!.accountId).toBe('acct_test_second');
+      expect((await PaymentGatewayAccount.findOne({ ownerId: a.ownerId }))!.keys!.test!.accountId).toBe('acct_test_second');
       expect(await Payment.findById(p._id).setOptions({ crossTenant: true })).toMatchObject({
         status: 'failed', failureCode: 'account_switched',
       });
@@ -206,7 +207,77 @@ describe('owner gateway settings', () => {
       const first = await connectStripe(ctx.app, a, { secretKey: 'sk_test_first1' });
       const res = await put({ ...valid, secretKey: 'sk_test_second' });
       expect(res.status).toBe(200);
-      expect(res.body.gateway.accountId).not.toBe(first.accountId);
+      expect(res.body.gateway.accounts.test.accountId).not.toBe(first.accountId);
+    });
+  });
+
+  describe('test and live modes', () => {
+    const live = { secretKey: 'sk_live_abc999', publishableKey: 'pk_live_abc999', webhookSecret: 'whsec_live1' };
+    const patch = (body: object) => api().patch(`${base()}/stripe`).set(...bearer(a.token)).send(body);
+    const pendingCard = (accountId: string, gatewayMode: string) =>
+      Payment.create({
+        ownerId: a.ownerId,
+        venueId: new mongoose.Types.ObjectId(),
+        bookingId: new mongoose.Types.ObjectId(),
+        method: 'card', status: 'pending', amount: 100, currency: 'BDT',
+        gateway: 'stripe', gatewayAccountId: accountId, gatewayMode, kind: 'intent',
+      });
+
+    it('keeps both modes side by side; adding live keys does not switch from test', async () => {
+      await put();
+      const res = await put(live);
+      expect(res.status).toBe(200);
+      expect(res.body.gateway).toMatchObject({
+        mode: 'test',
+        accounts: {
+          test: { accountId: 'acct_test_abc123', publishableKey: 'pk_test_abc123' },
+          live: { accountId: 'acct_test_abc999', publishableKey: 'pk_live_abc999' },
+        },
+      });
+      expect((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services))?.creds.secretKey).toBe(valid.secretKey);
+      expect((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services, { mode: 'live' }))?.creds.secretKey).toBe(live.secretKey);
+    });
+
+    it('first keys saved pick the active mode', async () => {
+      expect((await put(live)).body.gateway.mode).toBe('live');
+    });
+
+    it('PATCH switches the active mode and logs it', async () => {
+      await put();
+      await put(live);
+      const res = await patch({ mode: 'live' });
+      expect(res.status).toBe(200);
+      expect(res.body.gateway.mode).toBe('live');
+      expect((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services))?.mode).toBe('live');
+      const logs = await ActivityLog.find({ ownerId: a.ownerId, action: 'payment_gateway.update' }).lean();
+      expect(logs.at(-1)!.before).toMatchObject({ mode: 'test' });
+      expect(logs.at(-1)!.after).toMatchObject({ mode: 'live' });
+    });
+
+    it('PATCH to a mode without keys → 400', async () => {
+      await put();
+      const res = await patch({ mode: 'live' });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('gateway_mode_not_connected');
+    });
+
+    it('PATCH with nothing to change → 400', async () => {
+      await put();
+      expect((await patch({})).status).toBe(400);
+    });
+
+    it('switching mode fails the old mode\'s pending payments but leaves the other mode\'s alone', async () => {
+      await put();
+      await put(live);
+      const testPending = await pendingCard('acct_test_abc123', 'test');
+      const res = await patch({ mode: 'live' });
+      expect(res.status).toBe(200);
+      expect(await Payment.findById(testPending._id).setOptions({ crossTenant: true })).toMatchObject({
+        status: 'failed', failureCode: 'account_switched',
+      });
+      const livePending = await pendingCard('acct_test_abc999', 'live');
+      await put({ ...valid, secretKey: 'sk_test_other1' });
+      expect((await Payment.findById(livePending._id).setOptions({ crossTenant: true }))!.status).toBe('pending');
     });
   });
 });

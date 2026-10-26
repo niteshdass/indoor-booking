@@ -190,3 +190,42 @@ describe('runMigrations', () => {
     expect(await rawRefund(id)).toMatchObject({ status: 'succeeded', attempts: 1 });
   });
 });
+
+describe('gateway modes', () => {
+  it('moves legacy keys under their mode and stamps the payments and refunds taken with them', async () => {
+    const { payment } = await paid();
+    const refundId = await legacyRefund(payment);
+    // Back to the single-key shape.
+    const gw = (await PaymentGatewayAccount.collection.findOne({ ownerId: new mongoose.Types.ObjectId(owner.ownerId) }))!;
+    await PaymentGatewayAccount.collection.updateOne(
+      { _id: gw._id },
+      { $set: { ...gw.keys.test }, $unset: { keys: '' } },
+    );
+    await Payment.collection.updateOne({ _id: payment._id }, { $unset: { gatewayMode: '' } });
+
+    expect(await runMigrations(ctx.services.now())).toContain('2026-10-26-gateway-modes');
+    const after = (await PaymentGatewayAccount.collection.findOne({ _id: gw._id }))!;
+    expect(after).not.toHaveProperty('credentialsEncrypted');
+    expect(after.keys.test).toEqual(gw.keys.test);
+    expect((await rawPayment(payment._id))!.gatewayMode).toBe('test');
+    expect((await rawRefund(refundId))!.gatewayMode).toBe('test');
+    expect(await MIGRATIONS.find((m) => m.id === '2026-10-26-gateway-modes')!.run(ctx.services.now())).toBe(0);
+  });
+
+  it('refunds a test payment with the test keys after switching to live', async () => {
+    const { bookingId } = await paid();
+    await connectStripe(ctx.app, owner, { secretKey: 'sk_live_after1' });
+    const sw = await request(ctx.app)
+      .patch(`/api/v1/owners/${owner.ownerId}/payment-gateways/stripe`)
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ mode: 'live' });
+    expect(sw.status).toBe(200);
+    const booking = (await Booking.findById(bookingId).setOptions(cross))!;
+    const staff: Canceller = { kind: 'staff', t: { ownerId: owner.ownerId, userId: owner.userId } as unknown as TenantContext };
+    const out = await cancelBooking(booking, staff, {}, { config: ctx.config, services: ctx.services });
+    expect(out.refunds.map((r) => r.status)).toEqual(['succeeded']);
+    const calls = ctx.services.stripe.calls.filter((c) => c.method === 'refunds.create');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.secretKey).toMatch(/^sk_test_/);
+  });
+});

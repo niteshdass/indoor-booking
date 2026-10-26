@@ -8,7 +8,7 @@ import { noticeBooking } from '../notifications/outbox';
 import type { AppServices } from '../services';
 import { logActivity, logSystemActivity, type ActivityEntry } from '../tenancy/activityLog.model';
 import { GatewayError, gatewayFor } from './gateway';
-import { loadGateway } from './gateway.model';
+import { loadGateway, type GatewayMode } from './gateway.model';
 import { Refund, type RefundDoc, type RefundReason, type RuleApplied } from './refund.model';
 
 export const RECONCILE_AFTER_MINUTES = 10;
@@ -97,6 +97,7 @@ export async function reserveRefunds(
           method: part.method,
           gateway: card ? payment.gateway : null,
           gatewayAccountId: card ? payment.gatewayAccountId : null,
+          gatewayMode: card ? (payment.gatewayMode ?? null) : null,
           status: 'pending',
           ruleApplied: input.ruleApplied,
           retryOf: input.retryOf ?? null,
@@ -243,13 +244,13 @@ export async function dispatchRefund(
   if (!deps.config.paymentsKey || !gatewayFor(deps.services, refund.gateway!)) return retryLater();
   let loaded: Awaited<ReturnType<typeof loadGateway>>;
   try {
-    loaded = await loadGateway(ownerId, refund.gateway!, deps.config, deps.services);
+    loaded = await loadGateway(ownerId, refund.gateway!, deps.config, deps.services, { mode: refund.gatewayMode as GatewayMode | null });
   } catch (err) {
     // Credentials that will not decrypt (e.g. a rotated key) are fixable too: retry later.
     console.error(`[refunds] could not load the ${refund.gateway!} gateway for refund ${String(refund._id)}`, err);
     return retryLater();
   }
-  if (!loaded || loaded.row.accountId !== refund.gatewayAccountId) {
+  if (!loaded || loaded.accountId !== refund.gatewayAccountId) {
     // Once dispatched, the money may have moved at the old account.
     await settle({ status: 'failed', failureCode: refund.dispatchedAt ? 'account_changed_after_dispatch' : 'account_changed' });
     return true;

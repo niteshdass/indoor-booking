@@ -9,7 +9,7 @@ import type { AppServices } from '../../services';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
 import { gatewayFor } from '../gateway';
-import { loadGateway } from '../gateway.model';
+import { loadGateway, type GatewayMode } from '../gateway.model';
 import { Refund, type RefundDoc } from '../refund.model';
 import { dispatchRefund, refundJson, reserveRefunds, settleRefund } from '../refunds';
 
@@ -77,12 +77,12 @@ export function refundsRouter(config: Config, services: AppServices): Router {
     // The payment was taken at one account; if it has been replaced, the money cannot go back through it.
     let loaded: Awaited<ReturnType<typeof loadGateway>>;
     try {
-      loaded = await loadGateway(t.ownerId, old.gateway!, config, services);
+      loaded = await loadGateway(t.ownerId, old.gateway!, config, services, { mode: old.gatewayMode as GatewayMode | null });
     } catch (err) {
       console.error(`[refunds] retry of ${String(old._id)} could not load the ${old.gateway!} gateway`, err);
       throw unconfigured();
     }
-    if (!loaded || loaded.row.accountId !== old.gatewayAccountId) throw invalid();
+    if (!loaded || loaded.accountId !== old.gatewayAccountId) throw invalid();
 
     const now = services.now();
     const row = await runInTransaction((session) => replaceFailed(old, 'card', session, t, now));

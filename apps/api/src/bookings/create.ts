@@ -48,7 +48,7 @@ export type CreateBookingInput = QuoteInput & {
    * A card payment link: the booking is held awaiting_payment for LINK_HOLD_MINUTES and a pending
    * `link` payment is inserted. An omitted amount means the whole total.
    */
-  card?: { amount?: number; gateway: string; gatewayAccountId: string };
+  card?: { amount?: number; gateway: string; gatewayAccountId: string; gatewayMode: 'test' | 'live' };
   /** Runs inside the creating transaction after the inserts, e.g. to log activity atomically. */
   afterInsert?: (session: ClientSession, booking: BookingDoc, payment: PaymentDoc | null) => Promise<void>;
 };
@@ -267,6 +267,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
               status: 'pending',
               gateway: card.gateway,
               gatewayAccountId: card.gatewayAccountId,
+              gatewayMode: card.gatewayMode,
             }
           : null;
       let payment: PaymentDoc | null = null;

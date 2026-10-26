@@ -327,3 +327,17 @@ describe('POST /webhooks/stripe/:ownerId', () => {
     });
   });
 });
+
+describe('test and live keys on one URL', () => {
+  it('accepts a delivery signed with either mode\'s secret', async () => {
+    const { webhookSecret: liveSecret } = await connectStripe(ctx.app, owner, { secretKey: 'sk_live_both01' });
+    const { payment } = await paidHold();
+    const stray = (id: string) => piSucceeded(payment, { paymentId: id });
+    expect((await post(stray('64b000000000000000000001'), owner.ownerId, liveSecret)).status).toBe(200);
+    expect((await post(stray('64b000000000000000000002'), owner.ownerId, secret)).status).toBe(200);
+    expect((await events()).map((e) => e.outcome)).toEqual(['unmatched', 'unmatched']);
+    const bad = await post(stray('64b000000000000000000003'), owner.ownerId, 'whsec_neither');
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('invalid_signature');
+  });
+});

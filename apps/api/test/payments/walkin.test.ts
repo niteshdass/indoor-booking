@@ -258,7 +258,7 @@ describe('walk-in with a payment link', () => {
     const { accountId } = await connectStripe(ctx.app, owner);
     const res = await walkin(owner.token, { method: 'link' });
     const booking = (await Booking.findById(res.body.booking.id).setOptions(cross))!;
-    const fields = { amount: 3000, gateway: 'stripe', gatewayAccountId: accountId };
+    const fields = { amount: 3000, gateway: 'stripe', gatewayAccountId: accountId, gatewayMode: 'test' as const };
     const err = await pendingCardPayment(booking, 'intent', fields).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(AppError);
     expect(err).toMatchObject({ status: 409, code: 'invalid_transition' });

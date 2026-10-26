@@ -810,7 +810,7 @@
       "account": "Account",
       "enabled": "Accept card payments",
       "webhookTitle": "Webhook",
-      "webhookHint": "In Stripe, add an endpoint with this URL and subscribe it to these events.",
+      "webhookHint": "In Stripe, add an endpoint with this URL and subscribe it to these events. Do it once in test mode and once in live mode: each endpoint gets its own signing secret.",
       "webhookUrl": "Webhook URL",
       "events": "Events",
       "copy": "Copy",
@@ -820,16 +820,34 @@
       "publishableKey": "Publishable key",
       "webhookSecret": "Webhook signing secret",
       "secretHint": "Stored encrypted. It is never shown again.",
-      "connect": "Connect Stripe",
       "replace": "Replace keys",
       "cancel": "Cancel",
       "errors": {
         "secretKey": "Enter a Stripe secret or restricted key (sk_… or rk_…).",
         "publishableKey": "Enter a Stripe publishable key (pk_…).",
         "webhookSecret": "Enter the webhook signing secret (whsec_…).",
-        "mode": "The secret and publishable keys must both be test keys or both be live keys.",
-        "invalidKeys": "Stripe didn't accept these keys. Check them and try again."
-      }
+        "invalidKeys": "Stripe didn't accept these keys. Check them and try again.",
+        "wrongMode": {
+          "test": "This is a live key. Enter a test key here (…_test_…).",
+          "live": "This is a test key. Enter a live key here (…_live_…)."
+        }
+      },
+      "modeHint": {
+        "test": "Payments are simulated. No real money moves.",
+        "live": "Payments are real and go to your Stripe balance."
+      },
+      "activeMode": "Take payments in",
+      "addLiveHint": "Add your live keys below to start taking real payments.",
+      "keysTitle": "API keys",
+      "noKeys": {
+        "test": "No test keys yet. Find them in Stripe under Developers → API keys with test mode on.",
+        "live": "No live keys yet. Find them in Stripe under Developers → API keys with test mode off."
+      },
+      "save": {
+        "test": "Save test keys",
+        "live": "Save live keys"
+      },
+      "webhookSecretHint": "From the endpoint above in this mode. Stored encrypted. It is never shown again."
     },
     "turf": {
       "title": "Turf",

@@ -27,6 +27,8 @@ const refundSchema = new mongoose.Schema(
     gateway: { type: String, required: function (this: { method?: string }) { return this.method === 'card'; }, default: null },
     /** Required for card refunds; null for cash. */
     gatewayAccountId: { type: String, required: function (this: { method?: string }) { return this.method === 'card'; }, default: null },
+    /** The payment's gateway mode; null for cash and rows from before modes. */
+    gatewayMode: { type: String, enum: ['test', 'live', null], default: null },
     /** The gateway's id for this refund; null until the gateway has answered. */
     gatewayRef: { type: String, default: null },
     status: { type: String, enum: ['pending', 'succeeded', 'failed'], required: true },

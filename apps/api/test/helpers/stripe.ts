@@ -19,17 +19,19 @@ export async function connectStripe(
 ): Promise<{ webhookSecret: string; accountId: string }> {
   ownerSeq += 1;
   const webhookSecret = opts.webhookSecret ?? `whsec_owner${ownerSeq}`;
+  const secretKey = opts.secretKey ?? `sk_test_owner${ownerSeq}`;
+  const mode = secretKey.split('_')[1];
   const res = await request(app)
     .put(`/api/v1/owners/${owner.ownerId}/payment-gateways/stripe`)
     .set('Authorization', `Bearer ${owner.token}`)
     .send({
-      secretKey: opts.secretKey ?? `sk_test_owner${ownerSeq}`,
-      publishableKey: `pk_test_owner${ownerSeq}`,
+      secretKey,
+      publishableKey: `pk_${mode}_owner${ownerSeq}`,
       webhookSecret,
       ...(opts.enabled === undefined ? {} : { enabled: opts.enabled }),
     });
   if (res.status !== 200) throw new Error(`connectStripe failed: ${res.status} ${JSON.stringify(res.body)}`);
-  return { webhookSecret, accountId: res.body.gateway.accountId };
+  return { webhookSecret, accountId: res.body.gateway.accounts[mode!].accountId };
 }
 
 /** Posts a delivery to the owner's Stripe webhook URL, signed with `webhookSecret`. */

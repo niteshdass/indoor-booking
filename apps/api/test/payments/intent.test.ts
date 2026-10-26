@@ -91,7 +91,7 @@ describe('switching Stripe accounts', () => {
       .set(...bearer(owner.token))
       .send({ secretKey, publishableKey: 'pk_test_new', webhookSecret: 'whsec_new' });
   const cancels = () => ctx.services.stripe.calls.filter((c) => c.method === 'paymentIntents.cancel');
-  const accountNow = async () => (await PaymentGatewayAccount.findOne({ ownerId: owner.ownerId }))!.accountId;
+  const accountNow = async () => (await PaymentGatewayAccount.findOne({ ownerId: owner.ownerId }))!.keys!.test!.accountId;
   const paymentNow = async () => (await Payment.findOne({ ownerId: owner.ownerId }))!;
 
   it("cancels a lapsed hold's intent on the old account, fails the payment and switches", async () => {
@@ -103,7 +103,7 @@ describe('switching Stripe accounts', () => {
 
     const res = await switchTo('sk_test_second');
     expect(res.status).toBe(200);
-    expect(res.body.gateway.accountId).toBe('acct_test_second');
+    expect(res.body.gateway.accounts.test.accountId).toBe('acct_test_second');
     expect(await accountNow()).toBe('acct_test_second');
     expect(cancels()).toEqual([{ method: 'paymentIntents.cancel', secretKey: 'sk_test_first1', params: { id: 'pi_test_1' } }]);
     expect(ctx.services.stripe.statusOf('pi_test_1')).toBe('canceled');

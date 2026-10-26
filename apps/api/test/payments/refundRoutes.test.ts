@@ -191,7 +191,7 @@ describe('retry edge cases', () => {
 
   it('answers 503 when the gateway credentials cannot be decrypted', async () => {
     const { refund } = await failed();
-    await PaymentGatewayAccount.updateMany({ ownerId: owner.ownerId }, { $set: { credentialsEncrypted: 'corrupt' } });
+    await PaymentGatewayAccount.updateMany({ ownerId: owner.ownerId }, { $set: { 'keys.test.credentialsEncrypted': 'corrupt' } });
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const res = await post(`/refunds/${refund._id}/retry`);

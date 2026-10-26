@@ -1,5 +1,6 @@
 import { Booking } from '../bookings/booking.model';
 import { Payment } from '../bookings/payment.model';
+import { PaymentGatewayAccount } from '../payments/gateway.model';
 import { Refund } from '../payments/refund.model';
 import { Migration } from './model';
 
@@ -39,6 +40,30 @@ export const MIGRATIONS: MigrationStep[] = [
         { ...cross, timestamps: false },
       );
       return res.modifiedCount;
+    },
+  },
+  {
+    // Gateways held one set of keys before test and live keys could sit side by side. The old keys move under
+    // their mode, and the card payments and refunds taken with them are stamped with it.
+    id: '2026-10-26-gateway-modes',
+    async run() {
+      const rows = await PaymentGatewayAccount.collection.find({ credentialsEncrypted: { $exists: true } }).toArray();
+      let changed = 0;
+      for (const r of rows) {
+        const mode = r.mode as 'test' | 'live';
+        await PaymentGatewayAccount.collection.updateOne(
+          { _id: r._id },
+          {
+            $set: { [`keys.${mode}`]: { credentialsEncrypted: r.credentialsEncrypted, publishableKey: r.publishableKey, accountId: r.accountId } },
+            $unset: { credentialsEncrypted: '', publishableKey: '', accountId: '' },
+          },
+        );
+        const stamped = { ownerId: r.ownerId, gateway: r.gateway, gatewayAccountId: r.accountId, gatewayMode: null };
+        const payments = await Payment.updateMany(stamped, { $set: { gatewayMode: mode } }, { ...cross, timestamps: false });
+        const refunds = await Refund.updateMany(stamped, { $set: { gatewayMode: mode } }, { ...cross, timestamps: false });
+        changed += 1 + payments.modifiedCount + refunds.modifiedCount;
+      }
+      return changed;
     },
   },
 ];

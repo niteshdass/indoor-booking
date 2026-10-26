@@ -4,7 +4,9 @@ import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
+import { Select } from '../../components/ui/Select';
 import { Spinner } from '../../components/ui/Spinner';
+import { Tabs } from '../../components/ui/Tabs';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiPatch, apiPut } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -13,14 +15,17 @@ import { ownerPath } from '../ownerApi';
 import { useResource } from '../useResource';
 import styles from './settings.module.css';
 
+type Mode = 'test' | 'live';
+const MODES: Mode[] = ['test', 'live'];
+
 /** What the API returns for a gateway; the credentials never come back. */
 type GatewayView = {
   gateway: string;
   connected: boolean;
   enabled: boolean;
-  mode: 'test' | 'live' | null;
-  accountId: string | null;
-  publishableKey: string | null;
+  /** The active mode: new payments use its keys. */
+  mode: Mode | null;
+  accounts: Record<Mode, { accountId: string; publishableKey: string } | null>;
   webhookUrl: string;
   webhookEvents: string[];
   updatedAt: string | null;
@@ -36,14 +41,13 @@ type KeyErrors = Partial<Record<keyof Keys, string>>;
 const EMPTY: Keys = { secretKey: '', publishableKey: '', webhookSecret: '' };
 
 /** Returns i18n keys (under `owner.gateway.errors`) for whatever is wrong; empty when the form can be sent. */
-function checkKeys(k: Keys): KeyErrors {
+function checkKeys(k: Keys, mode: Mode): KeyErrors {
   const out: KeyErrors = {};
   if (!SECRET_RE.test(k.secretKey)) out.secretKey = 'secretKey';
+  else if (k.secretKey.split('_')[1] !== mode) out.secretKey = `wrongMode.${mode}`;
   if (!PUBLISHABLE_RE.test(k.publishableKey)) out.publishableKey = 'publishableKey';
+  else if (k.publishableKey.split('_')[1] !== mode) out.publishableKey = `wrongMode.${mode}`;
   if (!WEBHOOK_RE.test(k.webhookSecret)) out.webhookSecret = 'webhookSecret';
-  if (!out.secretKey && !out.publishableKey && k.secretKey.split('_')[1] !== k.publishableKey.split('_')[1]) {
-    out.publishableKey = 'mode';
-  }
   return out;
 }
 
@@ -73,15 +77,124 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Stripe connection for the owner's card payments (`settings.edit`). */
+/** One mode's keys: what is saved, or the form to save them. Secrets are write-only. */
+function ModeKeys({ mode, view, base, onSaved }: { mode: Mode; view: GatewayView; base: string; onSaved(v: GatewayView): void }) {
+  const { t } = useTranslation();
+  const saved = view.accounts[mode];
+  const [replacing, setReplacing] = useState(false);
+  const [keys, setKeys] = useState<Keys>(EMPTY);
+  const [keyErrors, setKeyErrors] = useState<KeyErrors>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  const reset = () => {
+    setReplacing(false);
+    setKeys(EMPTY);
+    setKeyErrors({});
+    setError(null);
+  };
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    const found = checkKeys(keys, mode);
+    setKeyErrors(found);
+    if (Object.keys(found).length > 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await apiPut<{ gateway: GatewayView }>(`${base}/stripe`, keys);
+      reset();
+      onSaved(next.gateway);
+    } catch (err) {
+      setError(err);
+    }
+    setBusy(false);
+  };
+
+  const set = (k: keyof Keys) => (e: { target: { value: string } }) => {
+    setKeys({ ...keys, [k]: e.target.value.trim() });
+    setKeyErrors({ ...keyErrors, [k]: undefined });
+  };
+  const fieldError = (k: keyof Keys) => (keyErrors[k] ? t(`owner.gateway.errors.${keyErrors[k]}`) : undefined);
+  // The API reuses `invalid_credentials` (the login message) when Stripe rejects the keys.
+  const failure =
+    error instanceof ApiError && error.code === 'invalid_credentials' ? t('owner.gateway.errors.invalidKeys') : error !== null ? errorMessage(error, t) : null;
+
+  if (saved && !replacing) {
+    return (
+      <div className={styles.stack}>
+        <div className={styles.statusRow}>
+          <span className={styles.muted}>{t('owner.gateway.account')}</span>
+          <strong className={styles.account}>{saved.accountId}</strong>
+        </div>
+        <div className={styles.statusRow}>
+          <span className={styles.muted}>{t('owner.gateway.publishableKey')}</span>
+          <code className={styles.account}>{saved.publishableKey}</code>
+        </div>
+        <div className={styles.actions}>
+          <Button variant="secondary" onClick={() => setReplacing(true)}>
+            {t('owner.gateway.replace')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form className={styles.stack} onSubmit={(e) => void save(e)} noValidate>
+      {!saved && <p className={styles.muted}>{t(`owner.gateway.noKeys.${mode}`)}</p>}
+      <TextField
+        label={t('owner.gateway.secretKey')}
+        hint={t('owner.gateway.secretHint')}
+        type="password"
+        autoComplete="off"
+        placeholder={`sk_${mode}_…`}
+        value={keys.secretKey}
+        onChange={set('secretKey')}
+        error={fieldError('secretKey')}
+      />
+      <TextField
+        label={t('owner.gateway.publishableKey')}
+        type="text"
+        autoComplete="off"
+        placeholder={`pk_${mode}_…`}
+        value={keys.publishableKey}
+        onChange={set('publishableKey')}
+        error={fieldError('publishableKey')}
+      />
+      <TextField
+        label={t('owner.gateway.webhookSecret')}
+        hint={t('owner.gateway.webhookSecretHint')}
+        type="password"
+        autoComplete="off"
+        placeholder="whsec_…"
+        value={keys.webhookSecret}
+        onChange={set('webhookSecret')}
+        error={fieldError('webhookSecret')}
+      />
+      {failure && <Alert tone="danger">{failure}</Alert>}
+      <div className={styles.actions}>
+        {replacing && (
+          <Button variant="secondary" disabled={busy} onClick={reset}>
+            {t('owner.gateway.cancel')}
+          </Button>
+        )}
+        <Button type="submit" loading={busy}>
+          {t(`owner.gateway.save.${mode}`)}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Stripe connection for the owner's card payments (`settings.edit`): test and live keys, the active mode, the webhook. */
 export function StripeGatewayCard() {
   const { t } = useTranslation();
   const { ownerId } = useOwner();
   const base = ownerPath(ownerId, '/payment-gateways');
   const res = useResource<GatewayView[]>(base);
-  const [replacing, setReplacing] = useState(false);
-  const [keys, setKeys] = useState<Keys>(EMPTY);
-  const [keyErrors, setKeyErrors] = useState<KeyErrors>({});
+  const [tab, setTab] = useState<Mode | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
@@ -99,133 +212,61 @@ export function StripeGatewayCard() {
   const stripe = list.find((g) => g.gateway === 'stripe');
   if (!stripe) return null;
   const store = (next: GatewayView) => res.set(list.map((g) => (g.gateway === next.gateway ? next : g)));
-  const showForm = !stripe.connected || replacing;
+  const shown: Mode = tab ?? stripe.mode ?? 'test';
 
-  const toggle = async (enabled: boolean) => {
+  const patch = async (body: { enabled?: boolean; mode?: Mode }) => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      store((await apiPatch<{ gateway: GatewayView }>(`${base}/stripe`, { enabled })).gateway);
+      store((await apiPatch<{ gateway: GatewayView }>(`${base}/stripe`, body)).gateway);
     } catch (err) {
       setError(err);
     }
     setBusy(false);
   };
-
-  const connect = async (e: FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    const found = checkKeys(keys);
-    setKeyErrors(found);
-    if (Object.keys(found).length > 0) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await apiPut<{ gateway: GatewayView }>(`${base}/stripe`, keys);
-      setKeys(EMPTY);
-      setReplacing(false);
-      store(next.gateway);
-    } catch (err) {
-      setError(err);
-    }
-    setBusy(false);
-  };
-
-  const set = (k: keyof Keys) => (e: { target: { value: string } }) => {
-    setKeys({ ...keys, [k]: e.target.value.trim() });
-    setKeyErrors({ ...keyErrors, [k]: undefined });
-  };
-  const fieldError = (k: keyof Keys) => (keyErrors[k] ? t(`owner.gateway.errors.${keyErrors[k]}`) : undefined);
-  // The API reuses `invalid_credentials` (the login message) when Stripe rejects the keys.
-  const failure =
-    error instanceof ApiError && error.code === 'invalid_credentials' ? t('owner.gateway.errors.invalidKeys') : error !== null ? errorMessage(error, t) : null;
 
   return (
     <section className={styles.card} aria-label={title}>
       <h2 className={styles.heading}>{title}</h2>
       <p className={styles.muted}>{t('owner.gateway.intro')}</p>
-      {stripe.connected && stripe.mode && (
-        <div className={styles.statusRow}>
-          <Badge tone={stripe.mode === 'live' ? 'success' : 'warning'}>{t(`owner.gateway.mode.${stripe.mode}`)}</Badge>
-          <span className={styles.muted}>{t('owner.gateway.account')}</span>
-          <strong className={styles.account}>{stripe.accountId}</strong>
-        </div>
-      )}
-      {stripe.connected && (
+      {stripe.connected && stripe.mode ? (
         <>
-          <Checkbox label={t('owner.gateway.enabled')} checked={stripe.enabled} disabled={busy} onChange={(on) => void toggle(on)} />
-          <h3 className={styles.subheading}>{t('owner.gateway.webhookTitle')}</h3>
-          <p className={styles.muted}>{t('owner.gateway.webhookHint')}</p>
-          <CopyField label={t('owner.gateway.webhookUrl')} value={stripe.webhookUrl} />
-          <ul aria-label={t('owner.gateway.events')} className={styles.events}>
-            {stripe.webhookEvents.map((ev) => (
-              <li key={ev}>{ev}</li>
-            ))}
-          </ul>
-          <CopyField label={t('owner.gateway.events')} value={stripe.webhookEvents.join(',')} />
-        </>
-      )}
-      {showForm ? (
-        <form className={styles.stack} onSubmit={(e) => void connect(e)} noValidate>
-          {!stripe.connected && <p className={styles.muted}>{t('owner.gateway.notConnected')}</p>}
-          <TextField
-            label={t('owner.gateway.secretKey')}
-            hint={t('owner.gateway.secretHint')}
-            type="password"
-            autoComplete="off"
-            value={keys.secretKey}
-            onChange={set('secretKey')}
-            error={fieldError('secretKey')}
-          />
-          <TextField
-            label={t('owner.gateway.publishableKey')}
-            type="text"
-            autoComplete="off"
-            value={keys.publishableKey}
-            onChange={set('publishableKey')}
-            error={fieldError('publishableKey')}
-          />
-          <TextField
-            label={t('owner.gateway.webhookSecret')}
-            hint={t('owner.gateway.secretHint')}
-            type="password"
-            autoComplete="off"
-            value={keys.webhookSecret}
-            onChange={set('webhookSecret')}
-            error={fieldError('webhookSecret')}
-          />
-          {failure && <Alert tone="danger">{failure}</Alert>}
-          <div className={styles.actions}>
-            {replacing && (
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => {
-                  setReplacing(false);
-                  setKeys(EMPTY);
-                  setKeyErrors({});
-                  setError(null);
-                }}
-              >
-                {t('owner.gateway.cancel')}
-              </Button>
-            )}
-            <Button type="submit" loading={busy}>
-              {t('owner.gateway.connect')}
-            </Button>
+          <div className={styles.statusRow}>
+            <Badge tone={stripe.mode === 'live' ? 'success' : 'warning'}>{t(`owner.gateway.mode.${stripe.mode}`)}</Badge>
+            <span className={styles.muted}>{t(`owner.gateway.modeHint.${stripe.mode}`)}</span>
           </div>
-        </form>
+          <Select
+            layout="stacked"
+            label={t('owner.gateway.activeMode')}
+            value={stripe.mode}
+            disabled={busy}
+            options={MODES.filter((m) => stripe.accounts[m]).map((m) => ({ value: m, label: t(`owner.gateway.mode.${m}`) }))}
+            onChange={(e) => void patch({ mode: e.target.value as Mode })}
+          />
+          {!stripe.accounts.live && <p className={styles.muted}>{t('owner.gateway.addLiveHint')}</p>}
+          <Checkbox label={t('owner.gateway.enabled')} checked={stripe.enabled} disabled={busy} onChange={(on) => void patch({ enabled: on })} />
+          {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+        </>
       ) : (
-        <>
-          {failure && <Alert tone="danger">{failure}</Alert>}
-          <div className={styles.actions}>
-            <Button variant="secondary" onClick={() => setReplacing(true)}>
-              {t('owner.gateway.replace')}
-            </Button>
-          </div>
-        </>
+        <p className={styles.muted}>{t('owner.gateway.notConnected')}</p>
       )}
+
+      <h3 className={styles.subheading}>{t('owner.gateway.webhookTitle')}</h3>
+      <p className={styles.muted}>{t('owner.gateway.webhookHint')}</p>
+      <CopyField label={t('owner.gateway.webhookUrl')} value={stripe.webhookUrl} />
+      <ul aria-label={t('owner.gateway.events')} className={styles.events}>
+        {stripe.webhookEvents.map((ev) => (
+          <li key={ev}>{ev}</li>
+        ))}
+      </ul>
+      <CopyField label={t('owner.gateway.events')} value={stripe.webhookEvents.join(',')} />
+
+      <h3 className={styles.subheading}>{t('owner.gateway.keysTitle')}</h3>
+      <Tabs label={t('owner.gateway.keysTitle')} tabs={MODES.map((m) => ({ id: m, label: t(`owner.gateway.mode.${m}`) }))} value={shown} onChange={(id) => setTab(id as Mode)} />
+      <div role="tabpanel" aria-label={t(`owner.gateway.mode.${shown}`)}>
+        <ModeKeys key={shown} mode={shown} view={stripe} base={base} onSaved={store} />
+      </div>
     </section>
   );
 }

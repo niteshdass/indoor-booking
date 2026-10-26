@@ -262,7 +262,7 @@ describe('refund service', () => {
 
   it('treats undecryptable gateway credentials as retryable', async () => {
     const { refund } = await reserved();
-    await PaymentGatewayAccount.updateMany({ ownerId: owner.ownerId }, { $set: { credentialsEncrypted: 'corrupt' } });
+    await PaymentGatewayAccount.updateMany({ ownerId: owner.ownerId }, { $set: { 'keys.test.credentialsEncrypted': 'corrupt' } });
     ctx.services.clock.advance(11 * MIN);
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {

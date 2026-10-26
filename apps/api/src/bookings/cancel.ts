@@ -2,7 +2,7 @@ import { bookingPaymentStatus, cancellationRefund, type BookingStatus, type Refu
 import type { Config } from '../config';
 import { runInTransaction } from '../db';
 import { AppError } from '../errors';
-import { loadGateway } from '../payments/gateway.model';
+import { loadGateway, type GatewayMode } from '../payments/gateway.model';
 import { Refund, type RefundDoc } from '../payments/refund.model';
 import { allocateRefund, dispatchRefund, reserveRefunds } from '../payments/refunds';
 import { noticeBooking } from '../notifications/outbox';
@@ -91,7 +91,7 @@ async function closeOpenPayment(booking: BookingDoc, deps: { config: Config; ser
   if (!payment) return;
   const inProgress = () => new AppError(409, 'payment_in_progress', 'A payment for this booking is in progress');
   try {
-    const loaded = await loadGateway(ownerId, payment.gateway!, deps.config, deps.services);
+    const loaded = await loadGateway(ownerId, payment.gateway!, deps.config, deps.services, { mode: payment.gatewayMode as GatewayMode | null });
     if (!loaded) {
       console.error(`[bookings] cancel of ${String(booking._id)} could not close payment ${String(payment._id)}: no gateway`);
       throw inProgress();

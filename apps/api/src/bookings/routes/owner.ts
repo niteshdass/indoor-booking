@@ -145,13 +145,18 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       throw new AppError(403, 'forbidden', 'You do not have permission to do this');
     }
     // A card link needs booking.create only: staff hand over a link and take no money.
-    let card: { amount?: number; gateway: string; gatewayAccountId: string } | undefined;
+    let card: { amount?: number; gateway: string; gatewayAccountId: string; gatewayMode: 'test' | 'live' } | undefined;
     if (input.payment.method === 'link') {
       const loaded = await loadGateway(t.ownerId, 'stripe', config, services);
       if (!loaded || !loaded.row.enabled || !loaded.gateway.supports(venue.country, venue.currency)) {
         throw paymentsUnavailable();
       }
-      card = { amount: input.payment.amount, gateway: loaded.gateway.key, gatewayAccountId: loaded.row.accountId };
+      card = {
+        amount: input.payment.amount,
+        gateway: loaded.gateway.key,
+        gatewayAccountId: loaded.accountId,
+        gatewayMode: loaded.mode,
+      };
     }
     let linkPayment: PaymentDoc | null = null;
     const booking = await createBooking({

@@ -11,7 +11,15 @@ import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { gatewayFor } from '../gateway';
 import { STRIPE_WEBHOOK_EVENTS } from '../stripe';
-import { PaymentGatewayAccount, credentialsAad, loadGateway, type PaymentGatewayAccountDoc } from '../gateway.model';
+import {
+  GATEWAY_MODES,
+  PaymentGatewayAccount,
+  credentialsAad,
+  loadGateway,
+  type GatewayMode,
+  type LoadedGateway,
+  type PaymentGatewayAccountDoc,
+} from '../gateway.model';
 import { seal } from '../secretBox';
 
 const GATEWAYS = ['stripe'] as const;
@@ -29,35 +37,64 @@ const putSchema = z
     message: 'Secret and publishable keys must be for the same mode',
   });
 
-const patchSchema = z.object({ enabled: z.boolean() }).strict();
+const patchSchema = z
+  .object({ enabled: z.boolean().optional(), mode: z.enum(GATEWAY_MODES).optional() })
+  .strict()
+  .refine((b) => b.enabled !== undefined || b.mode !== undefined, { message: 'Nothing to change' });
+
+const accountsOf = (row: PaymentGatewayAccountDoc | null) =>
+  Object.fromEntries(
+    GATEWAY_MODES.map((m) => {
+      const set = row?.keys?.[m];
+      return [m, set ? { accountId: set.accountId, publishableKey: set.publishableKey } : null];
+    }),
+  ) as Record<GatewayMode, { accountId: string; publishableKey: string } | null>;
 
 function view(ownerId: string, config: Config, gateway: string, row: PaymentGatewayAccountDoc | null) {
   return {
     gateway,
     connected: !!row,
     enabled: row?.enabled ?? false,
-    mode: row?.mode ?? null,
-    accountId: row?.accountId ?? null,
-    publishableKey: row?.publishableKey ?? null,
+    /** The active mode: new payments use its keys. */
+    mode: (row?.mode as GatewayMode | undefined) ?? null,
+    accounts: accountsOf(row),
     webhookUrl: `${config.apiUrl}/api/v1/webhooks/${gateway}/${ownerId}`,
     webhookEvents: STRIPE_WEBHOOK_EVENTS,
     updatedAt: row ? (row as unknown as { updatedAt: Date }).updatedAt : null,
   };
 }
 
-const publicState = (row: { gateway: string; mode: string; accountId: string; enabled: boolean }) => ({
-  gateway: row.gateway,
-  mode: row.mode,
-  accountId: row.accountId,
-  enabled: row.enabled,
-});
+const publicState = (row: PaymentGatewayAccountDoc) => {
+  const accounts = accountsOf(row);
+  return {
+    gateway: row.gateway,
+    mode: row.mode,
+    enabled: row.enabled,
+    accounts: { test: accounts.test?.accountId ?? null, live: accounts.live?.accountId ?? null },
+  };
+};
 
 const accountInUse = () =>
   new AppError(409, 'gateway_account_in_use', 'A card payment is still pending on the current account');
 
-/** Pending card payments on `accountId`, and whether any belongs to a live hold (may still be paid). */
-async function pendingOn(ownerId: string, accountId: string, now: Date, session: ClientSession | null = null) {
-  const pending = await Payment.find({ ownerId, method: 'card', status: 'pending', gatewayAccountId: accountId }).session(session);
+/**
+ * Pending card payments taken with `mode`'s keys on `accountId`, and whether any belongs to a live hold
+ * (may still be paid). Rows from before modes were taken in the then-active mode.
+ */
+async function pendingOn(
+  ownerId: string,
+  key: { accountId: string; mode: GatewayMode; active: GatewayMode },
+  now: Date,
+  session: ClientSession | null = null,
+) {
+  const modes: (GatewayMode | null)[] = key.mode === key.active ? [key.mode, null] : [key.mode];
+  const pending = await Payment.find({
+    ownerId,
+    method: 'card',
+    status: 'pending',
+    gatewayAccountId: key.accountId,
+    gatewayMode: { $in: modes },
+  }).session(session);
   const live =
     pending.length > 0 &&
     !!(await Booking.exists({
@@ -70,16 +107,13 @@ async function pendingOn(ownerId: string, accountId: string, now: Date, session:
 }
 
 /**
- * Clears the old account before a switch. A live hold may still be paid there, so it blocks; every
- * other pending card payment is cancelled at the gateway with the old credentials, then failed. A
- * refused cancel (already paid, webhook on the way) blocks too. Runs outside the transaction, which can rerun.
+ * Clears one mode's account before it stops taking payments (new keys for another account, or a
+ * switch of the active mode). A live hold may still be paid there, so it blocks; every other pending
+ * card payment is cancelled at the gateway with the old credentials, then failed. A refused cancel
+ * (already paid, webhook on the way) blocks too. Runs outside the transaction, which can rerun.
  */
-async function releaseAccount(
-  ownerId: string,
-  old: NonNullable<Awaited<ReturnType<typeof loadGateway>>>,
-  now: Date,
-): Promise<void> {
-  const { pending, live } = await pendingOn(ownerId, old.row.accountId, now);
+async function releaseAccount(ownerId: string, old: LoadedGateway, now: Date): Promise<void> {
+  const { pending, live } = await pendingOn(ownerId, { accountId: old.accountId, mode: old.mode, active: old.row.mode as GatewayMode }, now);
   if (live) throw accountInUse();
   // A multi-day group's rows share one intent: cancel it once.
   const cancelled = new Set<string>();
@@ -119,27 +153,28 @@ export function gatewaysRouter(config: Config, services: AppServices): Router {
     if (!config.paymentsKey) throw new AppError(503, 'payments_unconfigured', 'Payments are not configured on this server');
     const creds = { secretKey: body.secretKey, webhookSecret: body.webhookSecret };
     const { accountId } = await gateway.verifyCredentials(creds);
-    const mode = body.secretKey.split('_')[1] as 'test' | 'live';
+    const mode = body.secretKey.split('_')[1] as GatewayMode;
     const sealed = seal(JSON.stringify(creds), config.paymentsKey, credentialsAad(t.ownerId, gateway.key));
-    const old = await loadGateway(t.ownerId, gateway.key, config, services);
-    if (old && old.row.accountId !== accountId) await releaseAccount(t.ownerId, old, services.now());
+    const old = await loadGateway(t.ownerId, gateway.key, config, services, { mode });
+    if (old && old.accountId !== accountId) await releaseAccount(t.ownerId, old, services.now());
 
     const row = await runInTransaction(async (session) => {
       const existing = await PaymentGatewayAccount.findOne({ ownerId: t.ownerId, gateway: gateway.key }).session(session);
       // A hold may have started paying on the old account since releaseAccount.
-      if (existing && existing.accountId !== accountId) {
-        if ((await pendingOn(t.ownerId, existing.accountId, services.now(), session)).live) throw accountInUse();
+      const before = existing?.keys?.[mode];
+      if (existing && before && before.accountId !== accountId) {
+        const key = { accountId: before.accountId, mode, active: existing.mode as GatewayMode };
+        if ((await pendingOn(t.ownerId, key, services.now(), session)).live) throw accountInUse();
       }
       const saved = (await PaymentGatewayAccount.findOneAndUpdate(
         { ownerId: t.ownerId, gateway: gateway.key },
         {
           $set: {
-            credentialsEncrypted: sealed,
-            publishableKey: body.publishableKey,
-            accountId,
-            mode,
-            enabled: body.enabled ?? true,
+            [`keys.${mode}`]: { credentialsEncrypted: sealed, publishableKey: body.publishableKey, accountId },
+            ...(body.enabled === undefined ? {} : { enabled: body.enabled }),
           },
+          // The first keys saved pick the active mode; adding the other mode's keys does not switch.
+          $setOnInsert: { mode, ...(body.enabled === undefined ? { enabled: true } : {}) },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true, session },
       ))!;
@@ -162,27 +197,46 @@ export function gatewaysRouter(config: Config, services: AppServices): Router {
 
   router.patch('/payment-gateways/:gateway', requirePermission('settings.edit'), async (req, res) => {
     const t = tenantOf(req);
-    const { enabled } = patchSchema.parse(req.body);
+    const body = patchSchema.parse(req.body);
     const key = String(req.params.gateway);
+    const notConnected = () => new AppError(404, 'not_found', 'Payment gateway not connected');
+    const noKeys = () => new AppError(400, 'gateway_mode_not_connected', 'Add the keys for this mode first');
+
+    // Switching modes retires the old mode's open payments, as a switch of account does.
+    const current = await loadGateway(t.ownerId, key, config, services);
+    if (body.mode && current && body.mode !== current.mode) {
+      if (!current.row.keys?.[body.mode]) throw noKeys();
+      await releaseAccount(t.ownerId, current, services.now());
+    }
+
     const row = await runInTransaction(async (session) => {
-      const current = await PaymentGatewayAccount.findOne({ ownerId: t.ownerId, gateway: key }).session(session);
-      if (!current) throw new AppError(404, 'not_found', 'Payment gateway not connected');
-      const before = publicState(current);
-      current.enabled = enabled;
-      await current.save({ session });
+      const doc = await PaymentGatewayAccount.findOne({ ownerId: t.ownerId, gateway: key }).session(session);
+      if (!doc) throw notConnected();
+      const before = publicState(doc);
+      if (body.mode && body.mode !== doc.mode) {
+        if (!doc.keys?.[body.mode]) throw noKeys();
+        const active = doc.mode as GatewayMode;
+        const old = doc.keys?.[active];
+        if (old && (await pendingOn(t.ownerId, { accountId: old.accountId, mode: active, active }, services.now(), session)).live) {
+          throw accountInUse();
+        }
+        doc.mode = body.mode;
+      }
+      if (body.enabled !== undefined) doc.enabled = body.enabled;
+      await doc.save({ session });
       await logActivity(
         t,
         {
           action: 'payment_gateway.update',
           entity: 'payment_gateway',
-          entityId: String(current._id),
+          entityId: String(doc._id),
           before,
-          after: publicState(current),
+          after: publicState(doc),
         },
         services.now(),
         session,
       );
-      return current;
+      return doc;
     });
     res.json({ gateway: view(t.ownerId, config, key, row) });
   });

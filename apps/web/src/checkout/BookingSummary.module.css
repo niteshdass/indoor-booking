@@ -44,10 +44,10 @@
 }
 
 .row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-3);
   font-size: var(--text-base);
   color: var(--text-default);
 }
@@ -59,6 +59,44 @@
 
 .row dd {
   margin: 0;
+  color: var(--text-strong);
+  text-align: end;
+  white-space: nowrap;
+}
+
+/* Several bookings: one block per date, its time ranges as compact lines. */
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+  transition: opacity var(--duration-fast);
+}
+
+.day {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dayTitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.lines .row {
   color: var(--text-strong);
 }
 

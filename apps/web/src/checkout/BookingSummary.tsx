@@ -20,13 +20,26 @@ function addonLabel(a: AddonLine, t: TFunction): string {
   return a.name;
 }
 
+type Item = { date: string; quote: QuoteJson };
+
+/** Items grouped by date, in order. */
+function byDate(items: Item[]): [string, Item[]][] {
+  const out: [string, Item[]][] = [];
+  for (const item of items) {
+    const last = out[out.length - 1];
+    if (last && last[0] === item.date) last[1].push(item);
+    else out.push([item.date, [item]]);
+  }
+  return out;
+}
+
 type Props = {
   venue: PublicVenue;
   turf: PublicTurf;
   date: string;
   quote: QuoteJson;
   /** Several bookings at once, each on its own day and times: one row each, add-ons counted on each. */
-  items?: { date: string; quote: QuoteJson }[] | null;
+  items?: Item[] | null;
   groupTotal?: number;
   groupDue?: number;
   busy?: boolean;
@@ -56,15 +69,23 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
           </p>
         </header>
 
-        <dl className={[styles.rows, busy ? styles.busy : ''].filter(Boolean).join(' ')}>
-          {multi.map((d) => (
-            <div key={`${d.date}-${d.quote.slots[0]?.startAt}`} className={styles.row}>
-              <dt>
-                {formatDate(d.date, venue.timezone, lang)} · {span(d.quote)}
-              </dt>
-              <dd>{fmt(d.quote.subtotal)}</dd>
-            </div>
+        <ul className={[styles.days, busy ? styles.busy : ''].filter(Boolean).join(' ')}>
+          {byDate(multi).map(([d, list]) => (
+            <li key={d} className={styles.day}>
+              <h3 className={styles.dayTitle}>{formatDate(d, venue.timezone, lang)}</h3>
+              <dl className={styles.lines}>
+                {list.map((x) => (
+                  <div key={x.quote.slots[0]?.startAt} className={styles.row}>
+                    <dt>{span(x.quote)}</dt>
+                    <dd>{fmt(x.quote.subtotal)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
           ))}
+        </ul>
+
+        <dl className={[styles.rows, busy ? styles.busy : ''].filter(Boolean).join(' ')}>
           {quote.addons.map((a) => (
             <div key={`${a.addonId}-${a.auto}`} className={styles.row}>
               <dt>

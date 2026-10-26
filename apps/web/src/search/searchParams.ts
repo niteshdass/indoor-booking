@@ -6,9 +6,13 @@ import {
   type Sport,
 } from '@booking/shared';
 
+/** A map viewport in degrees; west > east means it crosses the antimeridian. */
+export type Bbox = { west: number; south: number; east: number; north: number };
+
 export type Criteria = {
   near: { lat: number; lng: number } | null;
   radiusKm: number | null; // null = any distance
+  bbox: Bbox | null; // null = no map area
   sport: Sport | null;
   indoor: boolean | null;
   date: string | null; // null = each venue's today
@@ -24,6 +28,7 @@ export type Criteria = {
 export const EMPTY_CRITERIA: Criteria = {
   near: null,
   radiusKm: null,
+  bbox: null,
   sport: null,
   indoor: null,
   date: null,
@@ -67,6 +72,36 @@ function validCurrency(code: string | null): string | null {
   }
 }
 
+/** Parses `west,south,east,north`; null unless the API would accept it. */
+function parseBbox(v: string | null): Bbox | null {
+  const parts = v?.split(',') ?? [];
+  if (parts.length !== 4) return null;
+  const [west, south, east, north] = [
+    decimal(parts[0]!, -180, 180),
+    decimal(parts[1]!, -90, 90),
+    decimal(parts[2]!, -180, 180),
+    decimal(parts[3]!, -90, 90),
+  ];
+  if (west === null || south === null || east === null || north === null) return null;
+  return south < north && west !== east ? { west, south, east, north } : null;
+}
+
+const wrapLng = (lng: number) => (lng > 180 || lng < -180 ? ((((lng + 180) % 360) + 360) % 360) - 180 : lng);
+const round4 = (n: number) => Number(n.toFixed(4)) + 0;
+
+/**
+ * A map's bounds as a search box: 4 decimals, longitude wrapped into [-180, 180] and latitude clamped. A view
+ * a full turn wide or more covers every longitude. Null when nothing is left of it.
+ */
+export function toBbox(b: Bbox): Bbox | null {
+  const south = round4(Math.max(-90, b.south));
+  const north = round4(Math.min(90, b.north));
+  const full = b.east - b.west >= 360;
+  const west = full ? -180 : round4(wrapLng(b.west));
+  const east = full ? 180 : round4(wrapLng(b.east));
+  return south < north && west !== east ? { west, south, east, north } : null;
+}
+
 /** Reads search criteria from a URL. Invalid values and broken pairs are dropped; never throws. */
 export function criteriaFromParams(p: URLSearchParams): Criteria {
   const lat = decimal(p.get('lat'), -90, 90);
@@ -106,6 +141,7 @@ export function criteriaFromParams(p: URLSearchParams): Criteria {
   return {
     near,
     radiusKm,
+    bbox: parseBbox(p.get('bbox')),
     sport,
     indoor: flag(p.get('indoor')),
     date,
@@ -127,6 +163,7 @@ export function criteriaToParams(c: Criteria): URLSearchParams {
     p.set('lng', String(c.near.lng));
     if (c.radiusKm !== null) p.set('radiusKm', String(c.radiusKm));
   }
+  if (c.bbox) p.set('bbox', [c.bbox.west, c.bbox.south, c.bbox.east, c.bbox.north].join(','));
   if (c.sport) p.set('sport', c.sport);
   if (c.indoor !== null) p.set('indoor', String(c.indoor));
   if (c.date) p.set('date', c.date);

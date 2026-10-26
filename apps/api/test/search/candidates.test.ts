@@ -45,6 +45,26 @@ async function listed(name: string, over: Parameters<typeof seedVenue>[1] = {}, 
 const names = (cs: Awaited<ReturnType<typeof findCandidates>>) => cs.map((c) => c.venue.name);
 
 describe('findCandidates', () => {
+  it('a map box keeps only venues inside it, with or without a location', async () => {
+    await listed('Dhaka', { location: [90.41, 23.81] });
+    await listed('Chattogram', { location: [91.83, 22.35] });
+    await listed('Sylhet', { location: [91.87, 24.9] });
+
+    const dhaka = { bbox: '90.2,23.6,90.6,24' };
+    expect(names(await findCandidates(parseSearchQuery(dhaka), 0, 10))).toEqual(['Dhaka']);
+    expect(names(await findCandidates(parseSearchQuery({ ...dhaka, ...HERE }), 0, 10))).toEqual(['Dhaka']);
+    const east = await findCandidates(parseSearchQuery({ bbox: '91,22,92.5,25.5' }), 0, 10);
+    expect(names(east)).toEqual(['Chattogram', 'Sylhet']);
+  });
+
+  it('a map box across the antimeridian wraps', async () => {
+    await listed('Fiji', { location: [178.44, -18.14] });
+    await listed('Samoa', { location: [-171.76, -13.83] });
+    await listed('Dhaka', { location: [90.41, 23.81] });
+    const res = await findCandidates(parseSearchQuery({ bbox: '170,-25,-165,-5' }), 0, 10);
+    expect(names(res)).toEqual(['Fiji', 'Samoa']);
+  });
+
   it('sorted by distance; radius excludes farther venues', async () => {
     await listed('Far', { location: [90.41, 23.81 + 0.225] });
     await listed('Here');

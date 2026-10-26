@@ -21,6 +21,13 @@ function sortStage(q: SearchQuery): Record<string, 1 | -1> {
 export async function findCandidates(q: SearchQuery, skip: number, n: number): Promise<Candidate[]> {
   const venueMatch: Record<string, unknown> = { published: true };
   if (q.currency) venueMatch.currency = q.currency;
+  if (q.bbox) {
+    const { west, south, east, north } = q.bbox;
+    venueMatch['location.coordinates.1'] = { $gte: south, $lte: north };
+    const lng = 'location.coordinates.0';
+    if (west < east) venueMatch[lng] = { $gte: west, $lte: east };
+    else venueMatch.$or = [{ [lng]: { $gte: west } }, { [lng]: { $lte: east } }];
+  }
 
   const turfMatch: Record<string, unknown> = {
     $expr: { $and: [{ $eq: ['$ownerId', '$$ownerId'] }, { $eq: ['$venueId', '$$venueId'] }] },

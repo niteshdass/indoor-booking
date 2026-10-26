@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { AMENITIES, SPORTS } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
 import ru from '../../src/i18n/locales/ru.json';
-import { EMPTY_CRITERIA, apiQuery, criteriaFromParams, criteriaToParams, type Criteria } from '../../src/search/searchParams';
+import { EMPTY_CRITERIA, apiQuery, criteriaFromParams, criteriaToParams, toBbox, type Criteria } from '../../src/search/searchParams';
 
 const full: Criteria = {
   near: { lat: 23.8123, lng: 90.4123 },
   radiusKm: 20,
+  bbox: { west: 90.3, south: 23.7, east: 90.5, north: 23.9 },
   sport: 'futsal',
   indoor: true,
   date: '2026-11-02',
@@ -25,6 +26,17 @@ describe('search params', () => {
     expect(criteriaFromParams(criteriaToParams(full))).toEqual(full);
     expect(criteriaFromParams(criteriaToParams(EMPTY_CRITERIA))).toEqual(EMPTY_CRITERIA);
     expect(criteriaToParams(EMPTY_CRITERIA).toString()).toBe('');
+  });
+  it('bbox parses and drops anything the API would reject', () => {
+    expect(parse('bbox=170,-10,-170,10').bbox).toEqual({ west: 170, south: -10, east: -170, north: 10 });
+    for (const bad of ['1,2,3', '1,2,3,x', '0,10,1,5', '5,0,5,1', '-181,0,1,1', '0,-91,1,1', ''])
+      expect(parse(`bbox=${bad}`).bbox).toBeNull();
+  });
+  it('toBbox rounds, wraps and covers every longitude when a full turn wide', () => {
+    expect(toBbox({ west: 90.123456, south: 23.7, east: 90.5, north: 23.9 })).toEqual({ west: 90.1235, south: 23.7, east: 90.5, north: 23.9 });
+    expect(toBbox({ west: 170, south: 0, east: 190, north: 10 })).toEqual({ west: 170, south: 0, east: -170, north: 10 });
+    expect(toBbox({ west: -300, south: -95, east: 300, north: 95 })).toEqual({ west: -180, south: -90, east: 180, north: 90 });
+    expect(toBbox({ west: 1, south: 5, east: 2, north: 5 })).toBeNull();
   });
   it('indoor=false round-trips', () => {
     const c = { ...EMPTY_CRITERIA, indoor: false };

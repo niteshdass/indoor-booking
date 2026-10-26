@@ -9,13 +9,12 @@ import { SportCourt } from '../landing/SportCourt';
 import { errorMessage } from '../lib/errors';
 import { ResultCard } from './ResultCard';
 import { SearchForm } from './SearchForm';
-import { criteriaFromParams, criteriaToParams, type Criteria } from './searchParams';
+import { criteriaFromParams, criteriaToParams, type Bbox, type Criteria } from './searchParams';
 import { useSearch } from './useSearch';
 import styles from './SearchPage.module.css';
 
 const ResultsMap = lazy(() => import('./ResultsMap').then((m) => ({ default: m.ResultsMap })));
 
-const DEFAULT_RADIUS_KM = 10;
 const LG = '(min-width: 1024px)';
 
 /** True at the lg breakpoint and up; false where matchMedia is missing. */
@@ -50,9 +49,19 @@ export function SearchPage() {
   const mapHidden = !wide && view !== 'map';
 
   const onChange = (c: Criteria) => setParams(criteriaToParams(c));
-  const onSearchArea = (center: { lat: number; lng: number }) =>
-    onChange({ ...criteria, near: center, radiusKm: criteria.radiusKm ?? DEFAULT_RADIUS_KM });
+  // The first move adds a history entry; later ones replace it, so back skips every pan.
+  const onArea = (bbox: Bbox) =>
+    setParams(criteriaToParams({ ...criteria, bbox }), { replace: criteria.bbox !== null });
+  const clearArea = () => onChange({ ...criteria, bbox: null });
   const loading = status === 'loading';
+
+  // The map fits a new search, but not a new area: it is already showing that area.
+  const mapKey = criteriaToParams({ ...criteria, bbox: null }).toString() + (criteria.bbox ? '|area' : '');
+  // Keep the old pins while a new search has nothing yet, so moving the map does not blank it.
+  const [pins, setPins] = useState({ results, key: mapKey });
+  if ((!loading || results.length > 0) && (pins.results !== results || pins.key !== mapKey)) {
+    setPins({ results, key: mapKey });
+  }
   const loadMoreButton = status === 'idle' && hasMore && (
     <div className={styles.more}>
       <Button variant="secondary" size="lg" onClick={loadMore}>
@@ -98,6 +107,15 @@ export function SearchPage() {
 
           <div className={styles.body}>
             <div className={styles.listPane} hidden={listHidden}>
+              {criteria.bbox && (
+                <div className={styles.area}>
+                  <p className={styles.areaText}>{t('search.areaActive')}</p>
+                  <Button size="sm" variant="secondary" onClick={clearArea}>
+                    {t('search.areaClear')}
+                  </Button>
+                </div>
+              )}
+
               {status === 'error' && (
                 <Alert tone="danger" className={styles.alert}>
                   <span>{errorMessage(error, t)}</span>
@@ -148,12 +166,13 @@ export function SearchPage() {
           }
         >
           <ResultsMap
-            results={results}
+            results={pins.results}
             center={criteria.near}
-            fitKey={criteriaToParams(criteria).toString()}
-            onSearchArea={onSearchArea}
+            bbox={criteria.bbox}
+            fitKey={pins.key}
+            onArea={onArea}
             onSelect={(slug) => {
-              const r = results.find((x) => x.slug === slug);
+              const r = pins.results.find((x) => x.slug === slug);
               navigate(`/venues/${slug}${r ? `?date=${r.date}` : ''}`);
             }}
           />

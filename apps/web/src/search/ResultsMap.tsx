@@ -1,17 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { SearchResult } from '@booking/shared';
 import { Button } from '../components/ui/Button';
+import { Checkbox } from '../components/ui/Checkbox';
 import { moneyShort } from '../lib/format';
+import { toBbox, type Bbox } from './searchParams';
 import styles from './ResultsMap.module.css';
 
 export type LatLng = { lat: number; lng: number };
 export type ResultsMapProps = {
   results: SearchResult[];
   center: LatLng | null;
-  onSearchArea(center: LatLng): void;
+  /** The map area the list is limited to; while set, new results never move the map. */
+  bbox: Bbox | null;
+  /** The user moved the map: limit the search to this area. */
+  onArea(bbox: Bbox): void;
   onSelect(slug: string): void;
   /** Identifies the search; a new value makes the next non-empty result set fit the view. */
   fitKey?: string;
@@ -22,6 +27,8 @@ const ATTRIBUTION = '© OpenStreetMap contributors';
 const CENTER_ZOOM = 12;
 const FIT_MAX_ZOOM = 15;
 const AT_CENTER = 0.0001; // degrees
+/** Wait this long after the map stops before searching, so a few quick zooms make one request. */
+export const AREA_DEBOUNCE_MS = 400;
 
 /** Pin text: the price when there is one, else the venue name. */
 export function pinLabel(r: SearchResult, lang: string): string {
@@ -34,13 +41,6 @@ export function buildPin(text: string, className: string): HTMLElement {
   el.className = className;
   el.textContent = text;
   return el;
-}
-
-/** Rounds to 5 decimals (plain decimal notation, no -0) and wraps longitude into [-180, 180]. */
-export function roundAndWrap(c: LatLng): LatLng {
-  const round = (n: number) => Number(n.toFixed(5)) + 0;
-  const lng = c.lng > 180 || c.lng < -180 ? ((((c.lng + 180) % 360) + 360) % 360) - 180 : c.lng;
-  return { lat: round(c.lat), lng: round(lng) };
 }
 
 /**
@@ -75,6 +75,15 @@ export function viewAction(v: ViewState): 'fit' | 'center' | 'mark' | 'none' {
   return 'none';
 }
 
+const bboxKey = (b: Bbox) => `${b.west},${b.south},${b.east},${b.north}`;
+
+/** The map's view as a search box (null for a pane with no size). */
+function viewBbox(m: L.Map): Bbox | null {
+  if (m.getSize().x === 0 || m.getSize().y === 0) return null;
+  const b = m.getBounds();
+  return toBbox({ west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() });
+}
+
 export function makePinIcon(r: SearchResult, lang: string): L.DivIcon {
   return L.divIcon({
     className: styles.pinWrap,
@@ -86,7 +95,8 @@ export function makePinIcon(r: SearchResult, lang: string): L.DivIcon {
 export function ResultsMap({
   results,
   center,
-  onSearchArea,
+  bbox,
+  onArea,
   onSelect,
   fitKey = '',
 }: ResultsMapProps) {
@@ -94,20 +104,48 @@ export function ResultsMap({
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
-  const handlers = useRef({ onSearchArea, onSelect });
-  handlers.current = { onSearchArea, onSelect };
+  const handlers = useRef({ onArea, onSelect });
+  handlers.current = { onArea, onSelect };
   const fittedKey = useRef<string | null>(null);
   const centeredKey = useRef<string | null>(null);
-  const pendingFit = useRef<L.LatLngBounds | null>(null);
+  const pendingFit = useRef<{ bounds: L.LatLngBounds; padding: number } | null>(null);
+  /** Set while the map is moved by code: those moves are not the user choosing an area. */
+  const quiet = useRef(0);
+  /** The last area this map reported or showed, so a box coming back through the URL does not move it again. */
+  const shownArea = useRef<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [follow, setFollow] = useState(true);
+  const followRef = useRef(follow);
+  followRef.current = follow;
+  /** Moved by the user since the last search, with "search as I move" off. */
+  const [moved, setMoved] = useState(false);
 
-  const fit = (m: L.Map, bounds: L.LatLngBounds) => {
+  // Code moves are never animated, so every move event they cause fires inside the call.
+  const quietly = (f: () => void) => {
+    quiet.current += 1;
+    try {
+      f();
+    } finally {
+      quiet.current -= 1;
+    }
+  };
+
+  const fit = (m: L.Map, bounds: L.LatLngBounds, padding = 32) => {
     // A hidden pane has no size; fitting now would pick a nonsense zoom, so wait until it is shown.
     if (m.getSize().x === 0 || m.getSize().y === 0) {
-      pendingFit.current = bounds;
+      pendingFit.current = { bounds, padding };
       return;
     }
     pendingFit.current = null;
-    m.fitBounds(bounds, { padding: [32, 32], maxZoom: FIT_MAX_ZOOM });
+    quietly(() => m.fitBounds(bounds, { padding: [padding, padding], maxZoom: FIT_MAX_ZOOM, animate: false }));
+  };
+
+  const report = (m: L.Map) => {
+    const area = viewBbox(m);
+    if (!area) return;
+    shownArea.current = bboxKey(area);
+    setMoved(false);
+    handlers.current.onArea(area);
   };
 
   useEffect(() => {
@@ -117,16 +155,29 @@ export function ResultsMap({
     L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
+    m.on('moveend', () => {
+      if (quiet.current > 0) return;
+      if (timer.current) clearTimeout(timer.current);
+      if (!followRef.current) {
+        setMoved(true);
+        return;
+      }
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        report(m);
+      }, AREA_DEBOUNCE_MS);
+    });
     const ro =
       typeof ResizeObserver === 'undefined'
         ? null
         : new ResizeObserver(() => {
-            m.invalidateSize();
+            quietly(() => m.invalidateSize());
             if (pendingFit.current && m.getSize().x > 0 && m.getSize().y > 0)
-              fit(m, pendingFit.current);
+              fit(m, pendingFit.current.bounds, pendingFit.current.padding);
           });
     ro?.observe(el);
     return () => {
+      if (timer.current) clearTimeout(timer.current);
       ro?.disconnect();
       m.remove();
       map.current = null;
@@ -134,6 +185,21 @@ export function ResultsMap({
     };
   }, []);
 
+  // Show an area that came from the URL (a shared link, back and forward) rather than from moving this map.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (!bbox) {
+      shownArea.current = null;
+      return;
+    }
+    if (shownArea.current === bboxKey(bbox)) return;
+    shownArea.current = bboxKey(bbox);
+    const east = bbox.east < bbox.west ? bbox.east + 360 : bbox.east;
+    fit(m, L.latLngBounds([bbox.south, bbox.west], [bbox.north, east]), 0);
+  }, [bbox]);
+
+  const locked = bbox !== null;
   useEffect(() => {
     const m = map.current;
     const group = layer.current;
@@ -160,6 +226,7 @@ export function ResultsMap({
       marker.on('click', () => handlers.current.onSelect(r.slug));
       marker.addTo(group);
     }
+    if (locked) return;
     const action = viewAction({
       fittedKey: fittedKey.current,
       centeredKey: centeredKey.current,
@@ -175,27 +242,37 @@ export function ResultsMap({
       fit(m, L.latLngBounds(points));
       fittedKey.current = fitKey;
     } else if (action === 'center' && center) {
-      m.setView([center.lat, center.lng], CENTER_ZOOM);
+      quietly(() => m.setView([center.lat, center.lng], CENTER_ZOOM, { animate: false }));
       centeredKey.current = fitKey;
     } else if (action === 'mark') {
       centeredKey.current = fitKey;
     }
-  }, [results, i18n.language, t, center, fitKey]);
+  }, [results, i18n.language, t, center, fitKey, locked]);
 
   const searchArea = () => {
-    const m = map.current;
-    if (!m) return;
-    const c = m.getCenter();
-    handlers.current.onSearchArea(roundAndWrap({ lat: c.lat, lng: c.lng }));
+    if (map.current) report(map.current);
+  };
+
+  const toggleFollow = (on: boolean) => {
+    setFollow(on);
+    if (on && moved) searchArea();
   };
 
   return (
     <div className={styles.wrap}>
       <div ref={host} className={styles.map} role="region" aria-label={t('search.mapLabel')} />
       <div className={styles.action}>
-        <Button size="sm" variant="secondary" onClick={searchArea}>
-          {t('search.searchArea')}
-        </Button>
+        <Checkbox
+          className={styles.follow}
+          label={t('search.followMap')}
+          checked={follow}
+          onChange={toggleFollow}
+        />
+        {!follow && moved && (
+          <Button size="sm" variant="secondary" onClick={searchArea}>
+            {t('search.searchArea')}
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -3,9 +3,13 @@ import { MAX_SEARCH_RADIUS_KM, SPORTS, currencyExponent, type Sport, type TimeRa
 import { AppError } from '../errors';
 import { isoDateSchema, timeSchema } from '../schedule/schemas';
 
+/** A map viewport; west > east means it crosses the antimeridian. */
+export type Bbox = { west: number; south: number; east: number; north: number };
+
 export type SearchQuery = {
   near: { lat: number; lng: number } | null;
   radiusKm: number | null;
+  bbox: Bbox | null;
   sport: Sport | null;
   indoor: boolean | null;
   date: string | null;
@@ -29,6 +33,22 @@ const whole = z
   .regex(/^\d+$/, 'Use a whole number')
   .transform(Number)
   .pipe(z.number().int().max(Number.MAX_SAFE_INTEGER));
+const bboxSchema = z
+  .string()
+  .transform((v, ctx) => {
+    const parts = v.split(',');
+    if (parts.length !== 4 || parts.some((p) => !/^-?\d+(\.\d+)?$/.test(p))) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use west,south,east,north' });
+      return z.NEVER;
+    }
+    const [west, south, east, north] = parts.map(Number) as [number, number, number, number];
+    return { west, south, east, north };
+  })
+  .refine(
+    (b) => [b.west, b.east].every((x) => x >= -180 && x <= 180) && [b.south, b.north].every((y) => y >= -90 && y <= 90),
+    'Longitude must be within ±180 and latitude within ±90',
+  )
+  .refine((b) => b.south < b.north && b.west !== b.east, 'The box must have an area');
 const flag = z.enum(['true', 'false']).transform((v) => v === 'true');
 
 const isCurrency = (code: string) => {
@@ -45,6 +65,7 @@ const searchQuerySchema = z
     lat: decimal.pipe(z.number().min(-90).max(90)),
     lng: decimal.pipe(z.number().min(-180).max(180)),
     radiusKm: decimal.pipe(z.number().gt(0).max(MAX_SEARCH_RADIUS_KM)),
+    bbox: bboxSchema,
     sport: z.enum(SPORTS),
     indoor: flag,
     date: isoDateSchema,
@@ -82,6 +103,7 @@ export function parseSearchQuery(q: unknown): SearchQuery {
   return {
     near: v.lat !== undefined && v.lng !== undefined ? { lat: v.lat, lng: v.lng } : null,
     radiusKm: v.radiusKm ?? null,
+    bbox: v.bbox ?? null,
     sport: v.sport ?? null,
     indoor: v.indoor ?? null,
     date: v.date ?? null,

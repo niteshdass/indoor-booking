@@ -8,8 +8,8 @@ import { mockApi, type Call } from '../helpers/api';
 import { renderApp } from '../helpers/render';
 
 vi.mock('../../src/search/ResultsMap', () => ({
-  ResultsMap: (props: { onSearchArea(c: { lat: number; lng: number }): void }) => (
-    <button type="button" onClick={() => props.onSearchArea({ lat: 1, lng: 2 })}>
+  ResultsMap: (props: { onArea(b: { west: number; south: number; east: number; north: number }): void }) => (
+    <button type="button" onClick={() => props.onArea({ west: 90.3, south: 23.7, east: 90.5, north: 23.9 })}>
       mock-map
     </button>
   ),
@@ -224,30 +224,31 @@ describe('SearchPage', () => {
     expect(screen.getAllByRole('button', { name: en.search.loadMore })).toHaveLength(1);
   });
 
-  it('search this area keeps an existing radius', async () => {
-    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    const { user, location } = renderApp('/search?lat=5&lng=6&radiusKm=20');
-    await screen.findByText('Arena One');
-    await user.click(screen.getByRole('button', { name: en.search.view.map }));
-    await user.click(screen.getByText('mock-map'));
-    await waitFor(() => expect(location().search).toContain('lat=1&lng=2&radiusKm=20'));
-  });
-
-  it('search this area sets near and default radius', async () => {
+  it('moving the map limits the search to its area, with the other filters', async () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
     const { user, location } = renderApp('/search?sport=futsal');
     await screen.findByText('Arena One');
+    expect(screen.queryByText(en.search.areaActive)).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: en.search.view.map }));
     await user.click(await screen.findByText('mock-map'));
-    await waitFor(() => expect(location().search).toContain('lat=1&lng=2&radiusKm=10'));
+    await waitFor(() => expect(location().search).toContain('bbox=90.3%2C23.7%2C90.5%2C23.9'));
     expect(location().search).toContain('sport=futsal');
     await waitFor(() => {
       const last = api.calls[api.calls.length - 1]!.query;
-      expect(last.get('lat')).toBe('1');
-      expect(last.get('lng')).toBe('2');
-      expect(last.get('radiusKm')).toBe('10');
+      expect(last.get('bbox')).toBe('90.3,23.7,90.5,23.9');
       expect(last.get('sport')).toBe('futsal');
     });
+  });
+
+  it('show all clears the map area and keeps the filters', async () => {
+    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user, location } = renderApp('/search?sport=futsal&bbox=90.3,23.7,90.5,23.9');
+    await screen.findByText('Arena One');
+    expect(screen.getByText(en.search.areaActive)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.search.areaClear }));
+    await waitFor(() => expect(location().search).not.toContain('bbox'));
+    expect(location().search).toContain('sport=futsal');
+    expect(screen.queryByText(en.search.areaActive)).not.toBeInTheDocument();
   });
 
   describe('criteria change', () => {

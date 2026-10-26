@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SearchResult } from '@booking/shared';
-import { buildPin, makePinIcon, pinLabel, roundAndWrap, shouldFit, viewAction } from '../../src/search/ResultsMap';
+import { buildPin, makePinIcon, pinLabel, shouldFit, viewAction } from '../../src/search/ResultsMap';
 import { moneyShort } from '../../src/lib/format';
 
 const r: SearchResult = {
@@ -49,23 +49,6 @@ describe('makePinIcon', () => {
     const el = html as HTMLElement;
     expect(el.textContent).toBe(evil);
     expect(el.querySelector('img')).toBeNull();
-  });
-});
-
-describe('roundAndWrap', () => {
-  it('turns -0 into 0', () => {
-    expect(String(roundAndWrap({ lat: -0, lng: -0.000001 }).lat)).toBe('0');
-    expect(String(roundAndWrap({ lat: -0.000001, lng: -0.000001 }).lng)).toBe('0');
-  });
-  it('keeps 180 and wraps beyond it', () => {
-    expect(roundAndWrap({ lat: 0, lng: 180 }).lng).toBe(180);
-    expect(roundAndWrap({ lat: 0, lng: 190 }).lng).toBe(-170);
-    expect(roundAndWrap({ lat: 0, lng: -190 }).lng).toBe(170);
-  });
-  it('never uses exponent notation', () => {
-    const c = roundAndWrap({ lat: 0.000001, lng: 0.00001234 });
-    expect(`${c.lat}${c.lng}`).not.toMatch(/e/i);
-    expect(c).toEqual({ lat: 0, lng: 0.00001 });
   });
 });
 

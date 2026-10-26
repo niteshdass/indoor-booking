@@ -19,7 +19,31 @@
   left: 50%;
   z-index: 1000; /* above Leaflet's panes (up to 700); controls share 1000 and this comes later */
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: max-content;
   max-width: calc(100% - var(--space-6));
+}
+
+/* "Search as I move the map": a surface pill so it reads on any tile. */
+.follow {
+  align-items: center;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.follow input {
+  margin: 0;
+}
+
+.follow label {
+  font-size: var(--text-sm);
 }
 
 .pinWrap {

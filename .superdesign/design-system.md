@@ -1,7 +1,7 @@
 # Slot Booking — Design System
 
-Adapted 2026-10-24 from the Fluent Monetize design system (Option B neutrals, chosen 2026-10-07).
-Visual rules are carried over unchanged; product context, fonts and booking components are this project's.
+Adapted 2026-10-24 from the Fluent Monetize design system; visual identity v2 ("Hard court") proposed 2026-10-26.
+Product context and booking components are this project's.
 Source of truth in code: `apps/web/src/styles/tokens.css`. Every UI change uses these tokens — no hardcoded hex, px font sizes, radii or shadows outside that file.
 
 ## Product context
@@ -14,22 +14,68 @@ Surfaces:
 
 JTBD: owners and staff see today's schedule and act on it fast and calmly; players trust the page enough to book and pay.
 
-## Visual principles
-- Calm, neutral, content-first. Monochrome UI chrome; color is reserved for status and the owner's own brand color.
-- One neutral ramp, one dark-mode family, one radius scale — no one-off values.
-- Dark mode is first-class: every token has a light and dark value. Surfaces separate by lightness steps and borders, not heavy shadows.
-- Per-owner brand color (`--brand`) appears only on public pages (CTA accents, active tab underline, selected slot). Never in the owner portal chrome.
-- Text must fit Russian: Russian strings run ~20–30% longer than English. No fixed-width labels; buttons and tabs grow or wrap.
+## Visual identity v2 — "Hard court" (adopted 2026-10-26)
+Mockups: `.superdesign/design_iterations/landing_1.html`, `admin_today_1.html`. The tokens live in `apps/web/src/styles/tokens.css`; this section is the rule.
 
-## Typography (fixed)
-- Font: **Inter** for all UI, loaded with the `latin` and `cyrillic` subsets. No other fonts. (The source system's Baskervville heading serif is dropped: it has no Cyrillic.)
-- Numbers in schedules, prices and tables use `font-variant-numeric: tabular-nums`.
-- Scale (px): 2xs 11 · xs 12 · sm 13 · base 14 · md 16 · lg 18 · xl 20 · 2xl 24 · 3xl 32 · display 56
-- Weights: 400 regular · 500 medium (UI default for labels/buttons) · 600 semibold (headings, numbers). 700 only for display.
-- Line height: 1.5 body, 1.25 headings.
+Idea: the look of a sports court. Hard-court blue, chalk lines, a little ball-yellow. The court-line drawing is the one bold device. Everything else stays calm.
 
-## Spacing (fixed)
-4 · 8 · 12 · 16 · 20 · 24 · 32 · 48 px. Card padding 20–24. Table row height 52. Control height 36 (sm 32, lg 40). Touch targets on public/player pages at least 40.
+### Principles
+- **Court lines are the signature.** 2px chalk or primary strokes, top-down court drawings (padel, futsal, tennis, badminton, basketball, volleyball) as the illustration system. No stock photos or gradient blobs.
+- **Spend boldness once per screen.** Landing: the hero court panel. Portal: the live court timeline. Everything around it is quiet: neutral surfaces, 1px borders, status color only where status lives.
+- **Ball yellow is scarce.** Only the main CTA on dark (night) surfaces and the ball in the hero. Never body text, never on light backgrounds.
+- **Owner brand color** (`--brand`) still only on public venue pages (CTA, active tab, selected slot). Never in portal chrome or on the marketing site.
+- **One motion moment.** Landing hero: court lines draw in, the slot card rises, 19:00 gets picked, then "Booked" appears (about 3s, once). No scroll-triggered fades elsewhere. `prefers-reduced-motion` shows the end state.
+- **Russian fits.** Strings run 20–30% longer: no fixed-width buttons, tabs or nav items; headlines use `text-wrap: balance`; KPI numbers `nowrap` and shrink with `clamp`.
+- Avoid: all-caps eyebrow labels, "→" in buttons, numbered markers on things that are not a sequence (the "how it works" steps are a real sequence, so they are numbered), identical card grids for every section.
+
+### Palette anchors (not themed)
+| Name | Hex | Use |
+|---|---|---|
+| court-blue | #1f3f9a | light primary, hero court, closing band, org mark |
+| court-blue-deep | #172f75 | primary hover |
+| night | #0b1433 | owners section, text-strong (light), dark-mode base family |
+| chalk | #f5f7f4 | light page bg, lines on blue |
+| surround | #2e6a4f | court surround in the hero only |
+| ball | #d6ef3f (text #1b2400) | CTA on night/blue, hero ball |
+
+### Themed tokens
+| Token | Light | Dark |
+|---|---|---|
+| bg-page | #f5f7f4 | #080f27 |
+| bg-surface | #ffffff | #0f1a3b |
+| bg-surface-raised | #ffffff | #152248 |
+| bg-subtle | #eef1f0 | #172550 |
+| bg-hover | #e8ecee | #1c2c5c |
+| border-subtle | #e9edeb | #18264f |
+| border-default | #d9dfe0 | #22336a |
+| border-strong | #b8c1c6 | #33478a |
+| text-strong | #0b1433 | #f5f7f4 |
+| text-default | #283247 | #cdd4e4 |
+| text-muted | #566078 | #96a1bf |
+| text-subtle | #8a93a6 | #6c7798 |
+| primary / hover / fg | #1f3f9a / #172f75 / #fff | #8fa9ff / #b0c3ff / #0b1433 |
+| primary-soft | #e6ecfa | rgba(143,169,255,.14) |
+| overlay | rgba(11,20,51,.5) | rgba(0,0,0,.6) |
+
+Status (fg / soft): success #0f8a5f / #dcf5ea (dark #3ccf95 / 13%), warning #b86a00 / #fdf0d5 (dark #f5b83d / 13%), danger #d0312d / #fdeceb (dark #ff7b72 / 13%), info #1f5fd1 / #e7effd (dark #6ea8ff / 13%). Light warning was darkened from #d97706 to pass 4.5:1 on its soft bg.
+
+Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set, follow `prefers-color-scheme`. Dark is navy (night family), not grey.
+
+### Typography
+- **Unbounded** (500/600/700): display and section headings on the landing, page titles (h1) and KPI numbers in the portal. Wide, scoreboard-like. Letter-spacing -0.02em. Never body text, never below 18px.
+- **Onest** (400/500/600): all UI and body text. Both fonts have full Cyrillic. Onest has tabular figures: prices, times, tables and schedules use `font-variant-numeric: tabular-nums`.
+- Load: `family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600;700&subset=latin,cyrillic`. Replaces Inter.
+- Scale (px): 2xs 11 · xs 12 · sm 13 · base 14 · md 16 · lg 18 · xl 22 · 2xl 28 · 3xl 36 · 4xl 48 · display clamp(40, 7vw, 84).
+- Line height: body 1.55, headings 1.15, display 1.02.
+
+### Spacing, size, radius, shadow
+- Spacing 4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48 · 64 · 96. Landing sections 64 (phone) / 96 (md+). Portal page padding 24.
+- Controls: sm 32, md 36, lg 44 (all public CTAs and touch targets are lg). Table row 52. Topbar 56. Sidebar 15rem. Container 76rem; text column 40rem.
+- Radius by hierarchy: sm 4 tag/checkbox · md 8 button/input/slot · lg 12 card · xl 20 hero panel, search bar, modal, closing band · full chip/badge/avatar.
+- Shadows: xs cards, sm hover, md popover and the hero search bar, lg modal and the hero slot card. Dark: xs/sm none, borders separate surfaces.
+- Focus ring `0 0 0 3px` primary at 22% (light) / 30% (dark). Always visible on keyboard focus.
+
+### Component layout tokens (unchanged from v1)
 Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
 Field minimum width token: `--field-min` 10rem (smallest width of a paired form field before it wraps; not themed).
 Map height token: `--map-height` 32rem (results map; same in light and dark).
@@ -42,47 +88,28 @@ Photo strip tokens: `--photo-height` 12rem and `--photo-width` 18rem (venue page
 Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
 Disabled and busy token: `--opacity-muted` 0.55 (disabled buttons, a summary that is re-quoting; not themed). Motion token: `--duration-fast` 150ms (short opacity transitions; not themed).
 
-## Breakpoints (fixed, mobile-first `min-width`)
-sm 640 · md 768 · lg 1024 · xl 1280. Owner portal sidebar becomes a drawer below lg. Public pages are designed phone-first; mobile apps will reuse the same API later.
+### v2 implementation tokens
+Night surfaces: any element with `data-surface="night"` takes the dark token values in both themes (owners section on the landing).
+- `--bg-header`: translucent page color behind sticky headers; `--blur-header` 12px backdrop blur. Header height `--header-height` 4rem (public), `--topbar-height` 3.5rem (portal).
+- `--on-night-line` / `--on-night-hover`: borders and hover fills on night and court-blue surfaces.
+- `--shadow-ball` (ball CTA lift) and `--shadow-night` (portal preview on night). Button variant `ball` = `--ball` bg + `--ball-ink` text; only on night or court-blue surfaces.
+- `--hero-panel-max`: widest the hero court panel grows. `--meter-height`: thin usage meter bar.
+- Court timeline (not themed): `--timeline-label` 7rem (court name column), `--timeline-lane` 3rem (lane height), `--timeline-min` 56rem (width below which it scrolls sideways), `--now-line` 2px.
+- Motion: `--duration-slow` 600ms with `--ease-out` for the hero sequence only.
 
-## Shadows (fixed)
-- xs `0 1px 2px rgba(10,13,20,.03)` — cards
-- sm `0 2px 8px rgba(10,13,20,.06)` — hover
-- md `0 12px 32px rgba(10,13,20,.10), 0 2px 8px rgba(10,13,20,.06)` — dropdown/popover
-- lg `0 20px 60px rgba(10,13,20,.18), 0 4px 16px rgba(10,13,20,.08)` — modal
-- Dark mode: shadows near-invisible; use 1px borders.
-- Focus ring: `0 0 0 3px` primary at 10–15% alpha. Always visible on keyboard focus.
+Breakpoints (mobile-first `min-width`): sm 640 · md 768 · lg 1024 · xl 1280.
 
-## Status colors (fixed)
-| Role | Light fg / soft bg | Dark fg / soft bg |
-|---|---|---|
-| Success | #059669 / #d1fae5 | #34d399 / rgba(52,211,153,.12) |
-| Warning | #d97706 / #fef3c7 | #fbbf24 / rgba(251,191,36,.12) |
-| Danger | #dc2626 / #fef2f2 | #f87171 / rgba(248,113,113,.12) |
-| Info / link | #2563eb / #eff6ff | #60a5fa / rgba(96,165,250,.12) |
+### Marketing landing (`/`, logged out)
+Order: sticky blurred header (logo mark = court square, nav: Find a court · How it works · For venues · Find my booking, language, theme, Sign in) → hero (left: display headline, lede, 3-field search bar Sport / Date / From + "Show free courts", note on guest booking; right: court panel with animated slot card) → "Pick your game" sport tiles with court drawings (6 across at xl, 3 at md, 2 on phone) → "From search to serve" 3 numbered steps on a surface band → player features as a 2-column ruled list (icon tile + title + one line) → owners section on night: copy, ball-yellow checks, "List your venue" (ball) + "Talk to us" (outline), portal preview (KPIs + mini court timeline) → FAQ with `<details>` → court-blue closing band → 4-column footer.
+Left-aligned throughout; only the steps and sport tiles use grids. The search bar submits to the existing search results page.
 
-## Neutrals, primary, radius
-Cool gray light ramp + navy-tinted dark.
+### Owner portal shell
+- Sidebar (lg+; drawer below): owner switcher card (org mark in court blue, name 14/600, role 12 muted) → nav groups with sentence-case group labels in text-subtle: "Day to day" (Today, Schedule, Bookings, Walk-in, Series), "Setup" (Venues, Closures, Add-ons, Settings), "Team and players" (Staff, Reviews, Activity) → user row with theme toggle at the bottom. Items 36px, 18px stroke icons, active = primary-soft bg + primary text, counts as warning pills (things to act on).
+- Top bar (sticky, blurred page bg): menu button (below lg), venue select with inline muted label, day stepper (‹ Today ›), search with ⌘K hint, primary page action on the right ("New walk-in").
+- Page head: Unbounded h1 28px + one muted line of context; secondary action on the right.
 
-| Token | Light | Dark |
-|---|---|---|
-| bg-page | #f5f7fa | #0e121b |
-| bg-surface | #ffffff | #141f2c |
-| bg-surface-raised | #ffffff | #1e2a38 |
-| bg-subtle / bg-hover | #f0f3f5 | #222f3d |
-| border-subtle | #f0f3f5 | #222f3d |
-| border-default | #e1e4ea | #2c3a4b |
-| border-strong | #cacfd8 | #3d4c5e |
-| text-strong | #0e121b | #f0f3f5 |
-| text-default | #2b303b | #cacfd8 |
-| text-muted | #525866 | #99a0ae |
-| text-subtle | #99a0ae | #717784 |
-| overlay (modal scrim) | rgba(10,13,20,.5) | rgba(0,0,0,.6) |
-| primary / hover / fg | #19283a / #2b3a4d / #fff | #f0f3f5 / #cacfd8 / #0e121b |
-
-Radius: sm 4 (tag, checkbox) · md 8 (button, input, slot cell) · lg 12 (card) · xl 16 (modal) · full (badge, avatar).
-
-Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set, follow `prefers-color-scheme`.
+### Today page
+KPI row (4 at xl, 2 below): Bookings (+delta on same weekday), Revenue (split online/desk), Courts used (hours + meter), Awaiting payment (warning border and number). → Courts timeline card, full width: court label column (name + surface), lanes with hour grid lines, booking blocks = status soft bg + 3px status left bar, closed = 45° stripes, now line in danger with a time tag on the first lane; scrolls sideways below 56rem. → "Needs your attention" (series requests, holds about to expire, low reviews, each with its actions inline) beside "Up next" (time, player, court, status). → Today's bookings table.
 
 ## Results map
 Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inverted in dark mode; the map frame, pins and the "Search this area" button use surface, border and primary tokens. Pins are DOM-built (venue names are untrusted text), keyboard-focusable, and labelled with the venue name and price. Below lg a List/Map segmented toggle (`aria-pressed`) shows one at a time; at lg and up list and map sit side by side with the map sticky.
@@ -97,7 +124,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
 - Cards: surface bg, 1px border, xs shadow.
 - Player series: the request page (`/venues/:slug/series`, brand tone, 28rem column) and the "Weekly bookings" cards above the My bookings tabs reuse the card, badge and `<details>` disclosure patterns; a series game in the single-bookings list shows the plain info "Series" badge, and on its detail page the badge links to the card.
 - Tables: header 12px/500 muted, sentence case (no uppercase), rows separated by 1px subtle border, hover = subtle bg.
-- Sidebar nav: 14px/500 items, 36px tall, active = subtle bg + strong text, inactive = muted text.
+- Sidebar nav: 14px/500 items, 36px tall, 18px stroke icon, active = primary-soft bg + primary text, inactive = muted text (v2; see Owner portal shell).
 - Owner switcher: top of sidebar; owner name 14px/600 + role 12px muted; dropdown lists memberships.
 - Avatar: circle.
 

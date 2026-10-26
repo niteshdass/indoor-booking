@@ -1,0 +1,8 @@
+.mark {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: none;
+  fill: var(--primary);
+  stroke: var(--bg-surface);
+  stroke-width: var(--court-line);
+}

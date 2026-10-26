@@ -136,7 +136,7 @@ export function MyBookingsPage() {
               {tab === 'upcoming' ? (
                 <>
                   <span>{t('myBookings.noUpcoming')}</span>
-                  <Button to="/" variant="brand">
+                  <Button to="/search" variant="brand">
                     {t('myBookings.findVenues')}
                   </Button>
                 </>

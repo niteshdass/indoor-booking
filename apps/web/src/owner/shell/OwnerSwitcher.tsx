@@ -6,6 +6,11 @@ import { useOwner } from '../OwnerProvider';
 import { roleLabel } from '../roleLabel';
 import styles from './OwnerShell.module.css';
 
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).map((w) => [...w][0]!.toUpperCase()).join('');
+}
+
 /** Sidebar header: shows the current team and role, and lists every membership to switch between. */
 export function OwnerSwitcher() {
   const { t } = useTranslation();
@@ -51,8 +56,13 @@ export function OwnerSwitcher() {
         aria-controls={listId}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className={styles.switcherName}>{owner.name}</span>
-        <span className={styles.switcherRole}>{roleLabel(membership.role, t)}</span>
+        <span className={styles.orgMark} aria-hidden="true">
+          {initials(owner.name)}
+        </span>
+        <span className={styles.switcherText}>
+          <span className={styles.switcherName}>{owner.name}</span>
+          <span className={styles.switcherRole}>{roleLabel(membership.role, t)}</span>
+        </span>
       </button>
       {open && (
         <ul id={listId} role="listbox" aria-label={t('owner.switcher')} className={styles.switcherList}>

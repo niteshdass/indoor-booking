@@ -5,7 +5,8 @@ import { useAuth } from '../../auth/useAuth';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { ThemeToggle } from '../../theme/ThemeToggle';
 import { useOwner } from '../OwnerProvider';
-import { NAV } from './nav';
+import { NAV, NAV_GROUPS } from './nav';
+import { NavIcon } from './NavIcon';
 import { OwnerSwitcher } from './OwnerSwitcher';
 import styles from './OwnerShell.module.css';
 
@@ -66,11 +67,21 @@ export function OwnerShell() {
       <aside id={SIDEBAR_ID} className={[styles.sidebar, open && styles.open].filter(Boolean).join(' ')}>
         <OwnerSwitcher />
         <nav aria-label={t('owner.nav.label')} className={styles.nav}>
-          {items.map((n) => (
-            <NavLink key={n.key} to={n.to} end={n.to === ''} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
-              {t(n.key)}
-            </NavLink>
-          ))}
+          {NAV_GROUPS.map((g) => {
+            const group = items.filter((n) => n.group === g);
+            if (group.length === 0) return null;
+            return (
+              <div key={g} className={styles.group}>
+                <p className={styles.groupLabel}>{t(`owner.nav.groups.${g}`)}</p>
+                {group.map((n) => (
+                  <NavLink key={n.key} to={n.to} end={n.to === ''} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
+                    <NavIcon navKey={n.key} />
+                    {t(n.key)}
+                  </NavLink>
+                ))}
+              </div>
+            );
+          })}
         </nav>
         <div className={styles.footer}>
           <LanguageSwitcher />

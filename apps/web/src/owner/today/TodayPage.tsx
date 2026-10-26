@@ -17,6 +17,7 @@ import { VenueSelect } from '../shell/VenueSelect';
 import type { OwnerBooking, OwnerVenue } from '../types';
 import { useResource } from '../useResource';
 import { summarize } from './summarize';
+import { CourtTimeline } from './CourtTimeline';
 import styles from './TodayPage.module.css';
 
 /** Owner landing page: today's totals for one venue and the queue of bookings still to come. */
@@ -79,6 +80,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
         />
         <StatCard label={t('owner.today.pending')} value={String(pending)} />
       </div>
+      <CourtTimeline bookings={state.data.bookings} timezone={venue.timezone} />
       <h2 className={styles.heading}>{t('owner.today.upcoming')}</h2>
       {upcoming.length === 0 ? (
         <p className={styles.empty}>{t('owner.today.none')}</p>

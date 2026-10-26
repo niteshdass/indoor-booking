@@ -47,7 +47,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('SearchPage', () => {
   it('renders results from URL criteria', async () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    renderApp('/?sport=futsal');
+    renderApp('/search?sport=futsal');
     expect(await screen.findByText('Arena One')).toBeInTheDocument();
     expect(api.calls[0]!.query.get('sport')).toBe('futsal');
     expect(screen.getByText((_, el) => el?.textContent === `from ${money(1000, 'BDT', 'en')}` && el.children.length === 0)).toBeInTheDocument();
@@ -68,7 +68,7 @@ describe('SearchPage', () => {
         },
       },
     ]);
-    renderApp('/');
+    renderApp('/search');
     await screen.findByText('Arena Two');
     const rated = screen.getByLabelText('Rated 4.6 out of 5 from 23 reviews');
     expect(rated).toHaveTextContent('4.6');
@@ -78,7 +78,7 @@ describe('SearchPage', () => {
 
   it('top rated sort writes sort=rating and the API call carries it', async () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    const { user, location } = renderApp('/');
+    const { user, location } = renderApp('/search');
     await screen.findByText('Arena One');
     expect(api.calls[0]!.query.has('sort')).toBe(false);
     await user.selectOptions(screen.getByLabelText('Sort'), 'rating');
@@ -92,7 +92,7 @@ describe('SearchPage', () => {
 
   it('submitting form updates URL and refetches', async () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    const { user, location } = renderApp('/');
+    const { user, location } = renderApp('/search');
     await screen.findByText('Arena One');
     await user.selectOptions(screen.getByLabelText(en.search.sport), 'tennis');
     await user.click(screen.getByRole('button', { name: en.search.submit }));
@@ -102,46 +102,46 @@ describe('SearchPage', () => {
 
   it('empty state', async () => {
     mockApi([{ path: '/search', body: { results: [], nextCursor: null } }]);
-    renderApp('/');
+    renderApp('/search');
     expect(await screen.findByText(en.search.empty)).toBeInTheDocument();
   });
 
   it('result links to venue with date', async () => {
     mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    renderApp('/');
+    renderApp('/search');
     const link = await screen.findByRole('link', { name: /Arena One/ });
     expect(link).toHaveAttribute('href', '/venues/arena-one?date=2026-10-25');
   });
 
   it('shows an error alert with retry when rate limited', async () => {
     mockApi([{ path: '/search', status: 429, body: { error: { code: 'rate_limited', message: 'x' } } }]);
-    renderApp('/');
+    renderApp('/search');
     expect(await screen.findByText(en.errors.rate_limited)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: en.search.retry })).toBeInTheDocument();
   });
 
   it('card shows the no-price and no-free-slot strings', async () => {
     mockApi([{ path: '/search', body: { results: [{ ...venue, fromPrice: null, nextFreeSlot: null }], nextCursor: null } }]);
-    renderApp('/');
+    renderApp('/search');
     expect(await screen.findByText(en.search.noPrice)).toBeInTheDocument();
     expect(screen.getByText(en.search.noFreeSlot)).toBeInTheDocument();
   });
 
   it('distance: null shows none, 0 shows 0 m', async () => {
     mockApi([{ path: '/search', body: { results: [{ ...venue, distanceMeters: null }], nextCursor: null } }]);
-    const first = renderApp('/');
+    const first = renderApp('/search');
     const card = await screen.findByRole('link', { name: 'Arena One' });
     expect(card.textContent).not.toMatch(/\d\s?(k?m)\b/);
     first.unmount();
     vi.unstubAllGlobals();
     mockApi([{ path: '/search', body: { results: [{ ...venue, distanceMeters: 0 }], nextCursor: null } }]);
-    renderApp('/');
+    renderApp('/search');
     expect(await screen.findByText(/0\s?m\b/)).toBeInTheDocument();
   });
 
   it('link accessible name is exactly the venue name and the photo is decorative', async () => {
     mockApi([{ path: '/search', body: { results: [{ ...venue, photo: { url: 'http://x/p.jpg', alt: 'Arena One photo' } }], nextCursor: null } }]);
-    const { container } = renderApp('/');
+    const { container } = renderApp('/search');
     expect(await screen.findByRole('link', { name: 'Arena One' })).toBeInTheDocument();
     expect(container.querySelector('img')).toHaveAttribute('alt', '');
   });
@@ -157,7 +157,7 @@ describe('SearchPage', () => {
             : { results: [{ ...venue, slug: 'last', name: 'Last Venue' }], nextCursor: null },
       },
     ]);
-    const { user } = renderApp('/');
+    const { user } = renderApp('/search');
     expect(await screen.findByText('Venue 0')).toBeInTheDocument();
     expect(screen.getByText('20+ venues')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: en.search.loadMore }));
@@ -175,7 +175,7 @@ describe('SearchPage', () => {
 
   it('map toggle shows map', async () => {
     mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    const { user } = renderApp('/');
+    const { user } = renderApp('/search');
     await screen.findByText('Arena One');
     expect(await screen.findByText('mock-map')).not.toBeVisible();
     const mapBtn = screen.getByRole('button', { name: en.search.view.map });
@@ -201,7 +201,7 @@ describe('SearchPage', () => {
             : { results: [{ ...venue, slug: 'last', name: 'Last Venue' }], nextCursor: null },
       },
     ]);
-    const { user } = renderApp('/');
+    const { user } = renderApp('/search');
     await screen.findByText('Venue 0');
     await user.click(screen.getByRole('button', { name: en.search.view.map }));
     await user.click(screen.getByRole('button', { name: en.search.loadMore }));
@@ -219,14 +219,14 @@ describe('SearchPage', () => {
     }));
     const full = Array.from({ length: 20 }, (_, i) => ({ ...venue, slug: `v${i}`, name: `Venue ${i}` }));
     mockApi([{ path: '/search', body: { results: full, nextCursor: 20 } }]);
-    renderApp('/');
+    renderApp('/search');
     await screen.findByText('Venue 0');
     expect(screen.getAllByRole('button', { name: en.search.loadMore })).toHaveLength(1);
   });
 
   it('search this area keeps an existing radius', async () => {
     mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    const { user, location } = renderApp('/?lat=5&lng=6&radiusKm=20');
+    const { user, location } = renderApp('/search?lat=5&lng=6&radiusKm=20');
     await screen.findByText('Arena One');
     await user.click(screen.getByRole('button', { name: en.search.view.map }));
     await user.click(screen.getByText('mock-map'));
@@ -235,7 +235,7 @@ describe('SearchPage', () => {
 
   it('search this area sets near and default radius', async () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
-    const { user, location } = renderApp('/?sport=futsal');
+    const { user, location } = renderApp('/search?sport=futsal');
     await screen.findByText('Arena One');
     await user.click(screen.getByRole('button', { name: en.search.view.map }));
     await user.click(await screen.findByText('mock-map'));
@@ -272,7 +272,7 @@ describe('SearchPage', () => {
         },
       ]);
       const release = gateTennis();
-      const { user } = renderApp('/');
+      const { user } = renderApp('/search');
       expect(await screen.findByText('Arena One')).toBeInTheDocument();
       await user.selectOptions(screen.getByLabelText(en.search.sport), 'tennis');
       await user.click(screen.getByRole('button', { name: en.search.submit }));
@@ -291,7 +291,7 @@ describe('SearchPage', () => {
               : { results: [venue], nextCursor: null },
         },
       ]);
-      const { user } = renderApp('/');
+      const { user } = renderApp('/search');
       expect(await screen.findByText('Arena One')).toBeInTheDocument();
       await user.selectOptions(screen.getByLabelText(en.search.sport), 'tennis');
       await user.click(screen.getByRole('button', { name: en.search.submit }));

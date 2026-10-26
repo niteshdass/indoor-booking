@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Slot Booking — Owner portal, Today</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600&subset=latin,cyrillic&display=swap"
+    />
+    <link rel="stylesheet" href="tokens-v2.css" />
+    <style>
+      .app {
+        display: grid;
+        min-height: 100vh;
+      }
+      @media (min-width: 1024px) {
+        .app { grid-template-columns: var(--sidebar-width) minmax(0, 1fr); }
+      }
+
+      /* Sidebar */
+      .sidebar {
+        display: none;
+        flex-direction: column;
+        gap: var(--space-4);
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        padding: var(--space-3);
+        background: var(--bg-surface);
+        border-right: 1px solid var(--border-default);
+        overflow-y: auto;
+      }
+      @media (min-width: 1024px) { .sidebar { display: flex; } }
+      .switcher {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        width: 100%;
+        padding: var(--space-2);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+      }
+      .switcher:hover { background: var(--bg-hover); }
+      .org-mark {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: var(--control-md);
+        height: var(--control-md);
+        border-radius: var(--radius-md);
+        background: var(--court-blue);
+        color: var(--chalk);
+        font-family: var(--font-display);
+        font-size: var(--text-xs);
+        font-weight: var(--weight-semibold);
+      }
+      .switcher strong { display: block; color: var(--text-strong); font-size: var(--text-base); font-weight: var(--weight-semibold); }
+      .switcher small { display: block; color: var(--text-muted); font-size: var(--text-xs); }
+      .switcher svg { margin-inline-start: auto; color: var(--text-subtle); flex: none; }
+
+      .nav-group { display: grid; gap: 2px; }
+      .nav-group h2 {
+        padding: var(--space-2) var(--space-3) var(--space-1);
+        font-size: var(--text-xs);
+        font-weight: var(--weight-medium);
+        color: var(--text-subtle);
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-height: var(--control-md);
+        padding-inline: var(--space-3);
+        border-radius: var(--radius-md);
+        color: var(--text-muted);
+        font-weight: var(--weight-medium);
+        text-decoration: none;
+      }
+      .nav-item svg { flex: none; width: 18px; height: 18px; }
+      .nav-item:hover { background: var(--bg-hover); color: var(--text-strong); }
+      .nav-item[aria-current='page'] {
+        background: var(--primary-soft);
+        color: var(--primary);
+      }
+      .nav-item .count {
+        margin-inline-start: auto;
+        min-width: 1.25rem;
+        padding-inline: var(--space-1);
+        border-radius: var(--radius-full);
+        background: var(--warning-soft);
+        color: var(--warning);
+        font-size: var(--text-2xs);
+        text-align: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .sidebar-foot {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2);
+        border-top: 1px solid var(--border-subtle);
+        padding-top: var(--space-4);
+      }
+      .avatar {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: var(--control-sm);
+        height: var(--control-sm);
+        border-radius: var(--radius-full);
+        background: var(--bg-subtle);
+        color: var(--text-default);
+        font-size: var(--text-xs);
+        font-weight: var(--weight-semibold);
+      }
+      .sidebar-foot div { min-width: 0; }
+      .sidebar-foot strong { display: block; font-size: var(--text-sm); color: var(--text-strong); }
+      .sidebar-foot small { display: block; font-size: var(--text-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
+
+      /* Top bar */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-3);
+        min-height: var(--topbar-height);
+        padding: var(--space-2) var(--space-4);
+        background: color-mix(in srgb, var(--bg-page) 88%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border-default);
+      }
+      @media (min-width: 768px) { .topbar { padding-inline: var(--space-6); } }
+      
+      .icon-btn {
+        display: inline-grid;
+        place-items: center;
+        width: var(--control-md);
+        height: var(--control-md);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-default);
+        background: var(--bg-surface);
+        color: var(--text-default);
+        cursor: pointer;
+      }
+      .icon-btn:hover { background: var(--bg-hover); }
+      @media (min-width: 1024px) { .icon-btn.menu-btn { display: none; } }
+      .select {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-height: var(--control-md);
+        padding-inline: var(--space-3);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        color: var(--text-strong);
+        font: inherit;
+        font-weight: var(--weight-medium);
+        cursor: pointer;
+      }
+      .select span { color: var(--text-muted); font-weight: var(--weight-regular); }
+      .datenav { display: inline-flex; align-items: center; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface); }
+      .datenav button { font: inherit; background: none; border: 0; color: var(--text-default); min-height: calc(var(--control-md) - 2px); padding-inline: var(--space-3); cursor: pointer; }
+      .datenav button:hover { background: var(--bg-hover); }
+      .datenav .mid { border-inline: 1px solid var(--border-default); font-weight: var(--weight-medium); color: var(--text-strong); }
+      .search {
+        flex: 1 1 14rem;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        max-width: 26rem;
+        min-height: var(--control-md);
+        padding-inline: var(--space-3);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        background: var(--bg-surface);
+        color: var(--text-subtle);
+      }
+      .search input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; color: var(--text-strong); }
+      .search input::placeholder { color: var(--text-subtle); }
+      .search:focus-within { box-shadow: var(--focus-ring); border-color: var(--primary); }
+      kbd { font: inherit; font-size: var(--text-2xs); padding: 1px var(--space-1); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-muted); }
+      .topbar-end { display: flex; gap: var(--space-2); margin-inline-start: auto; }
+
+      /* Page */
+      .page { padding: var(--space-6) var(--space-4) var(--space-16); max-width: 92rem; }
+      @media (min-width: 768px) { .page { padding-inline: var(--space-6); } }
+      .page-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-4); margin-bottom: var(--space-6); }
+      .page-head h1 { font-family: var(--font-display); font-size: var(--text-2xl); letter-spacing: var(--tracking-display); }
+      .page-head p { margin: var(--space-1) 0 0; color: var(--text-muted); }
+
+      .card {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xs);
+      }
+      .card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: var(--space-4) var(--space-5);
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .card-head h2 { font-size: var(--text-md); }
+      .card-head p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+
+      /* KPIs */
+      .kpis { display: grid; gap: var(--space-3); grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: var(--space-4); }
+      @media (min-width: 1280px) { .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+      .kpi { padding: var(--space-4) var(--space-5); display: grid; gap: var(--space-2); align-content: start; }
+      .kpi .label { display: flex; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); font-weight: var(--weight-medium); }
+      .kpi .value { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--weight-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; letter-spacing: var(--tracking-display); white-space: nowrap; }
+      .kpi .delta { font-size: var(--text-xs); color: var(--text-muted); }
+      .kpi .delta b { color: var(--success); font-weight: var(--weight-medium); }
+      .meter { height: 6px; border-radius: var(--radius-full); background: var(--bg-subtle); overflow: hidden; }
+      .meter i { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+      .kpi.attn { border-color: color-mix(in srgb, var(--warning) 40%, var(--border-default)); }
+      .kpi.attn .value { color: var(--warning); }
+
+      /* Layout */
+      .grid { display: grid; gap: var(--space-4); }
+      
+
+      /* Timeline */
+      .legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-xs); color: var(--text-muted); }
+      .legend span { display: inline-flex; align-items: center; gap: var(--space-1); }
+      .legend i { width: 14px; height: 12px; border-radius: 2px; border-left: var(--status-bar) solid; }
+      .scroller { overflow-x: auto; padding: var(--space-4) var(--space-5) var(--space-5); }
+      .timeline { --hours: 15; min-width: 56rem; display: grid; grid-template-columns: 7rem 1fr; row-gap: var(--space-2); font-size: var(--text-xs); }
+      .hours { display: grid; grid-template-columns: repeat(var(--hours), 1fr); color: var(--text-subtle); font-variant-numeric: tabular-nums; padding-bottom: var(--space-1); }
+      .court-label { align-self: center; display: grid; }
+      .court-label strong { color: var(--text-strong); font-size: var(--text-sm); font-weight: var(--weight-medium); }
+      .court-label small { color: var(--text-muted); }
+      .lane {
+        position: relative;
+        height: 3rem;
+        border-radius: var(--radius-md);
+        background-color: var(--bg-subtle);
+        background-image: linear-gradient(to right, var(--border-default) 1px, transparent 1px);
+        background-size: calc(100% / var(--hours)) 100%;
+      }
+      .blk {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        display: grid;
+        align-content: center;
+        padding-inline: var(--space-2);
+        border-radius: var(--radius-sm);
+        border-left: var(--status-bar) solid;
+        overflow: hidden;
+        white-space: nowrap;
+        line-height: 1.25;
+        cursor: pointer;
+      }
+      .blk b { font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; }
+      .blk small { font-size: var(--text-2xs); opacity: 0.85; font-variant-numeric: tabular-nums; }
+      .blk:hover { filter: brightness(0.97); }
+      .ok { background: var(--success-soft); border-color: var(--success); color: var(--text-strong); }
+      .wait { background: var(--warning-soft); border-color: var(--warning); color: var(--text-strong); }
+      .walk { background: var(--info-soft); border-color: var(--info); color: var(--text-strong); }
+      .closed {
+        background: repeating-linear-gradient(45deg, var(--bg-subtle), var(--bg-subtle) 6px, var(--border-default) 6px, var(--border-default) 7px);
+        border-color: var(--border-strong);
+        color: var(--text-muted);
+      }
+      .now { position: absolute; top: -6px; bottom: -6px; width: var(--now-line); background: var(--danger); z-index: 1; pointer-events: none; }
+      .now-tag { position: absolute; top: -1.5rem; translate: -50% 0; padding: 0 var(--space-1); border-radius: var(--radius-sm); background: var(--danger); color: #fff; font-size: var(--text-2xs); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+      .lanes-col { position: relative; display: grid; row-gap: var(--space-2); }
+
+      /* Attention + up next */
+      .side { display: grid; gap: var(--space-4); align-items: start; }
+      @media (min-width: 1024px) { .side { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
+      .list { list-style: none; margin: 0; padding: 0; }
+      .list li { display: grid; gap: var(--space-2); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
+      .list li:last-child { border-bottom: 0; }
+      .list .row { display: flex; justify-content: space-between; gap: var(--space-3); align-items: flex-start; }
+      .list strong { color: var(--text-strong); font-weight: var(--weight-medium); }
+      .list p { margin: 0; font-size: var(--text-sm); color: var(--text-muted); }
+      .actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+      .next li { grid-template-columns: 3.25rem 1fr auto; align-items: center; gap: var(--space-3); }
+      .next time { font-weight: var(--weight-semibold); color: var(--text-strong); font-variant-numeric: tabular-nums; }
+
+      /* Table */
+      .table-wrap { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }
+      th { text-align: start; font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-muted); padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--border-default); white-space: nowrap; }
+      td { height: var(--table-row); padding-inline: var(--space-5); border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
+      tr:last-child td { border-bottom: 0; }
+      tbody tr:hover { background: var(--bg-hover); }
+      td.num, th.num { text-align: end; font-variant-numeric: tabular-nums; }
+      .who { display: flex; align-items: center; gap: var(--space-3); }
+      .who strong { display: block; color: var(--text-strong); font-weight: var(--weight-medium); }
+      .who small { display: block; color: var(--text-muted); font-size: var(--text-xs); }
+      .mt { margin-top: var(--space-4); }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" aria-label="Owner portal">
+        <button class="switcher" type="button" aria-haspopup="listbox">
+          <span class="org-mark">AG</span>
+          <span><strong>Arena Group</strong><small>Owner</small></span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
+        </button>
+
+        <nav class="nav-group" aria-labelledby="g1">
+          <h2 id="g1">Day to day</h2>
+          <a class="nav-item" href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>Today</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 10h18M9 4v17M15 4v17" /></svg>Schedule</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10" /></svg>Bookings<span class="count">3</span></a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" /></svg>Walk-in</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></svg>Series<span class="count">1</span></a>
+        </nav>
+        <nav class="nav-group" aria-labelledby="g2">
+          <h2 id="g2">Setup</h2>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6" /></svg>Venues</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /><path d="M5.6 5.6l12.8 12.8" /></svg>Closures</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="13" rx="2" /><path d="M12 8v13M3 12h18M7.5 8a2.5 2.5 0 1 1 4.5-1.5A2.5 2.5 0 1 1 16.5 8" /></svg>Add-ons</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>Settings</a>
+        </nav>
+        <nav class="nav-group" aria-labelledby="g3">
+          <h2 id="g3">Team and players</h2>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4" /><path d="M2 21a7 7 0 0 1 14 0M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3" /></svg>Staff</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" /></svg>Reviews</a>
+          <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>Activity</a>
+        </nav>
+
+        <div class="sidebar-foot">
+          <span class="avatar">NK</span>
+          <div><strong>Nina Kuznetsova</strong><small>nina@arenagroup.ru</small></div>
+          <button class="icon-btn" type="button" aria-label="Switch theme" onclick="toggleTheme()" style="margin-inline-start: auto">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+          </button>
+        </div>
+      </aside>
+
+      <div>
+        <header class="topbar">
+          <button class="icon-btn menu-btn" type="button" aria-label="Open menu">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+          <button class="select" type="button"><span>Venue</span>Arena North<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+          <div class="datenav" role="group" aria-label="Day">
+            <button type="button" aria-label="Previous day">‹</button>
+            <button type="button" class="mid">Today</button>
+            <button type="button" aria-label="Next day">›</button>
+          </div>
+          <label class="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <input placeholder="Search bookings or players" aria-label="Search bookings or players" />
+            <kbd>⌘K</kbd>
+          </label>
+          <div class="topbar-end">
+            <a class="btn btn-primary" href="#"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>New walk-in</a>
+          </div>
+        </header>
+
+        <main class="page">
+          <div class="page-head">
+            <div>
+              <h1>Today</h1>
+              <p>Tuesday, 27 October. 4 courts open until 23:00.</p>
+            </div>
+            <a class="btn btn-secondary" href="#">Open full schedule</a>
+          </div>
+
+          <section class="kpis" aria-label="Today in numbers">
+            <div class="card kpi">
+              <div class="label">Bookings</div>
+              <div class="value">38</div>
+              <div class="delta"><b>+6</b> on last Tuesday</div>
+            </div>
+            <div class="card kpi">
+              <div class="label">Revenue</div>
+              <div class="value">142 800 ₽</div>
+              <div class="delta">96 400 ₽ paid online, 46 400 ₽ at the desk</div>
+            </div>
+            <div class="card kpi">
+              <div class="label">Courts used<span class="tnum">72%</span></div>
+              <div class="value">43 h</div>
+              <div class="meter" role="img" aria-label="72% of court hours booked"><i style="width: 72%"></i></div>
+            </div>
+            <div class="card kpi attn">
+              <div class="label">Awaiting payment</div>
+              <div class="value">3</div>
+              <div class="delta">First hold expires in 12 min</div>
+            </div>
+          </section>
+
+          <div class="grid">
+            <section class="card" aria-labelledby="courts-h">
+              <div class="card-head">
+                <div><h2 id="courts-h">Courts</h2><p>08:00 to 23:00</p></div>
+                <div class="legend">
+                  <span><i class="ok"></i>Paid</span>
+                  <span><i class="wait"></i>Awaiting payment</span>
+                  <span><i class="walk"></i>Walk-in</span>
+                  <span><i class="closed"></i>Closed</span>
+                </div>
+              </div>
+              <div class="scroller">
+                <div class="timeline">
+                  <span></span>
+                  <div class="hours"><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span></div>
+
+                  <div class="court-label"><strong>Padel 1</strong><small>Glass, indoor</small></div>
+                  <div class="lane">
+                    <span class="blk ok" style="left: 6.67%; width: 13.33%"><b>Ivanov</b><small>09–11</small></span>
+                    <span class="blk ok" style="left: 26.67%; width: 6.67%"><b>Lebedev</b><small>12–13</small></span>
+                    <span class="blk ok" style="left: 60%; width: 13.33%"><b>Team Orbit</b><small>17–19</small></span>
+                    <span class="blk walk" style="left: 80%; width: 6.67%"><b>Walk-in</b><small>20–21</small></span>
+                    <span class="now" style="left: 71.1%"><span class="now-tag">18:40</span></span>
+                  </div>
+
+                  <div class="court-label"><strong>Padel 2</strong><small>Glass, indoor</small></div>
+                  <div class="lane">
+                    <span class="blk closed" style="left: 0; width: 13.33%"><b>Cleaning</b><small>08–10</small></span>
+                    <span class="blk ok" style="left: 46.67%; width: 13.33%"><b>Weekly: Petrova</b><small>15–17</small></span>
+                    <span class="blk wait" style="left: 73.33%; width: 13.33%"><b>Sokolova</b><small>19–21</small></span>
+                    <span class="now" style="left: 71.1%"></span>
+                  </div>
+
+                  <div class="court-label"><strong>Futsal</strong><small>Turf, 40×20</small></div>
+                  <div class="lane">
+                    <span class="blk ok" style="left: 13.33%; width: 13.33%"><b>School league</b><small>10–12</small></span>
+                    <span class="blk ok" style="left: 66.67%; width: 13.33%"><b>FC Sever</b><small>18–20</small></span>
+                    <span class="blk wait" style="left: 86.67%; width: 13.33%"><b>Morozov</b><small>21–23</small></span>
+                    <span class="now" style="left: 71.1%"></span>
+                  </div>
+
+                  <div class="court-label"><strong>Tennis</strong><small>Hard court</small></div>
+                  <div class="lane">
+                    <span class="blk walk" style="left: 0; width: 6.67%"><b>Coach</b><small>08–09</small></span>
+                    <span class="blk ok" style="left: 33.33%; width: 13.33%"><b>Smirnov</b><small>13–15</small></span>
+                    <span class="blk ok" style="left: 73.33%; width: 6.67%"><b>Volkova</b><small>19–20</small></span>
+                    <span class="now" style="left: 71.1%"></span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div class="side">
+              <section class="card" aria-labelledby="attn-h">
+                <div class="card-head"><h2 id="attn-h">Needs your attention</h2><span class="badge badge-warning">3</span></div>
+                <ul class="list">
+                  <li>
+                    <div class="row"><strong>Weekly booking request</strong><span class="badge badge-warning">Requested</span></div>
+                    <p>Maria Petrova wants Padel 2 every Tuesday, 19:00–20:30, from 3 November.</p>
+                    <div class="actions"><button class="btn btn-sm btn-primary" type="button">Approve</button><button class="btn btn-sm btn-secondary" type="button">Decline</button></div>
+                  </li>
+                  <li>
+                    <div class="row"><strong>Sokolova, Padel 2, 19:00</strong><span class="badge badge-warning">Pending payment</span></div>
+                    <p>Hold expires in 12 minutes. 5 600 ₽ due.</p>
+                    <div class="actions"><button class="btn btn-sm btn-secondary" type="button">Send payment link</button><button class="btn btn-sm btn-ghost" type="button">Mark paid in cash</button></div>
+                  </li>
+                  <li>
+                    <div class="row"><strong>New 2-star review</strong><span class="badge badge-neutral">Futsal</span></div>
+                    <p>“Changing rooms were cold and the lights flickered in the second half.”</p>
+                    <div class="actions"><button class="btn btn-sm btn-secondary" type="button">Reply</button></div>
+                  </li>
+                </ul>
+              </section>
+
+              <section class="card" aria-labelledby="next-h">
+                <div class="card-head"><h2 id="next-h">Up next</h2><a class="btn btn-sm btn-ghost" href="#">All bookings</a></div>
+                <ul class="list next">
+                  <li><time>19:00</time><div><strong>Sokolova</strong><p>Padel 2, 2 h</p></div><span class="badge badge-warning">Pending</span></li>
+                  <li><time>19:00</time><div><strong>Volkova</strong><p>Tennis, 1 h</p></div><span class="badge badge-success">Confirmed</span></li>
+                  <li><time>20:00</time><div><strong>Walk-in</strong><p>Padel 1, 1 h</p></div><span class="badge badge-info">Desk</span></li>
+                </ul>
+              </section>
+            </div>
+          </div>
+
+          <section class="card mt" aria-labelledby="recent-h">
+            <div class="card-head"><div><h2 id="recent-h">Today's bookings</h2><p>38 bookings across 4 courts</p></div><a class="btn btn-sm btn-secondary" href="#">Export CSV</a></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Time</th><th>Player</th><th>Court</th><th>Source</th><th class="num">Amount</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                  <tr><td class="tnum">17:00–19:00</td><td><div class="who"><span class="avatar">TO</span><div><strong>Team Orbit</strong><small>+7 912 ••• 41 08</small></div></div></td><td>Padel 1</td><td>Online</td><td class="num">5 600 ₽</td><td><span class="badge badge-success">Confirmed</span></td><td><button class="btn btn-sm btn-ghost" type="button">Open</button></td></tr>
+                  <tr><td class="tnum">18:00–20:00</td><td><div class="who"><span class="avatar">FS</span><div><strong>FC Sever</strong><small>+7 903 ••• 77 12</small></div></div></td><td>Futsal</td><td>Weekly</td><td class="num">8 000 ₽</td><td><span class="badge badge-success">Confirmed</span> <span class="badge badge-info">Series</span></td><td><button class="btn btn-sm btn-ghost" type="button">Open</button></td></tr>
+                  <tr><td class="tnum">19:00–21:00</td><td><div class="who"><span class="avatar">AS</span><div><strong>Anna Sokolova</strong><small>+7 921 ••• 03 55</small></div></div></td><td>Padel 2</td><td>Online</td><td class="num">5 600 ₽</td><td><span class="badge badge-warning">Pending payment</span></td><td><button class="btn btn-sm btn-ghost" type="button">Open</button></td></tr>
+                  <tr><td class="tnum">13:00–15:00</td><td><div class="who"><span class="avatar">DS</span><div><strong>Dmitry Smirnov</strong><small>+7 916 ••• 28 90</small></div></div></td><td>Tennis</td><td>Desk</td><td class="num">3 200 ₽</td><td><span class="badge badge-neutral">Completed</span></td><td><button class="btn btn-sm btn-ghost" type="button">Open</button></td></tr>
+                  <tr><td class="tnum">12:00–13:00</td><td><div class="who"><span class="avatar">IL</span><div><strong>Igor Lebedev</strong><small>+7 999 ••• 61 14</small></div></div></td><td>Padel 1</td><td>Online</td><td class="num">2 200 ₽</td><td><span class="badge badge-info">Refunded</span></td><td><button class="btn btn-sm btn-ghost" type="button">Open</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <style>
+      .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    </style>
+    <script>
+      function toggleTheme() {
+        const root = document.documentElement;
+        const dark = root.dataset.theme
+          ? root.dataset.theme === 'dark'
+          : matchMedia('(prefers-color-scheme: dark)').matches;
+        root.dataset.theme = dark ? 'light' : 'dark';
+      }
+    </script>
+  </body>
+</html>

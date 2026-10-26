@@ -13,6 +13,9 @@
   cursor: pointer;
   padding-inline: var(--space-4);
   padding-block: var(--space-1);
+  transition:
+    background var(--duration-fast),
+    border-color var(--duration-fast);
 }
 
 .button:disabled {
@@ -32,6 +35,7 @@
 
 .lg {
   min-height: var(--control-lg);
+  padding-inline: var(--space-5);
   font-size: var(--text-md);
 }
 
@@ -84,4 +88,14 @@
 
 .danger:hover:not(:disabled) {
   filter: brightness(0.92);
+}
+
+/* CTA on dark (night / court-blue) surfaces only; see design-system.md. */
+.ball {
+  background: var(--ball);
+  color: var(--ball-ink);
+}
+
+.ball:hover:not(:disabled) {
+  filter: brightness(1.05);
 }

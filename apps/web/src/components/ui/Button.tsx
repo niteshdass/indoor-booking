@@ -5,7 +5,7 @@ import { Spinner } from './Spinner';
 import styles from './Button.module.css';
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: 'primary' | 'brand' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'brand' | 'secondary' | 'ghost' | 'danger' | 'ball';
   size?: 'sm' | 'md' | 'lg';
   block?: boolean;
   loading?: boolean;

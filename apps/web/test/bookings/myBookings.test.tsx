@@ -89,7 +89,7 @@ describe('my bookings', () => {
     mockApi([{ path: '/me/bookings', body: { bookings: [] } }]);
     renderApp('/me/bookings', { user: player });
     expect(await screen.findByText(en.myBookings.noUpcoming)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: en.myBookings.findVenues })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: en.myBookings.findVenues })).toHaveAttribute('href', '/search');
   });
 
   it('load error shows retry', async () => {

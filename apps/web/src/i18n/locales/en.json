@@ -12,7 +12,8 @@
     "lookup": "Find my booking",
     "signIn": "Sign in",
     "myBookings": "My bookings",
-    "profile": "Profile"
+    "profile": "Profile",
+    "findCourt": "Find a court"
   },
   "auth": {
     "offline": "We can't reach the server to check your session. Check your connection.",
@@ -454,7 +455,12 @@
       "staff": "Staff",
       "reviews": "Reviews",
       "activity": "Activity",
-      "playerSite": "Player site"
+      "playerSite": "Player site",
+      "groups": {
+        "daily": "Day to day",
+        "setup": "Setup",
+        "team": "Team and players"
+      }
     },
     "today": {
       "bookings": "Bookings today",
@@ -468,7 +474,11 @@
       "customer": "Customer",
       "status": "Status",
       "noVenues": "Create a venue to start taking bookings.",
-      "createVenue": "Create a venue"
+      "createVenue": "Create a venue",
+      "courts": "Courts today",
+      "legendPaid": "Booked",
+      "legendWaiting": "Waiting",
+      "legendWalkIn": "Walk-in"
     },
     "walkInGuest": "Walk-in guest",
     "unknownCustomer": "Unknown customer",
@@ -1314,6 +1324,87 @@
       "cancelled_other": "{{count}} games cancelled.",
       "kept": "Could not cancel: {{dates}}",
       "sentNoDate": "Request sent."
+    }
+  },
+  "landing": {
+    "title": "Book a court in under a minute.",
+    "lede": "Padel, futsal, tennis and more at venues near you. See free times live, pay online and get your confirmation straight away.",
+    "searchLabel": "Find a free court",
+    "submit": "Show free courts",
+    "note": "No account needed to book. You can look up any booking with your phone number.",
+    "demo": {
+      "label": "Example: booking Padel court 2 at 19:00",
+      "court": "Padel court 2",
+      "venue": "Arena North",
+      "booked": "Booked",
+      "confirm": "Booked. See you at 19:00."
+    },
+    "sports": {
+      "title": "Pick your game",
+      "lede": "Every venue shows real free times, so what you see is what you can book.",
+      "cta": "See free times"
+    },
+    "steps": {
+      "title": "From search to serve",
+      "pick": "Choose a free slot",
+      "pickText": "Filter by sport, date and time. Prices are shown on every slot, so there are no surprises at checkout.",
+      "pay": "Pay online",
+      "payText": "Pay by card in a few taps. Add rackets, balls or a coach to your booking on the way.",
+      "play": "Show up and play",
+      "playText": "Your confirmation arrives by email or SMS. Need to change plans? Cancel from your bookings."
+    },
+    "features": {
+      "title": "Made for people who play every week",
+      "weekly": "Same court, every week",
+      "weeklyText": "Ask for a weekly booking once. The venue approves it and every game shows up in your bookings.",
+      "map": "See venues on a map",
+      "mapText": "Find the closest free court and compare prices side by side.",
+      "lookup": "No account? No problem",
+      "lookupText": "Book with your name and phone number, then find the booking again with a code sent to that phone.",
+      "reviews": "Reviews from real games",
+      "reviewsText": "Only players who booked and played can leave a review."
+    },
+    "owners": {
+      "title": "Run your venue from one screen",
+      "lede": "Online bookings, walk-ins and weekly regulars on one schedule. Your staff see what they need, and you see the money.",
+      "point1": "A live schedule for every court, with walk-ins in a few taps",
+      "point2": "Slot prices, closures and add-ons you set yourself",
+      "point3": "Card payments paid into your own account",
+      "point4": "Staff roles, so the front desk sees only what it needs",
+      "cta": "List your venue",
+      "previewLabel": "Preview of the venue portal",
+      "previewTitle": "Today",
+      "previewDate": "Arena North, Tuesday",
+      "previewOpen": "4 courts open",
+      "kpiBookings": "Bookings",
+      "kpiRevenue": "Revenue",
+      "kpiUsed": "Courts used",
+      "walkIn": "Walk-in",
+      "awaiting": "Awaiting payment",
+      "weekly": "Weekly game",
+      "coach": "Coach"
+    },
+    "faq": {
+      "title": "Questions",
+      "accountQ": "Do I need an account to book?",
+      "accountA": "No. Book with your name and phone number. An account lets you see all your bookings in one place and ask for weekly games.",
+      "cancelQ": "Can I cancel a booking?",
+      "cancelA": "Yes, up to the cutoff the venue sets. Refunds go back to the card you paid with.",
+      "findQ": "I lost my confirmation. How do I find my booking?",
+      "findA": "Open Find my booking and enter your reference and phone number.",
+      "langQ": "Is it available in Russian?",
+      "langA": "Yes. Switch language from the top of any page, for players and for staff."
+    },
+    "band": {
+      "title": "Free courts tonight, near you.",
+      "cta": "Find a court"
+    },
+    "footer": {
+      "players": "Players",
+      "venues": "Venues",
+      "portal": "Venue portal",
+      "list": "List your venue",
+      "rights": "© {{year}} Slot Booking"
     }
   }
 }

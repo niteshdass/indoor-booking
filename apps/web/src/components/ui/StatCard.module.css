@@ -23,8 +23,10 @@
 }
 
 .value {
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-display);
   line-height: var(--leading-heading);
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;

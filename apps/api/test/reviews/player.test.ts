@@ -288,3 +288,18 @@ describe('player bookings carry review data', () => {
     expect(byId.get(String(c._id))).toMatchObject({ reviewableUntil: null, review: null });
   });
 });
+
+describe('guest lookup of a player-linked walk-in', () => {
+  it('never returns the review or the review window', async () => {
+    const phone = '+8801822222222';
+    const b = await seedBooking({ source: 'walkin', guest: { name: 'Karim', phone } });
+    expect((await post(b)).status).toBe(201);
+    const look = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: b.reference, phone });
+    expect(look.status).toBe(200);
+    expect(look.body.booking).toMatchObject({ review: null, reviewableUntil: null });
+    // The player still sees it on their own bookings.
+    const own = await request(ctx.app).get('/api/v1/me/bookings').set(...bearer(token));
+    const mine = own.body.bookings.find((x: { id: string }) => x.id === String(b._id));
+    expect(mine.review).toMatchObject({ stars: 4 });
+  });
+});

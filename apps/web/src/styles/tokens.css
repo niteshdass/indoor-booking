@@ -77,8 +77,9 @@
   --picker-max: 20rem;
   --menu-min: 11rem;
   --header-tape: 3px;
-  --result-media: 15rem; /* photo column of a search result card */
-  --result-min: 11rem; /* shortest search result card */
+  --result-media: 13rem; /* photo column of a search result card (rows) */
+  --result-min: 10rem; /* shortest search result card (rows) */
+  --result-grid-min: 16rem; /* narrowest search result card column (grid) */
   --icon-sm: 1rem; /* inline icon next to small text */
   --empty-court: 7.5rem; /* court drawing in an empty result list */
   --tab-underline: 2px;

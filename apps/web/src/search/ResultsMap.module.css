@@ -72,6 +72,13 @@
   line-height: var(--leading-body);
 }
 
+/* The pin of the hovered or focused result card */
+.pinActive .pin {
+  background: var(--ball);
+  color: var(--ball-ink);
+  box-shadow: var(--shadow-md);
+}
+
 .pinWrap:focus-visible .pin {
   /* Two-tone so it shows on light and dark tiles: dark outline, light ring just outside it. */
   outline: var(--focus-width) solid var(--text-strong);

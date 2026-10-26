@@ -239,6 +239,11 @@
       "map": "Map"
     },
     "searchArea": "Search this area",
+    "layout": {
+      "label": "Card layout",
+      "rows": "Rows",
+      "grid": "Grid"
+    },
     "followMap": "Search as I move the map",
     "areaActive": "Showing venues in the map area",
     "areaClear": "Show all",

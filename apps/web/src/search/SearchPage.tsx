@@ -7,7 +7,7 @@ import { Spinner } from '../components/ui/Spinner';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCourt } from '../landing/SportCourt';
 import { errorMessage } from '../lib/errors';
-import { ResultCard } from './ResultCard';
+import { ResultCard, type ResultLayout } from './ResultCard';
 import { SearchForm } from './SearchForm';
 import { criteriaFromParams, criteriaToParams, type Bbox, type Criteria } from './searchParams';
 import { useSearch } from './useSearch';
@@ -16,6 +16,32 @@ import styles from './SearchPage.module.css';
 const ResultsMap = lazy(() => import('./ResultsMap').then((m) => ({ default: m.ResultsMap })));
 
 const LG = '(min-width: 1024px)';
+const LAYOUT_KEY = 'search.layout';
+
+const LAYOUT_ICONS: Record<ResultLayout, string> = {
+  rows: 'M3 5h6v5H3zM12 6h9M12 9h6M3 14h6v5H3zM12 15h9M12 18h6',
+  grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+};
+
+/** Rows or grid, remembered in this browser only; storage may be unavailable. */
+function useLayout(): [ResultLayout, (l: ResultLayout) => void] {
+  const [layout, setLayout] = useState<ResultLayout>(() => {
+    try {
+      return localStorage.getItem(LAYOUT_KEY) === 'grid' ? 'grid' : 'rows';
+    } catch {
+      return 'rows';
+    }
+  });
+  const choose = (l: ResultLayout) => {
+    setLayout(l);
+    try {
+      localStorage.setItem(LAYOUT_KEY, l);
+    } catch {
+      // Not remembered; the choice still holds for this visit.
+    }
+  };
+  return [layout, choose];
+}
 
 /** True at the lg breakpoint and up; false where matchMedia is missing. */
 function useIsWide(): boolean {
@@ -45,6 +71,8 @@ export function SearchPage() {
   const navigate = useNavigate();
   const wide = useIsWide();
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [layout, setLayout] = useLayout();
+  const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const listHidden = !wide && view !== 'list';
   const mapHidden = !wide && view !== 'map';
 
@@ -90,18 +118,43 @@ export function SearchPage() {
               {results.length > 0 &&
                 t(hasMore ? 'search.countMore' : 'search.count', { count: results.length })}
             </p>
-            <div className={styles.toggle} role="group" aria-label={t('search.view.label')}>
-              {(['list', 'map'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  className={styles.toggleBtn}
-                  aria-pressed={view === v}
-                  onClick={() => setView(v)}
+            <div className={styles.tools}>
+              {!listHidden && (
+                <div
+                  className={[styles.toggle, styles.layoutToggle].join(' ')}
+                  role="group"
+                  aria-label={t('search.layout.label')}
                 >
-                  {t(`search.view.${v}`)}
-                </button>
-              ))}
+                  {(['rows', 'grid'] as const).map((l) => (
+                    <button
+                      key={l}
+                      type="button"
+                      className={[styles.toggleBtn, styles.iconBtn].join(' ')}
+                      aria-pressed={layout === l}
+                      aria-label={t(`search.layout.${l}`)}
+                      title={t(`search.layout.${l}`)}
+                      onClick={() => setLayout(l)}
+                    >
+                      <svg className={styles.toggleIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d={LAYOUT_ICONS[l]} />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className={styles.toggle} role="group" aria-label={t('search.view.label')}>
+                {(['list', 'map'] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={styles.toggleBtn}
+                    aria-pressed={view === v}
+                    onClick={() => setView(v)}
+                  >
+                    {t(`search.view.${v}`)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -126,10 +179,15 @@ export function SearchPage() {
               )}
 
               {results.length > 0 && (
-                <ul className={styles.list}>
+                <ul className={[styles.list, layout === 'grid' && styles.grid].filter(Boolean).join(' ')}>
                   {results.map((r) => (
                     <li key={r.slug} className={styles.item}>
-                      <ResultCard r={r} />
+                      <ResultCard
+                        r={r}
+                        layout={layout}
+                        active={activeSlug === r.slug}
+                        onActive={setActiveSlug}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -169,6 +227,8 @@ export function SearchPage() {
             results={pins.results}
             center={criteria.near}
             bbox={criteria.bbox}
+            activeSlug={activeSlug}
+            onActive={setActiveSlug}
             fitKey={pins.key}
             onArea={onArea}
             onSelect={(slug) => {

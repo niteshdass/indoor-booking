@@ -8,8 +8,15 @@ import { mockApi, type Call } from '../helpers/api';
 import { renderApp } from '../helpers/render';
 
 vi.mock('../../src/search/ResultsMap', () => ({
-  ResultsMap: (props: { onArea(b: { west: number; south: number; east: number; north: number }): void }) => (
-    <button type="button" onClick={() => props.onArea({ west: 90.3, south: 23.7, east: 90.5, north: 23.9 })}>
+  ResultsMap: (props: {
+    activeSlug?: string | null;
+    onArea(b: { west: number; south: number; east: number; north: number }): void;
+  }) => (
+    <button
+      type="button"
+      data-active={props.activeSlug ?? ''}
+      onClick={() => props.onArea({ west: 90.3, south: 23.7, east: 90.5, north: 23.9 })}
+    >
       mock-map
     </button>
   ),
@@ -42,7 +49,10 @@ const venue: SearchResult = {
 };
 
 beforeEach(() => i18n.changeLanguage('en'));
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  localStorage.removeItem('search.layout');
+});
 
 describe('SearchPage', () => {
   it('renders results from URL criteria', async () => {
@@ -249,6 +259,44 @@ describe('SearchPage', () => {
     await waitFor(() => expect(location().search).not.toContain('bbox'));
     expect(location().search).toContain('sport=futsal');
     expect(screen.queryByText(en.search.areaActive)).not.toBeInTheDocument();
+  });
+
+  it('rows/grid toggle switches the card layout and is remembered', async () => {
+    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user, unmount } = renderApp('/search');
+    await screen.findByText('Arena One');
+    const rows = screen.getByRole('button', { name: en.search.layout.rows });
+    const grid = screen.getByRole('button', { name: en.search.layout.grid });
+    expect(rows).toHaveAttribute('aria-pressed', 'true');
+    await user.click(grid);
+    expect(grid).toHaveAttribute('aria-pressed', 'true');
+    expect(rows).toHaveAttribute('aria-pressed', 'false');
+    expect(localStorage.getItem('search.layout')).toBe('grid');
+    unmount();
+    renderApp('/search');
+    await screen.findByText('Arena One');
+    expect(screen.getByRole('button', { name: en.search.layout.grid })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('ignores an unknown saved layout', async () => {
+    localStorage.setItem('search.layout', 'mosaic');
+    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    renderApp('/search');
+    await screen.findByText('Arena One');
+    expect(screen.getByRole('button', { name: en.search.layout.rows })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('hovering or focusing a card highlights its pin', async () => {
+    mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
+    const { user } = renderApp('/search');
+    const card = await screen.findByRole('link', { name: 'Arena One' });
+    const map = screen.getByText('mock-map');
+    await user.hover(card);
+    expect(map).toHaveAttribute('data-active', 'arena-one');
+    await user.unhover(card);
+    expect(map).toHaveAttribute('data-active', '');
+    card.focus();
+    await waitFor(() => expect(map).toHaveAttribute('data-active', 'arena-one'));
   });
 
   describe('criteria change', () => {

@@ -18,6 +18,10 @@ export type ResultsMapProps = {
   /** The user moved the map: limit the search to this area. */
   onArea(bbox: Bbox): void;
   onSelect(slug: string): void;
+  /** The venue whose card is hovered or focused; its pin is highlighted and drawn on top. */
+  activeSlug?: string | null;
+  /** Pointer or focus entered (slug) or left (null) a pin. */
+  onActive?(slug: string | null): void;
   /** Identifies the search; a new value makes the next non-empty result set fit the view. */
   fitKey?: string;
 };
@@ -98,14 +102,17 @@ export function ResultsMap({
   bbox,
   onArea,
   onSelect,
+  activeSlug = null,
+  onActive,
   fitKey = '',
 }: ResultsMapProps) {
   const { t, i18n } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
-  const handlers = useRef({ onArea, onSelect });
-  handlers.current = { onArea, onSelect };
+  const handlers = useRef({ onArea, onSelect, onActive });
+  handlers.current = { onArea, onSelect, onActive };
+  const markers = useRef(new Map<string, L.Marker>());
   const fittedKey = useRef<string | null>(null);
   const centeredKey = useRef<string | null>(null);
   const pendingFit = useRef<{ bounds: L.LatLngBounds; padding: number } | null>(null);
@@ -205,6 +212,7 @@ export function ResultsMap({
     const group = layer.current;
     if (!m || !group) return;
     group.clearLayers();
+    markers.current.clear();
     const points: L.LatLngTuple[] = [];
     for (const r of results) {
       const pos: L.LatLngTuple = [r.location.lat, r.location.lng];
@@ -224,7 +232,10 @@ export function ResultsMap({
             });
       marker.on('add', () => marker.getElement()?.setAttribute('aria-label', aria));
       marker.on('click', () => handlers.current.onSelect(r.slug));
+      marker.on('mouseover', () => handlers.current.onActive?.(r.slug));
+      marker.on('mouseout', () => handlers.current.onActive?.(null));
       marker.addTo(group);
+      markers.current.set(r.slug, marker);
     }
     if (locked) return;
     const action = viewAction({
@@ -248,6 +259,14 @@ export function ResultsMap({
       centeredKey.current = fitKey;
     }
   }, [results, i18n.language, t, center, fitKey, locked]);
+
+  useEffect(() => {
+    for (const [slug, marker] of markers.current) {
+      const on = slug === activeSlug;
+      marker.getElement()?.classList.toggle(styles.pinActive!, on);
+      marker.setZIndexOffset(on ? 1000 : 0);
+    }
+  }, [activeSlug, results]);
 
   const searchArea = () => {
     if (map.current) report(map.current);

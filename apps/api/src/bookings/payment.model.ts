@@ -26,10 +26,16 @@ const paymentSchema = new mongoose.Schema(
     recordedBy: { type: ObjectId, ref: 'User', default: null },
     /** Succeeded but not counted in the booking's amountPaid (a late or duplicate payment refunded in full); never offered to a cancellation. */
     excess: { type: Boolean, default: false },
+    /**
+     * The booking group of a multi-day checkout. Its pending card payments share one gateway intent,
+     * whose metadata names the first of them; they succeed or fail together.
+     */
+    groupId: { type: ObjectId, default: null },
   },
   { timestamps: true },
 );
 paymentSchema.index({ ownerId: 1, bookingId: 1 });
+paymentSchema.index({ ownerId: 1, groupId: 1, status: 1 }, { partialFilterExpression: { groupId: { $type: 'objectId' } } });
 // At most one in-flight card payment per booking.
 paymentSchema.index(
   { bookingId: 1 },

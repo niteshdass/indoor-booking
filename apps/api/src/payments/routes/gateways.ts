@@ -81,13 +81,16 @@ async function releaseAccount(
 ): Promise<void> {
   const { pending, live } = await pendingOn(ownerId, old.row.accountId, now);
   if (live) throw accountInUse();
+  // A multi-day group's rows share one intent: cancel it once.
+  const cancelled = new Set<string>();
   for (const p of pending) {
     try {
-      await old.gateway.cancelPayment(old.creds, {
+      if (!p.gatewayRef || !cancelled.has(p.gatewayRef)) await old.gateway.cancelPayment(old.creds, {
         kind: p.kind ?? 'intent',
         gatewayRef: p.gatewayRef ?? null,
         linkRef: p.linkRef ?? null,
       });
+      if (p.gatewayRef) cancelled.add(p.gatewayRef);
     } catch {
       throw accountInUse();
     }

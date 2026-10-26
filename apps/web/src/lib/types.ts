@@ -66,7 +66,15 @@ export type QuoteJson = {
   advanceRequired: number;
 };
 
-export type QuoteResponse = { quote: QuoteJson; guestAllowed: boolean; guestOtpRequired: boolean };
+export type QuoteResponse = {
+  quote: QuoteJson;
+  guestAllowed: boolean;
+  guestOtpRequired: boolean;
+  /** Several bookings at once: every one (the first included) and the sums across them. */
+  items?: { date: string; quote: QuoteJson }[];
+  total?: number;
+  advanceRequired?: number;
+};
 
 /** Venue summary on player booking responses. */
 export type PlayerVenue = { slug: string; name: string; address: string; city: string; timezone: string };
@@ -94,6 +102,8 @@ export type BookingJson = {
   playerId: string | null;
   guest: { name: string; phone: string } | null;
   seriesId: string | null;
+  /** Shared by the bookings of one multi-day checkout. */
+  groupId: string | null;
   rejectReason: string | null;
   cancelledAt: string | null;
   cancelledBy: 'player' | 'guest' | 'staff' | null;

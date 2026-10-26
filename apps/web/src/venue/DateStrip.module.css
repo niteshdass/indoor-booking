@@ -8,6 +8,7 @@
 }
 
 .chip {
+  position: relative;
   flex: 0 0 auto;
   display: inline-flex;
   flex-direction: column;
@@ -72,6 +73,34 @@
 
 .selected .dot {
   background: currentColor;
+}
+
+/* Days with picked slots: a count in the corner. */
+.badge {
+  position: absolute;
+  inset-block-start: calc(var(--space-1) * -1);
+  inset-inline-end: calc(var(--space-1) * -1);
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--space-5);
+  height: var(--space-5);
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  color: var(--brand-fg);
+  border: 1px solid var(--bg-page);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: 1;
+}
+
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {

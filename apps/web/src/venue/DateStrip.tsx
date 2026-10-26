@@ -8,13 +8,15 @@ export type DateStripProps = {
   value: string;
   onChange(d: string): void;
   days?: number;
+  /** Slots picked per day; those days get a count badge. */
+  marked?: Record<string, number>;
   /** Reserved: required by the interface. Labels are venue-local calendar dates formatted as UTC. */
   timeZone: string;
 };
 
 const at = (d: string) => new Date(`${d}T00:00:00Z`);
 
-export function DateStrip({ today, value, onChange, days = 14 }: DateStripProps) {
+export function DateStrip({ today, value, onChange, days = 14, marked = {} }: DateStripProps) {
   const { t, i18n } = useTranslation();
   const selectedRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -29,6 +31,7 @@ export function DateStrip({ today, value, onChange, days = 14 }: DateStripProps)
       {dates.map((d) => {
         const selected = d === value;
         const isToday = d === today;
+        const count = marked[d] ?? 0;
         return (
           <button
             key={d}
@@ -44,6 +47,12 @@ export function DateStrip({ today, value, onChange, days = 14 }: DateStripProps)
               {isToday ? t('venue.todayChip') : weekday.format(at(d))}
             </span>
             <span className={styles.date}>{dayMonth.format(at(d))}</span>
+            {count > 0 && (
+              <span className={styles.badge}>
+                <span aria-hidden="true">{count}</span>
+                <span className={styles.hidden}>{t('slots.picked', { count })}</span>
+              </span>
+            )}
           </button>
         );
       })}

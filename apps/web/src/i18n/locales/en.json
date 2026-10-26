@@ -304,7 +304,8 @@
     "weeklyPrompt": "Play here every week?",
     "location": "Location",
     "directions": "Get directions",
-    "mapLabel": "Map showing {{name}}"
+    "mapLabel": "Map showing {{name}}",
+    "days": "Days"
   },
   "slots": {
     "grid": "Time slots",
@@ -329,7 +330,19 @@
     "evening": "Evening",
     "freeCount_one": "{{count}} free",
     "freeCount_other": "{{count}} free",
-    "noneFree": "Nothing free"
+    "noneFree": "Nothing free",
+    "repeatNotFree": "not free",
+    "dayCount_one": "{{count}} day",
+    "dayCount_other": "{{count}} days",
+    "repeat": "Copy these times to",
+    "repeatHint": "Or open any day above and pick its own times.",
+    "full_other": "Up to {{count}} bookings in one go.",
+    "full_one": "Up to {{count}} booking in one go.",
+    "picked_one": "{{count}} slot picked",
+    "picked_other": "{{count}} slots picked",
+    "showDay": "Show {{date}}",
+    "clearDay": "Clear {{date}}",
+    "slotsOnDays": "{{slots}} on {{days}}"
   },
   "addons": {
     "per_booking": "per booking",
@@ -365,7 +378,13 @@
     "addonsUnavailable": "Extras couldn't be loaded. You can still book without them.",
     "durationH": "{{hours}} h",
     "durationM": "{{minutes}} min",
-    "durationHM": "{{hours}} h {{minutes}} min"
+    "durationHM": "{{hours}} h {{minutes}} min",
+    "perDay": "each booking",
+    "groupSignIn": "Booking several times at once needs an account. Sign in or create one to continue.",
+    "dayProblem": "{{date}}: {{reason}}",
+    "removeDay": "Remove {{date}}",
+    "bookingCount_one": "{{count}} booking",
+    "bookingCount_other": "{{count}} bookings"
   },
   "payment": {
     "redirectFailed": "The payment didn't go through. Your slots are still held, so you can try again.",
@@ -397,7 +416,10 @@
     "total": "Total",
     "paid": "Paid",
     "refunded": "Refunded",
-    "timesUtc": "Times shown in UTC"
+    "timesUtc": "Times shown in UTC",
+    "groupTitle": "Booked together",
+    "groupNote_one": "{{count}} booking made in one go. Each one can be cancelled on its own.",
+    "groupNote_other": "{{count}} bookings made in one go. Each one can be cancelled on its own."
   },
   "status": {
     "awaiting_payment": "Awaiting payment",

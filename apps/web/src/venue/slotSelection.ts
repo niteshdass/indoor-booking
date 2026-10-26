@@ -38,3 +38,24 @@ export function toggleSlot(slots: SlotJson[], selected: string[], startAt: strin
   }
   return [startAt];
 }
+
+/**
+ * The picked slots of one day as bookings: consecutive runs in time order, each cut at
+ * MAX_SLOTS_PER_BOOKING. Picks missing from `slots` are skipped.
+ */
+export function runsOf(slots: SlotJson[], picked: string[]): SlotJson[][] {
+  const chosen = new Set(picked);
+  const runs: SlotJson[][] = [];
+  let run: SlotJson[] = [];
+  for (const s of [...slots].sort((a, b) => a.startAt.localeCompare(b.startAt))) {
+    if (!chosen.has(s.startAt)) continue;
+    const prev = run[run.length - 1];
+    if (prev && (prev.endAt !== s.startAt || run.length >= MAX_SLOTS_PER_BOOKING)) {
+      runs.push(run);
+      run = [];
+    }
+    run.push(s);
+  }
+  if (run.length > 0) runs.push(run);
+  return runs;
+}

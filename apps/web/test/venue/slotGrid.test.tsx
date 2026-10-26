@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
@@ -13,6 +13,7 @@ import type { PublicVenue, SlotDay, SlotJson } from '../../src/lib/types';
 
 beforeEach(() => i18n.changeLanguage('en'));
 afterEach(() => {
+  sessionStorage.clear();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -28,6 +29,13 @@ function slot(i: number, status: SlotJson['status'] = 'available', price: number
     price,
     status,
   };
+}
+
+/** `slot(i)` moved to another date, so each day has its own instants. */
+function slotOn(date: string, i: number, status: SlotJson['status'] = 'available'): SlotJson {
+  const shift = Date.parse(`${date}T00:00:00Z`) - Date.parse('2026-10-25T00:00:00Z');
+  const s = slot(i, status);
+  return { ...s, startAt: new Date(Date.parse(s.startAt) + shift).toISOString(), endAt: new Date(Date.parse(s.endAt) + shift).toISOString() };
 }
 
 function day(slots: SlotJson[], status: SlotDay['status'] = 'open'): SlotDay {
@@ -140,15 +148,111 @@ describe('VenuePage slots', () => {
     expect(calls.some((c) => c.path.endsWith('/turfs/t1/slots') && c.query.get('date') === '2026-10-25')).toBe(true);
   });
 
-  it('changing date clears selection', async () => {
+  it('copy times to other days: busy days disabled, copied days add to total and the link', async () => {
     vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
-    mockApi(routes());
+    mockApi([
+      { path: '/venues/arena-one', body: { venue } },
+      {
+        path: '/venues/arena-one/turfs/t1/slots',
+        body: (c: { query: URLSearchParams }) => {
+          const date = c.query.get('date')!;
+          // 10:00 is taken on the 27th.
+          const list = date === '2026-10-27' ? [slotOn(date, 0, 'booked'), slotOn(date, 1)] : [0, 1, 2].map((i) => slotOn(date, i));
+          return { day: { ...day(list), businessDate: date } };
+        },
+      },
+    ]);
     const { user } = renderApp('/venues/arena-one?date=2026-10-25');
     await user.click(await screen.findByRole('button', { name: /10:00/ }));
+    const repeat = await screen.findByRole('group', { name: en.slots.repeat });
+    const busy = await within(repeat).findByRole('button', { name: /Oct 27/ });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAccessibleName(expect.stringContaining(en.slots.repeatNotFree));
+    const next = within(repeat).getByRole('button', { name: /Oct 26/ });
+    await user.click(next);
+    expect(next).toHaveAttribute('aria-pressed', 'true');
+    const bar = screen.getByRole('complementary', { name: en.slots.summary });
+    expect(within(bar).getByText('2 slots on 2 days')).toBeInTheDocument();
+    const squash = (s: string) => s.replace(/\s/g, '');
+    expect(squash(bar.textContent ?? '')).toContain(squash(money(3000, 'BDT', 'en')));
+    const href = new URL(screen.getByRole('link', { name: en.slots.continue }).getAttribute('href')!, 'http://x');
+    expect(href.searchParams.get('more')).toBe(`2026-10-26:${slotOn('2026-10-26', 0).startAt}`);
+    // Clicking a copied day again clears it there.
+    await user.click(next);
+    expect(next).toHaveAttribute('aria-pressed', 'false');
+    expect(within(bar).getByText('1 slot')).toBeInTheDocument();
+  });
+
+  it('any times on any days: picks survive every date change and each run is its own booking', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
+    mockApi([
+      { path: '/venues/arena-one', body: { venue } },
+      {
+        path: '/venues/arena-one/turfs/t1/slots',
+        body: (c: { query: URLSearchParams }) => {
+          const date = c.query.get('date')!;
+          return { day: { ...day([0, 1, 2, 3, 4].map((i) => slotOn(date, i))), businessDate: date } };
+        },
+      },
+    ]);
+    const { user } = renderApp('/venues/arena-one?date=2026-10-25');
+    const strip = () => within(screen.getByRole('group', { name: en.venue.dateStrip }));
+    const pressed = (h: string) => screen.getByRole('button', { name: new RegExp(h) }).getAttribute('aria-pressed');
+
+    await user.click(await screen.findByRole('button', { name: /10:00/ }));
+    await user.click(strip().getByRole('button', { name: /Oct 27/ }));
+    await waitFor(() => expect(pressed('10:00')).toBe('false'));
+    // Two separate runs on the 27th.
+    await user.click(screen.getByRole('button', { name: /11:00/ }));
+    await user.click(screen.getByRole('button', { name: /13:00/ }));
+    await user.click(screen.getByRole('button', { name: /14:00/ }));
+    expect(strip().getByRole('button', { name: /Oct 25.*1 slot picked/ })).toBeInTheDocument();
+    expect(strip().getByRole('button', { name: /Oct 27.*3 slots picked/ })).toBeInTheDocument();
+
+    // Back on the 25th by the strip: its own pick is still there.
+    await user.click(strip().getByRole('button', { name: /Oct 25/ }));
+    await waitFor(() => expect(pressed('10:00')).toBe('true'));
+    expect(pressed('11:00')).toBe('false');
+
+    const bar = screen.getByRole('complementary', { name: en.slots.summary });
+    expect(within(bar).getByText('4 slots on 2 days')).toBeInTheDocument();
+    expect(within(bar).getByText('10:00–11:00')).toBeInTheDocument();
+    expect(within(bar).getByText('11:00–12:00, 13:00–15:00')).toBeInTheDocument();
+    const href = new URL(screen.getByRole('link', { name: en.slots.continue }).getAttribute('href')!, 'http://x');
+    expect(href.searchParams.get('date')).toBe('2026-10-25');
+    expect(href.searchParams.get('slots')).toBe(slotOn('2026-10-25', 0).startAt);
+    const d27 = (i: number) => slotOn('2026-10-27', i).startAt;
+    expect(href.searchParams.get('more')).toBe(`2026-10-27:${d27(1)};2026-10-27:${d27(3)},${d27(4)}`);
+
+    // The summary opens a day.
+    await user.click(within(bar).getByRole('button', { name: /Show .*Oct 27/ }));
+    await waitFor(() => expect(pressed('13:00')).toBe('true'));
+    expect(pressed('10:00')).toBe('false');
+
+    // Clearing a day from the summary.
+    await user.click(within(bar).getByRole('button', { name: /Clear .*Oct 25/ }));
+    const after = new URL(screen.getByRole('link', { name: en.slots.continue }).getAttribute('href')!, 'http://x');
+    expect(after.searchParams.get('date')).toBe('2026-10-27');
+    expect(after.searchParams.get('more')).toBe(`2026-10-27:${d27(3)},${d27(4)}`);
+  });
+
+  it('picks survive leaving the page and coming back', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
+    mockApi(routes());
+    const first = renderApp('/venues/arena-one?date=2026-10-25');
+    await first.user.click(await screen.findByRole('button', { name: /11:00/ }));
+    cleanup();
+    renderApp('/venues/arena-one?date=2026-10-25');
+    await waitFor(() => expect(screen.getByRole('button', { name: /11:00/ })).toHaveAttribute('aria-pressed', 'true'));
     expect(screen.getByRole('link', { name: en.slots.continue })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Oct 27/ }));
-    await waitFor(() => expect(screen.queryByRole('link', { name: en.slots.continue })).not.toBeInTheDocument());
-    expect(await screen.findByRole('button', { name: /10:00/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('has the multi-day strings in Russian', () => {
+    const r = ru.slots as Record<string, string>;
+    for (const k of ['repeat', 'repeatHint', 'showDay', 'clearDay', 'slotsOnDays', 'picked_few', 'picked_many', 'full_many']) expect(r[k]).toBeTruthy();
+    expect((ru.venue as Record<string, string>).days).toBeTruthy();
+    const c = ru.checkout as Record<string, string>;
+    for (const f of ['one', 'few', 'many', 'other']) expect(c[`bookingCount_${f}`]).toBeTruthy();
   });
 
   it('slot fetch error shows alert with retry and no selection bar', async () => {

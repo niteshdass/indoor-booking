@@ -106,8 +106,11 @@ async function closeOpenPayment(booking: BookingDoc, deps: { config: Config; ser
     console.error(`[bookings] cancel of ${String(booking._id)} could not close payment ${String(payment._id)}`, err);
     throw inProgress();
   }
-  await Payment.updateOne(
-    { ownerId, _id: payment._id, status: 'pending' },
+  // The intent of a multi-day group pays for every day, so the other days' rows are closed with it.
+  await Payment.updateMany(
+    payment.groupId
+      ? { ownerId, groupId: payment.groupId, method: 'card', status: 'pending' }
+      : { ownerId, _id: payment._id, status: 'pending' },
     { $set: { status: 'failed', failureCode: 'booking_cancelled' } },
   );
 }

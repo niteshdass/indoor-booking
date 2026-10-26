@@ -48,20 +48,47 @@ export async function applyEvent(
     const res = await Payment.updateOne(pending, { $set: { failureCode: event.failureCode } }, { session });
     return done(res.matchedCount === 1 ? 'applied' : 'ignored');
   }
+  // A multi-day group's rows share the intent, so they close together.
+  const together = payment.groupId ? { ownerId, groupId: payment.groupId, method: 'card', status: 'pending' } : pending;
   if (event.kind === 'closed') {
-    const res = await Payment.updateOne(pending, { $set: { status: 'failed' } }, { session });
-    return done(res.matchedCount === 1 ? 'applied' : 'ignored');
+    const res = await Payment.updateMany(together, { $set: { status: 'failed' } }, { session });
+    return done(res.matchedCount > 0 ? 'applied' : 'ignored');
   }
 
   if (payment.status !== 'pending') return done('ignored');
   const booking = await Booking.findOne({ ownerId, _id: payment.bookingId }).session(session);
-  if (event.amount !== payment.amount || event.currency !== payment.currency) {
+  const others = payment.groupId
+    ? await Payment.find({ ...together, _id: { $ne: payment._id } }).sort({ _id: 1 }).session(session)
+    : [];
+  const expected = others.reduce((n, p) => n + p.amount, payment.amount);
+  if (event.amount !== expected || event.currency !== payment.currency) {
+    if (others.length > 0) {
+      const failed = await Payment.updateMany(
+        { ownerId, _id: { $in: others.map((p) => p._id) }, status: 'pending' },
+        { $set: { status: 'failed', failureCode: 'amount_mismatch' } },
+        { session },
+      );
+      if (failed.matchedCount !== others.length) throw changedUnderneath();
+    }
     return mismatch({ ownerId, event, payment, booking, ctx, session });
   }
   if (!booking) return done('ignored');
   await lockTurf({ ownerId }, String(booking.turfId), ctx.now, session);
 
-  const succeeded = { ownerId, event, payment, booking, ctx, session };
+  // Each day of a group is settled on its own: confirmed while it still can be, refunded otherwise.
+  const refundIds: string[] = [];
+  for (const p of others) {
+    const day = await Booking.findOne({ ownerId, _id: p.bookingId }).session(session);
+    if (!day) throw changedUnderneath();
+    refundIds.push(...(await settle({ ownerId, event, payment: p, booking: day, ctx, session })).refundIds);
+  }
+  const lead = await settle({ ownerId, event, payment, booking, ctx, session });
+  return done(lead.outcome, [...lead.refundIds, ...refundIds]);
+}
+
+/** Confirms or revives the booking the payment is for, or refunds the payment when it cannot. */
+async function settle(succeeded: Succeeded): Promise<ApplyResult> {
+  const { ownerId, booking, ctx, session } = succeeded;
   const holding = booking.status === 'awaiting_payment' && booking.holdExpiresAt != null && booking.holdExpiresAt > ctx.now;
   // A live hold still has its slots and stock, even once a walk-in's in-progress slot has ended;
   // a lapsed or expired one gets them back only if nobody took them and the slot is not over.
@@ -216,7 +243,7 @@ async function confirm(s: Succeeded): Promise<WebhookOutcome> {
     { $set: { status: 'succeeded', gatewayRef: event.gatewayRef } },
     { session },
   );
-  const amountPaid = booking.amountPaid + event.amount;
+  const amountPaid = booking.amountPaid + payment.amount;
   const confirmed = await Booking.updateOne(
     { ownerId, _id: booking._id, status: from, amountPaid: booking.amountPaid },
     {
@@ -234,7 +261,7 @@ async function confirm(s: Succeeded): Promise<WebhookOutcome> {
       entityId: String(booking._id),
       venueId: String(booking.venueId),
       before: { status: from },
-      after: { status: 'confirmed', via: 'payment', paymentId: String(payment._id), amount: event.amount },
+      after: { status: 'confirmed', via: 'payment', paymentId: String(payment._id), amount: payment.amount },
     },
     ctx.now,
     session,
@@ -272,7 +299,7 @@ async function refund(s: Succeeded): Promise<ApplyResult> {
   const [row] = await reserveRefunds(
     {
       booking,
-      parts: [{ paymentId: payment._id, method: 'card', amount: event.amount }],
+      parts: [{ paymentId: payment._id, method: 'card', amount: payment.amount }],
       reason,
       ruleApplied: null,
       by: null,

@@ -61,6 +61,8 @@ const bookingSchema = new mongoose.Schema(
     createdBy: { type: ObjectId, ref: 'User', default: null },
     /** The recurring series this booking is a game of, if any. */
     seriesId: { type: ObjectId, ref: 'RecurringSeries', default: null },
+    /** Shared by the bookings of one multi-day checkout: the same time on several days, paid together. */
+    groupId: { type: ObjectId, default: null },
     rejectReason: { type: String, default: null },
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
@@ -78,6 +80,7 @@ bookingSchema.index({ ownerId: 1, venueId: 1, businessDate: 1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, startAt: 1, endAt: 1 });
 bookingSchema.index({ playerId: 1, startAt: -1 });
 bookingSchema.index({ ownerId: 1, seriesId: 1, startAt: 1 });
+bookingSchema.index({ ownerId: 1, groupId: 1 }, { partialFilterExpression: { groupId: { $type: 'objectId' } } });
 // Cross-tenant lifecycle sweeps (jobs/sweeps.ts), paged on (time, _id).
 bookingSchema.index({ status: 1, holdExpiresAt: 1, _id: 1 });
 bookingSchema.index({ status: 1, startAt: 1, _id: 1 });
@@ -122,6 +125,7 @@ export function bookingJson(b: BookingDoc) {
     playerId: b.playerId ? String(b.playerId) : null,
     guest: b.guest ? { name: b.guest.name, phone: b.guest.phone } : null,
     seriesId: b.seriesId ? String(b.seriesId) : null,
+    groupId: b.groupId ? String(b.groupId) : null,
     rejectReason: b.rejectReason ?? null,
     cancelledAt: b.cancelledAt ? b.cancelledAt.toISOString() : null,
     cancelledBy: b.cancelledBy ?? null,

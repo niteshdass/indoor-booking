@@ -20,6 +20,8 @@ export function canTransition(from: BookingStatus, to: BookingStatus): boolean {
 }
 
 export const MAX_SLOTS_PER_BOOKING = 12;
+/** Most bookings one checkout makes at once; each is one run of slots on one day. */
+export const MAX_BOOKINGS_PER_GROUP = 14;
 /** How long an awaiting_payment booking holds its slots. */
 export const HOLD_MINUTES = 10;
 

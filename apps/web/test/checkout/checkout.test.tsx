@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, screen, waitFor, within } from '@testing-library/react';
-import { MAX_SLOTS_PER_BOOKING } from '@booking/shared';
+import { MAX_BOOKINGS_PER_GROUP, MAX_SLOTS_PER_BOOKING } from '@booking/shared';
 import i18n from '../../src/i18n';
 import en from '../../src/i18n/locales/en.json';
 import ru from '../../src/i18n/locales/ru.json';
@@ -27,6 +27,8 @@ const venue: PublicVenue = {
 
 const START = '2026-01-01T12:00:00.000Z';
 const PATH = `/venues/arena-one/checkout?turf=t1&date=2026-01-01&slots=${encodeURIComponent(START)}`;
+const MORE2 = '2026-01-02:2026-01-02T09:00:00.000Z';
+const MORE3 = '2026-01-03:2026-01-03T15:00:00.000Z';
 
 const offered: OfferedAddonJson[] = [
   { id: 'a1', name: 'Shoes', pricingType: 'per_unit', unitPrice: 150, maxQuantity: 3, autoApply: null },
@@ -75,7 +77,22 @@ describe('checkoutParams', () => {
   it('reads valid params, deduped and sorted', () => {
     const a = '2026-01-01T12:00:00.000Z';
     const b = '2026-01-01T13:00:00.000Z';
-    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${b},${a},${b}`))).toEqual({ turfId: 't1', date: '2026-01-01', startAts: [a, b] });
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${b},${a},${b}`))).toEqual({ turfId: 't1', date: '2026-01-01', startAts: [a, b], more: [] });
+  });
+  it('reads more bookings, each with its own day and times', () => {
+    const a = '2026-01-01T12:00:00.000Z';
+    const c = '2026-01-03T09:00:00.000Z';
+    const d = '2026-01-03T11:00:00.000Z';
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=2026-01-03:${d},${c};2026-01-03:${d}`))?.more).toEqual([
+      { date: '2026-01-03', startAts: [c, d] },
+      { date: '2026-01-03', startAts: [d] },
+    ]);
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=2026-01-02`))).toBeNull();
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=nope:${c}`))).toBeNull();
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=2026-01-03:nope`))).toBeNull();
+    const many = Array.from({ length: MAX_BOOKINGS_PER_GROUP }, () => `2026-01-03:${c}`);
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=${many.join(';')}`))).toBeNull();
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=${many.slice(1).join(';')}`))).not.toBeNull();
   });
   it('rejects missing or malformed params', () => {
     const ok = '2026-01-01T12:00:00.000Z';
@@ -99,7 +116,10 @@ describe('checkoutParams', () => {
     const b = '2026-01-01T13:00:00.000Z';
     const href = checkoutHref('arena one', 't 1', '2026-01-01', [a, b]);
     expect(href.startsWith('/venues/arena%20one/checkout?')).toBe(true);
-    expect(readCheckout(new URLSearchParams(href.split('?')[1]))).toEqual({ turfId: 't 1', date: '2026-01-01', startAts: [a, b] });
+    expect(readCheckout(new URLSearchParams(href.split('?')[1]))).toEqual({ turfId: 't 1', date: '2026-01-01', startAts: [a, b], more: [] });
+    const more = [{ date: '2026-01-02', startAts: ['2026-01-02T09:00:00.000Z'] }, { date: '2026-01-03', startAts: [a.replace('01T', '03T'), b.replace('01T', '03T')] }];
+    const many = checkoutHref('arena-one', 't1', '2026-01-01', [a], more);
+    expect(readCheckout(new URLSearchParams(many.split('?')[1]))?.more).toEqual(more);
   });
 });
 
@@ -330,6 +350,62 @@ describe('CheckoutPage', () => {
     expect(await screen.findByText(en.checkout.invalidParams)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: en.checkout.backToVenue })).toHaveAttribute('href', '/venues/arena-one');
     expect(unmatched).toHaveLength(0);
+  });
+
+  it('several bookings: one row each with its day and times, group total and advance, more in the quote body', async () => {
+    const item = (date: string) => ({ date, quote: quote({ advanceRequired: 400 }) });
+    const { calls } = api(() => ({
+      ...qr(quote({ advanceRequired: 400 }), false),
+      items: [item('2026-01-01'), item('2026-01-02'), item('2026-01-03')],
+      total: 6000,
+      advanceRequired: 1200,
+    }));
+    renderApp(`${PATH}&more=${MORE2};${MORE3}`, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    expect(await within(summary).findByText(amount(6000))).toBeInTheDocument();
+    expect(within(summary).getAllByText(amount(2000))).toHaveLength(3);
+    expect(within(summary).getByText(/3 bookings/)).toBeInTheDocument();
+    expect(within(summary).getAllByText(/\d{2}:\d{2}–\d{2}:\d{2}/)).toHaveLength(3);
+    expect(norm(screen.getByRole('button', { name: /Book and pay/ }).textContent ?? '')).toContain(m(1200));
+    expect(quoteCalls(calls)[0]!.body).toMatchObject({
+      more: [
+        { date: '2026-01-02', startAts: [MORE2.slice(11)] },
+        { date: '2026-01-03', startAts: [MORE3.slice(11)] },
+      ],
+    });
+  });
+
+  it('several bookings signed out asks for an account', async () => {
+    api(() => ({ ...qr(quote(), false), items: [{ date: '2026-01-01', quote: quote() }, { date: '2026-01-02', quote: quote() }], total: 4000, advanceRequired: 0 }));
+    renderApp(`${PATH}&more=${MORE2}`);
+    expect(await screen.findByText(en.checkout.groupSignIn)).toBeInTheDocument();
+    expect(screen.queryByText(en.checkout.guestPlaceholder)).not.toBeInTheDocument();
+  });
+
+  it('a quote error on one booking offers to drop just that one', async () => {
+    const { calls } = api((c) =>
+      (c.body as { more?: unknown[] }).more
+        ? { status: 409, body: { error: { code: 'slot_taken', message: 'x', details: { date: '2026-01-02', itemStart: MORE2.slice(11) } } } }
+        : qr(quote()),
+    );
+    const { user, location } = renderApp(`${PATH}&more=${MORE2}`, { user: player });
+    const remove = await screen.findByRole('button', { name: /Remove/ });
+    await user.click(remove);
+    await waitFor(() => expect(new URLSearchParams(location().search).get('more')).toBeNull());
+    expect(await screen.findByRole('button', { name: en.checkout.book })).toBeInTheDocument();
+    expect(quoteCalls(calls).at(-1)!.body).not.toHaveProperty('more');
+  });
+
+  it('dropping the first booking makes the next one first', async () => {
+    api((c) =>
+      (c.body as { more?: unknown[] }).more
+        ? { status: 409, body: { error: { code: 'slot_taken', message: 'x', details: { date: '2026-01-01', itemStart: START } } } }
+        : qr(quote()),
+    );
+    const { user, location } = renderApp(`${PATH}&more=${MORE2}`, { user: player });
+    await user.click(await screen.findByRole('button', { name: /Remove/ }));
+    await waitFor(() => expect(new URLSearchParams(location().search).get('date')).toBe('2026-01-02'));
+    expect(new URLSearchParams(location().search).get('slots')).toBe(MORE2.slice(11));
   });
 
   it('has the new strings in ru too', () => {

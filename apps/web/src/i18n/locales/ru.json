@@ -316,7 +316,8 @@
     "weeklyPrompt": "Играете здесь каждую неделю?",
     "location": "Как добраться",
     "directions": "Проложить маршрут",
-    "mapLabel": "Карта: {{name}}"
+    "mapLabel": "Карта: {{name}}",
+    "days": "Дни"
   },
   "slots": {
     "grid": "Временные слоты",
@@ -345,7 +346,25 @@
     "freeCount_few": "{{count}} свободно",
     "freeCount_many": "{{count}} свободно",
     "freeCount_other": "{{count}} свободно",
-    "noneFree": "Свободных нет"
+    "noneFree": "Свободных нет",
+    "repeatNotFree": "занято",
+    "dayCount_one": "{{count}} день",
+    "dayCount_few": "{{count}} дня",
+    "dayCount_many": "{{count}} дней",
+    "dayCount_other": "{{count}} дня",
+    "repeat": "Скопировать это время на",
+    "repeatHint": "Или откройте любой день выше и выберите своё время.",
+    "full_one": "Не больше {{count}} брони за раз.",
+    "full_few": "Не больше {{count}} броней за раз.",
+    "full_many": "Не больше {{count}} броней за раз.",
+    "full_other": "Не больше {{count}} броней за раз.",
+    "picked_one": "выбран {{count}} слот",
+    "picked_few": "выбрано {{count}} слота",
+    "picked_many": "выбрано {{count}} слотов",
+    "picked_other": "выбрано {{count}} слота",
+    "showDay": "Открыть {{date}}",
+    "clearDay": "Очистить {{date}}",
+    "slotsOnDays": "{{slots}}, {{days}}"
   },
   "addons": {
     "per_booking": "за бронь",
@@ -381,7 +400,15 @@
     "addonsUnavailable": "Не удалось загрузить дополнения. Вы всё равно можете забронировать без них.",
     "durationH": "{{hours}} ч",
     "durationM": "{{minutes}} мин",
-    "durationHM": "{{hours}} ч {{minutes}} мин"
+    "durationHM": "{{hours}} ч {{minutes}} мин",
+    "perDay": "за каждую бронь",
+    "groupSignIn": "Чтобы оформить несколько броней сразу, нужен аккаунт. Войдите или создайте его.",
+    "dayProblem": "{{date}}: {{reason}}",
+    "removeDay": "Убрать {{date}}",
+    "bookingCount_one": "{{count}} бронь",
+    "bookingCount_few": "{{count}} брони",
+    "bookingCount_many": "{{count}} броней",
+    "bookingCount_other": "{{count}} брони"
   },
   "payment": {
     "redirectFailed": "Платёж не прошёл. Слоты пока удерживаются, можно попробовать ещё раз.",
@@ -413,7 +440,12 @@
     "total": "Итого",
     "paid": "Оплачено",
     "refunded": "Возвращено",
-    "timesUtc": "Время указано по UTC"
+    "timesUtc": "Время указано по UTC",
+    "groupTitle": "Забронировано вместе",
+    "groupNote_one": "{{count}} бронь оформлена за раз. Каждую можно отменить отдельно.",
+    "groupNote_few": "{{count}} брони оформлены за раз. Каждую можно отменить отдельно.",
+    "groupNote_many": "{{count}} броней оформлено за раз. Каждую можно отменить отдельно.",
+    "groupNote_other": "{{count}} брони оформлены за раз. Каждую можно отменить отдельно."
   },
   "status": {
     "awaiting_payment": "Ожидает оплаты",

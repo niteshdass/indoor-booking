@@ -1,7 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
-import { MAX_SLOTS_PER_BOOKING, type BookingQuote, type EffectiveSettings } from '@booking/shared';
+import { MAX_BOOKINGS_PER_GROUP, MAX_SLOTS_PER_BOOKING, type BookingQuote, type EffectiveSettings } from '@booking/shared';
 import { optionalAuth, requireAuth } from '../../auth/requireAuth';
 import { normalizePhone } from '../../auth/normalize';
 import { requestOtp, verifyOtp } from '../../auth/otp';
@@ -15,7 +15,7 @@ import { effectiveForVenue } from '../../venues/effective';
 import { publicTurf, publicVenueBySlug } from '../../venues/routes/public';
 import { Booking, type BookingDoc } from '../booking.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
-import { createBooking, quoteFor } from '../create';
+import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
 import { startIntent } from '../../payments/intent';
 import { invalidTransition } from '../transition';
 import { cancelBooking, previewCancellation } from '../cancel';
@@ -33,13 +33,32 @@ export const addonsSchema = z
   .max(50)
   .default([]);
 
-const quoteSchema = z.object({ date: isoDateSchema, startAts: startAtsSchema, addons: addonsSchema }).strict();
+/** More bookings in the same checkout: each a run of slots on its own day and time. */
+const moreSchema = z
+  .array(z.object({ date: isoDateSchema, startAts: startAtsSchema }).strict())
+  .max(MAX_BOOKINGS_PER_GROUP - 1)
+  .default([]);
+
+/** Every item of a checkout, ordered by start; a slot may appear in one item only. */
+const groupItems = (input: { date: string; startAts: Date[]; more: { date: string; startAts: Date[] }[] }): GroupItem[] => {
+  const items = [{ date: input.date, startAts: input.startAts }, ...input.more];
+  const all = items.flatMap((i) => i.startAts.map((d) => d.getTime()));
+  if (new Set(all).size !== all.length) throw new AppError(400, 'validation_error', 'Each slot can be booked once');
+  return items
+    .map((i) => ({ date: i.date, startAts: [...i.startAts].sort((a, b) => a.getTime() - b.getTime()) }))
+    .sort((a, b) => a.startAts[0]!.getTime() - b.startAts[0]!.getTime());
+};
+
+const quoteSchema = z
+  .object({ date: isoDateSchema, startAts: startAtsSchema, addons: addonsSchema, more: moreSchema })
+  .strict();
 
 const createSchema = z
   .object({
     date: isoDateSchema,
     startAts: startAtsSchema,
     addons: addonsSchema,
+    more: moreSchema,
     guest: z.object({ name: nameSchema, phone: z.string().max(32), otpCode: otpCodeSchema.optional() }).strict().optional(),
   })
   .strict();
@@ -106,6 +125,20 @@ export function publicBookingsRouter(
   router.post('/venues/:slug/turfs/:turfId/quote', async (req, res) => {
     const input = quoteSchema.parse(req.body);
     const { venue, turf } = await publicTurf(req.params.slug, req.params.turfId);
+    if (input.more.length > 0) {
+      const { items } = await quoteGroup({ venue, turf, items: groupItems(input), selection: input.addons, now: services.now() });
+      const sum = (key: 'total' | 'advanceRequired') => items.reduce((n, d) => n + d.quote[key], 0);
+      res.json({
+        quote: quoteJson(items[0]!.quote, venue.currency),
+        items: items.map((d) => ({ date: d.date, quote: quoteJson(d.quote, venue.currency) })),
+        total: sum('total'),
+        advanceRequired: sum('advanceRequired'),
+        // Several bookings at once are for signed-in players only.
+        guestAllowed: false,
+        guestOtpRequired: false,
+      });
+      return;
+    }
     const { quote, settings } = await quoteFor({
       venue,
       turf,
@@ -144,6 +177,14 @@ export function publicBookingsRouter(
       const { venue, turf } = await publicTurf(req.params.slug as string, req.params.turfId as string);
       const now = services.now();
       const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'online' as const, now };
+
+      if (input.more.length > 0) {
+        if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to book several times at once');
+        const bookings = await createBookingGroup({ venue, turf, items: groupItems(input), selection: input.addons, now, playerId: userId });
+        const json = await playerBookingsJson(bookings, services.now());
+        res.status(201).json({ booking: json[0], bookings: json });
+        return;
+      }
 
       if (userId) {
         const booking = await createBooking({ ...base, who: { playerId: userId, guest: null, createdBy: userId } });
@@ -222,8 +263,20 @@ export function publicBookingsRouter(
 
   router.get('/me/bookings/:bookingId', requireAuth(config, services), async (req, res) => {
     const booking = await playerBooking(req.params.bookingId as string, req.auth!.userId);
-    const refunds = await Refund.find({ ownerId: booking.ownerId, bookingId: booking._id }).sort({ _id: 1 });
-    res.json({ booking: await playerBookingJson(booking, services.now()), refunds: refunds.map(refundJson) });
+    const [refunds, group] = await Promise.all([
+      Refund.find({ ownerId: booking.ownerId, bookingId: booking._id }).sort({ _id: 1 }),
+      // The other days booked in the same go, so the player sees all of them from any one.
+      booking.groupId
+        ? Booking.find({ ownerId: booking.ownerId, playerId: req.auth!.userId, groupId: booking.groupId, _id: { $ne: booking._id } }).sort({
+            startAt: 1,
+          })
+        : [],
+    ]);
+    res.json({
+      booking: await playerBookingJson(booking, services.now()),
+      refunds: refunds.map(refundJson),
+      group: await playerBookingsJson(group, services.now()),
+    });
   });
 
   router.get('/me/bookings/:bookingId/cancellation', requireAuth(config, services), async (req, res) => {
@@ -247,11 +300,11 @@ export function publicBookingsRouter(
       : null;
     if (!booking) throw bookingNotFound();
     if (booking.status !== 'awaiting_payment') throw invalidTransition(booking.status);
-    const { payment, clientSecret, publishableKey } = await startIntent(booking, { config, services });
+    const { payment, amount, clientSecret, publishableKey } = await startIntent(booking, { config, services });
     res.json({
       payment: {
         id: String(payment._id),
-        amount: payment.amount,
+        amount,
         currency: payment.currency,
         gateway: 'stripe',
         clientSecret,

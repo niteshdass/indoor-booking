@@ -23,6 +23,7 @@ const venue: PublicVenue = {
 };
 const START = '2026-01-01T12:00:00.000Z';
 const PATH = `/venues/arena-one/checkout?turf=t1&date=2026-01-01&slots=${encodeURIComponent(START)}`;
+const MORE2 = '2026-01-02T09:00:00.000Z';
 const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
 
 function qr(over: Partial<QuoteResponse> = {}, advance = 0): QuoteResponse {
@@ -85,6 +86,28 @@ describe('placing a booking', () => {
     await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
     expect(location().search).toBe('?new=1');
     expect(createCalls(calls)[0]!.body).toEqual({ date: '2026-01-01', startAts: [START], addons: [] });
+  });
+
+  it('several bookings send the others and go to pay for the first one', async () => {
+    const one = qr({}, 400).quote;
+    const items = [{ date: '2026-01-01', quote: one }, { date: '2026-01-02', quote: one }];
+    const { calls } = api(qr({ items, total: 4000, advanceRequired: 800 }, 400), {
+      create: { booking: booking({ id: 'b1', status: 'awaiting_payment' }), bookings: [booking({ id: 'b1' }), booking({ id: 'b2' })] },
+    });
+    const { user, location } = renderApp(`${PATH}&more=2026-01-02:${MORE2}`, { user: player });
+    await user.click(await screen.findByRole('button', { name: /Book and pay/ }));
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1/pay'));
+    expect(createCalls(calls)[0]!.body).toEqual({ date: '2026-01-01', startAts: [START], addons: [], more: [{ date: '2026-01-02', startAts: [MORE2] }] });
+  });
+
+  it('a clash on one of several bookings stays on checkout and offers to drop it', async () => {
+    api(qr(), { create: () => ({ status: 409, body: { error: { code: 'slot_taken', message: 'x', details: { date: '2026-01-02', itemStart: MORE2 } } } }) });
+    const { user, location } = renderApp(`${PATH}&more=2026-01-02:${MORE2}`, { user: player });
+    await user.click(await screen.findByRole('button', { name: en.checkout.book }));
+    const remove = await screen.findByRole('button', { name: /Remove/ });
+    expect(location().pathname).toBe('/venues/arena-one/checkout');
+    await user.click(remove);
+    await waitFor(() => expect(new URLSearchParams(location().search).get('more')).toBeNull());
   });
 
   it('signed-in advance booking goes to pay page', async () => {

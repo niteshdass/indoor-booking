@@ -55,6 +55,7 @@ const booking = (id: string, day: string, over: Partial<BookingJson> = {}) =>
     playerId: 'u1',
     guest: null,
     seriesId: null,
+    groupId: null,
     venue: { slug: 'arena-one', name: 'Arena One', address: 'x', city: 'Dhaka', timezone: 'Asia/Dhaka' },
     turf: { name: 'Court A' },
     ...over,

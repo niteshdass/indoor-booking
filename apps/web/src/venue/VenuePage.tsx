@@ -94,6 +94,8 @@ export function VenuePage() {
   }, []);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  /** Slots picked per day on the shown turf, for the date strip. */
+  const [picked, setPicked] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let live = true;
@@ -241,7 +243,7 @@ export function VenuePage() {
               })}
             </div>
 
-            <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} timeZone={venue.timezone} />
+            <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} marked={picked} timeZone={venue.timezone} />
 
             {slotTaken && (
               <Alert tone="warning" className={styles.alert}>
@@ -250,12 +252,14 @@ export function VenuePage() {
             )}
 
             <SlotsPanel
-              key={`${turf.id}|${date}`}
+              key={turf.id}
               slug={slug}
               turfId={turf.id}
               turfName={turf.name}
               date={date}
               tabId={`turf-tab-${turf.id}`}
+              onDate={(d) => update({ date: d })}
+              onPicked={setPicked}
             />
           </>
         ) : (

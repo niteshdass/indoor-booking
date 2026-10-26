@@ -221,6 +221,17 @@
     text-align: end;
   }
 
+  .factStack,
+  .factStack:nth-child(3) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-1);
+  }
+
+  .factStack dd {
+    text-align: start;
+  }
+
   .totalLabel {
     display: inline;
   }
@@ -232,4 +243,96 @@
   .barEmpty {
     display: flex;
   }
+}
+
+.dayList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Date (opens that day) and its times on the left, clear on the right. */
+.dayItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+  text-align: start;
+}
+
+.dayLink {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  text-align: start;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 0.2em;
+}
+
+.dayLink:hover {
+  text-decoration-color: currentColor;
+}
+
+.dayLink:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dayHere {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.dayTimes {
+  grid-column: 1;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.dayItem .dayRemove {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.dayRemove {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.dayRemove:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.dayRemove:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dayRemove svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--court-line);
+  stroke-linecap: round;
 }

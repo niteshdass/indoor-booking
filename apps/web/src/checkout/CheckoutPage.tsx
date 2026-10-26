@@ -9,14 +9,14 @@ import { Spinner } from '../components/ui/Spinner';
 import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import { money } from '../lib/format';
+import { formatDate, formatTime, money } from '../lib/format';
 import type { OfferedAddonJson, PublicVenue, QuoteResponse } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { AddonPicker } from './AddonPicker';
 import { BookingSummary } from './BookingSummary';
 import { GuestForm, type GuestInput } from './GuestForm';
 import { useSubmitBooking } from './useSubmitBooking';
-import { readCheckout } from './checkoutParams';
+import { checkoutHref, readCheckout, type CheckoutItem } from './checkoutParams';
 import styles from './CheckoutPage.module.css';
 
 const DEBOUNCE_MS = 250;
@@ -28,6 +28,17 @@ type QuoteState = { data: QuoteResponse | null; error: unknown; busy: boolean };
 function isAddonError(err: unknown): boolean {
   return err instanceof ApiError && (err.code.startsWith('addon_') || err.code === 'invalid_quantity');
 }
+
+/** The booking a multi-booking error names, when there are several: it can be dropped in place. */
+function failedItem(err: unknown, items: CheckoutItem[]): CheckoutItem | null {
+  if (items.length < 2 || !(err instanceof ApiError) || isAddonError(err)) return null;
+  const where = err.details as { date?: unknown; itemStart?: unknown } | undefined;
+  return items.find((i) => i.date === where?.date && i.startAts[0] === where?.itemStart) ?? null;
+}
+
+/** The `more` items back out of their joined key. */
+const readMoreKey = (key: string): CheckoutItem[] =>
+  key.split(';').map((part) => ({ date: part.slice(0, 10), startAts: part.slice(11).split(',') }));
 
 export function CheckoutPage() {
   const { slug = '' } = useParams();
@@ -47,7 +58,7 @@ export function CheckoutPage() {
   const [addonsFailed, setAddonsFailed] = useState(false);
 
   const submitter = useSubmitBooking(slug, parsed?.turfId ?? '');
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<unknown>(null);
   const [codeReset, setCodeReset] = useState(0);
   const inflight = useRef(false);
   const mounted = useRef(true);
@@ -61,6 +72,7 @@ export function CheckoutPage() {
   const turfId = parsed?.turfId;
   const date = parsed?.date;
   const startKey = parsed?.startAts.join(',');
+  const moreKey = parsed?.more.map((i) => `${i.date}:${i.startAts.join(',')}`).join(';') ?? '';
 
   useEffect(() => {
     if (!turfId) return;
@@ -95,12 +107,13 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!turfId || !date || !startKey) return;
     let live = true;
-    const key = `${turfId}|${date}|${startKey}`;
+    const key = `${turfId}|${date}|${startKey}|${moreKey}`;
     setQuote((q) => ({ ...q, busy: true }));
     const body = {
       date,
       startAts: startKey.split(','),
       addons: selection.filter((s) => (s.quantity ?? 1) > 0),
+      ...(moreKey ? { more: readMoreKey(moreKey) } : {}),
     };
     const run = () =>
       apiPost<QuoteResponse>(`/venues/${encodeURIComponent(slug)}/turfs/${encodeURIComponent(turfId)}/quote`, body).then(
@@ -118,7 +131,7 @@ export function CheckoutPage() {
       live = false;
       clearTimeout(timer);
     };
-  }, [slug, turfId, date, startKey, selection]);
+  }, [slug, turfId, date, startKey, moreKey, selection]);
 
   const venueHref = `/venues/${encodeURIComponent(slug)}`;
 
@@ -131,6 +144,7 @@ export function CheckoutPage() {
         date: parsed.date,
         startAts: parsed.startAts,
         addons: selection.filter((s) => (s.quantity ?? 1) > 0),
+        ...(parsed.more.length > 0 ? { more: parsed.more } : {}),
         ...(guest ? { guest } : {}),
       });
       if (!mounted.current) return;
@@ -143,18 +157,24 @@ export function CheckoutPage() {
       }
     } catch (err) {
       if (!mounted.current) return;
+      // A clash on one of several bookings stays here, so that one can be dropped.
+      if (failedItem(err, items)) {
+        setSubmitError(err);
+        return;
+      }
       if (err instanceof ApiError && (err.code === 'slot_taken' || err.code === 'slot_unavailable')) {
         const back = new URLSearchParams({ turf: parsed.turfId, date: parsed.date });
         navigate(`${venueHref}?${back.toString()}`, { replace: true, state: { notice: 'slot_taken' } });
         return;
       }
       if (err instanceof ApiError && (err.code === 'otp_invalid' || err.code === 'otp_expired')) setCodeReset((n) => n + 1);
-      setSubmitError(errorMessage(err, t));
+      setSubmitError(err);
     } finally {
       inflight.current = false;
     }
   };
 
+  const items: CheckoutItem[] = parsed ? [{ date: parsed.date, startAts: parsed.startAts }, ...parsed.more] : [];
   const here = `${pathname}${search}`;
   const next = encodeURIComponent(here);
 
@@ -213,6 +233,32 @@ export function CheckoutPage() {
 
   const addonErr = failed && isAddonError(quote.error);
   const submitBusy = quote.busy || submitter.pending || addonErr;
+  const many = data?.items && data.items.length > 1 ? data.items : null;
+  const due = many ? (data?.advanceRequired ?? 0) : (q?.advanceRequired ?? 0);
+
+  const lang = i18n.language;
+  /** An error that names one of several bookings, with a button that books the rest. */
+  const itemAlert = (err: unknown, tone: 'danger' | 'warning') => {
+    const item = failedItem(err, items);
+    if (!item) return null;
+    const [first, ...rest] = items.filter((i) => i !== item);
+    const when = `${formatDate(item.date, venue.timezone, lang)} ${formatTime(item.startAts[0]!, venue.timezone, lang)}`;
+    return (
+      <Alert tone={tone} className={styles.alert}>
+        <span>{t('checkout.dayProblem', { date: when, reason: errorMessage(err, t) })}</span>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            setSubmitError(null);
+            navigate(checkoutHref(slug, turf.id, first!.date, first!.startAts, rest), { replace: true });
+          }}
+        >
+          {t('checkout.removeDay', { date: when })}
+        </Button>
+      </Alert>
+    );
+  };
 
   let cta: ReactNode = null;
   if (q && data && (!failed || addonErr)) {
@@ -227,9 +273,7 @@ export function CheckoutPage() {
           loading={submitter.pending}
           onClick={() => void place()}
         >
-          {q.advanceRequired > 0
-            ? t('checkout.bookAndPay', { amount: money(q.advanceRequired, q.currency, i18n.language) })
-            : t('checkout.book')}
+          {due > 0 ? t('checkout.bookAndPay', { amount: money(due, q.currency, lang) }) : t('checkout.book')}
         </Button>
       );
     } else if (auth === 'signedOut') {
@@ -242,7 +286,7 @@ export function CheckoutPage() {
             pending={submitter.pending}
             disabled={submitBusy}
             codeResetSignal={codeReset}
-            label={q.advanceRequired > 0 ? t('checkout.bookAndPay', { amount: money(q.advanceRequired, q.currency, i18n.language) }) : t('checkout.book')}
+            label={due > 0 ? t('checkout.bookAndPay', { amount: money(due, q.currency, lang) }) : t('checkout.book')}
             onSubmit={(g) => void place(g)}
           />
           <Button to={`/login?next=${next}`} variant="secondary" size="lg" block>
@@ -251,7 +295,9 @@ export function CheckoutPage() {
         </>
       ) : (
         <>
-          <p className={styles.note}>{q.advanceRequired > 0 ? t('checkout.signInRequired') : t('checkout.accountRequired')}</p>
+          <p className={styles.note}>
+            {many ? t('checkout.groupSignIn') : due > 0 ? t('checkout.signInRequired') : t('checkout.accountRequired')}
+          </p>
           <Button to={`/login?next=${next}`} variant="brand" size="lg" block>
             {t('checkout.signIn')}
           </Button>
@@ -266,7 +312,8 @@ export function CheckoutPage() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t('checkout.title')}</h1>
-      {failed && (
+      {failed && itemAlert(quote.error, 'danger')}
+      {failed && !failedItem(quote.error, items) && (
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(quote.error, t)}</span>
           {!isAddonError(quote.error) && (
@@ -289,8 +336,18 @@ export function CheckoutPage() {
         </div>
         <div className={styles.side}>
           {q ? (
-            <BookingSummary venue={venue} turf={turf} date={parsed.date} quote={q} busy={quote.busy}>
-              {submitError && <Alert tone="danger">{submitError}</Alert>}
+            <BookingSummary
+              venue={venue}
+              turf={turf}
+              date={parsed.date}
+              quote={q}
+              items={many}
+              groupTotal={many ? data?.total : undefined}
+              groupDue={many ? due : undefined}
+              busy={quote.busy}
+            >
+              {submitError != null &&
+                (itemAlert(submitError, 'danger') ?? <Alert tone="danger">{errorMessage(submitError, t)}</Alert>)}
               {cta}
             </BookingSummary>
           ) : (

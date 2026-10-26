@@ -1,5 +1,6 @@
-import type { ClientSession } from 'mongoose';
+import mongoose, { type ClientSession } from 'mongoose';
 import {
+  AddonQuoteError,
   BookingQuoteError,
   HOLD_MINUTES,
   InvalidMoneyError,
@@ -294,6 +295,137 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
     } catch (err) {
       if (keyHas(err, 'reference') && i < REFERENCE_ATTEMPTS) continue;
       if (keyHas(err, 'startAt')) throw slotTaken();
+      throw err;
+    }
+  }
+}
+
+/** One booking of a group: a run of consecutive slots on one day. */
+export type GroupItem = { date: string; startAts: Date[] };
+
+type GroupInput = Omit<QuoteInput, 'source' | 'date' | 'startAts'> & {
+  /** Distinct slots; any days, any times, each item booked on its own. */
+  items: GroupItem[];
+};
+
+/** A failure on one item of a group, naming its day and first slot so the player knows which one to drop. */
+const itemError = (item: GroupItem, err: unknown): unknown => {
+  const where = { date: item.date, itemStart: item.startAts[0]!.toISOString() };
+  if (err instanceof AppError) return new AppError(err.status, err.code, err.message, where);
+  if (err instanceof BookingQuoteError) return new AppError(400, err.code, err.message, { ...where, startAt: err.startAt });
+  if (err instanceof AddonQuoteError) return new AppError(err.code === 'addon_out_of_stock' ? 409 : 400, err.code, err.message, { ...where, addonId: err.addonId });
+  return err;
+};
+
+/** Prepares every item of a group in order; the first failure names its item. */
+async function prepareGroup(input: GroupInput) {
+  const base = { ...input, source: 'online' as const };
+  const items: (Awaited<ReturnType<typeof prepare>> & { item: GroupItem })[] = [];
+  for (const item of input.items) {
+    try {
+      items.push({ ...(await prepare({ ...base, date: item.date, startAts: item.startAts })), item });
+    } catch (err) {
+      // Someone else holding a slot is "just booked", as for a single booking.
+      if (err instanceof BookingQuoteError && err.code === 'slot_unavailable' && err.startAt) {
+        const { day } = await loadDay(String(input.venue.ownerId), input.venue, input.turf, item.date, input.now);
+        const slot = day.slots.find((s) => s.startAt.toISOString() === err.startAt);
+        if (slot && (slot.status === 'booked' || slot.status === 'pending')) throw itemError(item, new AppError(409, 'slot_taken', 'That slot was just booked'));
+      }
+      throw itemError(item, err);
+    }
+  }
+  return items;
+}
+
+/** Prices each item of a group against the live grid; a preview, as quoteFor. */
+export async function quoteGroup(input: GroupInput): Promise<{ items: { date: string; quote: BookingQuote }[]; settings: EffectiveSettings }> {
+  const items = await prepareGroup(input);
+  return { items: items.map((d) => ({ date: d.item.date, quote: d.quote })), settings: items[0]!.settings };
+}
+
+/**
+ * Books several runs of slots (any days, any times) for a signed-in player, all or nothing: one transaction under
+ * one lockTurf, one booking per item sharing a groupId, each priced on its own with the same add-ons.
+ * A clash on any item books none and names that item.
+ */
+export async function createBookingGroup(input: GroupInput & { playerId: string }): Promise<BookingDoc[]> {
+  const { venue, turf, selection, now, playerId } = input;
+  const days = await prepareGroup(input);
+  const { ownerId, offered } = days[0]!;
+  const lockOwner = { ownerId };
+
+  const attempt = () =>
+    runInTransaction(async (session) => {
+      await lockTurf(lockOwner, turf.id as string, now, session);
+      for (const d of days) {
+        const range = rangeOf(d.picked);
+        await expireStaleHolds(ownerId, turf._id, range, now, session);
+        if (await Booking.exists({ ownerId, turfId: turf._id, ...overlapping(range), ...holdingFilter(now) }).session(session)) {
+          throw itemError(d.item, new AppError(409, 'slot_taken', 'That slot was just booked'));
+        }
+      }
+
+      const stocked = [...new Set(limited(offered, selection))].sort();
+      for (const addonId of stocked) await lockAddon(lockOwner, addonId, now, session);
+      const groupId = new mongoose.Types.ObjectId();
+      const holdExpiresAt = new Date(now.getTime() + HOLD_MINUTES * 60_000);
+      const bookings: BookingDoc[] = [];
+      for (const d of days) {
+        const range = rangeOf(d.picked);
+        let quote: BookingQuote;
+        try {
+          const inUse = await stockInUse(ownerId, venue, stocked, range, now, session);
+          quote = quoteBooking({ slots: d.picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy: d.paymentPolicy });
+        } catch (err) {
+          throw itemError(d.item, err);
+        }
+        const status = initialStatus({ source: 'online', guest: false, advanceRequired: quote.advanceRequired });
+        const [booking] = await Booking.create(
+          [
+            {
+              ownerId,
+              venueId: venue._id,
+              turfId: turf._id,
+              reference: newReference(),
+              businessDate: d.item.date,
+              startAt: range.startAt,
+              endAt: range.endAt,
+              slots: quote.slots,
+              addons: quote.addons,
+              currency: venue.currency,
+              subtotal: quote.subtotal,
+              addonsTotal: quote.addonsTotal,
+              total: quote.total,
+              advanceRequired: quote.advanceRequired,
+              amountPaid: 0,
+              status,
+              paymentStatus: paymentStatusFor(0, quote.total),
+              holdExpiresAt: status === 'awaiting_payment' ? holdExpiresAt : null,
+              source: 'online',
+              playerId,
+              guest: null,
+              policySnapshot: { paymentPolicy: d.settings.paymentPolicy, refundRules: d.settings.refundRules },
+              createdBy: playerId,
+              groupId,
+              createdAt: now,
+            },
+          ],
+          { session },
+        );
+        await lockSlots(ownerId, turf._id, booking!._id, quote.slots, session);
+        if (status === 'confirmed') await noticeBooking('booking_confirmed', booking!, now, session);
+        bookings.push(booking!);
+      }
+      return bookings;
+    });
+
+  // A duplicate key aborts the transaction, so a reference clash reruns the whole of it.
+  for (let i = 1; ; i++) {
+    try {
+      return await attempt();
+    } catch (err) {
+      if (keyHas(err, 'reference') && i < REFERENCE_ATTEMPTS) continue;
+      if (keyHas(err, 'startAt')) throw new AppError(409, 'slot_taken', 'That slot was just booked');
       throw err;
     }
   }

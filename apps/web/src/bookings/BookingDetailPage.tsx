@@ -13,6 +13,7 @@ import { SeriesBadge } from '../series/SeriesBadge';
 import { MyReview } from './MyReview';
 import { ReviewDialog } from './ReviewDialog';
 import { BookingFacts } from './BookingFacts';
+import { BookingRow } from './BookingRow';
 import { CancelDialog } from './CancelDialog';
 import { RefundList } from './RefundList';
 import styles from './BookingDetailPage.module.css';
@@ -41,6 +42,8 @@ export function BookingDetailPage() {
   const [slow, setSlow] = useState(false);
   const [epoch, setEpoch] = useState(0);
   const [refunds, setRefunds] = useState<RefundJson[]>([]);
+  // The other days booked in the same go.
+  const [group, setGroup] = useState<BookingJson[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const askedForReview = useRef(false);
@@ -52,10 +55,11 @@ export function BookingDetailPage() {
   useEffect(() => {
     let live = true;
     setState({ status: 'loading' });
-    apiGet<{ booking: BookingJson; refunds?: RefundJson[] }>(path).then(
+    apiGet<{ booking: BookingJson; refunds?: RefundJson[]; group?: BookingJson[] }>(path).then(
       (res) => {
         if (!live) return;
         setRefunds(res.refunds ?? []);
+        setGroup(res.group ?? []);
         setState({ status: 'ready', booking: res.booking });
       },
       (error) => live && setState(error instanceof ApiError && error.status === 404 ? { status: 'not_found' } : { status: 'error', error }),
@@ -163,6 +167,23 @@ export function BookingDetailPage() {
             </div>
           )}
           <BookingFacts booking={booking} />
+          {group.length > 0 && (
+            <section className={styles.group} aria-labelledby="booking-group-heading">
+              <div className={styles.groupHead}>
+                <h2 id="booking-group-heading" className={styles.groupTitle}>
+                  {t('booking.groupTitle')}
+                </h2>
+                <p className={styles.groupNote}>{t('booking.groupNote', { count: group.length + 1 })}</p>
+              </div>
+              <ul className={styles.groupList}>
+                {group.map((b) => (
+                  <li key={b.id}>
+                    <BookingRow booking={b} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {showPayNow && (
             <Button to={`${path}/pay`} variant="brand" size="lg" block>
               {t('booking.payNow')}

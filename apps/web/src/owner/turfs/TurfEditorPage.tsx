@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Tabs } from '../../components/ui/Tabs';
 import { apiPatch } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -37,7 +37,7 @@ export function TurfEditorPage() {
 
   if (!turf) {
     if (res.state.status === 'error') return <Alert tone="warning">{t('owner.turf.notFound')}</Alert>;
-    return <Spinner label={t('common.loading')} />;
+    return <Skeleton kind="detail" label={t('common.loading')} />;
   }
   return <TurfEditor key={turf.id} turf={turf} venue={venue} onChange={(next) => res.set({ turf: next })} />;
 }

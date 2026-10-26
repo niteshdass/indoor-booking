@@ -10,8 +10,11 @@
 }
 
 /* Hero */
+/* Hero: a court-blue band; the colour lives here and nowhere else on the page */
 .hero {
   padding-block: var(--space-12) var(--space-16);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--hero-bg);
 }
 
 .heroGrid {
@@ -83,8 +86,123 @@
   border-radius: var(--radius-sm);
 }
 
+/* Native select without its own arrow, so it matches the rest of the app */
+.selectWrap {
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+.selectWrap select {
+  appearance: none;
+  padding-inline-end: var(--space-6);
+  cursor: pointer;
+}
+
+@supports (appearance: base-select) {
+  .selectWrap select {
+    appearance: base-select;
+  }
+}
+
+.selectWrap select::picker-icon {
+  display: none;
+}
+
+.chevron {
+  position: absolute;
+  inset-inline-end: 0;
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
 .searchButton {
   border-radius: var(--radius-lg);
+}
+
+/* Two more courts (clay, parquet) fan out behind the padel panel: every sport, one place */
+.stack {
+  position: relative;
+  isolation: isolate;
+}
+
+.backCourt {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  outline: var(--court-line) solid var(--chalk);
+  outline-offset: calc(-1 * var(--space-8));
+  transform-origin: 50% 100%;
+  scale: 0.94;
+}
+
+/* Halfway line */
+.backCourt::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: var(--space-8);
+  left: var(--space-8);
+  height: var(--court-line);
+  background: var(--chalk);
+}
+
+.clay {
+  background: var(--clay);
+  rotate: -5deg;
+  translate: -5% 1%;
+}
+
+.wood {
+  background: var(--wood);
+  rotate: 4deg;
+  translate: 5% -1%;
+}
+
+/* Centre circle on the parquet */
+.wood::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 26%;
+  aspect-ratio: 1;
+  border: var(--court-line) solid var(--chalk);
+  border-radius: var(--radius-full);
+  translate: -50% -50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .backCourt {
+    animation: fan var(--duration-slow) var(--ease-out) 0.3s backwards;
+  }
+}
+
+@keyframes fan {
+  from {
+    rotate: 0deg;
+    translate: 0 0;
+    scale: 0.9;
+  }
+}
+
+@media (min-width: 1024px) {
+  .clay {
+    rotate: -6deg;
+    translate: -6% 1%;
+  }
+  .wood {
+    rotate: 5deg;
+    translate: 6% -1%;
+  }
 }
 
 .note {
@@ -102,6 +220,7 @@
   isolation: isolate;
   border-radius: var(--radius-xl);
   background: var(--surround);
+  box-shadow: var(--shadow-lg);
 }
 
 .court,
@@ -127,13 +246,19 @@
 .lines > * {
   stroke-dasharray: 1400;
   stroke-dashoffset: 1400;
-  animation: draw 1.4s var(--ease-out) forwards;
+  animation: draw var(--duration-draw) var(--ease-out) forwards;
 }
 
 @keyframes draw {
   to {
     stroke-dashoffset: 0;
   }
+}
+
+.rally {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .ball {
@@ -148,9 +273,12 @@
 }
 
 .slotCard {
+  --lead: 0s;
   position: absolute;
   bottom: 9%;
   left: 50%;
+  display: grid;
+  gap: var(--space-4);
   width: min(88%, 22rem);
   padding: var(--space-5);
   border-radius: var(--radius-lg);
@@ -160,6 +288,11 @@
   opacity: 0;
   translate: -50% 0;
   animation: rise var(--duration-slow) var(--ease-out) 0.9s forwards;
+}
+
+/* First lap waits for the card to rise in before it starts typing */
+.slotCard[data-first] {
+  --lead: 1s;
 }
 
 @keyframes rise {
@@ -173,6 +306,278 @@
   }
 }
 
+/* Stepper: where the player is in the booking. A real sequence, so it is numbered. */
+.demoSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demoStep {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-subtle);
+  text-align: center;
+  transition: color var(--duration-fast);
+}
+
+/* Connector from the previous step; fills once this step is reached */
+.demoStep + .demoStep::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--demo-dot) / 2);
+  right: calc(50% + var(--demo-dot) / 2 + var(--space-1));
+  left: calc(-50% + var(--demo-dot) / 2 + var(--space-1));
+  height: var(--demo-rule);
+  border-radius: var(--radius-full);
+  background: linear-gradient(var(--primary), var(--primary)) no-repeat 0 0 / 0 100%
+    var(--border-default);
+  transition: background-size var(--duration-slow) var(--ease-out);
+}
+
+.demoStep[data-state]::before {
+  background-size: 100% 100%;
+}
+
+.stepDot {
+  display: grid;
+  place-items: center;
+  width: var(--demo-dot);
+  height: var(--demo-dot);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color var(--duration-fast),
+    border-color var(--duration-fast),
+    color var(--duration-fast),
+    box-shadow var(--duration-fast);
+}
+
+.stepDot .checkIcon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.demoStep[data-state='now'] {
+  color: var(--text-strong);
+}
+
+.demoStep[data-state='now'] .stepDot {
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.demoStep[data-state='done'] {
+  color: var(--text-muted);
+}
+
+.demoStep[data-state='done'] .stepDot {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+/* Scenes share one grid cell, so the card keeps the height of the tallest and never jumps */
+.stage {
+  display: grid;
+}
+
+.scene {
+  grid-area: 1 / 1;
+  display: grid;
+  align-content: center;
+  gap: var(--space-3);
+  min-width: 0;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 var(--space-2);
+  transition:
+    opacity var(--duration-fast),
+    translate var(--duration-fast),
+    visibility 0s var(--duration-fast);
+}
+
+.scene[data-active] {
+  opacity: 1;
+  visibility: visible;
+  translate: none;
+  transition:
+    opacity var(--duration-slow) var(--ease-out) var(--duration-fast),
+    translate var(--duration-slow) var(--ease-out) var(--duration-fast),
+    visibility 0s;
+}
+
+/* When each scene "taps" its control */
+.scene[data-scene='find'] {
+  --tap-at: calc(var(--lead) + 1.5s);
+}
+
+.scene[data-scene='pick'] {
+  --tap-at: 0.9s;
+}
+
+.scene[data-scene='book'] {
+  --tap-at: 0.8s;
+}
+
+.tap {
+  position: relative;
+}
+
+.tap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scene[data-active] .tap {
+  animation: press 0.3s var(--ease-out) var(--tap-at);
+}
+
+.scene[data-active] .tap::after {
+  animation: ripple 0.7s var(--ease-out) var(--tap-at);
+}
+
+@keyframes press {
+  50% {
+    scale: 0.94;
+  }
+}
+
+@keyframes ripple {
+  from {
+    opacity: 0.6;
+    box-shadow: 0 0 0 0 var(--primary);
+  }
+  to {
+    opacity: 0;
+    box-shadow: 0 0 0 var(--space-3) var(--primary);
+  }
+}
+
+/* 1. Find: a miniature of the search bar types itself, then a court turns up */
+.fakeSearch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.fakeField {
+  display: grid;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+}
+
+.fakeField small {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.typed {
+  overflow: hidden;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.scene[data-active] .typed {
+  animation: type 0.5s steps(8, end) calc(var(--lead) + 0.2s) both;
+}
+
+.scene[data-active] .typedLate {
+  animation-delay: calc(var(--lead) + 0.8s);
+}
+
+@keyframes type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+.fakeGo {
+  display: grid;
+  place-items: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.demoIcon {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.result > span:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.result strong {
+  font-size: var(--text-sm);
+  color: var(--text-strong);
+}
+
+.result small {
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
+}
+
+.free {
+  flex: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.scene[data-active] .result {
+  animation: rise 0.4s var(--ease-out) calc(var(--tap-at) + 0.3s) both;
+}
+
+/* 2. Pick: the free 19:00 slot gets tapped */
 .slotHead {
   display: flex;
   flex-wrap: wrap;
@@ -195,7 +600,6 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-2);
-  margin-top: var(--space-4);
 }
 
 .slot {
@@ -221,12 +625,14 @@
   color: var(--text-subtle);
 }
 
-.pick {
-  animation: pick 0.3s var(--ease-out) 2.1s forwards;
+.scene[data-active] .pick {
+  animation:
+    press 0.3s var(--ease-out) var(--tap-at),
+    pick 0.3s var(--ease-out) var(--tap-at) forwards;
 }
 
-.pick small {
-  animation: pickSmall 0.3s 2.1s forwards;
+.scene[data-active] .pick small {
+  animation: pickSmall 0.3s var(--tap-at) forwards;
 }
 
 @keyframes pick {
@@ -243,19 +649,112 @@
   }
 }
 
-.confirm {
-  display: flex;
-  align-items: center;
+/* 3. Book: the summary, then the button press */
+.summary {
+  display: grid;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin: 0;
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--success-soft);
-  color: var(--success);
+  background: var(--bg-subtle);
+}
+
+.summary div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.summary dt {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
-  opacity: 0;
-  animation: rise 0.4s var(--ease-out) 2.6s forwards;
+  color: var(--text-strong);
+}
+
+.summary dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.summary .summaryPrice {
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.fakeBook {
+  display: grid;
+  place-items: center;
+  min-height: var(--control-lg);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+/* 4. Done: the confirmation lands */
+.done {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.done strong {
+  font-size: var(--text-md);
+  color: var(--text-strong);
+}
+
+.done small {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.doneMark {
+  display: grid;
+  place-items: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  margin-bottom: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.doneMark .checkIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  stroke-dasharray: 24;
+}
+
+.scene[data-active] .doneMark {
+  animation: pop 0.45s var(--ease-out) 0.2s both;
+}
+
+.scene[data-active] .doneMark .checkIcon {
+  animation: tick 0.4s var(--ease-out) 0.5s both;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+
+@keyframes tick {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .checkIcon {
@@ -269,20 +768,50 @@
   stroke-linejoin: round;
 }
 
+/* After the intro, the ball keeps a slow cross-court rally: the one looping motion on the page. */
+@media (prefers-reduced-motion: no-preference) {
+  .rally {
+    animation: rally var(--duration-rally) ease-in-out 2.8s infinite;
+  }
+  .ball {
+    animation: arc var(--duration-rally) ease-in-out 2.8s infinite;
+  }
+}
+
+@keyframes rally {
+  50% {
+    transform: translate(-52%, 18%);
+  }
+}
+
+@keyframes arc {
+  25%,
+  75% {
+    transform: scale(1.4);
+  }
+  50% {
+    transform: scale(0.9);
+  }
+}
+
+/* Reduced motion: no loop (the hook holds on Done) and nothing animates in */
 @media (prefers-reduced-motion: reduce) {
   .lines > * {
     stroke-dashoffset: 0;
   }
-  .slotCard,
-  .confirm {
+  .slotCard {
     opacity: 1;
+    animation: none;
   }
-  .pick {
-    background: var(--primary);
-    color: var(--primary-fg);
+  .scene,
+  .demoStep,
+  .stepDot,
+  .demoStep::before {
+    transition: none;
   }
-  .pick small {
-    color: var(--primary-fg);
+  .scene[data-active] .doneMark,
+  .scene[data-active] .doneMark .checkIcon {
+    animation: none;
   }
 }
 
@@ -291,8 +820,9 @@
   padding-block: var(--space-16);
 }
 
+/* First section under the hero band sits a little closer to it */
 .flushTop {
-  padding-top: 0;
+  padding-top: var(--space-12);
 }
 
 .sectionHead {
@@ -363,6 +893,24 @@
   fill: none;
   stroke: var(--primary);
   stroke-width: var(--court-line);
+}
+
+/* Hover or focus re-chalks the court lines */
+.sportCourt > * {
+  stroke-dasharray: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sport:hover .sportCourt > *,
+  .sport:focus-visible .sportCourt > * {
+    animation: rechalk var(--duration-draw) var(--ease-out);
+  }
+}
+
+@keyframes rechalk {
+  from {
+    stroke-dashoffset: 1;
+  }
 }
 
 /* Steps: a real sequence, so numbered */
@@ -601,6 +1149,23 @@
   color: var(--text-strong);
 }
 
+/* Bookings fill the timeline when it scrolls into view */
+@media (prefers-reduced-motion: no-preference) {
+  .preview .blk {
+    clip-path: inset(0 100% 0 0);
+  }
+  .preview[data-inview] .blk {
+    animation: fill var(--duration-slow) var(--ease-out)
+      calc(var(--i) * var(--stagger) + var(--stagger)) forwards;
+  }
+}
+
+@keyframes fill {
+  to {
+    clip-path: inset(0);
+  }
+}
+
 .ok {
   border-color: var(--success);
   background: var(--success-soft);
@@ -757,7 +1322,7 @@
     padding-block: var(--space-24);
   }
   .flushTop {
-    padding-top: 0;
+    padding-top: var(--space-16);
   }
   .sports {
     grid-template-columns: repeat(3, minmax(0, 1fr));

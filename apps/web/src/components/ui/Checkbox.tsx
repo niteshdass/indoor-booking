@@ -1,14 +1,25 @@
 import { useId, type InputHTMLAttributes } from 'react';
 import styles from './Checkbox.module.css';
 
-export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'type' | 'checked' | 'onChange'> & {
+export type CheckboxProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'type' | 'checked' | 'onChange'
+> & {
   label: string;
   checked: boolean;
   onChange(checked: boolean): void;
   hint?: string;
 };
 
-export function Checkbox({ label, checked, onChange, hint, id, className, ...rest }: CheckboxProps) {
+export function Checkbox({
+  label,
+  checked,
+  onChange,
+  hint,
+  id,
+  className,
+  ...rest
+}: CheckboxProps) {
   const auto = useId();
   const inputId = id ?? auto;
   const hintId = `${inputId}-hint`;

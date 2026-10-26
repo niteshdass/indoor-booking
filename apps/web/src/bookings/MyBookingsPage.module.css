@@ -125,12 +125,6 @@
   font-size: var(--text-base);
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
-  color: var(--text-muted);
-}
-
 .alert {
   display: flex;
   align-items: center;

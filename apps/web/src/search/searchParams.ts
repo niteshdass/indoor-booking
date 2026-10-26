@@ -1,4 +1,10 @@
-import { MAX_SEARCH_RADIUS_KM, SPORTS, currencyExponent, isIsoDate, type Sport } from '@booking/shared';
+import {
+  MAX_SEARCH_RADIUS_KM,
+  SPORTS,
+  currencyExponent,
+  isIsoDate,
+  type Sport,
+} from '@booking/shared';
 
 export type Criteria = {
   near: { lat: number; lng: number } | null;
@@ -71,14 +77,21 @@ export function criteriaFromParams(p: URLSearchParams): Criteria {
   const radiusKm = near && radius !== null && radius > 0 ? radius : null;
 
   const sportParam = p.get('sport');
-  const sport = (SPORTS as readonly string[]).includes(sportParam ?? '') ? (sportParam as Sport) : null;
+  const sport = (SPORTS as readonly string[]).includes(sportParam ?? '')
+    ? (sportParam as Sport)
+    : null;
 
   const dateParam = p.get('date');
   const date = dateParam !== null && isIsoDate(dateParam) ? dateParam : null;
 
   const fromParam = p.get('from');
   const toParam = p.get('to');
-  const rangeOk = fromParam !== null && toParam !== null && TIME.test(fromParam) && TIME.test(toParam) && fromParam !== toParam;
+  const rangeOk =
+    fromParam !== null &&
+    toParam !== null &&
+    TIME.test(fromParam) &&
+    TIME.test(toParam) &&
+    fromParam !== toParam;
 
   const currencyParam = validCurrency(p.get('currency'));
   let minPrice = currencyParam ? whole(p.get('minPrice')) : null;

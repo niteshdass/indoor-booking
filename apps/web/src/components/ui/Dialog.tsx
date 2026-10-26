@@ -1,7 +1,12 @@
 import { useEffect, useId, useRef, type ReactNode, type SyntheticEvent } from 'react';
 import styles from './Dialog.module.css';
 
-export type DialogProps = { open: boolean; onClose: () => void; title: string; children: ReactNode };
+export type DialogProps = {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+};
 
 export function Dialog({ open, onClose, title, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -12,7 +17,8 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
     const el = ref.current;
     if (!el) return;
     if (open && !el.open) {
-      opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      opener.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
       if (typeof el.showModal === 'function') el.showModal();
       else el.setAttribute('open', '');
     } else if (!open && el.open) {
@@ -39,12 +45,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   };
 
   return (
-    <dialog
-      ref={ref}
-      className={styles.dialog}
-      aria-labelledby={titleId}
-      onCancel={handleCancel}
-    >
+    <dialog ref={ref} className={styles.dialog} aria-labelledby={titleId} onCancel={handleCancel}>
       <h2 id={titleId} className={styles.title}>
         {title}
       </h2>

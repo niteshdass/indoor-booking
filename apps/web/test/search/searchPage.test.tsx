@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import type { SearchResult } from '@booking/shared';
 import i18n from '../../src/i18n';
 import en from '../../src/i18n/locales/en.json';
-import { money } from '../../src/lib/format';
+import { moneyShort } from '../../src/lib/format';
 import { mockApi, type Call } from '../helpers/api';
 import { renderApp } from '../helpers/render';
 
@@ -50,7 +50,7 @@ describe('SearchPage', () => {
     renderApp('/search?sport=futsal');
     expect(await screen.findByText('Arena One')).toBeInTheDocument();
     expect(api.calls[0]!.query.get('sport')).toBe('futsal');
-    expect(screen.getByText((_, el) => el?.textContent === `from ${money(1000, 'BDT', 'en')}` && el.children.length === 0)).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.textContent === `from ${moneyShort(1000, 'BDT', 'en')}` && el.children.length === 0)).toBeInTheDocument();
     expect(screen.getByText(/08:00/)).toBeInTheDocument();
     expect(screen.getByText(/Court A/)).toBeInTheDocument();
   });

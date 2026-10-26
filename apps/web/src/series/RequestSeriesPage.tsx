@@ -5,7 +5,7 @@ import { addDays, localParts } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
-import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { formatDateTime } from '../lib/format';
@@ -37,9 +37,7 @@ export function RequestSeriesPage() {
     );
   } else if (venue.state.status !== 'ready') {
     body = (
-      <div className={styles.loading}>
-        <Spinner label={t('common.loading')} />
-      </div>
+      <Skeleton kind="detail" label={t('common.loading')} />
     );
   } else {
     body = <Request venue={venue.state.data.venue} />;

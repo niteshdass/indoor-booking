@@ -1,6 +1,6 @@
 import styles from './OwnerShell.module.css';
 
-/** 24px stroke icons for the sidebar, keyed by the nav item's i18n key. */
+/** 24px stroke icons for the sidebar, keyed by the nav item's i18n key, plus a few page icons. */
 const PATHS: Record<string, string> = {
   'owner.nav.today': 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
   'owner.nav.schedule': 'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 2v4M8 2v4M3 10h18',
@@ -14,6 +14,7 @@ const PATHS: Record<string, string> = {
   'owner.nav.staff': 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
   'owner.nav.reviews': 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
   'owner.nav.activity': 'M22 12h-4l-3 9L9 3l-3 9H2',
+  clock: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
 };
 
 export function NavIcon({ navKey }: { navKey: string }) {

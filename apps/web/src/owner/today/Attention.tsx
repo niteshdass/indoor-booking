@@ -2,10 +2,11 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { OwnerReviewJson, SeriesJson } from '@booking/shared';
 import { formatDateTime, formatTime } from '../../lib/format';
+import { NavIcon } from '../shell/NavIcon';
 import type { OwnerBooking, OwnerVenue } from '../types';
 import styles from './TodayPage.module.css';
 
-type Item = { key: string; title: string; detail: string; to: string; tone: 'warning' | 'danger' | 'info' };
+type Item = { key: string; title: string; detail: string; to: string; tone: 'warning' | 'danger' | 'info'; icon: string };
 
 /** Things on this venue someone has to act on: weekly requests, unpaid holds and low reviews without a reply. */
 export function Attention({
@@ -32,6 +33,7 @@ export function Attention({
       detail: s.respondBy ? t('owner.today.seriesReplyBy', { time: formatDateTime(s.respondBy, tz, lang) }) : '',
       to: `series/${encodeURIComponent(s.id)}`,
       tone: 'info' as const,
+      icon: 'owner.nav.series',
     })),
     ...bookings
       .filter((b) => b.status === 'awaiting_payment' && b.holdExpiresAt && Date.parse(b.holdExpiresAt) > now.getTime())
@@ -41,6 +43,7 @@ export function Attention({
         detail: t('owner.today.holdUntil', { time: formatTime(b.holdExpiresAt!, tz, lang) }),
         to: `bookings/${encodeURIComponent(b.id)}`,
         tone: 'warning' as const,
+        icon: 'clock',
       })),
     ...(lowReviews ?? []).map((r) => ({
       key: `r${r.id}`,
@@ -48,6 +51,7 @@ export function Attention({
       detail: r.comment ?? t('owner.today.lowReviewHint'),
       to: `reviews?venue=${encodeURIComponent(venue.id)}&stars=${r.stars}`,
       tone: 'danger' as const,
+      icon: 'owner.nav.reviews',
     })),
   ];
   if (items.length === 0) return null;
@@ -60,6 +64,9 @@ export function Attention({
       <ul className={styles.attentionList}>
         {items.map((it) => (
           <li key={it.key} className={`${styles.attentionItem} ${styles[it.tone]}`}>
+            <span className={styles.attentionIcon}>
+              <NavIcon navKey={it.icon} />
+            </span>
             <div className={styles.attentionText}>
               <p className={styles.attentionTitle}>{it.title}</p>
               {it.detail && <p className={styles.attentionDetail}>{it.detail}</p>}

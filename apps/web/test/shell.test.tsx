@@ -25,9 +25,22 @@ describe('app shell', () => {
     expect(screen.getByRole('link', { name: en.nav.lookup })).toHaveAttribute('href', '/lookup');
   });
 
+  it('header menu closes on Escape and returns focus to its button', async () => {
+    const { user } = renderApp('/nope');
+    const button = screen.getByRole('button', { name: en.theme.label });
+    await user.click(button);
+    expect(screen.getByRole('menuitemradio', { name: en.theme.system })).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('menuitemradio', { name: en.theme.light })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+  });
+
   it('language switch re-renders nav in Russian', async () => {
     const { user } = renderApp('/nope');
-    await user.selectOptions(screen.getByLabelText(en.language.label), 'ru');
+    await user.click(screen.getByRole('button', { name: en.language.label }));
+    await user.click(screen.getByRole('menuitemradio', { name: ru.language.ru }));
     expect(screen.getByRole('link', { name: ru.nav.signIn })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: ru.nav.lookup })).toBeInTheDocument();
   });

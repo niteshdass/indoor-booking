@@ -1,49 +1,88 @@
 .card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
-  box-shadow: var(--shadow-xs);
   color: var(--text-default);
   text-decoration: none;
+  transition:
+    border-color var(--duration-fast),
+    box-shadow var(--duration-fast);
 }
 
 .card:hover {
-  box-shadow: var(--shadow-sm);
-  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
-.photo,
-.placeholder {
+.card:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.media {
+  display: block;
+  aspect-ratio: 5 / 2;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-subtle);
+}
+
+.photo {
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  height: 100%;
   object-fit: cover;
-  background: var(--bg-subtle);
-  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* No photo: the venue's first sport drawn as a court, the same device as the landing */
+.court {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--space-4);
+  background: var(--surround);
+}
+
+.lines {
+  width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--court-blue);
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
 }
 
 .body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-4);
   min-width: 0;
+  padding: var(--space-4) var(--space-5);
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
 }
 
 .name {
-  font-size: var(--text-md);
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-display);
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
-.meta,
-.slot {
+.meta {
   font-size: var(--text-sm);
   color: var(--text-muted);
   overflow-wrap: anywhere;
@@ -51,27 +90,17 @@
 
 .num,
 .price,
-.slot {
+.slot,
+.rating {
   font-variant-numeric: tabular-nums;
-}
-
-.sports {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-.price {
-  font-size: var(--text-base);
-  font-weight: var(--weight-semibold);
-  color: var(--text-strong);
 }
 
 .rating {
+  flex: none;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .star {
@@ -81,4 +110,67 @@
 .ratingCount {
   font-weight: var(--weight-regular);
   color: var(--text-muted);
+}
+
+.sports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-default);
+}
+
+.sport + .sport::before {
+  content: '';
+  display: inline-block;
+  width: var(--space-1);
+  height: var(--space-1);
+  margin-inline-end: var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--border-strong);
+  vertical-align: middle;
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.slot {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.free {
+  background: var(--success-soft);
+  color: var(--success);
+  font-weight: var(--weight-medium);
+}
+
+.price {
+  margin-inline-start: auto;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .card {
+    grid-template-columns: var(--result-media) minmax(0, 1fr);
+  }
+  .media {
+    aspect-ratio: auto;
+    min-height: var(--result-min);
+  }
 }

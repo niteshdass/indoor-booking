@@ -213,11 +213,12 @@ describe('SearchForm', () => {
     await user.click(screen.getByText(s.moreFilters));
     await user.type(screen.getByLabelText(s.timeFrom), '18:00');
     await user.click(screen.getByText(s.moreFilters));
-    const details = document.querySelector('details')!;
-    expect(details.open).toBe(false);
+    const toggle = screen.getByRole('button', { name: s.moreFilters });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByLabelText(s.timeTo)).not.toBeVisible();
     await user.click(screen.getByRole('button', { name: s.submit }));
     expect(onChange).not.toHaveBeenCalled();
-    expect(details.open).toBe(true);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText(s.timeInvalid)).toBeVisible();
     expect(screen.getByLabelText(s.timeTo)).toHaveFocus();
   });
@@ -228,7 +229,7 @@ describe('SearchForm', () => {
     await user.type(screen.getByLabelText(s.minPrice), '1.234');
     await user.click(screen.getByText(s.moreFilters));
     await user.click(screen.getByRole('button', { name: s.submit }));
-    expect(document.querySelector('details')!.open).toBe(true);
+    expect(screen.getByRole('button', { name: s.moreFilters })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText(s.priceInvalid)).toBeVisible();
   });
 

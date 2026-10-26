@@ -2,16 +2,30 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  padding: var(--space-4);
+  padding: var(--space-6) var(--space-4) var(--space-12);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
 
 .title {
   margin: 0;
-  font-size: var(--text-2xl);
+  font-size: var(--text-3xl);
   font-weight: var(--weight-semibold);
-  line-height: var(--leading-heading);
+  line-height: var(--leading-display);
   color: var(--text-strong);
-  overflow-wrap: anywhere;
+  text-wrap: balance;
+  overflow-wrap: break-word;
 }
 
 .results {
@@ -26,12 +40,15 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  min-height: var(--control-lg);
 }
 
 .count {
   margin: 0;
-  font-size: var(--text-base);
-  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .alert {
@@ -42,9 +59,8 @@
   gap: var(--space-3);
 }
 
-.grid {
+.list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   margin: 0;
   padding: 0;
@@ -60,14 +76,6 @@
   flex: 1;
 }
 
-.skeleton {
-  min-height: var(--table-row);
-  height: calc(var(--table-row) * 4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-subtle);
-}
-
 .loading,
 .more {
   display: flex;
@@ -76,29 +84,68 @@
 }
 
 .empty {
-  margin: 0;
-  padding-block: var(--space-8);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-10) var(--space-6);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
   text-align: center;
   color: var(--text-muted);
 }
 
+/* The same court device as the result cards, so an empty list still looks like this product */
+.emptyArt {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surround);
+}
+
+.emptyCourt {
+  display: block;
+  width: var(--empty-court);
+  border-radius: var(--radius-sm);
+  background: var(--court-blue);
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
+}
+
+.emptyTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--text-strong);
+}
+
+.empty p {
+  max-width: 36ch;
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+}
+
 .toggle {
   display: inline-flex;
+  margin-inline-start: auto;
   padding: var(--space-1);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   background: var(--bg-subtle);
 }
 
 .toggleBtn {
-  min-height: var(--control-lg);
+  min-height: var(--control-md);
   padding-inline: var(--space-4);
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   cursor: pointer;
 }
@@ -120,13 +167,7 @@
   gap: var(--space-4);
 }
 
-.listPane {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
+.listPane,
 .mapPane {
   display: flex;
   flex-direction: column;
@@ -139,33 +180,33 @@
   display: none;
 }
 
-@media (min-width: 640px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (min-width: 768px) {
+  .page {
+    padding-inline: var(--space-8);
   }
 }
 
+/* Desktop: search and list on the left; the map holds the right column from the top and fills the window */
 @media (min-width: 1024px) {
+  /* The List/Map toggle is hidden here, so with no count the toolbar would be an empty row */
+  .toolbar:not(:has(.count)) {
+    display: none;
+  }
   .page {
-    padding: var(--space-6);
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: var(--space-8);
+    align-items: start;
+    padding-top: var(--space-8);
   }
 
   .toggle {
     display: none;
   }
 
-  .body {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-  }
-
   .mapPane {
+    --map-height: calc(100dvh - var(--header-height) - var(--space-8));
     position: sticky;
-    top: var(--space-4);
-  }
-
-  .grid {
-    grid-template-columns: minmax(0, 1fr);
+    top: calc(var(--header-height) + var(--space-4));
   }
 }

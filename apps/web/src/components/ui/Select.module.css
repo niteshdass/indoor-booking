@@ -9,6 +9,15 @@
   color: var(--text-muted);
 }
 
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .stacked {
   flex-direction: column;
   align-items: stretch;
@@ -20,9 +29,33 @@
   color: var(--text-strong);
 }
 
+/* The native arrow differs per browser, so it is replaced with one chevron drawn the same everywhere */
+.control {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-width: 0;
+}
+
+.chevron {
+  position: absolute;
+  inset-inline-end: var(--space-2);
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
 .select {
+  appearance: none;
+  min-width: 0;
   min-height: var(--control-md);
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-3) var(--space-8);
+  cursor: pointer;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
@@ -33,4 +66,19 @@
 
 .lg {
   min-height: var(--control-lg);
+}
+
+.select:disabled {
+  cursor: default;
+}
+
+/* The chevron above replaces the customizable select's own icon */
+.select::picker-icon {
+  display: none;
+}
+
+@supports (appearance: base-select) {
+  .select {
+    appearance: base-select;
+  }
 }

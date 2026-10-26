@@ -24,7 +24,9 @@ export type PhoneInputProps = {
 };
 
 function dialOf(value: string): string {
-  const hit = [...DIAL_CODES].sort((a, b) => b.dial.length - a.dial.length).find((d) => value.startsWith(d.dial));
+  const hit = [...DIAL_CODES]
+    .sort((a, b) => b.dial.length - a.dial.length)
+    .find((d) => value.startsWith(d.dial));
   return hit?.dial ?? DEFAULT_DIAL;
 }
 
@@ -41,7 +43,10 @@ export function PhoneInput({ value, onChange, label, error }: PhoneInputProps) {
     } catch {
       names = null;
     }
-    return DIAL_CODES.map((d) => ({ value: d.dial, label: `${names?.of(d.code) ?? d.code} (${d.dial})` }));
+    return DIAL_CODES.map((d) => ({
+      value: d.dial,
+      label: `${names?.of(d.code) ?? d.code} (${d.dial})`,
+    }));
   }, [i18n.language]);
 
   const emit = (d: string, digits: string) => onChange(digits ? d + digits : '');

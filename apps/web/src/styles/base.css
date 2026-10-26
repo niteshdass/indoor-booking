@@ -44,3 +44,88 @@ h2 {
   outline: none;
   box-shadow: var(--focus-ring);
 }
+
+/* Selects open a styled list under the field instead of the OS popup over it (customizable select).
+   Browsers without support keep the native picker, which still works. */
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  select {
+    align-items: center;
+  }
+
+  select::picker-icon {
+    color: var(--text-muted);
+  }
+
+  ::picker(select) {
+    margin-block: var(--space-1);
+    padding: var(--space-1);
+    min-width: anchor-size(width);
+    max-height: var(--picker-max);
+    overflow-y: auto;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    color: var(--text-strong);
+    box-shadow: var(--shadow-md);
+    opacity: 0;
+    translate: 0 calc(-1 * var(--space-1));
+    transition:
+      opacity var(--duration-fast),
+      translate var(--duration-fast),
+      overlay var(--duration-fast) allow-discrete,
+      display var(--duration-fast) allow-discrete;
+  }
+
+  ::picker(select):popover-open {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    ::picker(select):popover-open {
+      opacity: 0;
+      translate: 0 calc(-1 * var(--space-1));
+    }
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--control-md);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-base);
+    font-weight: var(--weight-regular);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  select option:hover,
+  select option:focus-visible {
+    outline: none;
+    box-shadow: none;
+    background: var(--bg-hover);
+  }
+
+  select option:checked {
+    color: var(--primary);
+    font-weight: var(--weight-medium);
+  }
+
+  /* Tick on the right, so option text lines up with the field text */
+  select option::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+  }
+
+  select option:disabled {
+    cursor: default;
+    opacity: var(--opacity-muted);
+  }
+}

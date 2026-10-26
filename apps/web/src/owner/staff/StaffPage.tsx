@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { Tabs } from '../../components/ui/Tabs';
 import { apiDelete } from '../../lib/apiClient';
@@ -72,7 +72,7 @@ function Loaded<T>({ state, reload, children }: { state: ResourceState<T>; reloa
       </Alert>
     );
   }
-  if (state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (state.status !== 'ready') return <Skeleton kind="table" label={t('common.loading')} />;
   return <>{children(state.data)}</>;
 }
 

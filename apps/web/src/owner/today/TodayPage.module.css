@@ -218,7 +218,7 @@
   background: var(--danger);
 }
 
-/* Needs your attention: one row per thing to act on, status bar on the left */
+/* Needs your attention: one row per thing to act on, led by a status-tinted icon tile */
 .attention {
   display: flex;
   flex-direction: column;
@@ -243,23 +243,36 @@
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) var(--space-5);
-  border-left: var(--status-bar) solid var(--attention-bar);
 }
 
 .attentionItem + .attentionItem {
   border-top: 1px solid var(--border-subtle);
 }
 
+.attentionIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-md);
+  background: var(--attention-soft);
+  color: var(--attention-fg);
+}
+
 .attentionItem.info {
-  --attention-bar: var(--info);
+  --attention-soft: var(--info-soft);
+  --attention-fg: var(--info);
 }
 
 .attentionItem.warning {
-  --attention-bar: var(--warning);
+  --attention-soft: var(--warning-soft);
+  --attention-fg: var(--warning);
 }
 
 .attentionItem.danger {
-  --attention-bar: var(--danger);
+  --attention-soft: var(--danger-soft);
+  --attention-fg: var(--danger);
 }
 
 .attentionText {

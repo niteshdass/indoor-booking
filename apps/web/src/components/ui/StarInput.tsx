@@ -24,7 +24,10 @@ export function StarInput({ value, onChange, name, legend }: StarInputProps) {
               checked={value === n}
               onChange={() => onChange(n)}
             />
-            <span className={[styles.glyph, value !== null && n <= value ? styles.on : ''].join(' ')} aria-hidden="true">
+            <span
+              className={[styles.glyph, value !== null && n <= value ? styles.on : ''].join(' ')}
+              aria-hidden="true"
+            >
               {value !== null && n <= value ? '★' : '☆'}
             </span>
             <span className={styles.text}>{t('reviews.starOption', { count: n })}</span>

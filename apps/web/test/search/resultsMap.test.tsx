@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { SearchResult } from '@booking/shared';
 import { buildPin, makePinIcon, pinLabel, roundAndWrap, shouldFit, viewAction } from '../../src/search/ResultsMap';
-import { money } from '../../src/lib/format';
+import { moneyShort } from '../../src/lib/format';
 
 const r: SearchResult = {
   slug: 'a',
@@ -23,7 +23,7 @@ const r: SearchResult = {
 
 describe('pinLabel', () => {
   it('is the formatted price when there is one', () => {
-    expect(pinLabel(r, 'en')).toBe(money(1000, 'BDT', 'en'));
+    expect(pinLabel(r, 'en')).toBe(moneyShort(1000, 'BDT', 'en'));
   });
   it('is the venue name when there is no price', () => {
     expect(pinLabel({ ...r, fromPrice: null }, 'en')).toBe('Arena One');

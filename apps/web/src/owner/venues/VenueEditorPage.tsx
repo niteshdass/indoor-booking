@@ -5,7 +5,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Tabs } from '../../components/ui/Tabs';
 import { apiDelete, apiPatch } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -40,7 +40,7 @@ export function VenueEditorPage() {
   if (venueId === undefined) return <NewVenue />;
   if (!venue) {
     if (fetched.state.status === 'error') return <Alert tone="warning">{t('owner.venues.notFound')}</Alert>;
-    return <Spinner label={t('common.loading')} />;
+    return <Skeleton kind="detail" label={t('common.loading')} />;
   }
   return <VenueEditor key={venue.id} venue={venue} />;
 }
@@ -82,7 +82,7 @@ function VenueSettings({ venue }: { venue: OwnerVenue }) {
   const { t } = useTranslation();
   const { ownerId } = useOwner();
   const res = useResource<{ settings: OwnerSettings }>(ownerPath(ownerId, '/settings'));
-  if (res.state.status === 'loading' || res.state.status === 'idle') return <Spinner label={t('common.loading')} />;
+  if (res.state.status === 'loading' || res.state.status === 'idle') return <Skeleton kind="detail" label={t('common.loading')} />;
   // If the owner settings can't be read, fall back to the venue's effective values for the inherited display.
   const inherited = res.state.status === 'ready' ? res.state.data.settings : null;
   return <VenueSettingsTab venue={venue} ownerSettings={inherited} onSaved={() => {}} />;

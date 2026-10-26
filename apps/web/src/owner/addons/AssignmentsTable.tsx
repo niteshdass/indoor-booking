@@ -4,7 +4,7 @@ import { parseMoney } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiDelete, apiPut } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -211,7 +211,7 @@ export function AssignmentsPanel({ venue, turfId }: { venue: OwnerVenue; turfId?
       </Alert>
     );
   }
-  if (addons.state.status !== 'ready' || assigned.state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (addons.state.status !== 'ready' || assigned.state.status !== 'ready') return <Skeleton kind="table" label={t('common.loading')} />;
   const rows = assigned.state.data.assignments.filter((a) => (turfId === undefined ? a.turfId === null : a.turfId === turfId));
   return (
     <div className={styles.card}>

@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -41,7 +41,7 @@ export function ActivityPage() {
       </Alert>
     );
   }
-  if (first.state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (first.state.status !== 'ready') return <Skeleton kind="table" label={t('common.loading')} />;
 
   const items = [...first.state.data.items, ...more];
   const nextBefore = cursor === undefined ? first.state.data.nextBefore : cursor;

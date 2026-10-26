@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiDelete, apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -125,7 +125,7 @@ export function ClosuresPage() {
           </Button>
         </Alert>
       )}
-      {(state.status === 'loading' || state.status === 'idle') && <Spinner label={t('common.loading')} />}
+      {(state.status === 'loading' || state.status === 'idle') && <Skeleton kind="table" label={t('common.loading')} />}
       {state.status === 'ready' &&
         (state.data.closures.length === 0 ? (
           <p className={styles.muted}>{t('owner.closures.empty')}</p>

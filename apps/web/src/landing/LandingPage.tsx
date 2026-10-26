@@ -1,20 +1,47 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { SPORTS, type Sport } from '@booking/shared';
 import { Button } from '../components/ui/Button';
+import { moneyShort } from '../lib/format';
 import { EMPTY_CRITERIA, criteriaToParams } from '../search/searchParams';
 import { SportCourt, TILE_SPORTS } from './SportCourt';
 import styles from './LandingPage.module.css';
 
+/** Demo prices in BDT minor units, formatted in the reader's language. */
 const DEMO_SLOTS = [
   { time: '17:00', price: null },
-  { time: '18:00', price: '2 400 ₽' },
-  { time: '19:00', price: '2 800 ₽', pick: true },
+  { time: '18:00', price: 120000 },
+  { time: '19:00', price: 150000, pick: true },
   { time: '20:00', price: null },
-  { time: '21:00', price: '2 800 ₽' },
-  { time: '22:00', price: '2 200 ₽' },
+  { time: '21:00', price: 150000 },
+  { time: '22:00', price: 110000 },
 ];
+
+/** Sets `data-inview` once the element scrolls into view, so its CSS entrance plays then rather than off screen. */
+function useInView<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.3 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return [ref, inView] as const;
+}
 
 function Check() {
   return (
@@ -25,7 +52,8 @@ function Check() {
 }
 
 const FEATURE_ICONS: Record<string, string> = {
-  weekly: 'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 2v4M8 2v4M3 10h18M8 15h2M14 15h2',
+  weekly:
+    'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 2v4M8 2v4M3 10h18M8 15h2M14 15h2',
   map: 'M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
   lookup: 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2',
   reviews: 'm12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
@@ -40,7 +68,12 @@ function HeroSearch() {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const p = criteriaToParams({ ...EMPTY_CRITERIA, sport: sport || null, date: date || null, available: true });
+    const p = criteriaToParams({
+      ...EMPTY_CRITERIA,
+      sport: sport || null,
+      date: date || null,
+      available: true,
+    });
     navigate(`/search?${p.toString()}`);
   }
 
@@ -48,18 +81,32 @@ function HeroSearch() {
     <form className={styles.search} onSubmit={submit} aria-label={t('landing.searchLabel')}>
       <div className={styles.field}>
         <label htmlFor={`${id}-sport`}>{t('search.sport')}</label>
-        <select id={`${id}-sport`} value={sport} onChange={(e) => setSport(e.target.value as Sport | '')}>
-          <option value="">{t('search.anySport')}</option>
-          {SPORTS.map((s) => (
-            <option key={s} value={s}>
-              {t(`sports.${s}`)}
-            </option>
-          ))}
-        </select>
+        <span className={styles.selectWrap}>
+          <select
+            id={`${id}-sport`}
+            value={sport}
+            onChange={(e) => setSport(e.target.value as Sport | '')}
+          >
+            <option value="">{t('search.anySport')}</option>
+            {SPORTS.map((s) => (
+              <option key={s} value={s}>
+                {t(`sports.${s}`)}
+              </option>
+            ))}
+          </select>
+          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
       </div>
       <div className={styles.field}>
         <label htmlFor={`${id}-date`}>{t('search.date')}</label>
-        <input id={`${id}-date`} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input
+          id={`${id}-date`}
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
       </div>
       <Button type="submit" size="lg" className={styles.searchButton}>
         {t('landing.submit')}
@@ -68,38 +115,196 @@ function HeroSearch() {
   );
 }
 
-function CourtDemo() {
-  const { t } = useTranslation();
+const DEMO_STEPS = ['find', 'pick', 'book', 'done'] as const;
+type DemoStep = (typeof DEMO_STEPS)[number];
+
+/** How long each step of the demo holds, in ms, before the next one plays. */
+const STEP_MS: Record<DemoStep, number> = { find: 2800, pick: 2200, book: 1900, done: 2800 };
+
+/** The card rises in after the court lines draw; the first step waits for it. */
+const FIRST_LEAD_MS = 1000;
+
+function prefersReducedMotion() {
   return (
-    <div className={styles.panel} role="img" aria-label={t('landing.demo.label')}>
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+/**
+ * Loops the booking story (find, pick, book, done) while the panel is on screen.
+ * With reduced motion it holds on the finished booking.
+ */
+function useDemoStep() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [still] = useState(prefersReducedMotion);
+  const [running, setRunning] = useState(false);
+  const [lap, setLap] = useState(0);
+  const [index, setIndex] = useState(still ? DEMO_STEPS.length - 1 : 0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      setRunning(true);
+      return;
+    }
+    const io = new IntersectionObserver(([entry]) => setRunning(!!entry?.isIntersecting), {
+      threshold: 0.3,
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (still || !running) return;
+    const step = DEMO_STEPS[index]!;
+    const hold = STEP_MS[step] + (lap === 0 && index === 0 ? FIRST_LEAD_MS : 0);
+    const id = window.setTimeout(() => {
+      if (index === DEMO_STEPS.length - 1) setLap((l) => l + 1);
+      setIndex((i) => (i + 1) % DEMO_STEPS.length);
+    }, hold);
+    return () => window.clearTimeout(id);
+  }, [still, running, index, lap]);
+
+  return { ref, index, step: DEMO_STEPS[index]!, first: lap === 0 && !still };
+}
+
+function SearchGlyph() {
+  return (
+    <svg className={styles.demoIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
+    </svg>
+  );
+}
+
+function CourtDemo() {
+  const { t, i18n } = useTranslation();
+  const { ref, index, step, first } = useDemoStep();
+  const pick = DEMO_SLOTS.find((s) => s.pick)!;
+  const price = moneyShort(pick.price!, 'BDT', i18n.language);
+  const scene = (s: DemoStep) => ({
+    className: styles.scene,
+    'data-scene': s,
+    'data-active': step === s || undefined,
+  });
+
+  return (
+    <div ref={ref} className={styles.panel} role="img" aria-label={t('landing.demo.label')}>
       <div className={styles.court} />
-      <svg className={styles.lines} viewBox="0 0 200 260" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <svg
+        className={styles.lines}
+        viewBox="0 0 200 260"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        focusable="false"
+      >
         <rect x="1" y="1" width="198" height="258" />
         <line x1="1" y1="130" x2="199" y2="130" />
         <line x1="1" y1="58" x2="199" y2="58" />
         <line x1="1" y1="202" x2="199" y2="202" />
         <line x1="100" y1="58" x2="100" y2="202" />
       </svg>
-      <span className={styles.ball} />
-      <div className={styles.slotCard} aria-hidden="true">
-        <div className={styles.slotHead}>
-          <strong>{t('landing.demo.court')}</strong>
-          <span>{t('landing.demo.venue')}</span>
-        </div>
-        <div className={styles.slots}>
-          {DEMO_SLOTS.map((s) => (
-            <span
-              key={s.time}
-              className={[styles.slot, s.price === null && styles.booked, s.pick && styles.pick].filter(Boolean).join(' ')}
-            >
-              {s.time}
-              <small>{s.price ?? t('landing.demo.booked')}</small>
+      <span className={styles.rally} aria-hidden="true">
+        <span className={styles.ball} />
+      </span>
+      <div className={styles.slotCard} data-first={first || undefined} aria-hidden="true">
+        <ol className={styles.demoSteps}>
+          {DEMO_STEPS.map((s, i) => {
+            const done = i < index || step === 'done';
+            return (
+              <li
+                key={s}
+                className={styles.demoStep}
+                data-state={done ? 'done' : i === index ? 'now' : undefined}
+              >
+                <span className={styles.stepDot}>{done ? <Check /> : i + 1}</span>
+                {t(`landing.demo.steps.${s}`)}
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className={styles.stage}>
+          <div {...scene('find')}>
+            <div className={styles.fakeSearch}>
+              <span className={styles.fakeField}>
+                <small>{t('search.sport')}</small>
+                <span className={styles.typed}>{t('sports.padel')}</span>
+              </span>
+              <span className={styles.fakeField}>
+                <small>{t('search.date')}</small>
+                <span className={`${styles.typed} ${styles.typedLate}`}>
+                  {t('landing.demo.today')}
+                </span>
+              </span>
+              <span className={`${styles.fakeGo} ${styles.tap}`}>
+                <SearchGlyph />
+              </span>
+            </div>
+            <div className={styles.result}>
+              <span>
+                <strong>{t('landing.demo.court')}</strong>
+                <small>{t('landing.demo.venue')}</small>
+              </span>
+              <span className={styles.free}>{t('landing.demo.free')}</span>
+            </div>
+          </div>
+
+          <div {...scene('pick')}>
+            <div className={styles.slotHead}>
+              <strong>{t('landing.demo.court')}</strong>
+              <span>{t('landing.demo.venue')}</span>
+            </div>
+            <div className={styles.slots}>
+              {DEMO_SLOTS.map((s) => (
+                <span
+                  key={s.time}
+                  className={[
+                    styles.slot,
+                    s.price === null && styles.booked,
+                    s.pick && `${styles.pick} ${styles.tap}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
+                  {s.time}
+                  <small>
+                    {s.price === null
+                      ? t('landing.demo.booked')
+                      : moneyShort(s.price, 'BDT', i18n.language)}
+                  </small>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div {...scene('book')}>
+            <dl className={styles.summary}>
+              <div>
+                <dt>{t('landing.demo.court')}</dt>
+                <dd>{t('landing.demo.venue')}</dd>
+              </div>
+              <div>
+                <dt>{t('landing.demo.when', { time: pick.time })}</dt>
+                <dd className={styles.summaryPrice}>{price}</dd>
+              </div>
+            </dl>
+            <span className={`${styles.fakeBook} ${styles.tap}`}>
+              {t('landing.demo.book', { time: pick.time })}
             </span>
-          ))}
-        </div>
-        <div className={styles.confirm}>
-          <Check />
-          {t('landing.demo.confirm')}
+          </div>
+
+          <div {...scene('done')}>
+            <div className={styles.done}>
+              <span className={styles.doneMark}>
+                <Check />
+              </span>
+              <strong>{t('landing.demo.confirm')}</strong>
+              <small>
+                {t('landing.demo.court')}, {t('landing.demo.venue')}
+              </small>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -109,7 +314,8 @@ function CourtDemo() {
 type Block = { left: number; width: number; kind: 'ok' | 'wait' | 'walk'; label: string };
 
 function PortalPreview() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [ref, inView] = useInView<HTMLDivElement>();
   const lanes: { court: string; blocks: Block[] }[] = [
     {
       court: `${t('sports.padel')} 1`,
@@ -142,7 +348,13 @@ function PortalPreview() {
     },
   ];
   return (
-    <div className={styles.preview} role="img" aria-label={t('landing.owners.previewLabel')}>
+    <div
+      ref={ref}
+      className={styles.preview}
+      data-inview={inView || undefined}
+      role="img"
+      aria-label={t('landing.owners.previewLabel')}
+    >
       <div className={styles.previewTop} aria-hidden="true">
         <div>
           <strong>{t('landing.owners.previewTitle')}</strong>
@@ -157,7 +369,7 @@ function PortalPreview() {
         </div>
         <div className={styles.kpi}>
           <span>{t('landing.owners.kpiRevenue')}</span>
-          <b>142 800 ₽</b>
+          <b>{moneyShort(4860000, 'BDT', i18n.language)}</b>
         </div>
         <div className={styles.kpi}>
           <span>{t('landing.owners.kpiUsed')}</span>
@@ -165,12 +377,18 @@ function PortalPreview() {
         </div>
       </div>
       <div className={styles.timeline} aria-hidden="true">
-        {lanes.map((lane) => (
+        {lanes.map((lane, li) => (
           <div key={lane.court} className={styles.lane}>
             <span className={styles.laneName}>{lane.court}</span>
             <div className={styles.track}>
-              {lane.blocks.map((b) => (
-                <span key={b.left} className={`${styles.blk} ${styles[b.kind]}`} style={{ left: `${b.left}%`, width: `${b.width}%` }}>
+              {lane.blocks.map((b, bi) => (
+                <span
+                  key={b.left}
+                  className={`${styles.blk} ${styles[b.kind]}`}
+                  style={
+                    { left: `${b.left}%`, width: `${b.width}%`, '--i': li + bi } as CSSProperties
+                  }
+                >
                   {b.label}
                 </span>
               ))}
@@ -201,7 +419,11 @@ export function LandingPage() {
               <HeroSearch />
               <p className={styles.note}>{t('landing.note')}</p>
             </div>
-            <CourtDemo />
+            <div className={styles.stack}>
+              <span className={`${styles.backCourt} ${styles.clay}`} aria-hidden="true" />
+              <span className={`${styles.backCourt} ${styles.wood}`} aria-hidden="true" />
+              <CourtDemo />
+            </div>
           </div>
         </section>
 
@@ -266,7 +488,11 @@ export function LandingPage() {
           </div>
         </section>
 
-        <section className={`${styles.block} ${styles.owners}`} data-surface="night" aria-labelledby="landing-owners">
+        <section
+          className={`${styles.block} ${styles.owners}`}
+          data-surface="night"
+          aria-labelledby="landing-owners"
+        >
           <div className={`${styles.wrap} ${styles.ownersGrid}`}>
             <div>
               <div className={styles.sectionHead}>
@@ -346,7 +572,9 @@ export function LandingPage() {
               </ul>
             </nav>
           </div>
-          <p className={styles.legal}>{t('landing.footer.rights', { year: new Date().getFullYear() })}</p>
+          <p className={styles.legal}>
+            {t('landing.footer.rights', { year: new Date().getFullYear() })}
+          </p>
         </div>
       </footer>
     </>

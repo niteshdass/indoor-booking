@@ -8,7 +8,11 @@ export function Stars({ value, size = 'sm' }: StarsProps) {
   const { t } = useTranslation();
   const halves = Math.round(Math.min(5, Math.max(0, value)) * 2);
   return (
-    <span role="img" aria-label={t('reviews.starsLabel', { value })} className={[styles.stars, styles[size]].join(' ')}>
+    <span
+      role="img"
+      aria-label={t('reviews.starsLabel', { value })}
+      className={[styles.stars, styles[size]].join(' ')}
+    >
       {[1, 2, 3, 4, 5].map((n) => {
         const fill = halves >= n * 2 ? styles.full : halves === n * 2 - 1 ? styles.half : '';
         return (

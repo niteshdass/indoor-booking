@@ -74,9 +74,9 @@
   },
   "theme": {
     "label": "Theme",
-    "system": "System",
-    "light": "Light",
-    "dark": "Dark"
+    "system": "System theme",
+    "light": "Light theme",
+    "dark": "Dark theme"
   },
   "common": {
     "close": "Close",
@@ -185,7 +185,7 @@
     "signOut": "Sign out"
   },
   "search": {
-    "title": "Search venues",
+    "title": "Find a court",
     "useMyLocation": "Use my location",
     "locationSet": "Using your location",
     "clearLocation": "Clear location",
@@ -222,11 +222,13 @@
     "resultsLabel": "Search results",
     "count_one": "{{count}} venue",
     "count_other": "{{count}} venues",
-    "empty": "No venues match your search. Try changing the filters.",
+    "emptyTitle": "No courts found",
+    "empty": "Try another date or sport, or loosen the filters.",
     "noPrice": "No price available",
     "fromPrice": "from {{price}}",
     "nextFree": "Next free: {{start}}–{{end}} · {{turf}}",
     "noFreeSlot": "No free slots",
+    "clearFilters": "Clear filters",
     "loadMore": "Load more",
     "retry": "Try again",
     "countMore_one": "{{count}}+ venue",
@@ -1194,7 +1196,7 @@
       "filterStars": "Rating",
       "allVenues": "All venues",
       "allStars": "All ratings",
-      "flagged": "Flagged — awaiting review",
+      "flagged": "Flagged, awaiting review",
       "hidden": "Hidden",
       "reply": "Reply",
       "replyField": "Your reply",
@@ -1351,11 +1353,21 @@
     "submit": "Show free courts",
     "note": "No account needed to book. You can look up any booking with your phone number.",
     "demo": {
-      "label": "Example: booking Padel court 2 at 19:00",
+      "label": "Example: find a padel court, pick 19:00, book it and get the confirmation",
       "court": "Padel court 2",
       "venue": "Arena North",
       "booked": "Booked",
-      "confirm": "Booked. See you at 19:00."
+      "confirm": "Booked. See you at 19:00.",
+      "today": "Today",
+      "free": "Free tonight",
+      "when": "Today, {{time}}",
+      "book": "Book {{time}}",
+      "steps": {
+        "find": "Find",
+        "pick": "Pick",
+        "book": "Book",
+        "done": "Done"
+      }
     },
     "sports": {
       "title": "Pick your game",

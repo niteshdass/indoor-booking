@@ -70,7 +70,12 @@ export function OtpInput({ value, onChange, length = 6, label, error }: OtpInput
   };
 
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={error ? errorId : undefined} className={styles.group}>
+    <div
+      role="group"
+      aria-labelledby={labelId}
+      aria-describedby={error ? errorId : undefined}
+      className={styles.group}
+    >
       <span id={labelId} className={styles.label}>
         {label}
       </span>

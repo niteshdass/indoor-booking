@@ -6,7 +6,7 @@ import { AddonPicker } from '../../checkout/AddonPicker';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -184,7 +184,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
       </Alert>
     );
   } else if (!gridDay) {
-    grid = <Spinner label={t('common.loading')} />;
+    grid = <Skeleton kind="detail" label={t('common.loading')} />;
   } else if (!inWindow) {
     grid = <p className={common.notice}>{t('owner.walkIn.outsideWindow')}</p>;
   } else {

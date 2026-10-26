@@ -18,7 +18,13 @@ type State = {
   error: unknown;
 };
 
-const initial = (key: string): State => ({ key, results: [], nextCursor: null, status: 'loading', error: null });
+const initial = (key: string): State => ({
+  key,
+  results: [],
+  nextCursor: null,
+  status: 'loading',
+  error: null,
+});
 
 export function useSearch(c: Criteria): {
   results: SearchResult[];
@@ -45,47 +51,52 @@ export function useSearch(c: Criteria): {
   });
 
   /** One load: fetch `cursor`, then keep following while this load's batch is short. Strictly one request at a time. */
-  const load = useCallback(async (id: number, loadKey: string, start: number, reset: boolean): Promise<void> => {
-    inFlight.current = true;
-    failedCursor.current = null;
-    // A new criteria drops everything from the old one; loadMore/retry keep what was already loaded.
-    setState((s) => (reset ? initial(loadKey) : { ...s, key: loadKey, status: 'loading', error: null }));
-    const base = accumulated.current.length;
-    let cursor = start;
-    let extra = 0;
-    for (;;) {
-      let page: SearchResponse;
-      try {
-        page = await apiGet<SearchResponse>(`/search${apiQuery(criteria.current, cursor)}`);
-      } catch (error) {
+  const load = useCallback(
+    async (id: number, loadKey: string, start: number, reset: boolean): Promise<void> => {
+      inFlight.current = true;
+      failedCursor.current = null;
+      // A new criteria drops everything from the old one; loadMore/retry keep what was already loaded.
+      setState((s) =>
+        reset ? initial(loadKey) : { ...s, key: loadKey, status: 'loading', error: null },
+      );
+      const base = accumulated.current.length;
+      let cursor = start;
+      let extra = 0;
+      for (;;) {
+        let page: SearchResponse;
+        try {
+          page = await apiGet<SearchResponse>(`/search${apiQuery(criteria.current, cursor)}`);
+        } catch (error) {
+          if (id !== requestId.current || unmounted.current) return;
+          inFlight.current = false;
+          failedCursor.current = cursor;
+          setState((s) => ({ ...s, key: loadKey, status: 'error', error }));
+          return;
+        }
         if (id !== requestId.current || unmounted.current) return;
-        inFlight.current = false;
-        failedCursor.current = cursor;
-        setState((s) => ({ ...s, key: loadKey, status: 'error', error }));
-        return;
+        accumulated.current = [...accumulated.current, ...page.results];
+        nextCursor.current = page.nextCursor;
+        const batch = accumulated.current.length - base;
+        const follow = page.nextCursor !== null && batch < PAGE_SIZE && extra < AUTO_FOLLOW_MAX;
+        const results = accumulated.current;
+        setState((s) => ({
+          ...s,
+          key: loadKey,
+          results,
+          nextCursor: page.nextCursor,
+          status: follow ? 'loading' : 'idle',
+          error: null,
+        }));
+        if (!follow) {
+          inFlight.current = false;
+          return;
+        }
+        cursor = page.nextCursor!;
+        extra += 1;
       }
-      if (id !== requestId.current || unmounted.current) return;
-      accumulated.current = [...accumulated.current, ...page.results];
-      nextCursor.current = page.nextCursor;
-      const batch = accumulated.current.length - base;
-      const follow = page.nextCursor !== null && batch < PAGE_SIZE && extra < AUTO_FOLLOW_MAX;
-      const results = accumulated.current;
-      setState((s) => ({
-        ...s,
-        key: loadKey,
-        results,
-        nextCursor: page.nextCursor,
-        status: follow ? 'loading' : 'idle',
-        error: null,
-      }));
-      if (!follow) {
-        inFlight.current = false;
-        return;
-      }
-      cursor = page.nextCursor!;
-      extra += 1;
-    }
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     // Stops a running chain before its next request. StrictMode's simulated unmount/remount flips this back at once.

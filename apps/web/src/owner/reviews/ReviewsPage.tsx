@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { Select } from '../../components/ui/Select';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Stars } from '../../components/ui/Stars';
 import { apiDelete, apiGet, apiPost, apiPut } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -82,7 +82,7 @@ export function ReviewsPage() {
       </Alert>
     );
   }
-  if (first.state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (first.state.status !== 'ready') return <Skeleton kind="list" label={t('common.loading')} />;
 
   const data = first.state.data;
   const extra = more && more.key === key ? more : null;

@@ -4,7 +4,7 @@ import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { PendingActions } from '../bookings/BookingActions';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { StatCard } from '../../components/ui/StatCard';
 import { Table } from '../../components/ui/Table';
 import { errorMessage } from '../../lib/errors';
@@ -69,7 +69,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
       </Alert>
     );
   }
-  if (state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (state.status !== 'ready') return <Skeleton kind="dashboard" label={t('common.loading')} />;
 
   const { bookings } = state.data;
   const { count, collected, pending, upcoming } = summarize(bookings);

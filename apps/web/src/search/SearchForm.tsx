@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { InvalidMoneyError, MAX_SEARCH_RADIUS_KM, SEARCH_RADII_KM, SPORTS, currencyExponent, parseMoney } from '@booking/shared';
+import {
+  InvalidMoneyError,
+  MAX_SEARCH_RADIUS_KM,
+  SEARCH_RADII_KM,
+  SPORTS,
+  currencyExponent,
+  parseMoney,
+} from '@booking/shared';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
+import { Spinner } from '../components/ui/Spinner';
 import { TextField } from '../components/ui/TextField';
 import { criteriaToParams, type Criteria } from './searchParams';
 import styles from './SearchForm.module.css';
@@ -14,6 +22,22 @@ export type SearchFormProps = {
 };
 
 const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+
+const ICONS = {
+  search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
+  pin: 'M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  sliders: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4',
+  x: 'M18 6 6 18M6 6l12 12',
+  chevron: 'm6 9 6 6 6-6',
+};
+
+function Icon({ d }: { d: string }) {
+  return (
+    <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d={d} />
+    </svg>
+  );
+}
 
 function minorToDecimal(minor: number | null, currency: string | null): string {
   if (minor === null || !currency) return '';
@@ -28,7 +52,13 @@ function radiusChoice(r: number | null): string {
   return (SEARCH_RADII_KM as readonly number[]).includes(r) ? String(r) : 'custom';
 }
 
-type Texts = { radiusChoice: string; customRadius: string; min: string; max: string; priceDirty: boolean };
+type Texts = {
+  radiusChoice: string;
+  customRadius: string;
+  min: string;
+  max: string;
+  priceDirty: boolean;
+};
 
 function textsFrom(v: Criteria): Texts {
   const choice = radiusChoice(v.radiusKm);
@@ -44,10 +74,12 @@ function textsFrom(v: Criteria): Texts {
 type Errors = { radius?: true; min?: true; max?: true; range?: true; time?: true };
 
 /** A single comma is a decimal separator (Russian keyboards); anything else is left for parseMoney to judge. */
-const normaliseDecimal = (s: string) => (!s.includes('.') && s.split(',').length === 2 ? s.replace(',', '.') : s);
+const normaliseDecimal = (s: string) =>
+  !s.includes('.') && s.split(',').length === 2 ? s.replace(',', '.') : s;
 
 export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   const { t } = useTranslation();
+  const id = useId();
   const [draft, setDraft] = useState<Criteria>(value);
   const [texts, setTexts] = useState<Texts>(() => textsFrom(value));
   const [errors, setErrors] = useState<Errors>({});
@@ -75,13 +107,19 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
 
   // Move focus to the first invalid field once the (possibly just reopened) filters are rendered.
   useEffect(() => {
-    if (Object.keys(errors).length > 0) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    if (Object.keys(errors).length > 0)
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
   }, [errors]);
 
   const patch = (p: Partial<Criteria>) => setDraft((d) => ({ ...d, ...p }));
   // The URL's currency stays selectable even when no result in view uses it.
-  const currencyOptions = [...new Set([value.currency, ...currencies].filter((c): c is string => Boolean(c)))];
-  const priceCurrency = draft.currency && currencyOptions.includes(draft.currency) ? draft.currency : (currencyOptions[0] ?? null);
+  const currencyOptions = [
+    ...new Set([value.currency, ...currencies].filter((c): c is string => Boolean(c))),
+  ];
+  const priceCurrency =
+    draft.currency && currencyOptions.includes(draft.currency)
+      ? draft.currency
+      : (currencyOptions[0] ?? null);
 
   function locate() {
     setLocationDenied(false);
@@ -112,7 +150,8 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     if (draft.near) {
       if (texts.radiusChoice === 'custom') {
         const n = Number(texts.customRadius);
-        if (/^\d+(\.\d+)?$/.test(texts.customRadius.trim()) && n >= 1 && n <= MAX_SEARCH_RADIUS_KM) radiusKm = n;
+        if (/^\d+(\.\d+)?$/.test(texts.customRadius.trim()) && n >= 1 && n <= MAX_SEARCH_RADIUS_KM)
+          radiusKm = n;
         else next.radius = true;
       } else if (texts.radiusChoice !== 'any') {
         radiusKm = Number(texts.radiusChoice);
@@ -144,7 +183,8 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
           next.max = true;
         }
       }
-      if (!next.min && !next.max && minPrice !== null && maxPrice !== null && minPrice > maxPrice) next.range = true;
+      if (!next.min && !next.max && minPrice !== null && maxPrice !== null && minPrice > maxPrice)
+        next.range = true;
     }
 
     // The currency shown by default is applied only once an amount is entered; without an amount it would
@@ -174,7 +214,10 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     ...SEARCH_RADII_KM.map((r) => ({ value: String(r), label: t('search.km', { count: r }) })),
     { value: 'custom', label: t('search.customOption') },
   ];
-  const sportOptions = [{ value: '', label: t('search.anySport') }, ...SPORTS.map((s) => ({ value: s, label: t(`sports.${s}`) }))];
+  const sportOptions = [
+    { value: '', label: t('search.anySport') },
+    ...SPORTS.map((s) => ({ value: s, label: t(`sports.${s}`) })),
+  ];
   const sortOptions = [
     { value: 'default', label: t('search.sortDefault') },
     { value: 'rating', label: t('search.sortRating') },
@@ -186,35 +229,124 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   ];
   const priceError = errors.range ? t('search.priceRange') : t('search.priceInvalid');
 
-  return (
-    <form ref={formRef} className={styles.form} onSubmit={submit} noValidate aria-label={t('search.title')}>
-      <div className={styles.location}>
-        <Button type="button" variant="secondary" size="lg" loading={locating} onClick={locate}>
-          {t('search.useMyLocation')}
-        </Button>
-        {draft.near && (
-          <>
-            <span className={styles.coords}>{t('search.locationSet')}</span>
-            <Button type="button" variant="ghost" size="lg" onClick={() => patch({ near: null, radiusKm: null })}>
-              {t('search.clearLocation')}
-            </Button>
-          </>
-        )}
-      </div>
-      {locationDenied && <p className={styles.error} role="alert">{t('search.locationDenied')}</p>}
+  const activeMore =
+    (value.indoor !== null ? 1 : 0) +
+    (value.from && value.to ? 1 : 0) +
+    (value.available ? 1 : 0) +
+    (value.minPrice !== null || value.maxPrice !== null ? 1 : 0);
 
-      <div className={styles.field}>
+  return (
+    <form
+      ref={formRef}
+      className={styles.form}
+      onSubmit={submit}
+      noValidate
+      aria-label={t('search.title')}
+    >
+      <div className={styles.bar}>
+        <div className={styles.barField}>
+          <label htmlFor={`${id}-sport`}>{t('search.sport')}</label>
+          <span className={styles.selectWrap}>
+            <select
+              id={`${id}-sport`}
+              value={draft.sport ?? ''}
+              onChange={(e) =>
+                patch({ sport: e.target.value ? (e.target.value as Criteria['sport']) : null })
+              }
+            >
+              {sportOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <Icon d={ICONS.chevron} />
+          </span>
+        </div>
+        <div className={styles.barField}>
+          <label htmlFor={`${id}-date`}>{t('search.date')}</label>
+          <input
+            id={`${id}-date`}
+            type="date"
+            value={draft.date ?? ''}
+            aria-describedby={`${id}-date-hint`}
+            onChange={(e) => patch({ date: e.target.value || null })}
+          />
+          <span id={`${id}-date-hint`} className={styles.srOnly}>
+            {t('search.dateHint')}
+          </span>
+        </div>
+        <Button type="submit" variant="brand" size="lg" className={styles.submit}>
+          <Icon d={ICONS.search} />
+          {t('search.submit')}
+        </Button>
+      </div>
+
+      <div className={styles.chips}>
+        {draft.near ? (
+          <span className={`${styles.chip} ${styles.chipOn}`}>
+            <Icon d={ICONS.pin} />
+            {t('search.locationSet')}
+            <button
+              type="button"
+              className={styles.chipClear}
+              aria-label={t('search.clearLocation')}
+              onClick={() => patch({ near: null, radiusKm: null })}
+            >
+              <Icon d={ICONS.x} />
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className={styles.chip}
+            disabled={locating}
+            aria-busy={locating || undefined}
+            onClick={locate}
+          >
+            {locating ? <Spinner label={t('common.loading')} /> : <Icon d={ICONS.pin} />}
+            {t('search.useMyLocation')}
+          </button>
+        )}
+
         <Select
-          size="lg"
           label={t('search.radius')}
           disabled={!draft.near}
           value={draft.near ? texts.radiusChoice : 'any'}
           onChange={(e) => setTexts((x) => ({ ...x, radiusChoice: e.target.value }))}
           options={radiusOptions}
-          className={styles.stacked}
+          className={styles.chipSelect}
         />
-        {!draft.near && <p className={styles.hint}>{t('search.radiusNeedsLocation')}</p>}
-        {draft.near && texts.radiusChoice === 'custom' && (
+
+        <Select
+          label={t('search.sort')}
+          value={draft.sort}
+          onChange={(e) => patch({ sort: e.target.value === 'rating' ? 'rating' : 'default' })}
+          options={sortOptions}
+          className={styles.chipSelect}
+        />
+
+        <button
+          type="button"
+          className={[styles.chip, moreOpen && styles.chipOn].filter(Boolean).join(' ')}
+          aria-expanded={moreOpen}
+          aria-controls={`${id}-more`}
+          onClick={() => setMoreOpen((o) => !o)}
+        >
+          <Icon d={ICONS.sliders} />
+          <span>{t('search.moreFilters')}</span>
+          {activeMore > 0 && <span className={styles.count}>{activeMore}</span>}
+        </button>
+      </div>
+
+      {!draft.near && <p className={styles.hint}>{t('search.radiusNeedsLocation')}</p>}
+      {locationDenied && (
+        <p className={styles.error} role="alert">
+          {t('search.locationDenied')}
+        </p>
+      )}
+      {draft.near && texts.radiusChoice === 'custom' && (
+        <div className={styles.custom}>
           <TextField
             label={t('search.customRadius')}
             type="number"
@@ -222,60 +354,55 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
             min={1}
             max={MAX_SEARCH_RADIUS_KM}
             value={texts.customRadius}
-            error={errors.radius ? t('search.radiusInvalid', { max: MAX_SEARCH_RADIUS_KM }) : undefined}
+            error={
+              errors.radius ? t('search.radiusInvalid', { max: MAX_SEARCH_RADIUS_KM }) : undefined
+            }
             onChange={(e) => setTexts((x) => ({ ...x, customRadius: e.target.value }))}
           />
-        )}
-      </div>
+        </div>
+      )}
 
-      <Select
-        size="lg"
-        label={t('search.sport')}
-        value={draft.sport ?? ''}
-        onChange={(e) => patch({ sport: e.target.value ? (e.target.value as Criteria['sport']) : null })}
-        options={sportOptions}
-        className={styles.stacked}
-      />
+      <div id={`${id}-more`} className={styles.panel} hidden={!moreOpen}>
+        <Select
+          size="lg"
+          layout="stacked"
+          label={t('search.indoorLabel')}
+          value={draft.indoor === null ? '' : draft.indoor ? 'indoor' : 'outdoor'}
+          onChange={(e) =>
+            patch({ indoor: e.target.value === '' ? null : e.target.value === 'indoor' })
+          }
+          options={indoorOptions}
+          className={styles.wide}
+        />
 
-      <Select
-        size="lg"
-        label={t('search.sort')}
-        value={draft.sort}
-        onChange={(e) => patch({ sort: e.target.value === 'rating' ? 'rating' : 'default' })}
-        options={sortOptions}
-        className={styles.stacked}
-      />
-
-      <TextField label={t('search.date')} type="date" hint={t('search.dateHint')} value={draft.date ?? ''} onChange={(e) => patch({ date: e.target.value || null })} />
-
-      <details className={styles.more} open={moreOpen} onToggle={(e) => setMoreOpen(e.currentTarget.open)}>
-        <summary className={styles.summary}>{t('search.moreFilters')}</summary>
-        <div className={styles.moreBody}>
-          <Select
-            size="lg"
-            label={t('search.indoorLabel')}
-            value={draft.indoor === null ? '' : draft.indoor ? 'indoor' : 'outdoor'}
-            onChange={(e) => patch({ indoor: e.target.value === '' ? null : e.target.value === 'indoor' })}
-            options={indoorOptions}
-            className={styles.stacked}
-          />
-
+        <div className={styles.group}>
           <div className={styles.pair}>
-            <TextField label={t('search.timeFrom')} type="time" step={1800} value={draft.from ?? ''} onChange={(e) => patch({ from: e.target.value || null })} />
-            <TextField label={t('search.timeTo')} type="time" step={1800} value={draft.to ?? ''} error={errors.time ? t('search.timeInvalid') : undefined} onChange={(e) => patch({ to: e.target.value || null })} />
+            <TextField
+              label={t('search.timeFrom')}
+              type="time"
+              step={1800}
+              value={draft.from ?? ''}
+              onChange={(e) => patch({ from: e.target.value || null })}
+            />
+            <TextField
+              label={t('search.timeTo')}
+              type="time"
+              step={1800}
+              value={draft.to ?? ''}
+              error={errors.time ? t('search.timeInvalid') : undefined}
+              onChange={(e) => patch({ to: e.target.value || null })}
+            />
           </div>
           <p className={styles.hint}>{t('search.timeHint')}</p>
+        </div>
 
-          <label className={styles.check}>
-            <input type="checkbox" checked={draft.available} onChange={(e) => patch({ available: e.target.checked })} />
-            <span>{t('search.availableOnly')}</span>
-          </label>
-
-          {currencyOptions.length > 0 && (
-            <fieldset className={styles.prices}>
-              <legend className={styles.legend}>{t('search.price')}</legend>
+        {currencyOptions.length > 0 && (
+          <fieldset className={styles.prices}>
+            <legend className={styles.legend}>{t('search.price')}</legend>
+            <div className={styles.priceRow}>
               <Select
                 size="lg"
+                layout="stacked"
                 label={t('search.currency')}
                 value={priceCurrency ?? ''}
                 onChange={(e) => {
@@ -284,32 +411,35 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
                   setTexts((x) => ({ ...x, min: '', max: '', priceDirty: false }));
                 }}
                 options={currencyOptions.map((c) => ({ value: c, label: c }))}
-                className={styles.stacked}
+                className={styles.wide}
               />
-              <div className={styles.pair}>
-                <TextField
-                  label={t('search.minPrice')}
-                  inputMode="decimal"
-                  value={texts.min}
-                  error={errors.min || errors.range ? priceError : undefined}
-                  onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value, priceDirty: true }))}
-                />
-                <TextField
-                  label={t('search.maxPrice')}
-                  inputMode="decimal"
-                  value={texts.max}
-                  error={errors.max ? priceError : undefined}
-                  onChange={(e) => setTexts((x) => ({ ...x, max: e.target.value, priceDirty: true }))}
-                />
-              </div>
-            </fieldset>
-          )}
-        </div>
-      </details>
+              <TextField
+                label={t('search.minPrice')}
+                inputMode="decimal"
+                value={texts.min}
+                error={errors.min || errors.range ? priceError : undefined}
+                onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value, priceDirty: true }))}
+              />
+              <TextField
+                label={t('search.maxPrice')}
+                inputMode="decimal"
+                value={texts.max}
+                error={errors.max ? priceError : undefined}
+                onChange={(e) => setTexts((x) => ({ ...x, max: e.target.value, priceDirty: true }))}
+              />
+            </div>
+          </fieldset>
+        )}
 
-      <Button type="submit" variant="brand" size="lg" block>
-        {t('search.submit')}
-      </Button>
+        <label className={styles.check}>
+          <input
+            type="checkbox"
+            checked={draft.available}
+            onChange={(e) => patch({ available: e.target.checked })}
+          />
+          <span>{t('search.availableOnly')}</span>
+        </label>
+      </div>
     </form>
   );
 }

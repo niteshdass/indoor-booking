@@ -6,7 +6,7 @@ import { BookingStatusBadge, PaymentStatusBadge } from '../../bookings/BookingSt
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { TextField } from '../../components/ui/TextField';
 import { SeriesBadge } from '../../series/SeriesBadge';
@@ -104,7 +104,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
         />
       </div>
       {waitingForTurfs ? (
-        <Spinner label={t('common.loading')} />
+        <Skeleton kind="table" label={t('common.loading')} />
       ) : error ? (
         <Alert tone="danger">{t(error)}</Alert>
       ) : (
@@ -132,7 +132,7 @@ function BookingsList({ venue, filters }: { venue: OwnerVenue; filters: BookingF
       </Alert>
     );
   }
-  if (!data) return <Spinner label={t('common.loading')} />;
+  if (!data) return <Skeleton kind="table" label={t('common.loading')} />;
 
   return (
     <>

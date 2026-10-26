@@ -26,7 +26,9 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const { t } = useTranslation();
-  const cls = [styles.button, styles[variant], styles[size], block && styles.block, className].filter(Boolean).join(' ');
+  const cls = [styles.button, styles[variant], styles[size], block && styles.block, className]
+    .filter(Boolean)
+    .join(' ');
   if (to !== undefined) {
     return (
       <Link to={to} className={cls}>
@@ -35,7 +37,13 @@ export function Button({
     );
   }
   return (
-    <button type={type} className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
+    <button
+      type={type}
+      className={cls}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...rest}
+    >
       {loading && <Spinner label={t('common.loading')} />}
       {children}
     </button>

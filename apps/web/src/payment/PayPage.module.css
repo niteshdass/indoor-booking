@@ -14,12 +14,6 @@
   color: var(--text-strong);
 }
 
-.loading {
-  display: flex;
-  justify-content: center;
-  color: var(--text-muted);
-}
-
 .alert {
   display: flex;
   align-items: center;

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
@@ -25,7 +25,7 @@ export function ActiveTurfs({ venue, children }: { venue: OwnerVenue; children: 
       </Alert>
     );
   }
-  if (turfs.state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (turfs.state.status !== 'ready') return <Skeleton kind="list" label={t('common.loading')} />;
   const active = turfs.state.data.turfs.filter((x) => x.active);
   if (active.length === 0) return <p className={styles.empty}>{t('owner.walkIn.noTurfs')}</p>;
   return <>{children(active)}</>;

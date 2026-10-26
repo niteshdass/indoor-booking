@@ -5,7 +5,7 @@ import { SERIES_STATUSES, type SeriesJson, type SeriesStatus } from '@booking/sh
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Select } from '../../components/ui/Select';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -118,7 +118,7 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
     }
   };
 
-  if (load.status === 'loading') return <Spinner label={t('common.loading')} />;
+  if (load.status === 'loading') return <Skeleton kind="table" label={t('common.loading')} />;
   if (load.status === 'error') {
     return (
       <Alert tone="danger">

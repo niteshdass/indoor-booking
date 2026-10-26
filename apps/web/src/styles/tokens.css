@@ -60,19 +60,35 @@
   --schedule-now-line: 2px;
   --now-line: 2px;
   /* Closed time on the court timeline: thin 45° hatching in the strong border color */
-  --stripe-closed: repeating-linear-gradient(135deg, var(--border-strong) 0 1px, transparent 1px 7px);
+  --stripe-closed: repeating-linear-gradient(
+    135deg,
+    var(--border-strong) 0 1px,
+    transparent 1px 7px
+  );
   --court-line: 2px;
   --reply-rule: 2px;
   --qr-size: 12rem;
   --container-narrow: 28rem;
   --field-min: 10rem;
   --map-height: 32rem;
+  --demo-dot: 1.5rem; /* landing demo stepper dot */
+  --demo-rule: 2px; /* landing demo stepper connector */
+  --picker-max: 20rem;
+  --menu-min: 11rem;
+  --header-tape: 3px;
+  --result-media: 15rem; /* photo column of a search result card */
+  --result-min: 11rem; /* shortest search result card */
+  --empty-court: 7.5rem; /* court drawing in an empty result list */
   --tab-underline: 2px;
   --photo-height: 12rem;
   --photo-width: 18rem;
   --side-card-width: 20rem;
   --hero-panel-max: 40rem;
   --meter-height: 6px;
+  /* Loading skeletons: heights of a stat card, a panel (timeline, detail) and a list item */
+  --skeleton-stat: 7.5rem;
+  --skeleton-panel: 16rem;
+  --skeleton-item: 4.5rem;
   --focus-width: 2px;
   --star-size-sm: 1rem;
   --star-size-md: 1.5rem;
@@ -80,6 +96,10 @@
   --opacity-muted: 0.55;
   --duration-fast: 150ms;
   --duration-slow: 600ms;
+  --duration-pulse: 1.4s;
+  --duration-draw: 1.4s; /* landing court lines drawing in */
+  --duration-rally: 4.8s; /* one loop of the landing hero ball */
+  --stagger: 80ms; /* delay between items entering in sequence */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --blur-header: 12px;
 
@@ -97,6 +117,8 @@
   --surround: #2e6a4f;
   --ball: #d6ef3f;
   --ball-ink: #1b2400;
+  --clay: #c65a38; /* tennis clay, hero back court */
+  --wood: #c98a44; /* basketball parquet, hero back court */
   --on-night-line: rgba(245, 247, 244, 0.28);
   --on-night-hover: rgba(245, 247, 244, 0.08);
   --shadow-ball: 0 6px 14px rgba(0, 0, 0, 0.3);
@@ -108,6 +130,7 @@
   --shadow-lg: 0 24px 64px rgba(11, 20, 51, 0.18), 0 4px 16px rgba(11, 20, 51, 0.08);
 
   --bg-page: #f5f7f4;
+  --hero-bg: #e8eefa; /* landing hero band, a wash of court blue */
   --bg-surface: #ffffff;
   --bg-surface-raised: #ffffff;
   --bg-subtle: #eef1f0;
@@ -151,6 +174,7 @@
 :root[data-theme='dark'],
 [data-surface='night'] {
   --bg-page: #080f27;
+  --hero-bg: #0e1a45;
   --bg-surface: #0f1a3b;
   --bg-surface-raised: #152248;
   --bg-subtle: #172550;
@@ -189,6 +213,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --bg-page: #080f27;
+    --hero-bg: #0e1a45;
     --bg-surface: #0f1a3b;
     --bg-surface-raised: #152248;
     --bg-subtle: #172550;

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
+import { SportCourt } from '../landing/SportCourt';
 import { errorMessage } from '../lib/errors';
 import { ResultCard } from './ResultCard';
 import { SearchForm } from './SearchForm';
@@ -13,7 +15,6 @@ import styles from './SearchPage.module.css';
 
 const ResultsMap = lazy(() => import('./ResultsMap').then((m) => ({ default: m.ResultsMap })));
 
-const SKELETONS = [0, 1, 2];
 const DEFAULT_RADIUS_KM = 10;
 const LG = '(min-width: 1024px)';
 
@@ -60,100 +61,105 @@ export function SearchPage() {
     </div>
   );
 
+  const filtered = params.toString() !== '';
+
   return (
     <main className={styles.page}>
-      <h1 className={styles.title}>{t('search.title')}</h1>
-      <SearchForm value={criteria} onChange={onChange} currencies={currencies} />
+      <div className={styles.main}>
+        <div className={styles.top}>
+          <h1 className={styles.title}>{t('search.title')}</h1>
+          <SearchForm value={criteria} onChange={onChange} currencies={currencies} />
+        </div>
 
-      <section className={styles.results} aria-label={t('search.resultsLabel')} aria-busy={loading}>
-        <div className={styles.toolbar}>
-          {results.length > 0 && (
+        <section
+          className={styles.results}
+          aria-label={t('search.resultsLabel')}
+          aria-busy={loading}
+        >
+          <div className={styles.toolbar}>
             <p className={styles.count}>
-              {t(hasMore ? 'search.countMore' : 'search.count', { count: results.length })}
+              {results.length > 0 &&
+                t(hasMore ? 'search.countMore' : 'search.count', { count: results.length })}
             </p>
-          )}
-          <div className={styles.toggle} role="group" aria-label={t('search.view.label')}>
-            {(['list', 'map'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                className={styles.toggleBtn}
-                aria-pressed={view === v}
-                onClick={() => setView(v)}
-              >
-                {t(`search.view.${v}`)}
-              </button>
-            ))}
+            <div className={styles.toggle} role="group" aria-label={t('search.view.label')}>
+              {(['list', 'map'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={styles.toggleBtn}
+                  aria-pressed={view === v}
+                  onClick={() => setView(v)}
+                >
+                  {t(`search.view.${v}`)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className={styles.body}>
-          {(
+          <div className={styles.body}>
             <div className={styles.listPane} hidden={listHidden}>
-            {status === 'error' && (
-              <Alert tone="danger" className={styles.alert}>
-                <span>{errorMessage(error, t)}</span>
-                <Button size="sm" variant="secondary" onClick={retry}>
-                  {t('search.retry')}
-                </Button>
-              </Alert>
-            )}
+              {status === 'error' && (
+                <Alert tone="danger" className={styles.alert}>
+                  <span>{errorMessage(error, t)}</span>
+                  <Button size="sm" variant="secondary" onClick={retry}>
+                    {t('search.retry')}
+                  </Button>
+                </Alert>
+              )}
 
-            {results.length > 0 && (
-              <ul className={styles.grid}>
-                {results.map((r) => (
-                  <li key={r.slug} className={styles.item}>
-                    <ResultCard r={r} />
-                  </li>
-                ))}
-              </ul>
-            )}
+              {results.length > 0 && (
+                <ul className={styles.list}>
+                  {results.map((r) => (
+                    <li key={r.slug} className={styles.item}>
+                      <ResultCard r={r} />
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-            {loading && (
-              <>
-                <div className={styles.loading}>
-                  <Spinner label={t('common.loading')} />
+              {loading && <Skeleton kind="list" label={t('common.loading')} />}
+
+              {status === 'idle' && !hasMore && results.length === 0 && (
+                <div className={styles.empty}>
+                  <span className={styles.emptyArt} aria-hidden="true">
+                    <SportCourt sport="tennis" className={styles.emptyCourt} />
+                  </span>
+                  <h2 className={styles.emptyTitle}>{t('search.emptyTitle')}</h2>
+                  <p>{t('search.empty')}</p>
+                  {filtered && (
+                    <Button to="/search" variant="secondary" size="lg">
+                      {t('search.clearFilters')}
+                    </Button>
+                  )}
                 </div>
-                {results.length === 0 && (
-                  <ul className={styles.grid} aria-hidden="true">
-                    {SKELETONS.map((i) => (
-                      <li key={i} className={styles.skeleton} />
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
+              )}
 
-            {status === 'idle' && !hasMore && results.length === 0 && <p className={styles.empty}>{t('search.empty')}</p>}
-
-            {loadMoreButton}
+              {loadMoreButton}
             </div>
-          )}
-          {(
-            <div className={styles.mapPane} hidden={mapHidden}>
-              <Suspense
-                fallback={
-                  <div className={styles.loading}>
-                    <Spinner label={t('common.loading')} />
-                  </div>
-                }
-              >
-                <ResultsMap
-                  results={results}
-                  center={criteria.near}
-                  fitKey={criteriaToParams(criteria).toString()}
-                  onSearchArea={onSearchArea}
-                  onSelect={(slug) => {
-                    const r = results.find((x) => x.slug === slug);
-                    navigate(`/venues/${slug}${r ? `?date=${r.date}` : ''}`);
-                  }}
-                />
-              </Suspense>
-              {!wide && loadMoreButton}
+          </div>
+        </section>
+      </div>
+      <div className={styles.mapPane} hidden={mapHidden}>
+        <Suspense
+          fallback={
+            <div className={styles.loading}>
+              <Spinner label={t('common.loading')} />
             </div>
-          )}
-        </div>
-      </section>
+          }
+        >
+          <ResultsMap
+            results={results}
+            center={criteria.near}
+            fitKey={criteriaToParams(criteria).toString()}
+            onSearchArea={onSearchArea}
+            onSelect={(slug) => {
+              const r = results.find((x) => x.slug === slug);
+              navigate(`/venues/${slug}${r ? `?date=${r.date}` : ''}`);
+            }}
+          />
+        </Suspense>
+        {!wide && loadMoreButton}
+      </div>
     </main>
   );
 }

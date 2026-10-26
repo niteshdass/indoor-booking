@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { SearchResult } from '@booking/shared';
 import { Button } from '../components/ui/Button';
-import { money } from '../lib/format';
+import { moneyShort } from '../lib/format';
 import styles from './ResultsMap.module.css';
 
 export type LatLng = { lat: number; lng: number };
@@ -25,7 +25,7 @@ const AT_CENTER = 0.0001; // degrees
 
 /** Pin text: the price when there is one, else the venue name. */
 export function pinLabel(r: SearchResult, lang: string): string {
-  return r.fromPrice === null ? r.name : money(r.fromPrice, r.currency, lang);
+  return r.fromPrice === null ? r.name : moneyShort(r.fromPrice, r.currency, lang);
 }
 
 /** Pin element built with the DOM: the text may come from a venue owner and is never parsed as HTML. */
@@ -65,17 +65,31 @@ export type ViewState = {
  * What the map should do with its view: 'fit' the results, 'center' on the search centre (empty result set of a
  * new search), 'mark' the key as handled without moving, or leave it ('none').
  */
+/** Before any result or location: Dhaka, the first market (PRODUCT.md), rather than the whole world. */
+const START = { center: [23.78, 90.4] as [number, number], zoom: 11 };
+
 export function viewAction(v: ViewState): 'fit' | 'center' | 'mark' | 'none' {
   if (shouldFit(v.fittedKey, v.key, v.count)) return 'fit';
-  if (v.count === 0 && v.hasCenter && v.centeredKey !== v.key) return v.atCenter ? 'mark' : 'center';
+  if (v.count === 0 && v.hasCenter && v.centeredKey !== v.key)
+    return v.atCenter ? 'mark' : 'center';
   return 'none';
 }
 
 export function makePinIcon(r: SearchResult, lang: string): L.DivIcon {
-  return L.divIcon({ className: styles.pinWrap, html: buildPin(pinLabel(r, lang), styles.pin!), iconSize: [0, 0] });
+  return L.divIcon({
+    className: styles.pinWrap,
+    html: buildPin(pinLabel(r, lang), styles.pin!),
+    iconSize: [0, 0],
+  });
 }
 
-export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '' }: ResultsMapProps) {
+export function ResultsMap({
+  results,
+  center,
+  onSearchArea,
+  onSelect,
+  fitKey = '',
+}: ResultsMapProps) {
   const { t, i18n } = useTranslation();
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -99,7 +113,7 @@ export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '
   useEffect(() => {
     const el = host.current;
     if (!el) return;
-    const m = L.map(el, { worldCopyJump: true }).setView([0, 0], 1);
+    const m = L.map(el, { worldCopyJump: true }).setView(START.center, START.zoom);
     L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
@@ -108,7 +122,8 @@ export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '
         ? null
         : new ResizeObserver(() => {
             m.invalidateSize();
-            if (pendingFit.current && m.getSize().x > 0 && m.getSize().y > 0) fit(m, pendingFit.current);
+            if (pendingFit.current && m.getSize().x > 0 && m.getSize().y > 0)
+              fit(m, pendingFit.current);
           });
     ro?.observe(el);
     return () => {
@@ -128,8 +143,19 @@ export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '
     for (const r of results) {
       const pos: L.LatLngTuple = [r.location.lat, r.location.lng];
       points.push(pos);
-      const marker = L.marker(pos, { keyboard: true, title: r.name, alt: r.name, icon: makePinIcon(r, i18n.language) });
-      const aria = r.fromPrice === null ? r.name : t('search.pinAria', { name: r.name, price: money(r.fromPrice, r.currency, i18n.language) });
+      const marker = L.marker(pos, {
+        keyboard: true,
+        title: r.name,
+        alt: r.name,
+        icon: makePinIcon(r, i18n.language),
+      });
+      const aria =
+        r.fromPrice === null
+          ? r.name
+          : t('search.pinAria', {
+              name: r.name,
+              price: moneyShort(r.fromPrice, r.currency, i18n.language),
+            });
       marker.on('add', () => marker.getElement()?.setAttribute('aria-label', aria));
       marker.on('click', () => handlers.current.onSelect(r.slug));
       marker.addTo(group);
@@ -140,7 +166,10 @@ export function ResultsMap({ results, center, onSearchArea, onSelect, fitKey = '
       key: fitKey,
       count: results.length,
       hasCenter: center !== null,
-      atCenter: center !== null && Math.abs(m.getCenter().lat - center.lat) < AT_CENTER && Math.abs(m.getCenter().lng - center.lng) < AT_CENTER,
+      atCenter:
+        center !== null &&
+        Math.abs(m.getCenter().lat - center.lat) < AT_CENTER &&
+        Math.abs(m.getCenter().lng - center.lng) < AT_CENTER,
     });
     if (action === 'fit') {
       fit(m, L.latLngBounds(points));

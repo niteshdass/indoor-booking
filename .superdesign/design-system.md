@@ -21,10 +21,10 @@ Idea: the look of a sports court. Hard-court blue, chalk lines, a little ball-ye
 
 ### Principles
 - **Court lines are the signature.** 2px chalk or primary strokes, top-down court drawings (padel, futsal, tennis, badminton, basketball, volleyball) as the illustration system. No stock photos or gradient blobs.
-- **Spend boldness once per screen.** Landing: the hero court panel. Portal: the live court timeline. Everything around it is quiet: neutral surfaces, 1px borders, status color only where status lives.
+- **Spend boldness once per screen.** Landing: the hero, a `--hero-bg` tinted band where the padel panel sits on a fan of clay and parquet courts (one screen, every sport). Portal: the live court timeline. Everything around it is quiet: neutral surfaces, 1px borders, status color only where status lives.
 - **Ball yellow is scarce.** Only the main CTA on dark (night) surfaces and the ball in the hero. Never body text, never on light backgrounds.
 - **Owner brand color** (`--brand`) still only on public venue pages (CTA, active tab, selected slot). Never in portal chrome or on the marketing site.
-- **One motion moment.** Landing hero: court lines draw in, the slot card rises, 19:00 gets picked, then "Booked" appears (about 3s, once). No scroll-triggered fades elsewhere. `prefers-reduced-motion` shows the end state.
+- **Motion lives on the landing, tied to the court.** Hero: court lines draw in and the slot card rises, then the card loops the booking story in four numbered steps (Find: a mini search bar types "Padel / Today" and a court turns up; Pick: 19:00 gets tapped; Book: summary and the Book button press; Done: the confirmation tick draws), about 10s a lap and only while on screen. The ball keeps a slow cross-court rally. These are the only two loops. Sport tiles re-chalk their court lines on hover or focus. The owners timeline fills its bookings in sequence when it scrolls into view. No generic fade-up on sections, nothing in the portal. `prefers-reduced-motion` shows end states (the card holds on Done) and a still ball.
 - **Russian fits.** Strings run 20–30% longer: no fixed-width buttons, tabs or nav items; headlines use `text-wrap: balance`; KPI numbers `nowrap` and shrink with `clamp`.
 - Avoid: all-caps eyebrow labels, "→" in buttons, numbered markers on things that are not a sequence (the "how it works" steps are a real sequence, so they are numbered), identical card grids for every section.
 
@@ -37,6 +37,8 @@ Idea: the look of a sports court. Hard-court blue, chalk lines, a little ball-ye
 | chalk | #f5f7f4 | light page bg, lines on blue |
 | surround | #2e6a4f | court surround in the hero only |
 | ball | #d6ef3f (text #1b2400) | CTA on night/blue, hero ball |
+| clay | #c65a38 | hero back court (tennis clay) only |
+| wood | #c98a44 | hero back court (parquet) only |
 
 ### Themed tokens
 | Token | Light | Dark |
@@ -79,6 +81,8 @@ Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set,
 Container width token: `--container-narrow` 28rem (auth/form cards; not themed).
 Field minimum width token: `--field-min` 10rem (smallest width of a paired form field before it wraps; not themed).
 Map height token: `--map-height` 32rem (results map; same in light and dark).
+Demo stepper tokens: `--demo-dot` 1.5rem (step dot), `--demo-rule` 2px (connector).
+Picker height token: `--picker-max` 20rem (tallest a select dropdown grows before it scrolls).
 Tab underline token: `--tab-underline` 2px (active turf tab underline on the venue page, drawn with `--brand`; not themed).
 Portal layout tokens (not themed): `--sidebar-width` 15rem (owner portal sidebar), `--table-row` 3.25rem (52px table row).
 Schedule tokens (not themed): `--schedule-row` 1.5rem (one 15-minute row), `--schedule-col-min` 9rem (narrowest turf column), `--schedule-time-col` 3.5rem (time label column).
@@ -93,15 +97,17 @@ Night surfaces: any element with `data-surface="night"` takes the dark token val
 - `--bg-header`: translucent page color behind sticky headers; `--blur-header` 12px backdrop blur. Header height `--header-height` 4rem (public), `--topbar-height` 3.5rem (portal).
 - `--on-night-line` / `--on-night-hover`: borders and hover fills on night and court-blue surfaces.
 - `--shadow-ball` (ball CTA lift) and `--shadow-night` (portal preview on night). Button variant `ball` = `--ball` bg + `--ball-ink` text; only on night or court-blue surfaces.
+- `--hero-bg`: hero band tint, #e8eefa light, #0e1a45 dark. Behind the panel two back courts (`--clay`, `--wood`) with chalk lines fan out to about ±6° at lg (±5° below) and fan open once on load; reduced motion skips it.
 - `--hero-panel-max`: widest the hero court panel grows. `--meter-height`: thin usage meter bar.
 - Court timeline (not themed): `--timeline-label` 7rem (court name column), `--timeline-lane` 3rem (lane height), `--timeline-min` 56rem (width below which it scrolls sideways), `--now-line` 2px.
 - `--stripe-closed`: 45° hairline stripes in `--border-strong` for closed time on the court timeline (outside hours, blocked slots, closed days), shown at `--opacity-muted`.
-- Motion: `--duration-slow` 600ms with `--ease-out` for the hero sequence only.
+- Motion: `--duration-slow` 600ms with `--ease-out` for landing entrances; `--duration-draw` 1.4s (court lines drawing in, tile re-chalk), `--duration-rally` 4.8s (one ball rally loop), `--stagger` 80ms (gap between timeline bookings filling in).
+- Loading: page and section loads show `Skeleton` (`dashboard`, `table`, `detail`, `list` shapes; `role="status"` with a label) in `--bg-subtle`, pulsing to `--opacity-muted` over `--duration-pulse` 1.4s (off under reduced motion). Heights: `--skeleton-stat` 7.5rem, `--skeleton-panel` 16rem, `--skeleton-item` 4.5rem. Spinner stays for buttons, dialogs and small inline waits.
 
 Breakpoints (mobile-first `min-width`): sm 640 · md 768 · lg 1024 · xl 1280.
 
 ### Marketing landing (`/`, logged out)
-Order: sticky blurred header (logo mark = court square, nav: Find a court · How it works · For venues · Find my booking, language, theme, Sign in) → hero (left: display headline, lede, 3-field search bar Sport / Date / From + "Show free courts", note on guest booking; right: court panel with animated slot card) → "Pick your game" sport tiles with court drawings (6 across at xl, 3 at md, 2 on phone) → "From search to serve" 3 numbered steps on a surface band → player features as a 2-column ruled list (icon tile + title + one line) → owners section on night: copy, ball-yellow checks, "List your venue" (ball) + "Talk to us" (outline), portal preview (KPIs + mini court timeline) → FAQ with `<details>` → court-blue closing band → 4-column footer.
+Order: sticky blurred header (court-colour tape along the top edge, `--header-tape` 3px: court-blue, surround, clay, wood, ball; logo mark = court square; pill nav links, active on `--primary-soft`; right edge: language as globe + code and theme as sun/moon/monitor icon pills that open a radio menu (`--menu-min` 11rem), then Sign in (brand pill) or, signed in, a court-blue initials disc with a ball ring linking to Profile; below 480px only the mark shows and nav drops to a second row) → hero (left: display headline, lede, 3-field search bar Sport / Date / From + "Show free courts", note on guest booking; right: court panel with animated slot card) → "Pick your game" sport tiles with court drawings (6 across at xl, 3 at md, 2 on phone) → "From search to serve" 3 numbered steps on a surface band → player features as a 2-column ruled list (icon tile + title + one line) → owners section on night: copy, ball-yellow checks, "List your venue" (ball) + "Talk to us" (outline), portal preview (KPIs + mini court timeline) → FAQ with `<details>` → court-blue closing band → 4-column footer.
 Left-aligned throughout; only the steps and sport tiles use grids. The search bar submits to the existing search results page.
 
 ### Owner portal shell
@@ -111,14 +117,17 @@ Left-aligned throughout; only the steps and sport tiles use grids. The search ba
 - Page head: Unbounded h1 28px + one muted line of context; secondary action on the right.
 
 ### Today page
-KPI row (one row at xl, 2 columns at md, 1 on phone): Bookings (hint: count on the same weekday last week), Revenue, Courts used (percent + `{booked} of {open} open hours` + meter; only when court slot data loads), Pending (StatCard `tone="warning"`: warning border and number when above 0). StatCard props: `tone?: 'warning'`, `meter?: 0–1`. → Courts timeline card, full width: court label column (name + surface), lanes with hour grid lines, booking blocks = status soft bg + 3px status left bar, closed = 45° stripes, now line in danger with a time tag on the first lane; scrolls sideways below 56rem. → "Needs your attention" list, full width (left status bar: info = weekly request, warning = unpaid hold still running, danger = 1–2 star review without a reply; each row has an "Open" link; the section is left out when empty) → "Coming up" table. Every extra (last week, courts, requests, reviews) fails quietly: Today still shows its bookings.
+KPI row (one row at xl, 2 columns at md, 1 on phone): Bookings (hint: count on the same weekday last week), Revenue, Courts used (percent + `{booked} of {open} open hours` + meter; only when court slot data loads), Pending (StatCard `tone="warning"`: warning border and number when above 0). StatCard props: `tone?: 'warning'`, `meter?: 0–1`. → Courts timeline card, full width: court label column (name + surface), lanes with hour grid lines, booking blocks = status soft bg + 3px status left bar, closed = 45° stripes, now line in danger with a time tag on the first lane; scrolls sideways below 56rem. → "Needs your attention" list, full width (leading icon tile in the status soft color, no side stripes: info = weekly request, warning = unpaid hold still running, danger = 1–2 star review without a reply; each row has an "Open" link; the section is left out when empty) → "Coming up" table. Every extra (last week, courts, requests, reviews) fails quietly: Today still shows its bookings.
+
+### Search page (`/search`)
+Title "Find a court" in the display font. The search bar is the landing hero pill (Sport, Date, brand Search button; stacks below sm). Under it a row of pill chips: location (turns `--primary-soft` with a clear button once set), Distance and Sort as labelled pill selects, and "More filters" with a count of active filters; it toggles an inline surface panel (indoor, time range, price, free slots only), never a modal. Results are horizontal cards from sm: media column `--result-media` 15rem (min height `--result-min` 11rem; a 5:2 band on phones), venue photo or the venue's first sport drawn as a court in chalk on `--court-blue` over `--surround`; name in the display font with the rating, meta, sports, then next free slot in success-soft and the "from" price. The empty state is a tennis court drawing (`--empty-court` 7.5rem) with a "Clear filters" action. At lg the page is two columns (list 1.15fr, map 1fr) with the map sticky under the header and filling the viewport height; it opens on Dhaka.
 
 ## Results map
 Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inverted in dark mode; the map frame, pins and the "Search this area" button use surface, border and primary tokens. Pins are DOM-built (venue names are untrusted text), keyboard-focusable, and labelled with the venue name and price. Below lg a List/Map segmented toggle (`aria-pressed`) shows one at a time; at lg and up list and map sit side by side with the map sticky.
 
 ## Components
 - Buttons: primary (solid), secondary (outline, surface bg), ghost, danger; sizes sm/md/lg; icon-only square. Label weight 500. On public pages the main CTA (Book, Pay) uses `--brand` with `--brand-fg`. Ghost buttons are for row actions in tables; a remove action standing alone inside a form (remove rule, remove photo) is secondary so it reads as a button.
-- Inputs/selects: 36px, 1px border, label above (13px/500), helper 12px muted, error 12px danger. Selects in toolbars, filters and switchers may put a muted label beside the control (`layout="inline"`); selects inside forms keep the label above (`layout="stacked"`) so they line up with text fields. Phone input has a country prefix; OTP input is 6 single-digit boxes.
+- Inputs/selects: 36px, 1px border, label above (13px/500), helper 12px muted, error 12px danger. Selects in toolbars, filters and switchers may put a muted label beside the control (`layout="inline"`); selects inside forms keep the label above (`layout="stacked"`) so they line up with text fields. Every select drops the native arrow for one muted chevron (same in all browsers); focus lights the whole field or chip, never a ring inside it. Options open as a dropdown under the control (customizable select, `appearance: base-select`): at least as wide as the control, surface background, default border, `radius-md`, `shadow-md`, short fade and slide in. Rows are `control-md` tall with hover `bg-hover`; the chosen row is primary, medium weight, with a check at the end. Browsers without base-select fall back to the native picker. Phone input has a country prefix; OTP input is 6 single-digit boxes.
 - Badges: pill, 12px/500, soft bg + fg from status colors; neutral badge uses subtle bg + muted text.
   - Booking status: confirmed = success, pending payment = warning, cancelled = danger, completed = neutral, refunded = info.
   - Member status: active = success, invited = info, disabled = neutral.

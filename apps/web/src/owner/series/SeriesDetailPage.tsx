@@ -5,7 +5,7 @@ import type { BookingStatus, SeriesGameJson, SeriesJson } from '@booking/shared'
 import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -71,7 +71,7 @@ export function SeriesDetailPage() {
       </div>
     );
   }
-  if (!series) return <Spinner label={t('common.loading')} />;
+  if (!series) return <Skeleton kind="detail" label={t('common.loading')} />;
 
   const venue = venues.find((v) => v.id === series.venueId);
   const tz = venue?.timezone ?? 'UTC';

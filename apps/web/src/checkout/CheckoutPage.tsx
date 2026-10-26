@@ -6,6 +6,7 @@ import { useAuth } from '../auth/useAuth';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
@@ -173,9 +174,7 @@ export function CheckoutPage() {
   if (venueState.status === 'loading') {
     return (
       <main className={styles.page}>
-        <div className={styles.loading}>
-          <Spinner label={t('common.loading')} />
-        </div>
+        <Skeleton kind="detail" label={t('common.loading')} />
       </main>
     );
   }

@@ -13,27 +13,36 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+async function pickTheme(user: ReturnType<typeof renderApp>['user'], name: string) {
+  await user.click(screen.getByRole('button', { name: en.theme.label }));
+  await user.click(screen.getByRole('menuitemradio', { name }));
+}
+
 describe('theme', () => {
   it('dark sets data-theme', async () => {
     const { user } = renderApp('/');
-    await user.selectOptions(screen.getByLabelText(en.theme.label), en.theme.dark);
+    await pickTheme(user, en.theme.dark);
     expect(document.documentElement.dataset.theme).toBe('dark');
     expect(localStorage.getItem('theme')).toBe('dark');
   });
 
   it('system removes data-theme', async () => {
     const { user } = renderApp('/');
-    await user.selectOptions(screen.getByLabelText(en.theme.label), en.theme.light);
+    await pickTheme(user, en.theme.light);
     expect(document.documentElement.dataset.theme).toBe('light');
-    await user.selectOptions(screen.getByLabelText(en.theme.label), en.theme.system);
+    await pickTheme(user, en.theme.system);
     expect(document.documentElement.dataset.theme).toBeUndefined();
     expect(localStorage.getItem('theme')).toBe('system');
   });
 
-  it('stored theme applies on mount', () => {
+  it('stored theme applies on mount', async () => {
     localStorage.setItem('theme', 'dark');
-    renderApp('/');
+    const { user } = renderApp('/');
     expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(screen.getByLabelText(en.theme.label)).toHaveValue('dark');
+    await user.click(screen.getByRole('button', { name: en.theme.label }));
+    expect(screen.getByRole('menuitemradio', { name: en.theme.dark })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
   });
 });

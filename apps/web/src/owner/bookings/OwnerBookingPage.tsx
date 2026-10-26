@@ -7,7 +7,7 @@ import { BookingStatusBadge, PaymentStatusBadge } from '../../bookings/BookingSt
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { SeriesBadge } from '../../series/SeriesBadge';
 import { ApiError } from '../../lib/apiClient';
@@ -92,7 +92,7 @@ export function OwnerBookingPage() {
       </div>
     );
   }
-  if (!data) return <Spinner label={t('common.loading')} />;
+  if (!data) return <Skeleton kind="detail" label={t('common.loading')} />;
 
   const { booking: b, payments, refunds } = data;
   const venue = venues.find((v) => v.id === b.venueId);

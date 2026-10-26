@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
@@ -125,9 +126,7 @@ export function BookingDetailPage() {
     <main className={styles.page}>
       <h1 ref={headingRef} tabIndex={-1} className={[styles.title, isNew || received ? styles.success : ''].filter(Boolean).join(' ')}>{heading}</h1>
       {state.status === 'loading' && (
-        <div className={styles.loading}>
-          <Spinner label={t('common.loading')} />
-        </div>
+        <Skeleton kind="detail" label={t('common.loading')} />
       )}
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>

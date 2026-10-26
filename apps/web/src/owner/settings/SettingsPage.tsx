@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { OwnerSettings } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { apiPatch } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
@@ -21,7 +21,7 @@ export function SettingsPage() {
   const res = useResource<{ settings: OwnerSettings }>(path);
 
   if (res.state.status === 'error') return <Alert tone="danger">{errorMessage(res.state.error, t)}</Alert>;
-  if (res.state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (res.state.status !== 'ready') return <Skeleton kind="detail" label={t('common.loading')} />;
   const settings = res.state.data.settings;
 
   const save = async (patch: Record<string, unknown>) => {

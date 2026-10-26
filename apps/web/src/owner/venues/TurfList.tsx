@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Select } from '../../components/ui/Select';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { TextField } from '../../components/ui/TextField';
 import { apiPost } from '../../lib/apiClient';
@@ -39,7 +39,7 @@ export function TurfList({ venue }: { venue: OwnerVenue }) {
       </Alert>
     );
   }
-  if (state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (state.status !== 'ready') return <Skeleton kind="list" label={t('common.loading')} />;
   const turfs = state.data.turfs;
 
   return (

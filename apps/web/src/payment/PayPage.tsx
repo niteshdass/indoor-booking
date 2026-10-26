@@ -5,7 +5,7 @@ import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
-import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
@@ -190,9 +190,7 @@ export function PayPage() {
     <main className={styles.page}>
       <h1 className={styles.title}>{t('payment.title')}</h1>
       {state.status === 'loading' && (
-        <div className={styles.loading}>
-          <Spinner label={t('common.loading')} />
-        </div>
+        <Skeleton kind="detail" label={t('common.loading')} />
       )}
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>

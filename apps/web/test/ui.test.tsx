@@ -32,8 +32,8 @@ describe('ui', () => {
         <Select label="Role" layout="stacked" options={opts} />
       </>,
     );
-    expect(screen.getByLabelText('Filter').parentElement!.className).not.toMatch(/stacked/);
-    expect(screen.getByLabelText('Role').parentElement!.className).toMatch(/stacked/);
+    expect(screen.getByLabelText('Filter').closest('div')!.className).not.toMatch(/stacked/);
+    expect(screen.getByLabelText('Role').closest('div')!.className).toMatch(/stacked/);
   });
 
   it('button with `to` renders a brand-styled router link', () => {

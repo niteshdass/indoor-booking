@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiDelete } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -51,7 +51,7 @@ export function AddonsPage() {
           </Button>
         </Alert>
       )}
-      {(state.status === 'loading' || state.status === 'idle') && <Spinner label={t('common.loading')} />}
+      {(state.status === 'loading' || state.status === 'idle') && <Skeleton kind="table" label={t('common.loading')} />}
       {state.status === 'ready' &&
         (state.data.addons.length === 0 ? (
           <p className={styles.muted}>{t('owner.addons.empty')}</p>

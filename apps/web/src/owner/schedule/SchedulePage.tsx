@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { Spinner } from '../../components/ui/Spinner';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { DateStrip } from '../../venue/DateStrip';
@@ -94,7 +94,7 @@ function ScheduleVenue({ venue }: { venue: OwnerVenue }) {
       </Alert>
     );
   } else if (state.status === 'loading' || !layout) {
-    body = <Spinner label={t('common.loading')} />;
+    body = <Skeleton kind="detail" label={t('common.loading')} />;
   } else if (state.data.turfs.length === 0) {
     body = <p className={styles.empty}>{t('owner.schedule.noTurfs')}</p>;
   } else {

@@ -10,7 +10,7 @@ import { OwnerProvider } from '../../src/owner/OwnerProvider';
 import { useVenueParam } from '../../src/owner/shell/useVenueParam';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
-import { OWNER_ID, ownerMembership, ownerRoutes, staffUser, venue } from './fixtures';
+import { OWNER_ID, ownerMembership, ownerRoutes, seriesJson, staffUser, venue } from './fixtures';
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
@@ -46,6 +46,39 @@ describe('owner nav', () => {
     const active = await screen.findByRole('link', { name: en.owner.nav.bookings });
     expect(active).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: en.owner.nav.today })).not.toHaveAttribute('aria-current');
+  });
+});
+
+describe('top bar and nav counts', () => {
+  it('series nav shows how many weekly requests wait for a reply', async () => {
+    mockApi([
+      ...ownerRoutes({ permissions: ['booking.view'] }),
+      { path: '/owners/o1/series', body: { series: [seriesJson({ id: 's1', status: 'requested' }), seriesJson({ id: 's2', status: 'requested' })], nextBefore: null } },
+    ]);
+    renderApp(`/owner/${OWNER_ID}/bookings`, { user: staffUser });
+    const link = await screen.findByRole('link', { name: /2 requests waiting/ });
+    expect(link).toHaveAttribute('href', `/owner/${OWNER_ID}/series`);
+  });
+
+  it('New walk-in keeps the picked venue and hides without booking.create or on the walk-in page', async () => {
+    mockApi(ownerRoutes({ permissions: ['booking.view', 'booking.create'] }));
+    const first = renderApp(`/owner/${OWNER_ID}/bookings?venue=v1`, { user: staffUser });
+    expect(await screen.findByRole('link', { name: en.owner.shell.newWalkIn })).toHaveAttribute(
+      'href',
+      `/owner/${OWNER_ID}/walk-in?venue=v1`,
+    );
+    first.unmount();
+
+    renderApp(`/owner/${OWNER_ID}/walk-in`, { user: staffUser });
+    await screen.findByRole('navigation', { name: en.owner.nav.label });
+    expect(screen.queryByRole('link', { name: en.owner.shell.newWalkIn })).toBeNull();
+  });
+
+  it('New walk-in is not offered to members who cannot create bookings', async () => {
+    mockApi(ownerRoutes({ permissions: ['booking.view'] }));
+    renderApp(`/owner/${OWNER_ID}/bookings`, { user: staffUser });
+    await screen.findByRole('navigation', { name: en.owner.nav.label });
+    expect(screen.queryByRole('link', { name: en.owner.shell.newWalkIn })).toBeNull();
   });
 });
 

@@ -17,7 +17,9 @@ import { VenueSelect } from '../shell/VenueSelect';
 import type { OwnerBooking, OwnerVenue } from '../types';
 import { useResource } from '../useResource';
 import { summarize } from './summarize';
-import { CourtTimeline } from './CourtTimeline';
+import { Attention } from './Attention';
+import { CourtTimeline, courtUsage } from './CourtTimeline';
+import { useTodayExtras } from './useTodayExtras';
 import styles from './TodayPage.module.css';
 
 /** Owner landing page: today's totals for one venue and the queue of bookings still to come. */
@@ -55,6 +57,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { state, reload } = useResource<{ bookings: OwnerBooking[] }>(
     ownerPath(ownerId, `/bookings?venueId=${encodeURIComponent(venue.id)}`),
   );
+  const extras = useTodayExtras(venue);
 
   if (state.status === 'error') {
     return (
@@ -68,19 +71,35 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   }
   if (state.status !== 'ready') return <Spinner label={t('common.loading')} />;
 
-  const { count, collected, pending, upcoming } = summarize(state.data.bookings);
+  const { bookings } = state.data;
+  const { count, collected, pending, upcoming } = summarize(bookings);
+  const usage = courtUsage(bookings, extras.courts, venue.timezone);
+  const hoursFmt = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
   return (
     <>
       <div className={styles.stats}>
-        <StatCard label={t('owner.today.bookings')} value={String(count)} />
+        <StatCard
+          label={t('owner.today.bookings')}
+          value={String(count)}
+          hint={extras.lastWeek ? t('owner.today.lastWeek', { n: summarize(extras.lastWeek).count }) : undefined}
+        />
         <StatCard
           label={t('owner.today.collected')}
           value={money(collected, venue.currency, lang)}
           hint={t('owner.today.collectedHint')}
         />
-        <StatCard label={t('owner.today.pending')} value={String(pending)} />
+        {usage && (
+          <StatCard
+            label={t('owner.today.courtsUsed')}
+            value={new Intl.NumberFormat(lang, { style: 'percent' }).format(usage.booked / usage.open)}
+            meter={usage.booked / usage.open}
+            hint={t('owner.today.courtsUsedHint', { booked: hoursFmt.format(usage.booked), open: hoursFmt.format(usage.open) })}
+          />
+        )}
+        <StatCard label={t('owner.today.pending')} value={String(pending)} tone={pending > 0 ? 'warning' : undefined} />
       </div>
-      <CourtTimeline bookings={state.data.bookings} timezone={venue.timezone} />
+      <CourtTimeline bookings={bookings} timezone={venue.timezone} courts={extras.courts} />
+      <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
       <h2 className={styles.heading}>{t('owner.today.upcoming')}</h2>
       {upcoming.length === 0 ? (
         <p className={styles.empty}>{t('owner.today.none')}</p>

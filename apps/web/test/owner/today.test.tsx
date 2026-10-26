@@ -6,7 +6,7 @@ import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { summarize } from '../../src/owner/today/summarize';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
-import { OWNER_ID, ownerBooking, ownerRoutes, staffUser } from './fixtures';
+import { OWNER_ID, ownerBooking, ownerReview, ownerRoutes, seriesJson, slotDay, staffUser, turf } from './fixtures';
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
@@ -154,6 +154,61 @@ describe('Today page', () => {
     ]);
     const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
     await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.confirm }));
-    await waitFor(() => expect(api.calls.filter((c) => c.method === 'GET' && c.path === '/owners/o1/bookings')).toHaveLength(2));
+    // Today's list (no date range) loads again; the same-day-last-week call carries from/to.
+    const todayLoads = () => api.calls.filter((c) => c.method === 'GET' && c.path === '/owners/o1/bookings' && !c.query.has('from'));
+    await waitFor(() => expect(todayLoads()).toHaveLength(2));
+  });
+
+  it('Today adds last week, court usage and the things that need attention', async () => {
+    mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'review.manage'] }),
+      {
+        path: '/owners/o1/bookings',
+        body: (c: { query: URLSearchParams }) =>
+          c.query.has('from')
+            ? { bookings: [ownerBooking({ id: 'x', status: 'confirmed' }), ownerBooking({ id: 'y', status: 'confirmed' })] }
+            : {
+                bookings: [
+                  ownerBooking({ id: 'a', status: 'pending' }),
+                  ownerBooking({
+                    id: 'h',
+                    status: 'awaiting_payment',
+                    holdExpiresAt: '2026-10-26T03:20:00.000Z',
+                    customer: { name: 'Hana Hold', phone: null, email: null },
+                  }),
+                ],
+              },
+      },
+      { path: '/owners/o1/venues/v1/turfs', body: { turfs: [turf()] } },
+      { path: '/owners/o1/venues/v1/turfs/t1/slots', body: { day: slotDay() } },
+      {
+        path: '/owners/o1/series',
+        body: { series: [seriesJson({ id: 's9', status: 'requested', guest: { name: 'Rafi Request', phone: '+8801700000000' } })], nextBefore: null },
+      },
+      { path: '/owners/o1/reviews', body: { reviews: [ownerReview({ id: 'r2', stars: 1, comment: 'Lights broken' }), ownerReview()] } },
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+
+    expect(await screen.findByText('Same day last week: 2')).toBeTruthy();
+    const used = (await screen.findByText(en.owner.today.courtsUsed)).closest('div')!;
+    expect(used.textContent).toContain('100%'); // two 1h bookings on the one open hour, capped at open
+    const attention = await screen.findByRole('region', { name: en.owner.today.attention });
+    const links = within(attention).getAllByRole('link').map((a) => a.getAttribute('href'));
+    expect(links).toEqual([
+      `/owner/${OWNER_ID}/series/s9`,
+      `/owner/${OWNER_ID}/bookings/h`,
+      `/owner/${OWNER_ID}/reviews?venue=v1&stars=1`,
+    ]);
+    expect(within(attention).getByText('Rafi Request asked for a weekly booking')).toBeTruthy();
+    expect(within(attention).getByText('Lights broken')).toBeTruthy();
+  });
+
+  it('Today leaves the extras out when they fail to load', async () => {
+    mockApi([...ownerRoutes(), { path: '/owners/o1/bookings', body: (c: { query: URLSearchParams }) => (c.query.has('from') ? { status: 500, body: {} } : { bookings: [] }) }]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByText(en.owner.today.collected);
+    expect(screen.queryByText(en.owner.today.courtsUsed)).toBeNull();
+    expect(screen.queryByRole('region', { name: en.owner.today.attention })).toBeNull();
+    expect(screen.queryByText(/Same day last week/)).toBeNull();
   });
 });

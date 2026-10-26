@@ -59,6 +59,8 @@
   --status-bar: 3px;
   --schedule-now-line: 2px;
   --now-line: 2px;
+  /* Closed time on the court timeline: thin 45° hatching in the strong border color */
+  --stripe-closed: repeating-linear-gradient(135deg, var(--border-strong) 0 1px, transparent 1px 7px);
   --court-line: 2px;
   --reply-rule: 2px;
   --qr-size: 12rem;

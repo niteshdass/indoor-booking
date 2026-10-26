@@ -37,3 +37,27 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+.warning {
+  border-color: var(--warning);
+}
+
+.warning .value {
+  color: var(--warning);
+}
+
+.meter {
+  display: block;
+  height: var(--meter-height);
+  margin-block: var(--space-1);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildLanes } from '../../src/owner/today/CourtTimeline';
-import { ownerBooking } from './fixtures';
+import { buildLanes, courtUsage } from '../../src/owner/today/CourtTimeline';
+import type { OwnerSlot } from '../../src/owner/types';
+import { ownerBooking, slotDay, turf } from './fixtures';
 
 const TZ = 'Asia/Dhaka'; // UTC+6
 
@@ -34,5 +35,63 @@ describe('buildLanes', () => {
     expect(from).toBe(5);
     expect(to).toBe(24);
     expect(lanes[0]!.blocks.find((b) => b.id === 'late')).toMatchObject({ start: 23, end: 24 });
+  });
+});
+
+/** One-hour slots in venue time, e.g. hourSlots(9, 12) -> 09:00, 10:00, 11:00. */
+const hourSlots = (from: number, to: number, blocked: number[] = []): OwnerSlot[] =>
+  Array.from({ length: to - from }, (_, i) => {
+    const h = from + i;
+    const hm = (x: number) => `${String(x % 24).padStart(2, '0')}:00`;
+    return {
+      startAt: `2026-10-26T${String(h - 6).padStart(2, '0')}:00:00.000Z`,
+      endAt: `2026-10-26T${String(h - 5).padStart(2, '0')}:00:00.000Z`,
+      localStart: hm(h),
+      localEnd: hm(h + 1),
+      price: 1000,
+      status: blocked.includes(h) ? 'blocked' : 'available',
+      source: 'hours',
+    };
+  });
+
+describe('buildLanes with court data', () => {
+  const courts = {
+    turfs: [turf({ id: 't1', name: 'Court A' }), turf({ id: 't2', name: 'Court B' }), turf({ id: 't3', name: 'Court C' })],
+    days: {
+      t1: slotDay({ slots: hourSlots(9, 22, [15]) }),
+      t2: slotDay({ slots: hourSlots(7, 23) }),
+      t3: slotDay({ closed: true, closedReason: 'Repairs', slots: [] }),
+    },
+  };
+
+  it('gives every court a lane, widens the axis to opening hours and marks closed time', () => {
+    const { lanes, from, to } = buildLanes([ownerBooking({ status: 'confirmed' })], TZ, courts);
+    expect(lanes.map((l) => [l.name, l.blocks.length])).toEqual([
+      ['Court A', 1],
+      ['Court B', 0],
+      ['Court C', 0],
+    ]);
+    expect([from, to]).toEqual([7, 23]);
+    expect(lanes[0]!.closed).toEqual([
+      [7, 9],
+      [15, 16],
+      [22, 23],
+    ]);
+    expect(lanes[1]!.closed).toEqual([]);
+    expect(lanes[2]!.closed).toEqual([[7, 23]]);
+  });
+
+  it('courtUsage counts live booked hours against open, unblocked hours', () => {
+    const usage = courtUsage(
+      [
+        ownerBooking({ id: 'a', status: 'confirmed' }), // 1h on t1
+        ownerBooking({ id: 'b', turfId: 't2', status: 'pending' }), // 1h on t2
+        ownerBooking({ id: 'c', status: 'cancelled' }),
+      ],
+      courts,
+      TZ,
+    );
+    expect(usage).toEqual({ booked: 2, open: 12 + 16 });
+    expect(courtUsage([], null, TZ)).toBeNull();
   });
 });

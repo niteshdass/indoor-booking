@@ -12,7 +12,16 @@
 
 @media (min-width: 768px) {
   .stats {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .stats {
+    /* One row however many cards loaded (3 or 4). */
+    grid-template-columns: none;
+    grid-auto-columns: 1fr;
+    grid-auto-flow: column;
   }
 }
 
@@ -188,10 +197,90 @@
   background: var(--primary-soft);
 }
 
+.closed {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--stripe-closed);
+  opacity: var(--opacity-muted);
+}
+
+.closedKey {
+  --legend-fill: var(--stripe-closed);
+  border-color: var(--border-strong);
+}
+
 .now {
   position: absolute;
   top: -4px;
   bottom: -4px;
   width: var(--now-line);
   background: var(--danger);
+}
+
+/* Needs your attention: one row per thing to act on, status bar on the left */
+.attention {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.attentionList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.attentionItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-left: var(--status-bar) solid var(--attention-bar);
+}
+
+.attentionItem + .attentionItem {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.attentionItem.info {
+  --attention-bar: var(--info);
+}
+
+.attentionItem.warning {
+  --attention-bar: var(--warning);
+}
+
+.attentionItem.danger {
+  --attention-bar: var(--danger);
+}
+
+.attentionText {
+  flex: 1;
+  min-width: 0;
+}
+
+.attentionTitle,
+.attentionDetail {
+  margin: 0;
+}
+
+.attentionTitle {
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+}
+
+.attentionDetail {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

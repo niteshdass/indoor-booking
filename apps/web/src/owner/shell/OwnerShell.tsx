@@ -3,8 +3,12 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/useAuth';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { Button } from '../../components/ui/Button';
 import { ThemeToggle } from '../../theme/ThemeToggle';
+import type { SeriesJson } from '@booking/shared';
 import { useOwner } from '../OwnerProvider';
+import { ownerPath } from '../ownerApi';
+import { useResource } from '../useResource';
 import { NAV, NAV_GROUPS } from './nav';
 import { NavIcon } from './NavIcon';
 import { OwnerSwitcher } from './OwnerSwitcher';
@@ -23,12 +27,32 @@ export function useOwnerTitle(title: string): void {
 
 const SIDEBAR_ID = 'owner-sidebar';
 
+/** Weekly booking requests waiting for a reply across the team's venues; refreshed on every page change. */
+function useOpenRequests(enabled: boolean, pathname: string): { count: number; more: boolean } | null {
+  const { ownerId } = useOwner();
+  const { state, reload } = useResource<{ series: SeriesJson[]; nextBefore: string | null }>(
+    enabled ? ownerPath(ownerId, '/series?status=requested') : null,
+  );
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (enabled) reload();
+  }, [pathname, enabled, reload]);
+  if (state.status !== 'ready' || state.data.series.length === 0) return null;
+  return { count: state.data.series.length, more: state.data.nextBefore !== null };
+}
+
 /** Owner portal layout: sidebar from lg, a drawer below it, and a top bar with the page title. */
 export function OwnerShell() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { can } = useOwner();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const venueParam = new URLSearchParams(search).get('venue');
+  const requests = useOpenRequests(can('booking.view'), pathname);
   const [title, setTitle] = useState('');
   const [open, setOpen] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);
@@ -77,6 +101,12 @@ export function OwnerShell() {
                   <NavLink key={n.key} to={n.to} end={n.to === ''} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
                     <NavIcon navKey={n.key} />
                     {t(n.key)}
+                    {n.to === 'series' && requests && (
+                      <span className={styles.count}>
+                        <span aria-hidden="true">{requests.more ? `${requests.count}+` : requests.count}</span>
+                        <span className={styles.srOnly}>, {t('owner.shell.seriesWaiting', { count: requests.count })}</span>
+                      </span>
+                    )}
                   </NavLink>
                 ))}
               </div>
@@ -106,6 +136,11 @@ export function OwnerShell() {
             <span aria-hidden="true">☰</span>
           </button>
           <h1 className={styles.title}>{title}</h1>
+          {can('booking.create') && !pathname.endsWith('/walk-in') && (
+            <Button to={venueParam ? `walk-in?venue=${encodeURIComponent(venueParam)}` : 'walk-in'} size="sm" className={styles.topAction}>
+              {t('owner.shell.newWalkIn')}
+            </Button>
+          )}
           {user && <span className={styles.userName}>{user.name}</span>}
         </header>
         <main className={styles.content}>

@@ -486,7 +486,20 @@
       "courts": "Корты сегодня",
       "legendPaid": "Забронировано",
       "legendWaiting": "Ожидает",
-      "legendWalkIn": "Без записи"
+      "legendWalkIn": "Без записи",
+      "lastWeek": "Неделю назад: {{n}}",
+      "courtsUsed": "Загрузка кортов",
+      "courtsUsedHint": "Занято {{booked}} из {{open}} ч работы",
+      "legendClosed": "Закрыто",
+      "attention": "Требует внимания",
+      "seriesRequest": "{{name}} просит постоянную бронь",
+      "seriesReplyBy": "Ответьте до {{time}}",
+      "holdExpiring": "{{name}} ещё не оплатил(а)",
+      "holdUntil": "Время держится до {{time}}",
+      "lowReview": "Отзыв с оценкой {{stars}} из 5 без ответа",
+      "lowReviewHint": "Ответы видны на странице площадки",
+      "open": "Открыть",
+      "aPlayer": "Игрок"
     },
     "walkInGuest": "Гость без брони",
     "unknownCustomer": "Неизвестный клиент",
@@ -1207,6 +1220,13 @@
       "flagCount": "{{n}}/500",
       "flagHint": "Отзыв останется виден, пока его не проверит команда платформы",
       "flagSubmit": "Отметить отзыв"
+    },
+    "shell": {
+      "newWalkIn": "Добавить без записи",
+      "seriesWaiting_one": "{{count}} заявка ждёт ответа",
+      "seriesWaiting_few": "{{count}} заявки ждут ответа",
+      "seriesWaiting_many": "{{count}} заявок ждут ответа",
+      "seriesWaiting_other": "{{count}} заявки ждут ответа"
     }
   },
   "reviews": {

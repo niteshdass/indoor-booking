@@ -95,6 +95,7 @@ Night surfaces: any element with `data-surface="night"` takes the dark token val
 - `--shadow-ball` (ball CTA lift) and `--shadow-night` (portal preview on night). Button variant `ball` = `--ball` bg + `--ball-ink` text; only on night or court-blue surfaces.
 - `--hero-panel-max`: widest the hero court panel grows. `--meter-height`: thin usage meter bar.
 - Court timeline (not themed): `--timeline-label` 7rem (court name column), `--timeline-lane` 3rem (lane height), `--timeline-min` 56rem (width below which it scrolls sideways), `--now-line` 2px.
+- `--stripe-closed`: 45° hairline stripes in `--border-strong` for closed time on the court timeline (outside hours, blocked slots, closed days), shown at `--opacity-muted`.
 - Motion: `--duration-slow` 600ms with `--ease-out` for the hero sequence only.
 
 Breakpoints (mobile-first `min-width`): sm 640 · md 768 · lg 1024 · xl 1280.
@@ -105,11 +106,12 @@ Left-aligned throughout; only the steps and sport tiles use grids. The search ba
 
 ### Owner portal shell
 - Sidebar (lg+; drawer below): owner switcher card (org mark in court blue, name 14/600, role 12 muted) → nav groups with sentence-case group labels in text-subtle: "Day to day" (Today, Schedule, Bookings, Walk-in, Series), "Setup" (Venues, Closures, Add-ons, Settings), "Team and players" (Staff, Reviews, Activity) → user row with theme toggle at the bottom. Items 36px, 18px stroke icons, active = primary-soft bg + primary text, counts as warning pills (things to act on).
-- Top bar (sticky, blurred page bg): menu button (below lg), venue select with inline muted label, day stepper (‹ Today ›), search with ⌘K hint, primary page action on the right ("New walk-in").
+- Top bar (sticky, blurred page bg): menu button (below lg), venue select with inline muted label, primary page action on the right ("New walk-in", small primary button; keeps `?venue`, hidden without `booking.create` and on the walk-in page). Not built: the day stepper (Schedule already moves between days) and ⌘K search (no search API yet).
+- Series nav item shows a warning count pill for weekly requests waiting for a reply (shows `N+` when the API has another page; screen readers hear "N requests waiting").
 - Page head: Unbounded h1 28px + one muted line of context; secondary action on the right.
 
 ### Today page
-KPI row (4 at xl, 2 below): Bookings (+delta on same weekday), Revenue (split online/desk), Courts used (hours + meter), Awaiting payment (warning border and number). → Courts timeline card, full width: court label column (name + surface), lanes with hour grid lines, booking blocks = status soft bg + 3px status left bar, closed = 45° stripes, now line in danger with a time tag on the first lane; scrolls sideways below 56rem. → "Needs your attention" (series requests, holds about to expire, low reviews, each with its actions inline) beside "Up next" (time, player, court, status). → Today's bookings table.
+KPI row (one row at xl, 2 columns at md, 1 on phone): Bookings (hint: count on the same weekday last week), Revenue, Courts used (percent + `{booked} of {open} open hours` + meter; only when court slot data loads), Pending (StatCard `tone="warning"`: warning border and number when above 0). StatCard props: `tone?: 'warning'`, `meter?: 0–1`. → Courts timeline card, full width: court label column (name + surface), lanes with hour grid lines, booking blocks = status soft bg + 3px status left bar, closed = 45° stripes, now line in danger with a time tag on the first lane; scrolls sideways below 56rem. → "Needs your attention" list, full width (left status bar: info = weekly request, warning = unpaid hold still running, danger = 1–2 star review without a reply; each row has an "Open" link; the section is left out when empty) → "Coming up" table. Every extra (last week, courts, requests, reviews) fails quietly: Today still shows its bookings.
 
 ## Results map
 Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inverted in dark mode; the map frame, pins and the "Search this area" button use surface, border and primary tokens. Pins are DOM-built (venue names are untrusted text), keyboard-focusable, and labelled with the venue name and price. Below lg a List/Map segmented toggle (`aria-pressed`) shows one at a time; at lg and up list and map sit side by side with the map sticky.

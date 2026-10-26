@@ -478,7 +478,20 @@
       "courts": "Courts today",
       "legendPaid": "Booked",
       "legendWaiting": "Waiting",
-      "legendWalkIn": "Walk-in"
+      "legendWalkIn": "Walk-in",
+      "lastWeek": "Same day last week: {{n}}",
+      "courtsUsed": "Courts used",
+      "courtsUsedHint": "{{booked}} of {{open}} open hours booked",
+      "legendClosed": "Closed",
+      "attention": "Needs your attention",
+      "seriesRequest": "{{name}} asked for a weekly booking",
+      "seriesReplyBy": "Reply by {{time}}",
+      "holdExpiring": "{{name}} has not paid yet",
+      "holdUntil": "Slot held until {{time}}",
+      "lowReview": "A {{stars}} out of 5 review has no reply",
+      "lowReviewHint": "Replies show on your venue page",
+      "open": "Open",
+      "aPlayer": "A player"
     },
     "walkInGuest": "Walk-in guest",
     "unknownCustomer": "Unknown customer",
@@ -1199,6 +1212,11 @@
       "flagCount": "{{n}}/500",
       "flagHint": "The review stays visible until the platform team checks it.",
       "flagSubmit": "Flag review"
+    },
+    "shell": {
+      "newWalkIn": "New walk-in",
+      "seriesWaiting_one": "{{count}} request waiting",
+      "seriesWaiting_other": "{{count}} requests waiting"
     }
   },
   "reviews": {

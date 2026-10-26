@@ -69,12 +69,12 @@ describe('OwnerProvider', () => {
     const api = mockApi([...ownerRoutes(), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
     const h = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
     expect(await screen.findByText(en.owner.today.collected)).toBeInTheDocument();
-    expect(api.calls.map((c) => c.path).sort()).toEqual([
-      '/me/memberships',
-      `/owners/${OWNER_ID}`,
-      `/owners/${OWNER_ID}/bookings`, // the Today page
-      `/owners/${OWNER_ID}/venues`,
-    ]);
+    const paths = api.calls.map((c) => c.path);
+    // Each provider resource is fetched once; the Today page and the shell add their own calls.
+    for (const p of ['/me/memberships', `/owners/${OWNER_ID}`, `/owners/${OWNER_ID}/venues`]) {
+      expect(paths.filter((x) => x === p)).toHaveLength(1);
+    }
+    expect(paths).toContain(`/owners/${OWNER_ID}/bookings`);
     expect(localStorage.getItem('owner.last')).toBe(OWNER_ID);
     expect(h.location().pathname).toBe(`/owner/${OWNER_ID}`);
   });

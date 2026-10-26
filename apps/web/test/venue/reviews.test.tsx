@@ -119,8 +119,9 @@ describe('Venue reviews', () => {
     ]);
     renderApp('/venues/arena-one?date=2026-10-25');
     expect(await screen.findByRole('heading', { name: 'Отзывы', level: 2 })).toBeInTheDocument();
-    expect(screen.getByText('4,6')).toBeInTheDocument();
-    expect(screen.getByText('23 отзыва')).toBeInTheDocument();
+    const section = screen.getByRole('region', { name: 'Отзывы' });
+    expect(within(section).getByText('4,6')).toBeInTheDocument();
+    expect(within(section).getByText('23 отзыва')).toBeInTheDocument();
     expect(await screen.findByText('Пока нет отзывов')).toBeInTheDocument();
   });
 });

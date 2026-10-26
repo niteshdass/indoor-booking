@@ -1,0 +1,143 @@
+.wrap {
+  position: relative;
+}
+
+/* Phone: every photo in a snapping strip, the next one peeking in */
+.gallery {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.item {
+  flex: 0 0 var(--gallery-tile);
+  aspect-ratio: 4 / 3;
+  scroll-snap-align: start;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+.n1 .item {
+  flex-basis: 100%;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.more {
+  display: none;
+}
+
+/* No photos: the venue's first sport drawn as a court, the device used across the product */
+.empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 5 / 2;
+  padding: var(--space-6);
+  border-radius: var(--radius-xl);
+  background: var(--surround);
+}
+
+.court {
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius-sm);
+  background: var(--court-blue);
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
+}
+
+@media (min-width: 768px) {
+  .gallery {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: repeat(2, minmax(0, 1fr));
+    height: var(--gallery-height);
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+  }
+
+  .item {
+    aspect-ratio: auto;
+    border-radius: 0;
+  }
+
+  .item:nth-child(n + 4) {
+    display: none;
+  }
+
+  .item:first-child,
+  .n2 .item {
+    grid-row: span 2;
+  }
+
+  .n1 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Expanded: every photo, three across under the lead photo */
+  .all {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: calc(var(--gallery-height) / 2);
+    height: auto;
+  }
+
+  .all .item:nth-child(n + 4) {
+    display: block;
+  }
+
+  .all .item:first-child {
+    grid-column: span 2;
+  }
+
+  .more {
+    position: absolute;
+    inset-block-end: var(--space-4);
+    inset-inline-end: var(--space-4);
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-md);
+    padding-inline: var(--space-4);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-full);
+    background: var(--bg-surface);
+    color: var(--text-strong);
+    font-family: inherit;
+    font-size: var(--text-sm);
+    font-weight: var(--weight-medium);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+  }
+
+  .more:hover {
+    background: var(--bg-hover);
+  }
+
+  .more:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+
+  .empty {
+    aspect-ratio: auto;
+    height: calc(var(--gallery-height) * 0.75);
+  }
+}

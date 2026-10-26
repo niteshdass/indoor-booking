@@ -1,8 +1,20 @@
 .section {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+  scroll-margin-top: calc(var(--header-height) + var(--space-4));
+}
+
+.side {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  margin-block-start: var(--space-6);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   min-width: 0;
 }
 
@@ -16,17 +28,25 @@
 
 .summary {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-4);
   margin: 0;
 }
 
 .average {
-  font-size: var(--text-xl);
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
   font-weight: var(--weight-semibold);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;
+}
+
+.summaryMeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .muted {
@@ -35,10 +55,10 @@
   margin: 0;
 }
 
+/* Ruled list, no cards: a hairline between reviews */
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -46,25 +66,48 @@
 
 .item {
   display: flex;
+  gap: var(--space-3);
+  padding-block: var(--space-5);
+  border-block-start: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.item:first-child {
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--avatar-sm);
+  height: var(--avatar-sm);
+  border-radius: var(--radius-full);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.content {
+  display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
   min-width: 0;
+  max-width: 65ch;
 }
 
 .head {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-1) var(--space-3);
 }
 
 .reviewer {
   font-size: var(--text-base);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
@@ -72,21 +115,38 @@
 .comment {
   margin: 0;
   font-size: var(--text-base);
+  line-height: var(--leading-body);
   color: var(--text-default);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
+/* Owner reply: a quiet tinted block, not a side stripe */
 .reply {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding-inline-start: var(--space-3);
-  border-inline-start: var(--reply-rule) solid var(--border-default);
+  margin-block-start: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
 }
 
 .replyLabel {
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--text-strong);
+}
+
+@media (min-width: 1024px) {
+  .section {
+    grid-template-columns: var(--side-card-width) minmax(0, 1fr);
+    gap: var(--space-12);
+    align-items: start;
+  }
+
+  .side {
+    position: sticky;
+    top: calc(var(--header-height) + var(--space-4));
+  }
 }

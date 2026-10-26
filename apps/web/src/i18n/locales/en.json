@@ -285,8 +285,26 @@
     "noTurfs": "This venue has no courts yet.",
     "dateStrip": "Choose a date",
     "today": "today",
-    "slotsRegion": "Availability",
-    "selected": "{{turf}} · {{date}}"
+    "todayChip": "Today",
+    "book": "Book a court",
+    "courtCount_one": "{{count}} court",
+    "courtCount_other": "{{count}} courts",
+    "slotLength_one": "{{count}} min",
+    "slotLength_other": "{{count}} min",
+    "sports": "Sports",
+    "allPhotos_one": "Show {{count}} photo",
+    "allPhotos_other": "Show all {{count}} photos",
+    "fewerPhotos": "Show fewer photos",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "court": "Court",
+    "date": "Date",
+    "time": "Time",
+    "total": "Total",
+    "weeklyPrompt": "Play here every week?",
+    "location": "Location",
+    "directions": "Get directions",
+    "mapLabel": "Map showing {{name}}"
   },
   "slots": {
     "grid": "Time slots",
@@ -305,7 +323,13 @@
     "continue": "Continue",
     "selectedCount_one": "{{count}} slot",
     "selectedCount_other": "{{count}} slots",
-    "pickHint": "Pick a time slot to see your total."
+    "pickHint": "Pick a time slot to see your total.",
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening",
+    "freeCount_one": "{{count}} free",
+    "freeCount_other": "{{count}} free",
+    "noneFree": "Nothing free"
   },
   "addons": {
     "per_booking": "per booking",

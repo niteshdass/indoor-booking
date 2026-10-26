@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/useAuth';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
-import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { formatDate, money } from '../lib/format';
@@ -20,6 +21,7 @@ type Props = { slug: string; turfId: string; turfName: string; date: string; tab
 /** Slots of one turf and date plus the selection. Mount it with a key of turf and date so the selection resets. */
 export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
   const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const { status: auth } = useAuth();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
@@ -55,13 +57,10 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
   const messageOnly =
     state.status === 'loading' || (day !== null && (day.status !== 'open' || day.slots.length === 0));
 
-  let href = '';
-  if (day && first) {
-    href = checkoutHref(slug, turfId, date, chosen.map((s) => s.startAt));
-  }
+  const href = day && first ? checkoutHref(slug, turfId, date, chosen.map((s) => s.startAt)) : '';
 
   return (
-    <section
+    <div
       id="turf-panel"
       role="tabpanel"
       aria-labelledby={tabId}
@@ -69,23 +68,7 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
       className={styles.panel}
     >
       <div className={styles.main}>
-        <h2 className={styles.title}>{t('venue.slotsRegion')}</h2>
-        <p className={styles.caption}>{t('venue.selected', { turf: turfName, date: formatDate(date, 'UTC', i18n.language) })}</p>
-        {auth === 'signedIn' && (
-          <Button
-            to={`/venues/${encodeURIComponent(slug)}/series?turfId=${encodeURIComponent(turfId)}&date=${date}`}
-            variant="secondary"
-            size="lg"
-            className={styles.weekly}
-          >
-            {t('series.player.requestLink')}
-          </Button>
-        )}
-        {state.status === 'loading' && (
-          <div className={styles.loading}>
-            <Spinner label={t('common.loading')} />
-          </div>
-        )}
+        {state.status === 'loading' && <Skeleton kind="list" label={t('common.loading')} />}
         {state.status === 'error' && (
           <Alert tone="danger" className={styles.alert}>
             <span>{errorMessage(state.error, t)}</span>
@@ -95,6 +78,17 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
           </Alert>
         )}
         {day && <SlotGrid day={day} selected={selected} onToggle={onToggle} />}
+        {auth === 'signedIn' && (
+          <p className={styles.weekly}>
+            {t('venue.weeklyPrompt')}{' '}
+            <Link
+              className={styles.weeklyLink}
+              to={`/venues/${encodeURIComponent(slug)}/series?turfId=${encodeURIComponent(turfId)}&date=${date}`}
+            >
+              {t('series.player.requestLink')}
+            </Link>
+          </p>
+        )}
       </div>
 
       <p className={styles.live} aria-live="polite">
@@ -102,16 +96,35 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
       </p>
       {day && (
         <aside className={[styles.bar, first ? '' : styles.barEmpty].filter(Boolean).join(' ')} aria-label={t('slots.summary')}>
-          {first && last ? (
-            <>
-              <div className={styles.info}>
-                <span className={styles.count}>{t('slots.selectedCount', { count: chosen.length })}</span>
-                <span className={styles.range}>
-                  {first.localStart}–{last.localEnd}
-                </span>
-                <span className={styles.total}>{money(total, day.currency, i18n.language)}</span>
+          <h3 className={styles.barTitle}>{t('slots.summary')}</h3>
+          <dl className={styles.facts}>
+            <div className={styles.fact}>
+              <dt>{t('venue.court')}</dt>
+              <dd>{turfName}</dd>
+            </div>
+            <div className={styles.fact}>
+              <dt>{t('venue.date')}</dt>
+              <dd>{formatDate(date, 'UTC', lang)}</dd>
+            </div>
+            {first && last && (
+              <div className={styles.fact}>
+                <dt>{t('venue.time')}</dt>
+                <dd>
+                  <span className={styles.range}>
+                    {first.localStart}–{last.localEnd}
+                  </span>{' '}
+                  <span className={styles.count}>{t('slots.selectedCount', { count: chosen.length })}</span>
+                </dd>
               </div>
-              <Button to={href} variant="brand" size="lg">
+            )}
+          </dl>
+          {first ? (
+            <>
+              <p className={styles.totalRow}>
+                <span className={styles.totalLabel}>{t('venue.total')}</span>
+                <span className={styles.total}>{money(total, day.currency, lang)}</span>
+              </p>
+              <Button to={href} variant="brand" size="lg" block className={styles.cta}>
                 {t('slots.continue')}
               </Button>
             </>
@@ -120,6 +133,6 @@ export function SlotsPanel({ slug, turfId, turfName, date, tabId }: Props) {
           )}
         </aside>
       )}
-    </section>
+    </div>
   );
 }

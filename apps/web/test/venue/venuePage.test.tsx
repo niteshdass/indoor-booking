@@ -36,7 +36,8 @@ describe('VenuePage', () => {
     mockApi([{ path: '/venues/arena-one', body: { venue } }]);
     renderApp('/venues/arena-one?date=2026-10-25');
     expect(await screen.findByRole('heading', { name: 'Arena One' })).toBeInTheDocument();
-    expect(screen.getByText(/Road 1/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Road 1/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('region', { name: en.venue.location })).toBeInTheDocument();
     expect(screen.getByText(en.sports.futsal)).toBeInTheDocument();
     expect(screen.getByText(en.amenities.parking)).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /Court A/ })).toHaveAttribute('aria-selected', 'true');

@@ -57,47 +57,61 @@ export function ReviewsSection({ slug, timeZone, rating }: ReviewsSectionProps) 
   }, [load]);
 
   return (
-    <section className={styles.section} aria-labelledby="venue-reviews-heading">
-      <h2 id="venue-reviews-heading" className={styles.heading}>
-        {t('reviews.title')}
-      </h2>
-      {rating && (
-        <p className={styles.summary}>
-          <Stars value={Math.round(rating.average * 10) / 10} size="md" />
-          <span className={styles.average}>{formatRating(rating.average, lang)}</span>
-          <span className={styles.muted}>{t('reviews.summaryCount', { count: rating.count })}</span>
-        </p>
-      )}
-      {loaded && reviews.length === 0 && <p className={styles.muted}>{t('reviews.none')}</p>}
-      {reviews.length > 0 && (
-        <ul className={styles.list}>
-          {reviews.map((r) => (
-            <li key={r.id} className={styles.item}>
-              <div className={styles.head}>
-                <Stars value={r.stars} size="sm" />
-                <span className={styles.reviewer}>{r.reviewer ?? t('reviews.player')}</span>
-                <span className={styles.muted}>{formatDate(r.createdAt, timeZone, lang)}</span>
-                {r.edited && <span className={styles.muted}>{t('reviews.edited')}</span>}
-              </div>
-              {r.comment && <p className={styles.comment}>{r.comment}</p>}
-              {r.reply && (
-                <div className={styles.reply}>
-                  <span className={styles.replyLabel}>{t('reviews.reply')}</span>
-                  <p className={styles.comment}>{r.reply.text}</p>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-      {(next || (error !== null && !loaded)) && (
-        <div>
-          <Button variant="secondary" loading={busy} onClick={() => void load(next)}>
-            {t('reviews.showMore')}
-          </Button>
-        </div>
-      )}
+    <section id="reviews" className={styles.section} aria-labelledby="venue-reviews-heading">
+      <div className={styles.side}>
+        <h2 id="venue-reviews-heading" className={styles.heading}>
+          {t('reviews.title')}
+        </h2>
+        {rating && (
+          <p className={styles.summary}>
+            <span className={styles.average}>{formatRating(rating.average, lang)}</span>
+            <span className={styles.summaryMeta}>
+              <Stars value={Math.round(rating.average * 10) / 10} size="md" />
+              <span className={styles.muted}>{t('reviews.summaryCount', { count: rating.count })}</span>
+            </span>
+          </p>
+        )}
+      </div>
+      <div className={styles.body}>
+        {loaded && reviews.length === 0 && <p className={styles.muted}>{t('reviews.none')}</p>}
+        {reviews.length > 0 && (
+          <ul className={styles.list}>
+            {reviews.map((r) => {
+              const who = r.reviewer ?? t('reviews.player');
+              return (
+                <li key={r.id} className={styles.item}>
+                  <span className={styles.avatar} aria-hidden="true">
+                    {who.trim().charAt(0).toUpperCase()}
+                  </span>
+                  <div className={styles.content}>
+                    <div className={styles.head}>
+                      <span className={styles.reviewer}>{who}</span>
+                      <span className={styles.muted}>{formatDate(r.createdAt, timeZone, lang)}</span>
+                      {r.edited && <span className={styles.muted}>{t('reviews.edited')}</span>}
+                    </div>
+                    <Stars value={r.stars} size="sm" />
+                    {r.comment && <p className={styles.comment}>{r.comment}</p>}
+                    {r.reply && (
+                      <div className={styles.reply}>
+                        <span className={styles.replyLabel}>{t('reviews.reply')}</span>
+                        <p className={styles.comment}>{r.reply.text}</p>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+        {(next || (error !== null && !loaded)) && (
+          <div>
+            <Button variant="secondary" loading={busy} onClick={() => void load(next)}>
+              {t('reviews.showMore')}
+            </Button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

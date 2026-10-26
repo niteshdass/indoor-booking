@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { addDays } from '@booking/shared';
-import { formatDate } from '../lib/format';
 import styles from './DateStrip.module.css';
 
 export type DateStripProps = {
@@ -13,12 +12,16 @@ export type DateStripProps = {
   timeZone: string;
 };
 
+const at = (d: string) => new Date(`${d}T00:00:00Z`);
+
 export function DateStrip({ today, value, onChange, days = 14 }: DateStripProps) {
   const { t, i18n } = useTranslation();
   const selectedRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     selectedRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   }, [value]);
+  const weekday = new Intl.DateTimeFormat(i18n.language, { weekday: 'short', timeZone: 'UTC' });
+  const dayMonth = new Intl.DateTimeFormat(i18n.language, { day: 'numeric', month: 'short', timeZone: 'UTC' });
   const dates = Array.from({ length: days }, (_, i) => addDays(today, i));
   if (!dates.includes(value)) dates.unshift(value);
   return (
@@ -36,8 +39,11 @@ export function DateStrip({ today, value, onChange, days = 14 }: DateStripProps)
             aria-current={isToday ? 'date' : undefined}
             onClick={() => onChange(d)}
           >
-            {isToday && <span className={styles.dot} aria-hidden="true" />}
-            {formatDate(d, 'UTC', i18n.language)}
+            <span className={styles.weekday}>
+              {isToday && <span className={styles.dot} aria-hidden="true" />}
+              {isToday ? t('venue.todayChip') : weekday.format(at(d))}
+            </span>
+            <span className={styles.date}>{dayMonth.format(at(d))}</span>
           </button>
         );
       })}

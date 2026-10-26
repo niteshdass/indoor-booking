@@ -1,0 +1,121 @@
+.about {
+  display: grid;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+}
+
+/* Ruled list: icon + label, two across from sm */
+.amenities {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.amenity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-lg);
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+  font-size: var(--text-base);
+  color: var(--text-default);
+}
+
+.icon {
+  flex: none;
+  width: var(--space-5);
+  height: var(--space-5);
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: var(--court-line);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.map {
+  height: var(--venue-map-height);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+  overflow: hidden;
+  /* Keep Leaflet panes under the sticky header */
+  isolation: isolate;
+}
+
+.pinWrap {
+  background: transparent;
+  border: 0;
+}
+
+.pin {
+  display: block;
+  width: var(--space-6);
+  height: var(--space-6);
+  transform: translate(-50%, -50%);
+  border: var(--court-line) solid var(--chalk);
+  border-radius: var(--radius-full);
+  background: var(--brand);
+  box-shadow: var(--shadow-md);
+}
+
+.place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.address {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-default);
+  overflow-wrap: anywhere;
+}
+
+.directions {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--brand);
+  text-underline-offset: 0.2em;
+}
+
+.directions:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+
+@media (min-width: 640px) {
+  .amenities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .about {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-12);
+    align-items: start;
+  }
+}

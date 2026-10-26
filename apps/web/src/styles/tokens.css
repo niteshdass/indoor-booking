@@ -78,11 +78,17 @@
   --header-tape: 3px;
   --result-media: 15rem; /* photo column of a search result card */
   --result-min: 11rem; /* shortest search result card */
+  --icon-sm: 1rem; /* inline icon next to small text */
   --empty-court: 7.5rem; /* court drawing in an empty result list */
   --tab-underline: 2px;
-  --photo-height: 12rem;
-  --photo-width: 18rem;
+  --gallery-height: 26rem; /* venue page photo mosaic from md */
+  --gallery-tile: 85%; /* one photo in the phone gallery strip, so the next one peeks in */
+  --court-thumb: 3.5rem; /* court drawing in a venue page court tab */
+  --venue-map-height: 15rem; /* location map on the venue page */
+  --avatar-sm: 2rem; /* reviewer initial disc */
   --side-card-width: 20rem;
+  --slot-min: 6rem;
+  --slot-label: 7rem;
   --hero-panel-max: 40rem;
   --meter-height: 6px;
   /* Loading skeletons: heights of a stat card, a panel (timeline, detail) and a list item */

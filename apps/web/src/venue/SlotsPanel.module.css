@@ -13,31 +13,8 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-4);
   min-width: 0;
-}
-
-.title {
-  margin: 0;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  color: var(--text-strong);
-}
-
-.caption {
-  margin: 0;
-  font-size: var(--text-base);
-  color: var(--text-default);
-}
-
-.weekly {
-  align-self: flex-start;
-}
-
-.loading {
-  display: flex;
-  justify-content: center;
-  color: var(--text-muted);
 }
 
 .alert {
@@ -48,46 +25,124 @@
   flex-wrap: wrap;
 }
 
-/* Phone: in-flow sticky bar at the bottom edge, so it never covers the last grid row. */
+.weekly {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.weeklyLink {
+  color: var(--brand);
+  font-weight: var(--weight-medium);
+  text-underline-offset: 0.2em;
+}
+
+.weeklyLink:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+
+/*
+ * Phone: in-flow sticky bar at the bottom edge, so it never covers the last grid row.
+ * Time and total on the left, Continue on the right; wraps for long Russian text.
+ */
 .bar {
   position: sticky;
-  bottom: 0;
-  display: flex;
-  flex-wrap: wrap;
+  bottom: var(--space-2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-4);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface-raised);
   box-shadow: var(--shadow-md);
-}
-
-.info {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
-  min-width: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.count {
-  font-size: var(--text-base);
+.barTitle {
+  display: none;
+  margin: 0;
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
 }
 
-.range {
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+}
+
+.fact {
+  display: none;
+}
+
+/* On the phone bar only the chosen time shows; court and date are already on screen. */
+.fact:nth-child(3) {
+  display: block;
+}
+
+.fact dt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.fact dd {
+  margin: 0;
   font-size: var(--text-base);
-  color: var(--text-default);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.range {
+  font-weight: var(--weight-semibold);
+}
+
+.count {
+  color: var(--text-muted);
+}
+
+.totalRow {
+  grid-column: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.totalLabel {
+  display: none;
+  font-size: var(--text-base);
+  color: var(--text-muted);
 }
 
 .total {
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
+  white-space: nowrap;
+}
+
+.cta {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: auto;
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-muted);
 }
 
 /* Visually hidden but still announced; zero-size regions are skipped by some screen readers. */
@@ -103,12 +158,6 @@
   white-space: nowrap;
 }
 
-.hint {
-  margin: 0;
-  font-size: var(--text-base);
-  color: var(--text-muted);
-}
-
 /* Phone: nothing to show until a slot is picked. From lg the card is always there so the grid never reflows. */
 .barEmpty {
   display: none;
@@ -118,6 +167,7 @@
   .panel {
     flex-direction: row;
     align-items: flex-start;
+    gap: var(--space-6);
   }
 
   .main {
@@ -126,12 +176,57 @@
 
   .bar {
     position: sticky;
-    top: var(--space-4);
+    top: calc(var(--header-height) + var(--space-4));
     bottom: auto;
     flex: none;
+    display: flex;
     flex-direction: column;
     align-items: stretch;
+    gap: var(--space-3);
     width: var(--side-card-width);
+    padding: var(--space-4) var(--space-5);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .barTitle {
+    display: block;
+  }
+
+  .facts {
+    gap: var(--space-2);
+    padding-block-end: var(--space-3);
+    border-block-end: 1px solid var(--border-subtle);
+  }
+
+  .fact,
+  .fact:nth-child(3) {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .fact dt {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    flex: none;
+    font-size: var(--text-base);
+    color: var(--text-muted);
+  }
+
+  .fact dd {
+    text-align: end;
+  }
+
+  .totalLabel {
+    display: inline;
+  }
+
+  .total {
+    font-size: var(--text-xl);
   }
 
   .barEmpty {

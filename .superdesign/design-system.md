@@ -9,7 +9,7 @@ Multi-vendor booking for indoor and outdoor sports venues (courts, pitches, lane
 
 Surfaces:
 - **Owner portal** (React SPA): left sidebar nav + top bar; owner switcher (a user can belong to several owners); dashboard with booking/revenue stat cards; schedule/calendar per venue and court; data tables (bookings, members, staff, activity log); editors (venue, court, pricing, roles); settings forms.
-- **Public venue page**: cover image, venue header (name, address, sports, Share), court/sport tabs, date strip, slot grid, booking summary card with price and Book button.
+- **Public venue page**: venue header (name, rating, address, sports, Share), photo gallery, court tabs, date strip, slot grid grouped by time of day, booking summary with price and Book button, amenities and location map, reviews.
 - **Player**: sign-in (phone OTP, email, Google), checkout, booking receipt, my bookings, account.
 
 JTBD: owners and staff see today's schedule and act on it fast and calmly; players trust the page enough to book and pay.
@@ -83,12 +83,12 @@ Field minimum width token: `--field-min` 10rem (smallest width of a paired form 
 Map height token: `--map-height` 32rem (results map; same in light and dark).
 Demo stepper tokens: `--demo-dot` 1.5rem (step dot), `--demo-rule` 2px (connector).
 Picker height token: `--picker-max` 20rem (tallest a select dropdown grows before it scrolls).
-Tab underline token: `--tab-underline` 2px (active turf tab underline on the venue page, drawn with `--brand`; not themed).
+Tab underline token: `--tab-underline` 2px (active underline on shared `Tabs` and the My bookings tabs; not themed).
 Portal layout tokens (not themed): `--sidebar-width` 15rem (owner portal sidebar), `--table-row` 3.25rem (52px table row).
 Schedule tokens (not themed): `--schedule-row` 1.5rem (one 15-minute row), `--schedule-col-min` 9rem (narrowest turf column), `--schedule-time-col` 3.5rem (time label column).
 Status and payment tokens (not themed): `--status-bar` 3px (left border on schedule booking blocks), `--schedule-now-line` 2px (thickness of the current-time line), `--qr-size` 12rem (payment link QR code).
-Review token: `--reply-rule` 2px (left rule beside an owner reply on a review; not themed).
-Photo strip tokens: `--photo-height` 12rem and `--photo-width` 18rem (venue page photo strip tiles; not themed).
+Review token: `--reply-rule` 2px (left rule beside an owner reply in the portal and My bookings; the public venue page uses a tinted block instead; not themed).
+Venue page tokens (not themed): `--gallery-height` 26rem (desktop photo mosaic), `--gallery-tile` 85% (phone photo strip tile width), `--court-thumb` 3.5rem (court drawing in a court tab), `--venue-map-height` 15rem (location map), `--avatar-sm` 2rem (reviewer initial disc), `--slot-min` 6rem (narrowest slot cell), `--slot-label` 7rem (time-of-day label column).
 Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
 Disabled and busy token: `--opacity-muted` 0.55 (disabled buttons, a summary that is re-quoting; not themed). Motion token: `--duration-fast` 150ms (short opacity transitions; not themed).
 
@@ -154,10 +154,15 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
 - **Price**: always formatted with the owner's currency and locale via `Intl.NumberFormat`; never hand-built strings.
 
 ## Venue page
-Scrolling strips and tab lists carry `--space-1` padding so the focus ring is not clipped by the scroll container. Header (name, address, sport and amenity chips), a horizontally scrolling photo strip (placeholder when empty), ARIA turf tabs whose active underline uses `--brand`, a scrolling date strip (selected chip = primary, today marked with a dot and `aria-current="date"`, chips at least `--control-lg` tall), then the slot grid region.
+Centered in `--container`. Scrolling strips and tab lists carry `--space-1` padding so the focus ring is not clipped by the scroll container. Order, top to bottom:
+- **Header**: Unbounded name (`--text-2xl`, `--text-3xl` from md) with a secondary Share button (native share sheet, else copy link with a 2s "Link copied" status); a meta row with the rating (links to `#reviews`) and the address with a pin icon; sports as pill chips.
+- **Gallery**: phone = scroll-snap strip of all photos, tiles `--gallery-tile` wide at 4:3; md up = mosaic (2fr 1fr) of the first three at `--gallery-height`. "Show all N photos" expands the gallery inline (no modal). No photos = the sport's court drawing on `--surround`.
+- **Book a court** (h2 + court count): ARIA court tabs, each a `--court-thumb` court drawing (court-blue + chalk when active) with name and "Indoor · sports · 90 min"; active tab has a `--brand` border. Two-line date chips (weekday or "Today" with a dot over day and month; selected = primary, `aria-current="date"`). Then the slot grid and the selection summary.
+- **Amenities and location**: separated from booking by a hairline rule. Amenities are a ruled icon list (2 columns from sm); location is a Leaflet map (`--venue-map-height`, wheel zoom off, `--brand` pin) with the address and a "Get directions" link. Side by side from lg.
+- **Reviews**: a side column with the heading and the big Unbounded average (`--text-4xl`), sticky from lg; a ruled list (no cards) with `--avatar-sm` initial discs, text capped at 65ch; owner replies sit in a `--bg-subtle` tinted block.
 
 ## Slot grid
-Grid is 3 columns on phone, 4 from sm, 6 from lg. Pending (warning-soft + "Pending") is always visually distinct from booked; every non-clickable cell puts its state in the label and `aria-label`, never colour alone. A null price shows "Unavailable" and is disabled. A legend sits under the grid. The selection bar is an in-flow sticky card at the bottom edge on phone (so it never covers the last row, wraps for long Russian text) and a sticky side card of `--side-card-width` from lg; its Continue link uses `--brand`.
+Slots are grouped into Morning (before 12), Afternoon (before 17) and Evening, each with an h3 and a free count. From sm each group is one row: a `--slot-label` (7rem) label column, then cells in an auto-fill grid of at least `--slot-min` (6rem); on phone the label sits above. Cells are compact (`--control-lg` min height, 16px time over 12px price). Pending (warning-soft + "Pending") is always visually distinct from booked; every non-clickable cell puts its state in the label and `aria-label`, never colour alone. A null price shows "Unavailable" and is disabled. A legend sits under the grid. The selection summary (court, date, time range, total, `--brand` Continue button) is an in-flow sticky bar at the bottom edge on phone showing only time, total and the button, hidden until a slot is picked (so it never covers the last row, wraps for long Russian text), and a sticky side card of `--side-card-width` from lg that shows a pick hint while empty.
 
 ## Checkout
 Add-ons (checkbox for per-booking, 40px stepper buttons for per-unit and per-hour) sit beside the booking summary card, which is a sticky `--side-card-width` card from lg and stacks below on phones. Summary rows are tabular; the total is 20px/600. When an advance is due, "Due now" and "Pay at the venue" rows follow the total. While a new quote loads the previous one stays visible, dimmed, with `aria-busy`. Auto-applied add-ons show as "Included" lines and are never selectable. The CTA is a `--brand` button (signed in) or sign-in/create-account links carrying `?next=` back to the checkout URL.

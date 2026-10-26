@@ -1,22 +1,38 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Spinner } from '../components/ui/Spinner';
+import { Skeleton } from '../components/ui/Skeleton';
+import { SportCourt } from '../landing/SportCourt';
 import { apiGet, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
+import { formatRating } from '../lib/format';
 import type { PublicVenue } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { DateStrip } from './DateStrip';
-import { PhotoStrip } from './PhotoStrip';
 import { ReviewsSection } from './ReviewsSection';
 import { SlotsPanel } from './SlotsPanel';
+import { VenueAbout } from './VenueAbout';
+import { VenueGallery } from './VenueGallery';
 import styles from './VenuePage.module.css';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const ICONS = {
+  pin: 'M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
+  share: 'M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+};
+
+function Icon({ d }: { d: string }) {
+  return (
+    <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d={d} />
+    </svg>
+  );
+}
 
 function validDate(s: string | null): s is string {
   if (!s || !ISO_DATE.test(s)) return false;
@@ -30,9 +46,43 @@ type State =
   | { status: 'not_found' }
   | { status: 'error'; error: unknown };
 
+/** Native share sheet where there is one, otherwise copies the link and says so for a moment. */
+function ShareButton({ title }: { title: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const onShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url });
+      } catch {
+        // Dismissed by the user.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // No clipboard access: nothing to do.
+    }
+  };
+  return (
+    <Button variant="secondary" onClick={() => void onShare()} className={styles.share}>
+      <Icon d={copied ? ICONS.check : ICONS.share} />
+      <span role="status">{copied ? t('venue.linkCopied') : t('venue.share')}</span>
+    </Button>
+  );
+}
+
 export function VenuePage() {
   const { slug = '' } = useParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -73,10 +123,7 @@ export function VenuePage() {
   if (state.status === 'loading') {
     return (
       <main className={styles.page}>
-        <div className={styles.loading}>
-          <Spinner label={t('common.loading')} />
-        </div>
-        <div className={styles.skeleton} aria-hidden="true" />
+        <Skeleton kind="detail" label={t('common.loading')} />
       </main>
     );
   }
@@ -118,77 +165,107 @@ export function VenuePage() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1 className={styles.title}>{venue.name}</h1>
-        <p className={styles.address}>
-          {venue.address}, {venue.city}
-        </p>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>{venue.name}</h1>
+          <ShareButton title={venue.name} />
+        </div>
+        <div className={styles.meta}>
+          {venue.rating && (
+            <a className={styles.rating} href="#reviews">
+              <span className={styles.star} aria-hidden="true">
+                ★
+              </span>
+              <span className={styles.ratingValue}>{formatRating(venue.rating.average, lang)}</span>
+              <span className={styles.ratingCount}>{t('reviews.summaryCount', { count: venue.rating.count })}</span>
+            </a>
+          )}
+          <span className={styles.place}>
+            <Icon d={ICONS.pin} />
+            <span>
+              {venue.address}, {venue.city}
+            </span>
+          </span>
+        </div>
         {sports.length > 0 && (
-          <ul className={styles.chips}>
+          <ul className={styles.sports} aria-label={t('venue.sports')}>
             {sports.map((s) => (
-              <li key={s}>
-                <Badge tone="neutral">{t(`sports.${s}`)}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-        {venue.amenities.length > 0 && (
-          <ul className={styles.chips} aria-label={t('venue.amenities')}>
-            {venue.amenities.map((a) => (
-              <li key={a}>
-                <Badge tone="info">{t(`amenities.${a}`)}</Badge>
+              <li key={s} className={styles.sport}>
+                {t(`sports.${s}`)}
               </li>
             ))}
           </ul>
         )}
       </header>
 
-      <PhotoStrip photos={venue.photos} name={venue.name} />
+      <VenueGallery photos={venue.photos} name={venue.name} sport={sports[0] ?? 'futsal'} />
 
-      {turf ? (
-        <>
-          <div className={styles.tabs} role="tablist" aria-label={t('venue.turfs')} onKeyDown={onTabKey}>
-            {venue.turfs.map((x) => {
-              const active = x.id === turf.id;
-              return (
-                <button
-                  key={x.id}
-                  id={`turf-tab-${x.id}`}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  aria-controls="turf-panel"
-                  tabIndex={active ? 0 : -1}
-                  className={[styles.tab, active ? styles.tabActive : ''].filter(Boolean).join(' ')}
-                  onClick={() => update({ turf: x.id })}
-                >
-                  <span className={styles.tabName}>{x.name}</span>
-                  <span className={styles.tabKind}>{t(x.indoor ? 'venue.indoor' : 'venue.outdoor')}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} timeZone={venue.timezone} />
-
-          {slotTaken && (
-            <Alert tone="warning" className={styles.alert}>
-              {t('errors.slot_taken')}
-            </Alert>
+      <section className={styles.book} aria-labelledby="venue-book-heading">
+        <div className={styles.bookHead}>
+          <h2 id="venue-book-heading" className={styles.heading}>
+            {t('venue.book')}
+          </h2>
+          {venue.turfs.length > 0 && (
+            <span className={styles.headNote}>{t('venue.courtCount', { count: venue.turfs.length })}</span>
           )}
+        </div>
+        {turf ? (
+          <>
+            <div className={styles.tabs} role="tablist" aria-label={t('venue.turfs')} onKeyDown={onTabKey}>
+              {venue.turfs.map((x) => {
+                const active = x.id === turf.id;
+                return (
+                  <button
+                    key={x.id}
+                    id={`turf-tab-${x.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    aria-controls="turf-panel"
+                    tabIndex={active ? 0 : -1}
+                    className={[styles.tab, active ? styles.tabActive : ''].filter(Boolean).join(' ')}
+                    onClick={() => update({ turf: x.id })}
+                  >
+                    <SportCourt sport={x.sports[0] ?? 'futsal'} className={styles.tabCourt} />
+                    <span className={styles.tabText}>
+                      <span className={styles.tabName}>{x.name}</span>
+                      <span className={styles.tabKind}>
+                        {[
+                          t(x.indoor ? 'venue.indoor' : 'venue.outdoor'),
+                          ...x.sports.map((s) => t(`sports.${s}`)),
+                          t('venue.slotLength', { count: x.slotLengthMin }),
+                        ].join(' · ')}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <SlotsPanel
-            key={`${turf.id}|${date}`}
-            slug={slug}
-            turfId={turf.id}
-            turfName={turf.name}
-            date={date}
-            tabId={`turf-tab-${turf.id}`}
-          />
-        </>
-      ) : (
-        <p className={styles.empty}>{t('venue.noTurfs')}</p>
-      )}
+            <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} timeZone={venue.timezone} />
 
+            {slotTaken && (
+              <Alert tone="warning" className={styles.alert}>
+                {t('errors.slot_taken')}
+              </Alert>
+            )}
+
+            <SlotsPanel
+              key={`${turf.id}|${date}`}
+              slug={slug}
+              turfId={turf.id}
+              turfName={turf.name}
+              date={date}
+              tabId={`turf-tab-${turf.id}`}
+            />
+          </>
+        ) : (
+          <p className={styles.empty}>{t('venue.noTurfs')}</p>
+        )}
+      </section>
+
+      <hr className={styles.rule} />
+      <VenueAbout venue={venue} />
+      <hr className={styles.rule} />
       <ReviewsSection slug={slug} timeZone={venue.timezone} rating={venue.rating} />
     </main>
   );

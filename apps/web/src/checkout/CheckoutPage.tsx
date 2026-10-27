@@ -32,13 +32,13 @@ function isAddonError(err: unknown): boolean {
 /** The booking a multi-booking error names, when there are several: it can be dropped in place. */
 function failedItem(err: unknown, items: CheckoutItem[]): CheckoutItem | null {
   if (items.length < 2 || !(err instanceof ApiError) || isAddonError(err)) return null;
-  const where = err.details as { date?: unknown; itemStart?: unknown } | undefined;
-  return items.find((i) => i.date === where?.date && i.startAts[0] === where?.itemStart) ?? null;
+  const where = err.details as { turfId?: unknown; date?: unknown; itemStart?: unknown } | undefined;
+  return (
+    items.find(
+      (i) => (where?.turfId === undefined || i.turfId === where.turfId) && i.date === where?.date && i.startAts[0] === where?.itemStart,
+    ) ?? null
+  );
 }
-
-/** The `more` items back out of their joined key. */
-const readMoreKey = (key: string): CheckoutItem[] =>
-  key.split(';').map((part) => ({ date: part.slice(0, 10), startAts: part.slice(11).split(',') }));
 
 export function CheckoutPage() {
   const { slug = '' } = useParams();
@@ -72,7 +72,7 @@ export function CheckoutPage() {
   const turfId = parsed?.turfId;
   const date = parsed?.date;
   const startKey = parsed?.startAts.join(',');
-  const moreKey = parsed?.more.map((i) => `${i.date}:${i.startAts.join(',')}`).join(';') ?? '';
+  const moreKey = parsed && parsed.more.length > 0 ? JSON.stringify(parsed.more) : '';
 
   useEffect(() => {
     if (!turfId) return;
@@ -113,7 +113,7 @@ export function CheckoutPage() {
       date,
       startAts: startKey.split(','),
       addons: selection.filter((s) => (s.quantity ?? 1) > 0),
-      ...(moreKey ? { more: readMoreKey(moreKey) } : {}),
+      ...(moreKey ? { more: JSON.parse(moreKey) as CheckoutItem[] } : {}),
     };
     const run = () =>
       apiPost<QuoteResponse>(`/venues/${encodeURIComponent(slug)}/turfs/${encodeURIComponent(turfId)}/quote`, body).then(
@@ -174,7 +174,10 @@ export function CheckoutPage() {
     }
   };
 
-  const items: CheckoutItem[] = parsed ? [{ date: parsed.date, startAts: parsed.startAts }, ...parsed.more] : [];
+  // Every item names its court, so any of them can lead the checkout once another is dropped.
+  const items: CheckoutItem[] = parsed
+    ? [{ turfId: parsed.turfId, date: parsed.date, startAts: parsed.startAts }, ...parsed.more.map((i) => ({ ...i, turfId: i.turfId ?? parsed.turfId }))]
+    : [];
   const here = `${pathname}${search}`;
   const next = encodeURIComponent(here);
 
@@ -237,12 +240,14 @@ export function CheckoutPage() {
   const due = many ? (data?.advanceRequired ?? 0) : (q?.advanceRequired ?? 0);
 
   const lang = i18n.language;
+  const manyCourts = new Set(items.map((i) => i.turfId)).size > 1;
   /** An error that names one of several bookings, with a button that books the rest. */
   const itemAlert = (err: unknown, tone: 'danger' | 'warning') => {
     const item = failedItem(err, items);
     if (!item) return null;
     const [first, ...rest] = items.filter((i) => i !== item);
-    const when = `${formatDate(item.date, venue.timezone, lang)} ${formatTime(item.startAts[0]!, venue.timezone, lang)}`;
+    const court = manyCourts ? `${venue.turfs.find((x) => x.id === item.turfId)?.name ?? ''}, ` : '';
+    const when = `${court}${formatDate(item.date, venue.timezone, lang)} ${formatTime(item.startAts[0]!, venue.timezone, lang)}`;
     return (
       <Alert tone={tone} className={styles.alert}>
         <span>{t('checkout.dayProblem', { date: when, reason: errorMessage(err, t) })}</span>
@@ -251,7 +256,7 @@ export function CheckoutPage() {
           variant="secondary"
           onClick={() => {
             setSubmitError(null);
-            navigate(checkoutHref(slug, turf.id, first!.date, first!.startAts, rest), { replace: true });
+            navigate(checkoutHref(slug, first!.turfId!, first!.date, first!.startAts, rest), { replace: true });
           }}
         >
           {t('checkout.removeDay', { date: when })}

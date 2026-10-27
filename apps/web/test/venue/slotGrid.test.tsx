@@ -328,7 +328,7 @@ describe('VenuePage slots', () => {
     expect(screen.queryByText(en.errors.generic)).not.toBeInTheDocument();
   });
 
-  it('changing turf clears selection', async () => {
+  it('keeps picks on every court and books them in one checkout', async () => {
     vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     const two = { ...venue, turfs: [...venue.turfs, { id: 't2', name: 'Court B', sports: ['futsal'], indoor: false, slotLengthMin: 60 }] };
     mockApi([
@@ -337,9 +337,16 @@ describe('VenuePage slots', () => {
     ]);
     const { user } = renderApp('/venues/arena-one?date=2026-10-25');
     await user.click(await screen.findByRole('button', { name: /10:00/ }));
-    expect(screen.getByRole('link', { name: en.slots.continue })).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: /Court B/ }));
-    await waitFor(() => expect(screen.queryByRole('link', { name: en.slots.continue })).not.toBeInTheDocument());
+    // Court A's pick stays; Court B starts empty.
     expect(await screen.findByRole('button', { name: /10:00/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('tab', { name: /Court A/ })).toHaveAccessibleName(expect.stringContaining('1 slot picked'));
+    await user.click(screen.getByRole('button', { name: /10:00/ }));
+    const summary = screen.getByRole('complementary', { name: en.slots.summary });
+    expect(summary).toHaveTextContent('2 courts');
+    const href = screen.getByRole('link', { name: en.slots.continue }).getAttribute('href')!;
+    const q = new URL(href, 'http://x').searchParams;
+    expect(q.get('turf')).toBe(venue.turfs[0]!.id);
+    expect(q.get('more')).toMatch(/^2026-10-25@t2:/);
   });
 });

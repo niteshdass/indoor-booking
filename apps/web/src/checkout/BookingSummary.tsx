@@ -20,15 +20,16 @@ function addonLabel(a: AddonLine, t: TFunction): string {
   return a.name;
 }
 
-type Item = { date: string; quote: QuoteJson };
+type Item = { turfId?: string; date: string; quote: QuoteJson };
 
-/** Items grouped by date, in order. */
-function byDate(items: Item[]): [string, Item[]][] {
+/** Items grouped by court and date, in order. */
+function byDay(items: Item[]): [string, Item[]][] {
   const out: [string, Item[]][] = [];
   for (const item of items) {
+    const key = `${item.turfId ?? ''}|${item.date}`;
     const last = out[out.length - 1];
-    if (last && last[0] === item.date) last[1].push(item);
-    else out.push([item.date, [item]]);
+    if (last && last[0] === key) last[1].push(item);
+    else out.push([key, [item]]);
   }
   return out;
 }
@@ -38,7 +39,7 @@ type Props = {
   turf: PublicTurf;
   date: string;
   quote: QuoteJson;
-  /** Several bookings at once, each on its own day and times: one row each, add-ons counted on each. */
+  /** Several bookings at once, each on its own court, day and times: one row each, add-ons counted on each. */
   items?: Item[] | null;
   groupTotal?: number;
   groupDue?: number;
@@ -60,19 +61,24 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
   };
 
   if (multi) {
+    const courts = new Set(multi.map((x) => x.turfId ?? turf.id));
+    const courtName = (id: string | undefined) => venue.turfs.find((x) => x.id === (id ?? turf.id))?.name ?? '';
     return (
       <section className={styles.summary} aria-label={t('checkout.summary')} aria-busy={busy || undefined}>
         <header className={styles.head}>
           <h2 className={styles.venue}>{venue.name}</h2>
           <p className={styles.meta}>
-            {turf.name} · {t('checkout.bookingCount', { count: multi.length })}
+            {courts.size > 1 ? t('venue.courtCount', { count: courts.size }) : turf.name} · {t('checkout.bookingCount', { count: multi.length })}
           </p>
         </header>
 
         <ul className={[styles.days, busy ? styles.busy : ''].filter(Boolean).join(' ')}>
-          {byDate(multi).map(([d, list]) => (
-            <li key={d} className={styles.day}>
-              <h3 className={styles.dayTitle}>{formatDate(d, venue.timezone, lang)}</h3>
+          {byDay(multi).map(([key, list]) => (
+            <li key={key} className={styles.day}>
+              <h3 className={styles.dayTitle}>
+                {courts.size > 1 && `${courtName(list[0]!.turfId)} · `}
+                {formatDate(list[0]!.date, venue.timezone, lang)}
+              </h3>
               <dl className={styles.lines}>
                 {list.map((x) => (
                   <div key={x.quote.slots[0]?.startAt} className={styles.row}>

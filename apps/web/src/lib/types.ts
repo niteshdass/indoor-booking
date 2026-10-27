@@ -71,7 +71,7 @@ export type QuoteResponse = {
   guestAllowed: boolean;
   guestOtpRequired: boolean;
   /** Several bookings at once: every one (the first included) and the sums across them. */
-  items?: { date: string; quote: QuoteJson }[];
+  items?: { turfId: string; date: string; quote: QuoteJson }[];
   total?: number;
   advanceRequired?: number;
 };

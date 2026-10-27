@@ -13,6 +13,9 @@ import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
 import { effectiveForVenue } from '../../venues/effective';
 import { publicTurf, publicVenueBySlug } from '../../venues/routes/public';
+import { turfNotFound } from '../../venues/guards';
+import { Turf, type TurfDoc } from '../../venues/turf.model';
+import type { VenueDoc } from '../../venues/venue.model';
 import { Booking, type BookingDoc } from '../booking.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
@@ -33,21 +36,41 @@ export const addonsSchema = z
   .max(50)
   .default([]);
 
-/** More bookings in the same checkout: each a run of slots on its own day and time. */
+/** More bookings in the same checkout: each a run of slots on its own day and time, on the route's turf unless `turfId` names another of the venue. */
 const moreSchema = z
-  .array(z.object({ date: isoDateSchema, startAts: startAtsSchema }).strict())
+  .array(z.object({ turfId: z.string().min(1).max(64).optional(), date: isoDateSchema, startAts: startAtsSchema }).strict())
   .max(MAX_BOOKINGS_PER_GROUP - 1)
   .default([]);
 
-/** Every item of a checkout, ordered by start; a slot may appear in one item only. */
-const groupItems = (input: { date: string; startAts: Date[]; more: { date: string; startAts: Date[] }[] }): GroupItem[] => {
-  const items = [{ date: input.date, startAts: input.startAts }, ...input.more];
-  const all = items.flatMap((i) => i.startAts.map((d) => d.getTime()));
+type MoreItem = { turfId?: string; date: string; startAts: Date[] };
+
+/**
+ * Every item of a checkout, ordered by turf then start; a slot of a turf may appear in one item only.
+ * Each further turf must be an active turf of the same venue.
+ */
+async function groupItems(
+  venue: VenueDoc,
+  turf: TurfDoc,
+  input: { date: string; startAts: Date[]; more: MoreItem[] },
+): Promise<GroupItem[]> {
+  const turfs = new Map([[String(turf._id), turf]]);
+  for (const id of new Set(input.more.map((i) => i.turfId).filter((x): x is string => x !== undefined))) {
+    if (turfs.has(id)) continue;
+    const other = mongoose.isValidObjectId(id) ? await Turf.findOne({ ownerId: venue.ownerId, venueId: venue._id, _id: id, active: true }) : null;
+    if (!other) throw turfNotFound();
+    turfs.set(id, other);
+  }
+  const items = [{ turfId: String(turf._id), date: input.date, startAts: input.startAts }, ...input.more].map((i) => ({
+    turf: turfs.get(i.turfId ?? String(turf._id))!,
+    date: i.date,
+    startAts: [...i.startAts].sort((a, b) => a.getTime() - b.getTime()),
+  }));
+  const all = items.flatMap((i) => i.startAts.map((d) => `${String(i.turf._id)}|${d.getTime()}`));
   if (new Set(all).size !== all.length) throw new AppError(400, 'validation_error', 'Each slot can be booked once');
-  return items
-    .map((i) => ({ date: i.date, startAts: [...i.startAts].sort((a, b) => a.getTime() - b.getTime()) }))
-    .sort((a, b) => a.startAts[0]!.getTime() - b.startAts[0]!.getTime());
-};
+  const first = String(turf._id);
+  const rank = (i: GroupItem) => (String(i.turf._id) === first ? '' : String(i.turf._id));
+  return items.sort((a, b) => rank(a).localeCompare(rank(b)) || a.startAts[0]!.getTime() - b.startAts[0]!.getTime());
+}
 
 const quoteSchema = z
   .object({ date: isoDateSchema, startAts: startAtsSchema, addons: addonsSchema, more: moreSchema })
@@ -126,11 +149,11 @@ export function publicBookingsRouter(
     const input = quoteSchema.parse(req.body);
     const { venue, turf } = await publicTurf(req.params.slug, req.params.turfId);
     if (input.more.length > 0) {
-      const { items } = await quoteGroup({ venue, turf, items: groupItems(input), selection: input.addons, now: services.now() });
+      const { items } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now() });
       const sum = (key: 'total' | 'advanceRequired') => items.reduce((n, d) => n + d.quote[key], 0);
       res.json({
         quote: quoteJson(items[0]!.quote, venue.currency),
-        items: items.map((d) => ({ date: d.date, quote: quoteJson(d.quote, venue.currency) })),
+        items: items.map((d) => ({ turfId: d.turfId, date: d.date, quote: quoteJson(d.quote, venue.currency) })),
         total: sum('total'),
         advanceRequired: sum('advanceRequired'),
         // Several bookings at once are for signed-in players only.
@@ -180,7 +203,8 @@ export function publicBookingsRouter(
 
       if (input.more.length > 0) {
         if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to book several times at once');
-        const bookings = await createBookingGroup({ venue, turf, items: groupItems(input), selection: input.addons, now, playerId: userId });
+        const items = await groupItems(venue, turf, input);
+        const bookings = await createBookingGroup({ venue, items, selection: input.addons, now, playerId: userId });
         const json = await playerBookingsJson(bookings, services.now());
         res.status(201).json({ booking: json[0], bookings: json });
         return;

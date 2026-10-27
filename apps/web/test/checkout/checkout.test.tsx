@@ -94,6 +94,16 @@ describe('checkoutParams', () => {
     expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=${many.join(';')}`))).toBeNull();
     expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=${many.slice(1).join(';')}`))).not.toBeNull();
   });
+  it('reads more bookings on other courts, and writes them back', () => {
+    const a = '2026-01-01T12:00:00.000Z';
+    const c = '2026-01-03T09:00:00.000Z';
+    const more = [{ turfId: 't2', date: '2026-01-03', startAts: [c] }, { turfId: 't1', date: '2026-01-03', startAts: [c] }];
+    const href = checkoutHref('arena-one', 't1', '2026-01-01', [a], more);
+    expect(new URL(href, 'http://x').searchParams.get('more')).toBe(`2026-01-03@t2:${c};2026-01-03:${c}`);
+    expect(readCheckout(new URL(href, 'http://x').searchParams)?.more).toEqual([{ turfId: 't2', date: '2026-01-03', startAts: [c] }, { date: '2026-01-03', startAts: [c] }]);
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=2026-01-03@:${c}`))).toBeNull();
+    expect(readCheckout(p(`turf=t1&date=2026-01-01&slots=${a}&more=2026-01-03@t%2F2:${c}`))).toBeNull();
+  });
   it('rejects missing or malformed params', () => {
     const ok = '2026-01-01T12:00:00.000Z';
     expect(readCheckout(p(`date=2026-01-01&slots=${ok}`))).toBeNull();

@@ -315,6 +315,7 @@
     "share": "Поделиться",
     "linkCopied": "Ссылка скопирована",
     "court": "Корт",
+    "courts": "Корты",
     "date": "Дата",
     "time": "Время",
     "total": "Итого",
@@ -369,7 +370,8 @@
     "picked_other": "выбрано {{count}} слота",
     "showDay": "Открыть {{date}}",
     "clearDay": "Очистить {{date}}",
-    "slotsOnDays": "{{slots}}, {{days}}"
+    "slotsOnDays": "{{slots}}, {{days}}",
+    "slotsOnCourts": "{{slots}}, {{courts}}, {{days}}"
   },
   "addons": {
     "per_booking": "за бронь",

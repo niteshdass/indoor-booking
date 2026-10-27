@@ -73,14 +73,20 @@ export async function applyEvent(
     return mismatch({ ownerId, event, payment, booking, ctx, session });
   }
   if (!booking) return done('ignored');
-  await lockTurf({ ownerId }, String(booking.turfId), ctx.now, session);
-
-  // Each day of a group is settled on its own: confirmed while it still can be, refunded otherwise.
-  const refundIds: string[] = [];
+  const days: { payment: PaymentDoc; booking: BookingDoc }[] = [];
   for (const p of others) {
     const day = await Booking.findOne({ ownerId, _id: p.bookingId }).session(session);
     if (!day) throw changedUnderneath();
-    refundIds.push(...(await settle({ ownerId, event, payment: p, booking: day, ctx, session })).refundIds);
+    days.push({ payment: p, booking: day });
+  }
+  // A group can span turfs: lock each, always in the same order.
+  const turfIds = [...new Set([booking, ...days.map((d) => d.booking)].map((b) => String(b.turfId)))].sort();
+  for (const id of turfIds) await lockTurf({ ownerId }, id, ctx.now, session);
+
+  // Each booking of a group is settled on its own: confirmed while it still can be, refunded otherwise.
+  const refundIds: string[] = [];
+  for (const d of days) {
+    refundIds.push(...(await settle({ ownerId, event, payment: d.payment, booking: d.booking, ctx, session })).refundIds);
   }
   const lead = await settle({ ownerId, event, payment, booking, ctx, session });
   return done(lead.outcome, [...lead.refundIds, ...refundIds]);

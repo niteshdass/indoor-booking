@@ -90,7 +90,7 @@ describe('placing a booking', () => {
 
   it('several bookings send the others and go to pay for the first one', async () => {
     const one = qr({}, 400).quote;
-    const items = [{ date: '2026-01-01', quote: one }, { date: '2026-01-02', quote: one }];
+    const items = [{ turfId: 't1', date: '2026-01-01', quote: one }, { turfId: 't1', date: '2026-01-02', quote: one }];
     const { calls } = api(qr({ items, total: 4000, advanceRequired: 800 }, 400), {
       create: { booking: booking({ id: 'b1', status: 'awaiting_payment' }), bookings: [booking({ id: 'b1' }), booking({ id: 'b2' })] },
     });

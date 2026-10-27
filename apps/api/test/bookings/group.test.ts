@@ -286,3 +286,85 @@ describe('multi-day payment', () => {
     expect((await Payment.find({ ownerId: owner.ownerId })).map((p) => p.status)).toEqual(['failed', 'failed', 'failed']);
   });
 });
+
+describe('several courts in one checkout', () => {
+  /** A second turf of the same venue, at its own price. */
+  async function secondTurf(price = 2000) {
+    const t = await seedTurf(owner.ownerId, venueId, { pricing: { base: price, rules: [] } });
+    return t.id as string;
+  }
+  /** The same times on two turfs over three days: the route turf, then `other`. */
+  const twoCourts = (other: string) => ({
+    date: D,
+    startAts: [at('19:00')],
+    more: [...sameTime(ALSO), ...[D, ...ALSO].map((d) => ({ turfId: other, date: d, startAts: [at('19:00', d)] }))],
+  });
+
+  it('quotes each court at its own price', async () => {
+    await setup();
+    const other = await secondTurf();
+    const res = await post(`${base()}/quote`, twoCourts(other));
+    expect(res.status).toBe(200);
+    expect(res.body.items.map((i: { turfId: string; date: string }) => [i.turfId, i.date])).toEqual([
+      [turfId, D], [turfId, ALSO[0]], [turfId, ALSO[1]], [other, D], [other, ALSO[0]], [other, ALSO[1]],
+    ]);
+    expect(res.body.total).toBe(3 * 1500 + 3 * 2000);
+  });
+
+  it('books two courts for three days at once, in one group', async () => {
+    await setup();
+    const other = await secondTurf();
+    const { token } = await newPlayer();
+    const res = await post(`${base()}/bookings`, twoCourts(other), token);
+    expect(res.status).toBe(201);
+    expect(res.body.bookings).toHaveLength(6);
+    const made = await bookings();
+    expect(new Set(made.map((b) => String(b.groupId))).size).toBe(1);
+    expect(made.filter((b) => String(b.turfId) === other)).toHaveLength(3);
+    expect(await SlotLock.countDocuments({ turfId: other }).setOptions(cross)).toBe(3);
+  });
+
+  it('allows the same time on two courts but not twice on one', async () => {
+    await setup();
+    const other = await secondTurf();
+    const same = await post(`${base()}/quote`, { date: D, startAts: [at('19:00')], more: [{ turfId, date: D, startAts: [at('19:00')] }] });
+    expect(same.status).toBe(400);
+    const two = await post(`${base()}/quote`, { date: D, startAts: [at('19:00')], more: [{ turfId: other, date: D, startAts: [at('19:00')] }] });
+    expect(two.status).toBe(200);
+  });
+
+  it('refuses a court of another venue', async () => {
+    await setup();
+    const elsewhere = await seedVenue(owner.ownerId, { published: true, slug: 'elsewhere', timezone: TZ, settings: { hours: HOURS } });
+    const foreign = await seedTurf(owner.ownerId, elsewhere.id as string, {});
+    const res = await post(`${base()}/quote`, { date: D, startAts: [at('19:00')], more: [{ turfId: foreign.id as string, date: D, startAts: [at('19:00')] }] });
+    expect(res.status).toBe(404);
+  });
+
+  it('books nothing when the other court is taken, and names that court', async () => {
+    await setup();
+    const other = await secondTurf();
+    const first = await newPlayer();
+    const taken = await post(`/api/v1/venues/${slug}/turfs/${other}/bookings`, { date: ALSO[0], startAts: [at('19:00', ALSO[0])] }, first.token);
+    expect(taken.status).toBe(201);
+    const { token } = await newPlayer();
+    const res = await post(`${base()}/bookings`, twoCourts(other), token);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatchObject({ code: 'slot_taken', details: { turfId: other, date: ALSO[0] } });
+    expect(await Booking.countDocuments({}).setOptions(cross)).toBe(1);
+  });
+
+  it('confirms bookings on every court on one succeeded intent', async () => {
+    await setup({ paymentPolicy: { type: 'partial_percent', percent: 20 } });
+    const other = await secondTurf(1500);
+    const { webhookSecret } = await connectStripe(ctx.app, owner);
+    const player = await newPlayer();
+    const res = await post(`${base()}/bookings`, { date: D, startAts: [at('19:00')], more: [{ turfId: other, date: D, startAts: [at('19:00')] }] }, player.token);
+    expect(res.status).toBe(201);
+    const pay = await post(`/api/v1/bookings/${res.body.booking.id}/payment`, {}, player.token);
+    expect(pay.body.payment.amount).toBe(600);
+    const lead = await Payment.findOne({ ownerId: owner.ownerId, _id: pay.body.payment.id });
+    expect((await postEvent(ctx.app, owner.ownerId, webhookSecret, piSucceeded({ ...lead!.toObject(), amount: 600 }))).status).toBe(200);
+    expect((await bookings()).map((b) => b.status)).toEqual(['confirmed', 'confirmed']);
+  });
+});

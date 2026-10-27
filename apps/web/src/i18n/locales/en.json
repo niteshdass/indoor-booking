@@ -303,6 +303,7 @@
     "share": "Share",
     "linkCopied": "Link copied",
     "court": "Court",
+    "courts": "Courts",
     "date": "Date",
     "time": "Time",
     "total": "Total",
@@ -347,7 +348,8 @@
     "picked_other": "{{count}} slots picked",
     "showDay": "Show {{date}}",
     "clearDay": "Clear {{date}}",
-    "slotsOnDays": "{{slots}} on {{days}}"
+    "slotsOnDays": "{{slots}} on {{days}}",
+    "slotsOnCourts": "{{slots}} on {{courts}}, {{days}}"
   },
   "addons": {
     "per_booking": "per booking",

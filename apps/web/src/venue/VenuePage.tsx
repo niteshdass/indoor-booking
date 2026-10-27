@@ -94,8 +94,8 @@ export function VenuePage() {
   }, []);
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  /** Slots picked per day on the shown turf, for the date strip. */
-  const [picked, setPicked] = useState<Record<string, number>>({});
+  /** Slots picked per day on each court, for the court tabs and the date strip. */
+  const [picked, setPicked] = useState<Record<string, Record<string, number>>>({});
 
   useEffect(() => {
     let live = true;
@@ -215,6 +215,7 @@ export function VenuePage() {
             <div className={styles.tabs} role="tablist" aria-label={t('venue.turfs')} onKeyDown={onTabKey}>
               {venue.turfs.map((x) => {
                 const active = x.id === turf.id;
+                const count = Object.values(picked[x.id] ?? {}).reduce((n, c) => n + c, 0);
                 return (
                   <button
                     key={x.id}
@@ -238,12 +239,18 @@ export function VenuePage() {
                         ].join(' · ')}
                       </span>
                     </span>
+                    {count > 0 && (
+                      <span className={styles.tabBadge}>
+                        <span aria-hidden="true">{count}</span>
+                        <span className={styles.hidden}>{t('slots.picked', { count })}</span>
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
 
-            <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} marked={picked} timeZone={venue.timezone} />
+            <DateStrip today={today} value={date} onChange={(d) => update({ date: d })} marked={picked[turf.id] ?? {}} timeZone={venue.timezone} />
 
             {slotTaken && (
               <Alert tone="warning" className={styles.alert}>
@@ -252,13 +259,12 @@ export function VenuePage() {
             )}
 
             <SlotsPanel
-              key={turf.id}
               slug={slug}
+              turfs={venue.turfs}
               turfId={turf.id}
-              turfName={turf.name}
               date={date}
               tabId={`turf-tab-${turf.id}`}
-              onDate={(d) => update({ date: d })}
+              onOpen={(id, d) => update({ turf: id, date: d })}
               onPicked={setPicked}
             />
           </>

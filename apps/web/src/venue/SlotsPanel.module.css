@@ -254,6 +254,29 @@
   list-style: none;
 }
 
+/* Picks on several courts: each court's name over its days. */
+.courtList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.courtGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.courtName {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
 /* Date (opens that day) and its times on the left, clear on the right. */
 .dayItem {
   display: grid;

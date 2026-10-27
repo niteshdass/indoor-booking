@@ -9,15 +9,21 @@ function validDate(s: string | null | undefined): s is string {
   return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
 }
 
-/** One more booking in the same checkout: a run of slots on its own day. */
-export type CheckoutItem = { date: string; startAts: string[] };
+const TURF_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
-/** `more`: further bookings made in the same checkout, each at its own day and times. */
+/** One more booking in the same checkout: a run of slots on its own day, on the main court unless `turfId` names another. */
+export type CheckoutItem = { turfId?: string; date: string; startAts: string[] };
+
+/** `more`: further bookings made in the same checkout, each at its own court, day and times. */
 export type CheckoutParams = { turfId: string; date: string; startAts: string[]; more: CheckoutItem[] };
+
+/** `date:instants`, or `date@turfId:instants` for a court other than `main`. */
+export const moreParam = (main: string, more: CheckoutItem[]) =>
+  more.map((i) => `${i.date}${i.turfId && i.turfId !== main ? `@${i.turfId}` : ''}:${i.startAts.join(',')}`).join(';');
 
 export function checkoutHref(slug: string, turfId: string, date: string, startAts: string[], more: CheckoutItem[] = []): string {
   const q = new URLSearchParams({ turf: turfId, date, slots: startAts.join(',') });
-  if (more.length > 0) q.set('more', more.map((i) => `${i.date}:${i.startAts.join(',')}`).join(';'));
+  if (more.length > 0) q.set('more', moreParam(turfId, more));
   return `/venues/${encodeURIComponent(slug)}/checkout?${q.toString()}`;
 }
 
@@ -36,7 +42,7 @@ function readInstants(raw: string): string[] | null {
   return [...times].sort((a, b) => a - b).map((ms) => new Date(ms).toISOString());
 }
 
-/** `date:instant,instant;date:instant`; null when any part is malformed or there are too many. */
+/** `date:instant,instant;date@turfId:instant`; null when any part is malformed or there are too many. */
 function readMore(raw: string | null): CheckoutItem[] | null {
   if (!raw) return [];
   const parts = raw.split(';');
@@ -44,9 +50,12 @@ function readMore(raw: string | null): CheckoutItem[] | null {
   const items: CheckoutItem[] = [];
   for (const part of parts) {
     const date = part.slice(0, 10);
-    const startAts = part[10] === ':' ? readInstants(part.slice(11)) : null;
-    if (!validDate(date) || !startAts) return null;
-    items.push({ date, startAts });
+    const colon = part.indexOf(':', 10);
+    const turfId = part[10] === '@' ? part.slice(11, colon) : undefined;
+    if (!validDate(date) || colon < 0 || (turfId === undefined ? colon !== 10 : !TURF_ID.test(turfId))) return null;
+    const startAts = readInstants(part.slice(colon + 1));
+    if (!startAts) return null;
+    items.push({ ...(turfId ? { turfId } : {}), date, startAts });
   }
   return items;
 }

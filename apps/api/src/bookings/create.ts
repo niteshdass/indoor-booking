@@ -301,34 +301,44 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
   }
 }
 
-/** One booking of a group: a run of consecutive slots on one day. */
-export type GroupItem = { date: string; startAts: Date[] };
+/** One booking of a group: a run of consecutive slots on one day of one turf. */
+export type GroupItem = { turf: TurfDoc; date: string; startAts: Date[] };
 
-type GroupInput = Omit<QuoteInput, 'source' | 'date' | 'startAts'> & {
-  /** Distinct slots; any days, any times, each item booked on its own. */
+type GroupInput = Omit<QuoteInput, 'source' | 'date' | 'startAts' | 'turf'> & {
+  /** Distinct slots; any turfs of the venue, any days, any times, each item booked on its own. */
   items: GroupItem[];
 };
 
-/** A failure on one item of a group, naming its day and first slot so the player knows which one to drop. */
+/** A failure on one item of a group, naming its turf, day and first slot so the player knows which one to drop. */
 const itemError = (item: GroupItem, err: unknown): unknown => {
-  const where = { date: item.date, itemStart: item.startAts[0]!.toISOString() };
+  const where = { turfId: String(item.turf._id), date: item.date, itemStart: item.startAts[0]!.toISOString() };
   if (err instanceof AppError) return new AppError(err.status, err.code, err.message, where);
   if (err instanceof BookingQuoteError) return new AppError(400, err.code, err.message, { ...where, startAt: err.startAt });
   if (err instanceof AddonQuoteError) return new AppError(err.code === 'addon_out_of_stock' ? 409 : 400, err.code, err.message, { ...where, addonId: err.addonId });
   return err;
 };
 
+/** The add-ons of `selection` that `turf` offers: one pick of add-ons spans courts that may not all have them. */
+const offeredOn = async (ownerId: string, input: GroupInput, turf: TurfDoc, many: boolean) => {
+  if (!many) return input.selection;
+  const offered = await offeredAddons(ownerId, input.venue, turf);
+  return input.selection.filter((s) => offered.some((o) => o.addonId === s.addonId && !o.autoApply));
+};
+
 /** Prepares every item of a group in order; the first failure names its item. */
 async function prepareGroup(input: GroupInput) {
-  const base = { ...input, source: 'online' as const };
-  const items: (Awaited<ReturnType<typeof prepare>> & { item: GroupItem })[] = [];
+  const ownerId = String(input.venue.ownerId);
+  const many = new Set(input.items.map((i) => String(i.turf._id))).size > 1;
+  const items: (Awaited<ReturnType<typeof prepare>> & { item: GroupItem; selection: AddonSelection[] })[] = [];
   for (const item of input.items) {
     try {
-      items.push({ ...(await prepare({ ...base, date: item.date, startAts: item.startAts })), item });
+      const selection = await offeredOn(ownerId, input, item.turf, many);
+      const base = { ...input, turf: item.turf, selection, source: 'online' as const };
+      items.push({ ...(await prepare({ ...base, date: item.date, startAts: item.startAts })), item, selection });
     } catch (err) {
       // Someone else holding a slot is "just booked", as for a single booking.
       if (err instanceof BookingQuoteError && err.code === 'slot_unavailable' && err.startAt) {
-        const { day } = await loadDay(String(input.venue.ownerId), input.venue, input.turf, item.date, input.now);
+        const { day } = await loadDay(ownerId, input.venue, item.turf, item.date, input.now);
         const slot = day.slots.find((s) => s.startAt.toISOString() === err.startAt);
         if (slot && (slot.status === 'booked' || slot.status === 'pending')) throw itemError(item, new AppError(409, 'slot_taken', 'That slot was just booked'));
       }
@@ -339,44 +349,50 @@ async function prepareGroup(input: GroupInput) {
 }
 
 /** Prices each item of a group against the live grid; a preview, as quoteFor. */
-export async function quoteGroup(input: GroupInput): Promise<{ items: { date: string; quote: BookingQuote }[]; settings: EffectiveSettings }> {
+export async function quoteGroup(
+  input: GroupInput,
+): Promise<{ items: { turfId: string; date: string; quote: BookingQuote }[]; settings: EffectiveSettings }> {
   const items = await prepareGroup(input);
-  return { items: items.map((d) => ({ date: d.item.date, quote: d.quote })), settings: items[0]!.settings };
+  return { items: items.map((d) => ({ turfId: String(d.item.turf._id), date: d.item.date, quote: d.quote })), settings: items[0]!.settings };
 }
 
 /**
- * Books several runs of slots (any days, any times) for a signed-in player, all or nothing: one transaction under
- * one lockTurf, one booking per item sharing a groupId, each priced on its own with the same add-ons.
- * A clash on any item books none and names that item.
+ * Books several runs of slots (any turfs of the venue, any days, any times) for a signed-in player, all or
+ * nothing: one transaction under the lockTurf of every turf involved, one booking per item sharing a groupId,
+ * each priced on its own with the add-ons its turf offers. A clash on any item books none and names that item.
  */
 export async function createBookingGroup(input: GroupInput & { playerId: string }): Promise<BookingDoc[]> {
-  const { venue, turf, selection, now, playerId } = input;
+  const { venue, now, playerId } = input;
   const days = await prepareGroup(input);
-  const { ownerId, offered } = days[0]!;
+  const { ownerId } = days[0]!;
   const lockOwner = { ownerId };
+  // Always the same order, so two groups sharing turfs cannot each hold one the other waits on.
+  const turfIds = [...new Set(days.map((d) => String(d.item.turf._id)))].sort();
 
   const attempt = () =>
     runInTransaction(async (session) => {
-      await lockTurf(lockOwner, turf.id as string, now, session);
+      for (const id of turfIds) await lockTurf(lockOwner, id, now, session);
       for (const d of days) {
         const range = rangeOf(d.picked);
-        await expireStaleHolds(ownerId, turf._id, range, now, session);
-        if (await Booking.exists({ ownerId, turfId: turf._id, ...overlapping(range), ...holdingFilter(now) }).session(session)) {
+        const turfId = d.item.turf._id;
+        await expireStaleHolds(ownerId, turfId, range, now, session);
+        if (await Booking.exists({ ownerId, turfId, ...overlapping(range), ...holdingFilter(now) }).session(session)) {
           throw itemError(d.item, new AppError(409, 'slot_taken', 'That slot was just booked'));
         }
       }
 
-      const stocked = [...new Set(limited(offered, selection))].sort();
+      const stocked = [...new Set(days.flatMap((d) => limited(d.offered, d.selection)))].sort();
       for (const addonId of stocked) await lockAddon(lockOwner, addonId, now, session);
       const groupId = new mongoose.Types.ObjectId();
       const holdExpiresAt = new Date(now.getTime() + HOLD_MINUTES * 60_000);
       const bookings: BookingDoc[] = [];
       for (const d of days) {
         const range = rangeOf(d.picked);
+        const { turf } = d.item;
         let quote: BookingQuote;
         try {
-          const inUse = await stockInUse(ownerId, venue, stocked, range, now, session);
-          quote = quoteBooking({ slots: d.picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy: d.paymentPolicy });
+          const inUse = await stockInUse(ownerId, venue, limited(d.offered, d.selection), range, now, session);
+          quote = quoteBooking({ slots: d.picked, offered: d.offered, indoor: turf.indoor, selection: d.selection, inUse, paymentPolicy: d.paymentPolicy });
         } catch (err) {
           throw itemError(d.item, err);
         }

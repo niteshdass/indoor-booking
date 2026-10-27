@@ -65,6 +65,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
       <div className={styles.pair}>
         <Select
           layout="stacked"
+          size="lg"
           label={t('series.startTime')}
           value={value.startTime}
           options={times.map((x) => ({ value: x, label: x }))}
@@ -72,6 +73,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
         />
         <Select
           layout="stacked"
+          size="lg"
           label={t('series.length')}
           value={String(value.slotCount)}
           options={Array.from({ length: MAX_SLOTS_PER_BOOKING }, (_, k) => ({ value: String(k + 1), label: duration(k + 1) }))}
@@ -80,58 +82,55 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
       </div>
       {slotTimes.length === 0 && <p className={styles.notice}>{t('series.noSlots')}</p>}
 
-      <TextField
-        type="date"
-        label={t('series.firstDate')}
-        value={value.firstDate}
-        onChange={(e) => set({ firstDate: e.target.value })}
-      />
-
-      <fieldset className={styles.group}>
-        <legend className={styles.legend}>{t('series.ends')}</legend>
-        <label className={styles.option}>
-          <input
-            type="radio"
-            name={`${groupId}-ends`}
-            checked={mode === 'date'}
-            onChange={() => set({ endDate: value.endDate ?? value.firstDate, count: null })}
-          />
-          <span>{t('series.endsOnDate')}</span>
-        </label>
-        <label className={styles.option}>
-          <input
-            type="radio"
-            name={`${groupId}-ends`}
-            checked={mode === 'count'}
-            onChange={() => set({ count: value.count ?? 10, endDate: null })}
-          />
-          <span>{t('series.endsAfter')}</span>
-        </label>
-        {mode === 'date' ? (
-          <TextField
-            type="date"
-            label={t('series.endDate')}
-            value={value.endDate ?? ''}
-            min={value.firstDate}
-            onChange={(e) => set({ endDate: e.target.value || null })}
-          />
-        ) : (
-          <TextField
-            type="number"
-            inputMode="numeric"
-            label={t('series.count')}
-            min={1}
-            max={SERIES_MAX_GAMES}
-            value={countDraft ?? String(value.count ?? '')}
-            onBlur={() => setCountDraft(null)}
-            onChange={(e) => {
-              setCountDraft(e.target.value);
-              const n = Math.floor(Number(e.target.value));
-              if (e.target.value.trim() !== '' && Number.isFinite(n) && n >= 1) set({ count: Math.min(n, SERIES_MAX_GAMES) });
-            }}
-          />
-        )}
-      </fieldset>
+      <div className={styles.pair}>
+        <TextField
+          type="date"
+          label={t('series.firstDate')}
+          value={value.firstDate}
+          onChange={(e) => set({ firstDate: e.target.value })}
+        />
+        <Select
+          layout="stacked"
+          size="lg"
+          label={t('series.ends')}
+          value={mode}
+          options={[
+            { value: 'count', label: t('series.endsAfterShort') },
+            { value: 'date', label: t('series.endsOnDateShort') },
+          ]}
+          onChange={(e) =>
+            set(
+              e.target.value === 'date'
+                ? { endDate: value.endDate ?? value.firstDate, count: null }
+                : { count: value.count ?? 10, endDate: null },
+            )
+          }
+        />
+      </div>
+      {mode === 'date' ? (
+        <TextField
+          type="date"
+          label={t('series.endDate')}
+          value={value.endDate ?? ''}
+          min={value.firstDate}
+          onChange={(e) => set({ endDate: e.target.value || null })}
+        />
+      ) : (
+        <TextField
+          type="number"
+          inputMode="numeric"
+          label={t('series.count')}
+          min={1}
+          max={SERIES_MAX_GAMES}
+          value={countDraft ?? String(value.count ?? '')}
+          onBlur={() => setCountDraft(null)}
+          onChange={(e) => {
+            setCountDraft(e.target.value);
+            const n = Math.floor(Number(e.target.value));
+            if (e.target.value.trim() !== '' && Number.isFinite(n) && n >= 1) set({ count: Math.min(n, SERIES_MAX_GAMES) });
+          }}
+        />
+      )}
     </div>
   );
 }

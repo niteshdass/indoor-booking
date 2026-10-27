@@ -20,7 +20,7 @@
 .sent {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -31,9 +31,8 @@
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: var(--space-4);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-xs);
@@ -50,8 +49,13 @@
 
 .muted {
   margin: 0;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+.preview {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .alert {

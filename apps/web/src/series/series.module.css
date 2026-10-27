@@ -1,7 +1,7 @@
 .form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -24,21 +24,27 @@
 }
 
 .chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
 }
 
 .chip {
+  min-width: 0;
   min-height: var(--control-md);
-  padding-inline: var(--space-3);
+  padding-inline: var(--space-1);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-full);
   background: var(--bg-surface);
   color: var(--text-default);
   font: inherit;
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   cursor: pointer;
+}
+
+.chip:hover {
+  background: var(--bg-hover);
 }
 
 .chipBrand[aria-pressed='true'] {
@@ -56,26 +62,12 @@
 .pair {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .pair > * {
-  flex: 1 1 0;
+  flex: 1 1 var(--field-min);
   min-width: 0;
-}
-
-.option {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-md);
-  font-size: var(--text-base);
-  color: var(--text-strong);
-  cursor: pointer;
-}
-
-.option input {
-  accent-color: var(--primary);
 }
 
 .notice {
@@ -100,7 +92,7 @@
   gap: var(--space-2) var(--space-4);
   padding-block: var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--text-default);
   font-variant-numeric: tabular-nums;
 }
@@ -115,20 +107,52 @@
   color: var(--text-strong);
 }
 
+.more {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.more:hover {
+  text-decoration: underline;
+}
+
 .footer {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-base);
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.total {
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
 }
 
 .skipped {
-  font-weight: var(--weight-regular);
+  font-size: var(--text-sm);
   color: var(--text-muted);
+}
+
+.footer > :last-child:not(.totals) {
+  flex: 1 0 auto;
 }
 
 .badgeLink {

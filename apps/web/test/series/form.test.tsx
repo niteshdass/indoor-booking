@@ -44,10 +44,10 @@ describe('SeriesForm', () => {
     await user.click(screen.getByRole('button', { name: 'Mon' }));
     expect(last.weekdays).toEqual(['wed']);
 
-    await user.click(screen.getByRole('radio', { name: en.series.endsOnDate }));
+    await user.selectOptions(screen.getByLabelText(en.series.ends), 'date');
     expect(last.count).toBeNull();
     expect(last.endDate).toBe('2026-10-26');
-    await user.click(screen.getByRole('radio', { name: en.series.endsAfter }));
+    await user.selectOptions(screen.getByLabelText(en.series.ends), 'count');
     expect(last.endDate).toBeNull();
     expect(last.count).toBe(10);
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { addDays, localParts } from '@booking/shared';
@@ -68,6 +68,14 @@ function Request({ venue }: { venue: PublicVenue }) {
   const [error, setError] = useState<unknown>(null);
   const [sent, setSent] = useState<SeriesJson | null>(null);
   const busy = useRef(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Bring the new dates and the Send button into view once they load.
+  useEffect(() => {
+    if (!preview) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    previewRef.current?.scrollIntoView?.({ block: 'end', behavior: reduce ? 'auto' : 'smooth' });
+  }, [preview]);
 
   const turf = venue.turfs.find((x) => x.id === turfId);
   const base = `/venues/${encodeURIComponent(venue.slug)}/turfs/${encodeURIComponent(turfId)}`;
@@ -138,6 +146,7 @@ function Request({ venue }: { venue: PublicVenue }) {
         <h2 className={styles.venue}>{venue.name}</h2>
         <Select
           layout="stacked"
+          size="lg"
           label={t('series.player.turf')}
           value={turfId}
           options={venue.turfs.map((x) => ({ value: x.id, label: x.name }))}
@@ -148,19 +157,24 @@ function Request({ venue }: { venue: PublicVenue }) {
           }}
         />
         <SeriesForm value={pattern} onChange={edit} tone="brand" slotTimes={slotTimes} slotMinutes={turf.slotLengthMin} />
-        <Button type="button" variant="secondary" size="lg" loading={checking} disabled={!patternOk} onClick={checkDates}>
-          {t('series.check')}
-        </Button>
-      </section>
-
-      {preview && (
-        <section className={styles.card} aria-live="polite">
-          <SeriesPreviewList preview={preview} timeZone={venue.timezone} />
-          <Button type="button" variant="brand" size="lg" block loading={sending} disabled={preview.freeCount === 0} onClick={send}>
-            {t('series.player.send')}
+        {preview ? (
+          <div ref={previewRef} className={styles.preview} aria-live="polite">
+            <SeriesPreviewList
+              preview={preview}
+              timeZone={venue.timezone}
+              action={
+                <Button type="button" variant="brand" size="lg" loading={sending} disabled={preview.freeCount === 0} onClick={send}>
+                  {t('series.player.send')}
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <Button type="button" variant="secondary" size="lg" block loading={checking} disabled={!patternOk} onClick={checkDates}>
+            {t('series.check')}
           </Button>
-        </section>
-      )}
+        )}
+      </section>
 
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
     </form>

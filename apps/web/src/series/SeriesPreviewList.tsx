@@ -1,18 +1,26 @@
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../components/ui/Badge';
 import { formatDate, formatTime, money } from '../lib/format';
 import styles from './series.module.css';
 import type { SeriesPreview } from './types';
 
-/** One row per candidate date: the price when it is free, else why it is skipped; then the totals. */
-export function SeriesPreviewList({ preview, timeZone }: { preview: SeriesPreview; timeZone: string }) {
+/** Rows shown before the list collapses behind "Show all". */
+const COLLAPSED_ROWS = 5;
+
+/** One row per candidate date: the price when it is free, else why it is skipped; then the totals and an optional action. */
+export function SeriesPreviewList({ preview, timeZone, action }: { preview: SeriesPreview; timeZone: string; action?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
+  const [expanded, setExpanded] = useState(false);
   const skipped = preview.dates.length - preview.freeCount;
+  // Keep one extra row rather than a "Show all" that reveals a single date.
+  const collapsible = preview.dates.length > COLLAPSED_ROWS + 1;
+  const dates = collapsible && !expanded ? preview.dates.slice(0, COLLAPSED_ROWS) : preview.dates;
   return (
-    <div>
+    <div className={styles.group}>
       <ul className={styles.list} aria-label={t('series.previewLabel')}>
-        {preview.dates.map((d) =>
+        {dates.map((d) =>
           d.status === 'free' ? (
             <li key={d.date} className={styles.item}>
               <span className={styles.when}>
@@ -28,10 +36,18 @@ export function SeriesPreviewList({ preview, timeZone }: { preview: SeriesPrevie
           ),
         )}
       </ul>
-      <p className={styles.footer}>
-        <span>{t('series.footer', { count: preview.freeCount, total: money(preview.total, preview.currency, lang) })}</span>
-        {skipped > 0 && <span className={styles.skipped}>{t('series.skipped', { count: skipped })}</span>}
-      </p>
+      {collapsible && (
+        <button type="button" className={styles.more} aria-expanded={expanded} onClick={() => setExpanded((x) => !x)}>
+          {expanded ? t('series.showFewer') : t('series.showAll', { count: preview.dates.length })}
+        </button>
+      )}
+      <div className={styles.footer}>
+        <p className={styles.totals}>
+          <span className={styles.total}>{t('series.footer', { count: preview.freeCount, total: money(preview.total, preview.currency, lang) })}</span>
+          {skipped > 0 && <span className={styles.skipped}>{t('series.skipped', { count: skipped })}</span>}
+        </p>
+        {action}
+      </div>
     </div>
   );
 }

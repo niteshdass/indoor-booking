@@ -57,10 +57,13 @@ export function Attention({
   if (items.length === 0) return null;
 
   return (
-    <section className={styles.attention} aria-labelledby="today-attention">
-      <h2 id="today-attention" className={styles.heading}>
-        {t('owner.today.attention')}
-      </h2>
+    <section className={`${styles.panel} ${styles.attention}`} aria-labelledby="today-attention">
+      <div className={styles.panelHead}>
+        <h2 id="today-attention" className={styles.heading}>
+          {t('owner.today.attention')}
+        </h2>
+        <span className={styles.count}>{items.length}</span>
+      </div>
       <ul className={styles.attentionList}>
         {items.map((it) => (
           <li key={it.key} className={`${styles.attentionItem} ${styles[it.tone]}`}>

@@ -108,6 +108,18 @@
   --hours-mode-min: 7rem; /* narrowest the Open/Closed select gets there */
   --hero-panel-max: 40rem;
   --meter-height: 6px;
+  --chart-height: 15rem; /* plot area of a dashboard trend chart */
+  --chart-axis: 3rem; /* value labels left of a chart */
+  --sparkline-height: 2rem; /* trend line under a KPI tile */
+  --donut-size: 9rem; /* revenue mix ring */
+  --donut-stroke: 5; /* ring thickness in its 42-unit viewBox */
+  --heat-cell: 1.5rem; /* height of one hour cell in the busy-times heatmap */
+  --heat-label: 2.5rem; /* weekday column of the heatmap */
+  --heat-min: 36rem; /* narrowest the heatmap gets before it scrolls */
+  --chart-line: 2px;
+  --chart-gap: 2px; /* surface gap between stacked segments, bars and heatmap cells */
+  --radius-mark: 2px; /* corner of a legend swatch or heatmap cell */
+  --swatch: 0.625rem; /* legend color square */
   /* Loading skeletons: heights of a stat card, a panel (timeline, detail) and a list item */
   --skeleton-stat: 7.5rem;
   --skeleton-panel: 16rem;
@@ -183,6 +195,11 @@
   --info: #1f5fd1;
   --info-soft: #e7effd;
 
+  /* Chart series, fixed order (dataviz palette, validated on --bg-surface) */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+
   /* Per-owner brand color: public pages only, set inline from the owner's settings. */
   --brand: var(--primary);
   --brand-fg: var(--primary-fg);
@@ -230,6 +247,9 @@
   --danger-soft: rgba(255, 123, 114, 0.13);
   --info: #6ea8ff;
   --info-soft: rgba(110, 168, 255, 0.13);
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
   color-scheme: dark;
 }
 
@@ -269,6 +289,9 @@
     --danger-soft: rgba(255, 123, 114, 0.13);
     --info: #6ea8ff;
     --info-soft: rgba(110, 168, 255, 0.13);
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
     color-scheme: dark;
   }
 }

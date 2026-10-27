@@ -26,7 +26,7 @@ import styles from './TodayPage.module.css';
 
 /** Owner landing page: today's totals for one venue and the queue of bookings still to come. */
 export function TodayPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { can } = useOwner();
   const [venue] = useVenueParam();
   useOwnerTitle(t('owner.nav.today'));
@@ -45,7 +45,20 @@ export function TodayPage() {
   }
   return (
     <div className={styles.page}>
-      <VenueSelect />
+      <div className={styles.toolbar}>
+        <p className={styles.date}>
+          {new Intl.DateTimeFormat(i18n.language, { weekday: 'long', day: 'numeric', month: 'long', timeZone: venue.timezone }).format(
+            new Date(),
+          )}
+        </p>
+        <VenueSelect />
+        {can('reports.view') && (
+          <Link to={`overview?venue=${encodeURIComponent(venue.id)}`} className={styles.trends}>
+            {t('owner.today.trends')}
+            <span aria-hidden="true">→</span>
+          </Link>
+        )}
+      </div>
       <TodayVenue venue={venue} />
     </div>
   );
@@ -98,53 +111,67 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
             hint={t('owner.today.courtsUsedHint', { booked: hoursFmt.format(usage.booked), open: hoursFmt.format(usage.open) })}
           />
         )}
-        <StatCard label={t('owner.today.pending')} value={String(pending)} tone={pending > 0 ? 'warning' : undefined} />
+        <StatCard
+          label={t('owner.today.pending')}
+          value={String(pending)}
+          tone={pending > 0 ? 'warning' : undefined}
+          hint={pending === 0 ? t('owner.today.caughtUp') : undefined}
+        />
       </div>
       <CourtTimeline bookings={bookings} timezone={venue.timezone} courts={extras.courts} />
-      <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
-      <h2 className={styles.heading}>{t('owner.today.upcoming')}</h2>
-      {upcoming.length === 0 ? (
-        <EmptyState size="sm" sport="padel" title={t('owner.today.none')} />
-      ) : (
-        <Paged items={upcoming} pageSize={10}>
-          {(rows) => (
-            <Table caption={t('owner.today.upcoming')}>
-              <thead>
-                <tr>
-                  <th>{t('owner.today.time')}</th>
-                  <th>{t('owner.today.turf')}</th>
-                  <th>{t('owner.today.customer')}</th>
-                  <th>{t('owner.today.status')}</th>
-                  {canConfirm && <th>{t('owner.bookings.actions.title')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((b) => {
-                  const starts = b.slots.map((s) => s.startAt).sort();
-                  const ends = b.slots.map((s) => s.endAt).sort();
-                  return (
-                    <tr key={b.id}>
-                      <td className={styles.time}>
-                        {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
-                      </td>
-                      <td>{b.turf?.name ?? '—'}</td>
-                      <td>
-                        <Link to={`bookings/${encodeURIComponent(b.id)}`} className={styles.link}>
-                          {b.customer?.name ?? b.reference}
-                        </Link>
-                      </td>
-                      <td>
-                        <BookingStatusBadge status={b.status} />
-                      </td>
-                      {canConfirm && <td>{b.status === 'pending' && <PendingActions id={b.id} onDone={reload} />}</td>}
+      <div className={styles.split}>
+        <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
+        <section className={styles.panel} aria-labelledby="today-upcoming">
+          <div className={styles.panelHead}>
+            <h2 id="today-upcoming" className={styles.heading}>
+              {t('owner.today.upcoming')}
+            </h2>
+            {upcoming.length > 0 && <span className={styles.count}>{upcoming.length}</span>}
+          </div>
+          {upcoming.length === 0 ? (
+            <p className={styles.empty}>{t('owner.today.none')}</p>
+          ) : (
+            <Paged items={upcoming} pageSize={10}>
+              {(rows) => (
+                <Table bare caption={t('owner.today.upcoming')}>
+                  <thead>
+                    <tr>
+                      <th>{t('owner.today.time')}</th>
+                      <th>{t('owner.today.turf')}</th>
+                      <th>{t('owner.today.customer')}</th>
+                      <th>{t('owner.today.status')}</th>
+                      {canConfirm && <th>{t('owner.bookings.actions.title')}</th>}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
+                  </thead>
+                  <tbody>
+                    {rows.map((b) => {
+                      const starts = b.slots.map((s) => s.startAt).sort();
+                      const ends = b.slots.map((s) => s.endAt).sort();
+                      return (
+                        <tr key={b.id}>
+                          <td className={styles.time}>
+                            {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
+                          </td>
+                          <td>{b.turf?.name ?? '—'}</td>
+                          <td>
+                            <Link to={`bookings/${encodeURIComponent(b.id)}`} className={styles.link}>
+                              {b.customer?.name ?? b.reference}
+                            </Link>
+                          </td>
+                          <td>
+                            <BookingStatusBadge status={b.status} />
+                          </td>
+                          {canConfirm && <td>{b.status === 'pending' && <PendingActions id={b.id} onDone={reload} />}</td>}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              )}
+            </Paged>
           )}
-        </Paged>
-      )}
+        </section>
+      </div>
     </>
   );
 }

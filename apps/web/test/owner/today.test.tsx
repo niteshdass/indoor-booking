@@ -95,6 +95,20 @@ describe('Today page', () => {
     expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/venues/new`);
   });
 
+  it('Today links to the Overview trends only with reports.view', async () => {
+    mockApi([...ownerRoutes({ permissions: ['booking.view', 'reports.view'] }), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const link = await screen.findByRole('link', { name: new RegExp(en.owner.today.trends) });
+    expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/overview?venue=v1`);
+  });
+
+  it('Today hides the trends link without reports.view', async () => {
+    mockApi([...ownerRoutes(), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByText(en.owner.today.none);
+    expect(screen.queryByRole('link', { name: new RegExp(en.owner.today.trends) })).toBeNull();
+  });
+
   const pendingRoutes = (perms: Parameters<typeof ownerRoutes>[0] = {}) => [
     ...ownerRoutes(perms),
     {

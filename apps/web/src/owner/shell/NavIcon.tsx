@@ -3,6 +3,7 @@ import styles from './OwnerShell.module.css';
 /** 24px stroke icons for the sidebar, keyed by the nav item's i18n key, plus a few page icons. */
 const PATHS: Record<string, string> = {
   'owner.nav.today': 'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
+  'owner.nav.overview': 'M3 3v18h18M7 16v-4M12 16V8M17 16v-7',
   'owner.nav.schedule': 'M3 6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM16 2v4M8 2v4M3 10h18',
   'owner.nav.bookings': 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   'owner.nav.walkIn': 'M12 5v14M5 12h14',

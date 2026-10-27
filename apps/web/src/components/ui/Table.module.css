@@ -5,6 +5,12 @@
   background: var(--bg-surface);
 }
 
+.bare {
+  box-shadow: none;
+  border-radius: 0;
+  background: none;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

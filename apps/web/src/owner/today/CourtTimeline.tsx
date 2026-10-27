@@ -112,6 +112,12 @@ export function buildLanes(
   return { lanes: [...lanes.values()].sort((a, b) => a.name.localeCompare(b.name)), from, to };
 }
 
+/** Hours since local midnight as "HH:MM". */
+const clock = (h: number) => {
+  const m = Math.round(h * 60);
+  return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+};
+
 export function CourtTimeline({
   bookings,
   timezone,
@@ -134,8 +140,8 @@ export function CourtTimeline({
   const ticks = Array.from({ length: span + 1 }, (_, i) => from + i);
 
   return (
-    <section className={styles.timelineCard} aria-labelledby="today-courts">
-      <div className={styles.timelineHead}>
+    <section className={styles.panel} aria-labelledby="today-courts">
+      <div className={styles.panelHead}>
         <h2 id="today-courts" className={styles.heading}>
           {t('owner.today.courts')}
         </h2>
@@ -167,7 +173,7 @@ export function CourtTimeline({
                     key={b.id}
                     className={`${styles.block} ${styles[b.kind]}`}
                     style={{ left: pct(b.start), width: `${((b.end - b.start) / span) * 100}%` }}
-                    title={`${b.label}, ${t(`status.${b.status}`)}`}
+                    title={`${b.label}, ${clock(b.start)}–${clock(b.end)}, ${t(`status.${b.status}`)}`}
                   >
                     <span className={styles.blockLabel}>{b.label}</span>
                   </span>

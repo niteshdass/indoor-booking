@@ -528,6 +528,7 @@
     "nav": {
       "label": "Owner portal",
       "today": "Today",
+      "overview": "Overview",
       "schedule": "Schedule",
       "bookings": "Bookings",
       "walkIn": "Walk-in",
@@ -575,7 +576,95 @@
       "lowReview": "A {{stars}} out of 5 review has no reply",
       "lowReviewHint": "Replies show on your venue page",
       "open": "Open",
-      "aPlayer": "A player"
+      "aPlayer": "A player",
+      "trends": "See trends",
+      "caughtUp": "All caught up"
+    },
+    "overview": {
+      "range": "Period",
+      "days_7": "Last 7 days",
+      "days_30": "Last 30 days",
+      "days_90": "Last 90 days",
+      "compared": "{{from}} – {{to}}, compared with {{prevFrom}} – {{prevTo}}",
+      "kpi": {
+        "revenue": "Revenue",
+        "bookings": "Bookings",
+        "hours": "Hours played",
+        "utilization": "Court use",
+        "average": "Average booking",
+        "cancellations": "Cancellations"
+      },
+      "from": "from {{value}}",
+      "up": "Up",
+      "down": "Down",
+      "same": "No change",
+      "new": "New",
+      "pt": "{{n}} pt",
+      "hoursValue": "{{n}} h",
+      "trend": {
+        "title": "Trend",
+        "label": "Show",
+        "revenue": "Revenue",
+        "bookings": "Bookings",
+        "hours": "Hours",
+        "online": "Online",
+        "walkin": "Walk-in",
+        "current": "This period",
+        "previous": "Previous period",
+        "chart": "{{metric}} by day",
+        "date": "Date"
+      },
+      "mix": {
+        "title": "Where revenue comes from",
+        "courts": "Court time",
+        "addons": "Add-ons",
+        "fees": "Kept on cancellation",
+        "total": "Total",
+        "collected": "Collected",
+        "outstanding": "Still to collect"
+      },
+      "heat": {
+        "title": "When courts are busy",
+        "hint": "Hours played by start time",
+        "fewer": "Fewer",
+        "more": "More",
+        "peak": "Busiest: {{day}} from {{hour}}",
+        "cell": "{{day}} {{hour}}: {{value}}",
+        "none": "No games played in this period."
+      },
+      "outcomes": {
+        "title": "Booking outcomes",
+        "none": "No bookings in this period."
+      },
+      "methods": {
+        "title": "Payments received",
+        "card": "Card",
+        "cash": "Cash",
+        "wallet": "Wallet",
+        "count_one": "{{count}} payment",
+        "count_other": "{{count}} payments",
+        "none": "No payments in this period."
+      },
+      "courts": {
+        "title": "Courts",
+        "court": "Court",
+        "revenue": "Revenue",
+        "share": "Share",
+        "hours": "Hours",
+        "use": "Use",
+        "change": "Change"
+      },
+      "players": {
+        "title": "Players",
+        "total": "Played or booked",
+        "new": "First visit",
+        "returning": "Came back"
+      },
+      "recent": {
+        "title": "Latest bookings",
+        "all": "All bookings",
+        "none": "No bookings yet."
+      }
     },
     "walkInGuest": "Walk-in guest",
     "unknownCustomer": "Unknown customer",

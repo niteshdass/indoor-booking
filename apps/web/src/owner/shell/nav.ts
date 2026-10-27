@@ -8,6 +8,7 @@ export const NAV_GROUPS: NavGroup[] = ['daily', 'setup', 'team'];
 /** Sidebar items in display order; `to` is relative to `/owner/:ownerId`. `ownerRoutes` guards each page with the same perms. */
 export const NAV: NavItem[] = [
   { to: '', key: 'owner.nav.today', group: 'daily', perms: ['booking.view'] },
+  { to: 'overview', key: 'owner.nav.overview', group: 'daily', perms: ['reports.view'] },
   { to: 'schedule', key: 'owner.nav.schedule', group: 'daily', perms: ['booking.view'] },
   { to: 'bookings', key: 'owner.nav.bookings', group: 'daily', perms: ['booking.view'] },
   { to: 'walk-in', key: 'owner.nav.walkIn', group: 'daily', perms: ['booking.create'] },

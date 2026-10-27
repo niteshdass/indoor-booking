@@ -74,11 +74,11 @@ describe('Owner series list', () => {
     expect(screen.getByText(/Answer by/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: en.series.owner.newSeries })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: en.series.owner.showMore }));
+    await user.click(screen.getByRole('button', { name: en.pagination.next }));
     expect(await screen.findByText('Second Group')).toBeTruthy();
     expect(screen.getByText('Pia Player')).toBeTruthy();
     expect(api.calls.filter((c) => c.path === '/owners/o1/series').at(-1)!.query.get('before')).toBe('2026-10-20T00:00:00.000Z');
-    expect(screen.queryByRole('button', { name: en.series.owner.showMore })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: en.pagination.label })).toBeNull();
 
     await user.selectOptions(screen.getByLabelText(en.owner.bookings.status), 'requested');
     await waitFor(() => expect(location().search).toContain('status=requested'));

@@ -165,7 +165,11 @@ export type PaymentJson = {
   createdAt: string;
 };
 
-export type BookingDetail = { booking: OwnerBooking; payments: PaymentJson[]; refunds: RefundJson[] };
+/** `group`: the other bookings made in the same go (several courts or days), soonest first. */
+export type BookingDetail = { booking: OwnerBooking; payments: PaymentJson[]; refunds: RefundJson[]; group?: OwnerBooking[] };
+
+/** The bookings a walk-in made in one go, with their refunds. */
+export type BookingGroup = { bookings: OwnerBooking[]; refunds: RefundJson[] };
 
 export type Member = {
   id: string;

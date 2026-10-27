@@ -12,24 +12,44 @@ import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
 import { expireHold, paymentsUnavailable, startLink } from '../../payments/intent';
 import { loadGateway } from '../../payments/gateway.model';
-import { Refund } from '../../payments/refund.model';
+import { Refund, type RefundDoc } from '../../payments/refund.model';
 import { refundJson } from '../../payments/refunds';
 import { logActivity } from '../../tenancy/activityLog.model';
-import { permissionsCover, requirePermission, tenantOf } from '../../tenancy/context';
+import { permissionsCover, requirePermission, tenantOf, type TenantContext } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
 import { noticeBooking } from '../../notifications/outbox';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
-import { Booking } from '../booking.model';
+import { Booking, type BookingDoc } from '../booking.model';
 import { ownerBookingJson, ownerBookingsJson } from '../ownerJson';
-import { assertSeriesAnswered, cancelBooking, previewCancellation } from '../cancel';
-import { createBooking } from '../create';
+import { assertSeriesAnswered, CANCELLABLE, cancelBooking, previewCancellation } from '../cancel';
+import { createBooking, createBookingGroup } from '../create';
+import { bookingSearchFilter, searchCustomers } from '../customers';
 import { Payment, type PaymentDoc } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
-import { addonsSchema, startAtsSchema } from './public';
+import { addonsSchema, groupItems, moreSchema, startAtsSchema } from './public';
 
 const MAX_RANGE_DAYS = 31;
 const LIST_LIMIT = 500;
+const LIST_SCOPES = ['all', 'today', 'upcoming', 'past'] as const;
+/** Field and direction: when the booking was made, the reference, or when it is played. */
+const LIST_SORTS = ['created-desc', 'created-asc', 'date-asc', 'date-desc', 'ref-asc', 'ref-desc'] as const;
+const MAX_PAGE_SIZE = 100;
+const SORT_SPEC: Record<(typeof LIST_SORTS)[number], Record<string, 1 | -1>> = {
+  'created-desc': { createdAt: -1, _id: -1 },
+  'created-asc': { createdAt: 1, _id: 1 },
+  'date-asc': { startAt: 1, _id: 1 },
+  'date-desc': { startAt: -1, _id: -1 },
+  'ref-asc': { reference: 1, _id: 1 },
+  'ref-desc': { reference: -1, _id: -1 },
+};
+/** Each tab's order when the caller names none: newest made first, today and upcoming soonest first, past latest first. */
+const DEFAULT_SORT: Record<(typeof LIST_SCOPES)[number], (typeof LIST_SORTS)[number]> = {
+  all: 'created-desc',
+  today: 'date-asc',
+  upcoming: 'date-asc',
+  past: 'date-desc',
+};
 const CHECK_IN_LEAD_MS = 60 * 60_000;
 /** Statuses that still take a cash payment. */
 const CASH_STATUSES: readonly BookingStatus[] = ['pending', 'confirmed', 'completed', 'no_show'];
@@ -42,6 +62,13 @@ const listQuery = z.object({
   from: isoDateSchema.optional(),
   to: isoDateSchema.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
+  /** With `scope` or `q` the list is paged: { bookings, total }. Without either, it is one date range. */
+  scope: z.enum(LIST_SCOPES).optional(),
+  /** Reference, customer name or phone. */
+  q: z.string().trim().min(1).max(80).optional(),
+  sort: z.enum(LIST_SORTS).optional(),
+  page: z.coerce.number().int().min(1).max(10_000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(25),
 });
 
 const walkinSchema = z
@@ -49,6 +76,7 @@ const walkinSchema = z
     date: isoDateSchema,
     startAts: startAtsSchema,
     addons: addonsSchema,
+    more: moreSchema,
     customer: z
       .object({ name: nameSchema, phone: z.string().max(32), playerId: z.string().max(64).optional() })
       .strict(),
@@ -59,6 +87,8 @@ const walkinSchema = z
     ]),
   })
   .strict();
+
+const customerQuery = z.object({ q: z.string().trim().min(2).max(80) });
 
 const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
@@ -86,6 +116,35 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
   router.get('/bookings', requirePermission('booking.view'), async (req, res) => {
     const t = tenantOf(req);
     const q = listQuery.parse(req.query);
+    if (q.scope || q.q) {
+      const scope = q.scope ?? 'all';
+      const filter: Record<string, unknown> = {};
+      if (q.venueId) filter.venueId = q.venueId;
+      if (q.turfId) filter.turfId = q.turfId;
+      if (q.status) filter.status = q.status;
+      // Today, upcoming and past are venue-local dates, so they need the venue.
+      if (scope !== 'all' && !q.venueId) throw new AppError(400, 'validation_error', 'venueId is required for this scope');
+      const today = q.venueId ? localParts(services.now(), (await scopedVenue(t, q.venueId)).timezone).date : null;
+      const date: Record<string, string> = {};
+      if (scope === 'today') Object.assign(date, { $gte: today!, $lte: today! });
+      if (scope === 'upcoming') date.$gt = today!;
+      if (scope === 'past') date.$lt = today!;
+      if (q.from) date.$gte = date.$gte && date.$gte > q.from ? date.$gte : q.from;
+      if (q.to) date.$lte = date.$lte && date.$lte < q.to ? date.$lte : q.to;
+      if (Object.keys(date).length) filter.businessDate = date;
+      if (q.q) Object.assign(filter, await bookingSearchFilter(q.q));
+      const repo = tenantRepo(Booking, t, { venueField: 'venueId' });
+      const [total, bookings] = await Promise.all([
+        repo.countDocuments(filter),
+        repo
+          .find(filter)
+          .sort(SORT_SPEC[q.sort ?? DEFAULT_SORT[scope]])
+          .skip((q.page - 1) * q.pageSize)
+          .limit(q.pageSize),
+      ]);
+      res.json({ bookings: await ownerBookingsJson(bookings), total });
+      return;
+    }
     let { from, to } = q;
     if (q.venueId) {
       const venue = await scopedVenue(t, q.venueId);
@@ -110,12 +169,29 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     res.json({ bookings: await ownerBookingsJson(bookings) });
   });
 
+  // Past customers for the walk-in and new series forms; booking.create is who fills those in.
+  router.get('/customers', requirePermission('booking.create'), async (req, res) => {
+    const { q } = customerQuery.parse(req.query);
+    res.json({ customers: await searchCustomers(tenantOf(req), q) });
+  });
+
   router.get('/bookings/:bookingId', requirePermission('booking.view'), async (req, res) => {
     const t = tenantOf(req);
     const booking = await scopedBooking(t, req.params.bookingId as string);
     const payments = await Payment.find({ ownerId: t.ownerId, bookingId: booking._id }).sort({ _id: 1 });
     const refunds = await Refund.find({ ownerId: t.ownerId, bookingId: booking._id }).sort({ _id: 1 });
-    res.json({ booking: await ownerBookingJson(booking), payments: payments.map(paymentJson), refunds: refunds.map(refundJson) });
+    // The other bookings made in the same go, as far as the member can see them.
+    const group = booking.groupId
+      ? await tenantRepo(Booking, t, { venueField: 'venueId' })
+          .find({ groupId: booking.groupId, _id: { $ne: booking._id } })
+          .sort({ businessDate: 1, startAt: 1 })
+      : [];
+    res.json({
+      booking: await ownerBookingJson(booking),
+      payments: payments.map(paymentJson),
+      refunds: refunds.map(refundJson),
+      group: await ownerBookingsJson(group),
+    });
   });
 
   router.get('/bookings/:bookingId/cancellation', requirePermission('booking.view'), async (req, res) => {
@@ -131,6 +207,44 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     res.json({ booking: await ownerBookingJson(out.booking), refunds: out.refunds.map(refundJson) });
   });
 
+  router.get('/booking-groups/:groupId', requirePermission('booking.view'), async (req, res) => {
+    const t = tenantOf(req);
+    const bookings = await groupOf(t, req.params.groupId as string);
+    const refunds = await Refund.find({ ownerId: t.ownerId, bookingId: { $in: bookings.map((b) => b._id) } }).sort({ _id: 1 });
+    res.json({ bookings: await ownerBookingsJson(bookings), refunds: refunds.map(refundJson) });
+  });
+
+  // Takes the rest of every booking's total in one go; bookings already paid or past taking cash are skipped.
+  router.post('/booking-groups/:groupId/payments/cash', requirePermission('payment.mark_cash'), async (req, res) => {
+    const t = tenantOf(req);
+    const bookings = await groupOf(t, req.params.groupId as string);
+    const owing = bookings.filter((b) => CASH_STATUSES.includes(b.status as BookingStatus) && b.total > b.amountPaid);
+    if (owing.length === 0) throw new AppError(409, 'already_paid', 'These bookings are already paid');
+    const now = services.now();
+    await runInTransaction(async (session) => {
+      for (const b of owing) await recordCash(t, b, b.total - b.amountPaid, now, session);
+    });
+    res.status(201).json({ bookings: await ownerBookingsJson(await groupOf(t, req.params.groupId as string)) });
+  });
+
+  // One cancel per booking, each with its own refund; a failure stops there and the rest stay as they are.
+  router.post('/booking-groups/:groupId/cancel', requirePermission('booking.cancel'), async (req, res) => {
+    const t = tenantOf(req);
+    const { reason } = cancelSchema.parse(req.body ?? {});
+    const bookings = await groupOf(t, req.params.groupId as string);
+    const open = bookings.filter((b) => CANCELLABLE.includes(b.status as BookingStatus));
+    if (open.length === 0) throw new AppError(409, 'invalid_transition', 'Nothing in this group can be cancelled');
+    const refunds: RefundDoc[] = [];
+    for (const b of open) {
+      const out = await cancelBooking(b, { kind: 'staff', t }, { reason: reason || undefined }, { config, services });
+      refunds.push(...out.refunds);
+    }
+    res.json({
+      bookings: await ownerBookingsJson(await groupOf(t, req.params.groupId as string)),
+      refunds: refunds.map(refundJson),
+    });
+  });
+
   router.post('/venues/:venueId/turfs/:turfId/bookings', requirePermission('booking.create'), async (req, res) => {
     const t = tenantOf(req);
     const input = walkinSchema.parse(req.body);
@@ -139,6 +253,11 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const playerId = await walkinPlayerId(input.customer.playerId);
     const now = services.now();
     const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'walkin' as const, now };
+    const many = input.more.length > 0;
+    // A group takes each booking's whole total: one amount cannot be split across its bookings.
+    if (many && 'amount' in input.payment && input.payment.amount !== undefined) {
+      throw new AppError(400, 'validation_error', 'An amount can be set for a single booking only');
+    }
 
     const cash = input.payment.method === 'cash' ? { amount: input.payment.amount, recordedBy: t.userId } : undefined;
     if (cash && !permissionsCover(t, ['payment.mark_cash'])) {
@@ -158,51 +277,61 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
         gatewayMode: loaded.mode,
       };
     }
-    let linkPayment: PaymentDoc | null = null;
-    const booking = await createBooking({
-      ...base,
-      who: { playerId, guest: { name: input.customer.name, phone }, createdBy: t.userId },
-      cash,
-      card,
-      // Same transaction as the inserts: the booking and its log commit or fail together.
-      afterInsert: async (session, created, payment) => {
-        const venueId = String(created.venueId);
+    const who = { playerId, guest: { name: input.customer.name, phone }, createdBy: t.userId };
+    // Same transaction as the inserts: the booking and its log commit or fail together.
+    const afterInsert = async (session: mongoose.ClientSession, created: BookingDoc, payment: PaymentDoc | null) => {
+      const venueId = String(created.venueId);
+      await logActivity(
+        t,
+        {
+          action: 'booking.create',
+          entity: 'booking',
+          entityId: created.id as string,
+          venueId,
+          after: { reference: created.reference, status: created.status, total: created.total },
+        },
+        now,
+        session,
+      );
+      if (payment?.method === 'cash') {
         await logActivity(
           t,
           {
-            action: 'booking.create',
-            entity: 'booking',
-            entityId: created.id as string,
+            action: 'payment.cash',
+            entity: 'payment',
+            entityId: payment.id as string,
             venueId,
-            after: { reference: created.reference, status: created.status, total: created.total },
+            after: { bookingId: created.id, amount: payment.amount },
           },
           now,
           session,
         );
-        if (payment?.method === 'card') linkPayment = payment;
-        if (payment?.method === 'cash') {
-          await logActivity(
-            t,
-            {
-              action: 'payment.cash',
-              entity: 'payment',
-              entityId: payment.id as string,
-              venueId,
-              after: { bookingId: created.id, amount: payment.amount },
-            },
-            now,
-            session,
-          );
-        }
-      },
-    });
+      }
+    };
+    const bookings = many
+      ? await createBookingGroup({
+          venue,
+          items: await groupItems(venue, turf, input),
+          selection: input.addons,
+          source: 'walkin',
+          now,
+          who,
+          cash: cash && { recordedBy: cash.recordedBy },
+          card: card && { gateway: card.gateway, gatewayAccountId: card.gatewayAccountId, gatewayMode: card.gatewayMode },
+          afterInsert,
+        })
+      : [await createBooking({ ...base, who, cash, card, afterInsert })];
+    const booking = bookings[0]!;
+    const json = many ? { booking: await ownerBookingJson(booking), bookings: await ownerBookingsJson(bookings) } : { booking: await ownerBookingJson(booking) };
+    // The group's rows share one link; the first booking's row leads it.
+    const linkPayment = card ? await Payment.findOne({ ownerId: t.ownerId, bookingId: booking._id, method: 'card', kind: 'link', status: 'pending' }) : null;
     if (!linkPayment) {
-      res.status(201).json({ booking: await ownerBookingJson(booking) });
+      res.status(201).json(json);
       return;
     }
     // After commit: a Stripe failure leaves the hold in place for the re-issue route.
-    const { url } = await startLink(booking, linkPayment, { config, services });
-    res.status(201).json({ booking: await ownerBookingJson(booking), payment: linkJson(linkPayment, url) });
+    const { url, amount } = await startLink(booking, linkPayment, { config, services });
+    res.status(201).json({ ...json, payment: linkJson(linkPayment, url, amount) });
   });
 
   router.post('/bookings/:bookingId/payments/link', requirePermission('booking.create'), async (req, res) => {
@@ -223,8 +352,8 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       await expireHold(booking, now);
       throw new AppError(409, 'hold_expired', 'This hold has expired');
     }
-    const { url } = await startLink(booking, payment, { config, services });
-    res.json({ payment: linkJson(payment, url) });
+    const { url, amount } = await startLink(booking, payment, { config, services });
+    res.json({ payment: linkJson(payment, url, amount) });
   });
 
   router.post('/bookings/:bookingId/confirm', requirePermission('booking.confirm'), async (req, res) => {
@@ -289,56 +418,69 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const amount = input.amount ?? remaining;
     if (amount < 1 || amount > remaining) throw invalidAmount(remaining);
 
-    const now = services.now();
-    const { updated, payment } = await runInTransaction(async (session) => {
-      // Guarded by the amountPaid we read: a concurrent payment matches nothing and loses.
-      const updated = await Booking.findOneAndUpdate(
-        { ownerId: t.ownerId, _id: booking._id, status, amountPaid: booking.amountPaid },
-        { $inc: { amountPaid: amount }, $set: { paymentStatus: paymentStatusFor(booking.amountPaid + amount, booking.total) } },
-        { session, new: true },
-      );
-      if (!updated) throw new AppError(409, 'invalid_transition', 'This booking was just changed; reload it');
-      const [payment] = await Payment.create(
-        [
-          {
-            ownerId: t.ownerId,
-            venueId: booking.venueId,
-            bookingId: booking._id,
-            method: 'cash',
-            gateway: null,
-            gatewayAccountId: null,
-            gatewayRef: null,
-            amount,
-            currency: booking.currency,
-            status: 'succeeded',
-            recordedBy: t.userId,
-          },
-        ],
-        { session },
-      );
-      await logActivity(
-        t,
-        {
-          action: 'payment.cash',
-          entity: 'payment',
-          entityId: payment!.id as string,
-          venueId: String(booking.venueId),
-          before: { amountPaid: booking.amountPaid },
-          after: { bookingId: booking.id, amount, amountPaid: updated.amountPaid },
-        },
-        now,
-        session,
-      );
-      return { updated, payment: payment! };
-    });
+    const { updated, payment } = await runInTransaction((session) => recordCash(t, booking, amount, services.now(), session));
     res.status(201).json({ booking: await ownerBookingJson(updated), payment: paymentJson(payment) });
   });
 
   return router;
 }
 
-function linkJson(p: PaymentDoc, url: string) {
-  return { id: String(p.id), amount: p.amount, currency: p.currency, url };
+/** The visible bookings of one group, in time order; 404 when the member sees none of them. */
+async function groupOf(t: TenantContext, groupId: string): Promise<BookingDoc[]> {
+  const bookings = mongoose.isValidObjectId(groupId)
+    ? await tenantRepo(Booking, t, { venueField: 'venueId' }).find({ groupId }).sort({ businessDate: 1, startAt: 1 })
+    : [];
+  if (bookings.length === 0) throw new AppError(404, 'not_found', 'Booking group not found');
+  return bookings;
+}
+
+/** Records `amount` of cash against a booking and logs it, inside the caller's transaction. */
+async function recordCash(t: TenantContext, booking: BookingDoc, amount: number, now: Date, session: mongoose.ClientSession) {
+  const status = booking.status;
+  // Guarded by the amountPaid we read: a concurrent payment matches nothing and loses.
+  const updated = await Booking.findOneAndUpdate(
+    { ownerId: t.ownerId, _id: booking._id, status, amountPaid: booking.amountPaid },
+    { $inc: { amountPaid: amount }, $set: { paymentStatus: paymentStatusFor(booking.amountPaid + amount, booking.total) } },
+    { session, new: true },
+  );
+  if (!updated) throw new AppError(409, 'invalid_transition', 'This booking was just changed; reload it');
+  const [payment] = await Payment.create(
+    [
+      {
+        ownerId: t.ownerId,
+        venueId: booking.venueId,
+        bookingId: booking._id,
+        method: 'cash',
+        gateway: null,
+        gatewayAccountId: null,
+        gatewayRef: null,
+        amount,
+        currency: booking.currency,
+        status: 'succeeded',
+        recordedBy: t.userId,
+      },
+    ],
+    { session },
+  );
+  await logActivity(
+    t,
+    {
+      action: 'payment.cash',
+      entity: 'payment',
+      entityId: payment!.id as string,
+      venueId: String(booking.venueId),
+      before: { amountPaid: booking.amountPaid },
+      after: { bookingId: booking.id, amount, amountPaid: updated.amountPaid },
+    },
+    now,
+    session,
+  );
+  return { updated, payment: payment! };
+}
+
+/** `amount` is what the link takes: a walk-in group's link pays for every booking of the group. */
+function linkJson(p: PaymentDoc, url: string, amount: number) {
+  return { id: String(p.id), amount, currency: p.currency, url };
 }
 
 function paymentJson(p: InstanceType<typeof Payment>) {

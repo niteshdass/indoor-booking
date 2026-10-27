@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { apiDelete, apiPut } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -34,33 +35,37 @@ export function AssignmentsTable({ level, venue, turfId, addons, assignments, on
   return (
     <div className={styles.stack}>
       <p className={styles.muted}>{t('owner.addons.offeredHint')}</p>
-      <Table caption={t('owner.addons.assign.title')}>
-        <thead>
-          <tr>
-            <th>{t('owner.addons.col.name')}</th>
-            <th>{t('owner.addons.assign.enabled')}</th>
-            <th>{t('owner.addons.assign.override')}</th>
-            {level === 'venue' && <th>{t('owner.addons.col.stock')}</th>}
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {addons.map((addon) => {
-            const row = assignments.find((a) => a.addonId === addon.id) ?? null;
-            return (
-              <AssignmentRow
-                key={`${addon.id}:${row ? JSON.stringify(row) : 'none'}`}
-                level={level}
-                venue={venue}
-                turfId={turfId}
-                addon={addon}
-                row={row}
-                onChanged={onChanged}
-              />
-            );
-          })}
-        </tbody>
-      </Table>
+      <Paged items={addons} pageSize={10}>
+        {(rows) => (
+          <Table caption={t('owner.addons.assign.title')}>
+            <thead>
+              <tr>
+                <th>{t('owner.addons.col.name')}</th>
+                <th>{t('owner.addons.assign.enabled')}</th>
+                <th>{t('owner.addons.assign.override')}</th>
+                {level === 'venue' && <th>{t('owner.addons.col.stock')}</th>}
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((addon) => {
+                const row = assignments.find((a) => a.addonId === addon.id) ?? null;
+                return (
+                  <AssignmentRow
+                    key={`${addon.id}:${row ? JSON.stringify(row) : 'none'}`}
+                    level={level}
+                    venue={venue}
+                    turfId={turfId}
+                    addon={addon}
+                    row={row}
+                    onChanged={onChanged}
+                  />
+                );
+              })}
+            </tbody>
+          </Table>
+        )}
+      </Paged>
     </div>
   );
 }

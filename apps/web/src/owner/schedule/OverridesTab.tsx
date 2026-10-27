@@ -6,6 +6,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { apiDelete } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -118,38 +119,40 @@ export function OverridesTab({ turf, venue }: { turf: OwnerTurf; venue: OwnerVen
         (state.data.overrides.length === 0 ? (
           <EmptyState sport="badminton" title={t('owner.override.empty')} />
         ) : (
-          <Table caption={t('owner.override.title')}>
-            <thead>
-              <tr>
-                <th>{t('owner.override.col.when')}</th>
-                <th>{t('owner.override.col.type')}</th>
-                <th>{t('owner.override.col.time')}</th>
-                <th>{t('owner.override.col.price')}</th>
-                <th>{t('owner.override.col.reason')}</th>
-                {editable && <th />}
-              </tr>
-            </thead>
-            <tbody>
-              {[...state.data.overrides]
-                .sort((a, b) => sortKey(a).localeCompare(sortKey(b)))
-                .map((o) => (
-                  <tr key={o.id}>
-                    <td>{when(o)}</td>
-                    <td>{t(`owner.override.type.${o.type}`)}</td>
-                    <td className={styles.num}>{time(o)}</td>
-                    <td className={styles.num}>{price(o)}</td>
-                    <td>{o.reason ?? t('owner.override.none')}</td>
-                    {editable && (
-                      <td>
-                        <Button variant="ghost" size="sm" onClick={() => setRemoving(o)}>
-                          {t('owner.override.delete')}
-                        </Button>
-                      </td>
-                    )}
+          <Paged items={[...state.data.overrides].sort((a, b) => sortKey(a).localeCompare(sortKey(b)))}>
+            {(rows) => (
+              <Table caption={t('owner.override.title')}>
+                <thead>
+                  <tr>
+                    <th>{t('owner.override.col.when')}</th>
+                    <th>{t('owner.override.col.type')}</th>
+                    <th>{t('owner.override.col.time')}</th>
+                    <th>{t('owner.override.col.price')}</th>
+                    <th>{t('owner.override.col.reason')}</th>
+                    {editable && <th />}
                   </tr>
-                ))}
-            </tbody>
-          </Table>
+                </thead>
+                <tbody>
+                  {rows.map((o) => (
+                    <tr key={o.id}>
+                      <td>{when(o)}</td>
+                      <td>{t(`owner.override.type.${o.type}`)}</td>
+                      <td className={styles.num}>{time(o)}</td>
+                      <td className={styles.num}>{price(o)}</td>
+                      <td>{o.reason ?? t('owner.override.none')}</td>
+                      {editable && (
+                        <td>
+                          <Button variant="ghost" size="sm" onClick={() => setRemoving(o)}>
+                            {t('owner.override.delete')}
+                          </Button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Paged>
         ))}
       {editable && <OverrideForm open={adding} onClose={() => setAdding(false)} turf={turf} currency={currency} onCreated={reload} />}
       <ConfirmDeleteDialog

@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { apiDelete } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -57,43 +58,47 @@ export function AddonsPage() {
         (state.data.addons.length === 0 ? (
           <EmptyState sport="volleyball" title={t('owner.addons.empty')} />
         ) : (
-          <Table caption={t('owner.addons.title')}>
-            <thead>
-              <tr>
-                <th>{t('owner.addons.col.name')}</th>
-                <th>{t('owner.addons.col.type')}</th>
-                <th>{t('owner.addons.col.price')}</th>
-                <th>{t('owner.addons.col.maxQuantity')}</th>
-                <th>{t('owner.addons.col.stock')}</th>
-                <th>{t('owner.addons.col.auto')}</th>
-                {writable && <th />}
-              </tr>
-            </thead>
-            <tbody>
-              {state.data.addons.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.name}</td>
-                  <td>{t(`owner.addons.type.${a.pricingType}`)}</td>
-                  <td className={styles.num}>{money(a.price, a.currency, i18n.language)}</td>
-                  <td className={styles.num}>{a.maxQuantity}</td>
-                  <td className={styles.num}>{a.stock ?? t('owner.addons.unlimited')}</td>
-                  <td>{a.autoApply ? <Badge tone="info">{t('owner.addons.autoBadge')}</Badge> : t('owner.addons.none')}</td>
-                  {writable && (
-                    <td>
-                      <div className={styles.rowActions}>
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(a)}>
-                          {t('owner.addons.edit')}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setRemoving(a)}>
-                          {t('owner.addons.delete')}
-                        </Button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <Paged items={state.data.addons}>
+            {(rows) => (
+              <Table caption={t('owner.addons.title')}>
+                <thead>
+                  <tr>
+                    <th>{t('owner.addons.col.name')}</th>
+                    <th>{t('owner.addons.col.type')}</th>
+                    <th>{t('owner.addons.col.price')}</th>
+                    <th>{t('owner.addons.col.maxQuantity')}</th>
+                    <th>{t('owner.addons.col.stock')}</th>
+                    <th>{t('owner.addons.col.auto')}</th>
+                    {writable && <th />}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.name}</td>
+                      <td>{t(`owner.addons.type.${a.pricingType}`)}</td>
+                      <td className={styles.num}>{money(a.price, a.currency, i18n.language)}</td>
+                      <td className={styles.num}>{a.maxQuantity}</td>
+                      <td className={styles.num}>{a.stock ?? t('owner.addons.unlimited')}</td>
+                      <td>{a.autoApply ? <Badge tone="info">{t('owner.addons.autoBadge')}</Badge> : t('owner.addons.none')}</td>
+                      {writable && (
+                        <td>
+                          <div className={styles.rowActions}>
+                            <Button variant="ghost" size="sm" onClick={() => setEditing(a)}>
+                              {t('owner.addons.edit')}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setRemoving(a)}>
+                              {t('owner.addons.delete')}
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Paged>
         ))}
       {writable && (
         <>

@@ -73,6 +73,7 @@
   --container-checkout: 64rem; /* checkout page: extras plus the summary card */
   --container-detail: 42rem; /* booking detail and payment pages: one compact column */
   --receipt-width: 794px; /* PDF receipt: A4 width at 96dpi */
+  --filter-search-min: 14rem; /* search width before the toolbar wraps */
   --filter-search-max: 28rem; /* widest the toolbar search grows */
   --filter-panel-width: 24rem; /* filter dropdown under the filter icon */
   --date-field-min: 8.5rem; /* narrowest a date field gets before a From/To pair stacks */

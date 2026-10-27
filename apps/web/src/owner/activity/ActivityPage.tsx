@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Paged } from '../../components/ui/Pagination';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiGet } from '../../lib/apiClient';
@@ -20,7 +21,7 @@ import styles from './activity.module.css';
 const LIMIT = 50;
 const pretty = (v: unknown) => JSON.stringify(v, null, 2);
 
-/** Owner activity log (`reports.view`), newest first, in pages of 50. */
+/** Owner activity log (`reports.view`), newest first; fetched 50 at a time, shown a page at a time. */
 export function ActivityPage() {
   const { t, i18n } = useTranslation();
   const { ownerId, venues } = useOwner();
@@ -48,15 +49,17 @@ export function ActivityPage() {
   const nextBefore = cursor === undefined ? first.state.data.nextBefore : cursor;
 
   const loadMore = async () => {
-    if (nextBefore === null || loading) return;
+    if (nextBefore === null || loading) return false;
     setLoading(true);
     setMoreError(null);
     try {
       const page = await apiGet<ActivityData>(ownerPath(ownerId, `/activity?limit=${LIMIT}&before=${encodeURIComponent(nextBefore)}`));
       setMore((m) => [...m, ...page.items]);
       setCursor(page.nextBefore);
+      return page.items.length > 0;
     } catch (e) {
       setMoreError(errorMessage(e, t));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -73,62 +76,61 @@ export function ActivityPage() {
       {items.length === 0 ? (
         <EmptyState sport="basketball" title={t('owner.activity.empty')} />
       ) : (
-        <Table caption={t('owner.activity.title')}>
-          <thead>
-            <tr>
-              <th>{t('owner.activity.col.time')}</th>
-              <th>{t('owner.activity.col.actor')}</th>
-              <th>{t('owner.activity.col.action')}</th>
-              <th>{t('owner.activity.col.entity')}</th>
-              <th>{t('owner.activity.col.changes')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item) => {
-              const keys = changedKeys(item.before, item.after);
-              const hasDetail = item.before !== null || item.after !== null;
-              return (
-                <tr key={item.id}>
-                  <td className={styles.num}>{when(item)}</td>
-                  <td>{item.actor ? (item.actor.name ?? '—') : t('owner.activity.system')}</td>
-                  <td>{activityLabel(item, t)}</td>
-                  <td>
-                    <span className={styles.stack}>
-                      <span>{t(`owner.activity.entity.${item.entity}`, { defaultValue: item.entity })}</span>
-                      {item.entity === 'booking' && (
-                        <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(item.entityId)}`} className={styles.link}>
-                          {t('owner.activity.openBooking')}
-                        </Link>
-                      )}
-                    </span>
-                  </td>
-                  <td>
-                    {hasDetail ? (
-                      <details>
-                        <summary className={styles.summary}>{keys.length > 0 ? keys.join(', ') : t('owner.activity.details')}</summary>
-                        <div className={styles.diff}>
-                          <span className={styles.diffLabel}>{t('owner.activity.before')}</span>
-                          <pre className={styles.pre}>{pretty(item.before)}</pre>
-                          <span className={styles.diffLabel}>{t('owner.activity.after')}</span>
-                          <pre className={styles.pre}>{pretty(item.after)}</pre>
-                        </div>
-                      </details>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
+        <Paged items={items} more={nextBefore !== null} loading={loading} onMore={loadMore}>
+          {(rows) => (
+            <Table caption={t('owner.activity.title')}>
+              <thead>
+                <tr>
+                  <th>{t('owner.activity.col.time')}</th>
+                  <th>{t('owner.activity.col.actor')}</th>
+                  <th>{t('owner.activity.col.action')}</th>
+                  <th>{t('owner.activity.col.entity')}</th>
+                  <th>{t('owner.activity.col.changes')}</th>
                 </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+              </thead>
+              <tbody>
+                {rows.map((item) => {
+                  const keys = changedKeys(item.before, item.after);
+                  const hasDetail = item.before !== null || item.after !== null;
+                  return (
+                    <tr key={item.id}>
+                      <td className={styles.num}>{when(item)}</td>
+                      <td>{item.actor ? (item.actor.name ?? '—') : t('owner.activity.system')}</td>
+                      <td>{activityLabel(item, t)}</td>
+                      <td>
+                        <span className={styles.stack}>
+                          <span>{t(`owner.activity.entity.${item.entity}`, { defaultValue: item.entity })}</span>
+                          {item.entity === 'booking' && (
+                            <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(item.entityId)}`} className={styles.link}>
+                              {t('owner.activity.openBooking')}
+                            </Link>
+                          )}
+                        </span>
+                      </td>
+                      <td>
+                        {hasDetail ? (
+                          <details>
+                            <summary className={styles.summary}>{keys.length > 0 ? keys.join(', ') : t('owner.activity.details')}</summary>
+                            <div className={styles.diff}>
+                              <span className={styles.diffLabel}>{t('owner.activity.before')}</span>
+                              <pre className={styles.pre}>{pretty(item.before)}</pre>
+                              <span className={styles.diffLabel}>{t('owner.activity.after')}</span>
+                              <pre className={styles.pre}>{pretty(item.after)}</pre>
+                            </div>
+                          </details>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )}
+        </Paged>
       )}
       {moreError && <Alert tone="danger">{moreError}</Alert>}
-      {nextBefore !== null && (
-        <Button variant="secondary" className={styles.more} onClick={loadMore} disabled={loading}>
-          {t('owner.activity.loadMore')}
-        </Button>
-      )}
     </div>
   );
 }

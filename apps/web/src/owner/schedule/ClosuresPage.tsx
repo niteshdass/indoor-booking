@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { apiDelete, apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -131,32 +132,36 @@ export function ClosuresPage() {
         (state.data.closures.length === 0 ? (
           <EmptyState sport="badminton" title={t('owner.closures.empty')} />
         ) : (
-          <Table caption={t('owner.closures.title')}>
-            <thead>
-              <tr>
-                <th>{t('owner.closures.col.scope')}</th>
-                <th>{t('owner.closures.col.range')}</th>
-                <th>{t('owner.closures.col.reason')}</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {state.data.closures.map((c) => (
-                <tr key={c.id}>
-                  <td>{scopeLabel(c)}</td>
-                  <td className={styles.num}>{range(c)}</td>
-                  <td>{c.reason ?? t('owner.override.none')}</td>
-                  <td>
-                    {canDelete(c) && (
-                      <Button variant="ghost" size="sm" onClick={() => setRemoving(c)}>
-                        {t('owner.closures.delete')}
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <Paged items={state.data.closures} resetKey={`${venueId}:${turfId}`}>
+            {(rows) => (
+              <Table caption={t('owner.closures.title')}>
+                <thead>
+                  <tr>
+                    <th>{t('owner.closures.col.scope')}</th>
+                    <th>{t('owner.closures.col.range')}</th>
+                    <th>{t('owner.closures.col.reason')}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((c) => (
+                    <tr key={c.id}>
+                      <td>{scopeLabel(c)}</td>
+                      <td className={styles.num}>{range(c)}</td>
+                      <td>{c.reason ?? t('owner.override.none')}</td>
+                      <td>
+                        {canDelete(c) && (
+                          <Button variant="ghost" size="sm" onClick={() => setRemoving(c)}>
+                            {t('owner.closures.delete')}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Paged>
         ))}
       {canAdd && <ClosureForm open={adding} onClose={() => setAdding(false)} onCreated={reload} turfsByVenue={turfsByVenue} />}
       <ConfirmDeleteDialog

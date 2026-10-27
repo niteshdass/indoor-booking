@@ -129,12 +129,15 @@ export async function startIntent(
   return { payment: lead, amount, clientSecret: created.clientSecret, publishableKey: loaded.publishableKey };
 }
 
-/** Creates (or, by idempotency key, replays) the Checkout Session of a pending walk-in `link` payment. */
+/**
+ * Creates (or, by idempotency key, replays) the Checkout Session of a pending walk-in `link` payment. The
+ * rows of a walk-in group share one session for their sum, keyed and labelled by the group's first row.
+ */
 export async function startLink(
   booking: BookingDoc,
   payment: PaymentDoc,
   ctx: { config: Config; services: AppServices },
-): Promise<{ url: string }> {
+): Promise<{ url: string; amount: number }> {
   const { config, services } = ctx;
   const ownerId = String(booking.ownerId);
   const loaded = await loadGateway(ownerId, payment.gateway ?? '', config, services, { mode: payment.gatewayMode as GatewayMode | null });
@@ -143,26 +146,40 @@ export async function startLink(
     throw paymentsUnavailable();
   }
   const { creds, gateway } = loaded;
+  const rows = payment.groupId
+    ? await Payment.find({ ownerId, groupId: payment.groupId, method: 'card', kind: 'link', status: 'pending' }).sort({ _id: 1 })
+    : [payment];
+  if (rows.length === 0) throw paymentsUnavailable();
+  const lead = rows[0]!;
+  const leadBooking = String(lead.bookingId) === String(booking._id) ? booking : await Booking.findOne({ ownerId, _id: lead.bookingId });
+  if (!leadBooking) throw paymentsUnavailable();
+  const references = rows.length > 1
+    ? (await Booking.find({ ownerId, _id: { $in: rows.map((p) => p.bookingId) } }).sort({ startAt: 1 })).map((b) => b.reference)
+    : [leadBooking.reference];
+  const amount = rows.reduce((n, p) => n + p.amount, 0);
 
   const created = await gateway.createPayment(creds, {
     kind: 'link',
-    amount: payment.amount,
-    currency: payment.currency,
+    amount,
+    currency: lead.currency,
     metadata: {
-      paymentId: String(payment._id),
-      bookingId: String(booking._id),
+      paymentId: String(lead._id),
+      bookingId: String(leadBooking._id),
       ownerId,
-      reference: booking.reference,
+      reference: leadBooking.reference,
+      ...(lead.groupId ? { groupId: String(lead.groupId) } : {}),
     },
-    description: `Booking ${booking.reference}`,
-    idempotencyKey: `link_${payment._id}`,
+    description: references.length > 1 ? `Bookings ${references.join(', ')}` : `Booking ${leadBooking.reference}`,
+    idempotencyKey: `link_${lead._id}`,
     expiresAt: booking.holdExpiresAt,
-    successUrl: `${config.appUrl}/payment-complete?reference=${encodeURIComponent(booking.reference)}`,
+    successUrl: `${config.appUrl}/payment-complete?reference=${encodeURIComponent(leadBooking.reference)}`,
   });
   if (!created.url || !created.linkRef) throw new GatewayError('gateway_error');
-  if (payment.linkRef !== created.linkRef) {
-    await Payment.updateOne({ ownerId, _id: payment._id }, { $set: { linkRef: created.linkRef } });
-    payment.linkRef = created.linkRef;
+  const unset = rows.filter((p) => p.linkRef !== created.linkRef);
+  if (unset.length > 0) {
+    await Payment.updateMany({ ownerId, _id: { $in: unset.map((p) => p._id) } }, { $set: { linkRef: created.linkRef } });
+    for (const p of unset) p.linkRef = created.linkRef;
   }
-  return { url: created.url };
+  if (payment.linkRef !== created.linkRef) payment.linkRef = created.linkRef;
+  return { url: created.url, amount };
 }

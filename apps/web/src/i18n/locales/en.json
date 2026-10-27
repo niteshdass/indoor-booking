@@ -82,6 +82,15 @@
     "close": "Close",
     "loading": "Loading"
   },
+  "pagination": {
+    "label": "Pages",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "rangeMore": "{{from}}–{{to}} of {{total}}+",
+    "previous": "Previous page",
+    "next": "Next page",
+    "page": "Page {{page}}",
+    "position": "{{page}} / {{count}}"
+  },
   "notFound": {
     "title": "Page not found",
     "body": "The page you're looking for doesn't exist.",
@@ -590,6 +599,21 @@
       "done": "Done",
       "count_one": "{{count}} booking",
       "count_other": "{{count}} bookings",
+      "tab": {
+        "all": "All",
+        "today": "Today",
+        "upcoming": "Upcoming",
+        "past": "Past"
+      },
+      "sortLabel": "Sort",
+      "sort": {
+        "created-desc": "Newest booked first",
+        "created-asc": "Oldest booked first",
+        "date-asc": "Play date, soonest first",
+        "date-desc": "Play date, latest first",
+        "ref-asc": "Booking ID, A–Z",
+        "ref-desc": "Booking ID, Z–A"
+      },
       "reference": "Reference",
       "when": "Date and time",
       "customer": "Customer",
@@ -599,11 +623,9 @@
       "sourceOnline": "Online",
       "sourceWalkin": "Walk-in",
       "empty": "No bookings match these filters.",
-      "emptyHint": "Bookings for the chosen days show up here as players book.",
+      "emptyHint": "Bookings show up here as players book.",
       "emptyFilteredHint": "Try another date range, court or status, or clear the filters.",
-      "capped": "Showing the first 500, narrow the range",
       "rangeOrder": "The end date must be on or after the start date.",
-      "rangeMax": "Pick a range of 31 days or fewer.",
       "notFound": "We couldn't find that booking.",
       "back": "Back to bookings",
       "details": "Booking details",
@@ -620,6 +642,23 @@
       "noPayments": "No payments yet.",
       "payMethod": "Method",
       "payAmount": "Amount",
+      "together": "Booked together",
+      "group": {
+        "notFound": "We couldn't find these bookings.",
+        "viewAll": "Open the whole group",
+        "list": "Bookings in this group",
+        "due": "Still due",
+        "cashAll": "Mark cash paid for all",
+        "cashTitle": "Record cash for every booking?",
+        "cashBody": "Records {{amount}} in cash: what is still due on each booking.",
+        "cashConfirm": "Record payment",
+        "cancelAll": "Cancel all",
+        "cancelTitle_one": "Cancel {{count}} booking?",
+        "cancelTitle_other": "Cancel {{count}} bookings?",
+        "cancelBody": "Paid money is refunded in full. Bookings already played or cancelled stay as they are.",
+        "cancelConfirm": "Cancel bookings",
+        "back": "Back"
+      },
       "payWhen": "Date",
       "payStatus": {
         "pending": "Pending",
@@ -644,7 +683,8 @@
         "label": "Reason (optional)",
         "back": "Back",
         "recorded": "Reason"
-      }
+      },
+      "emptySearchHint": "Nothing matches. Check the spelling or try the phone number."
     },
     "cancel": {
       "refund": "Customer refund ({{percent}}%)",
@@ -684,6 +724,9 @@
       "nameRequired": "Enter the customer name (up to 80 characters).",
       "phoneLabel": "Phone",
       "phoneRequired": "Enter the customer phone number.",
+      "customerSearchHint": "Type a name or number to find a past customer.",
+      "customerSuggestions": "Past customers",
+      "registeredPlayer": "Registered player",
       "payment": "Payment",
       "cash": "Cash received now",
       "link": "Send a payment link",
@@ -693,7 +736,17 @@
       "estimate": "Estimated, the final price is set when you book",
       "estimateSlots": "Time slots",
       "estimateTotal": "Total",
-      "submit": "Create booking"
+      "submit": "Create booking",
+      "courts": "Courts",
+      "selection": "Selection",
+      "pickHint": "Pick slots on any court and day. Each run of slots is its own booking.",
+      "bookingCount_one": "{{count}} booking",
+      "bookingCount_other": "{{count}} bookings",
+      "extrasEach": "Extras are added to each booking.",
+      "toCheckout": "Customer and payment",
+      "wholeEach": "Each booking is paid in full.",
+      "submitMany_one": "Create {{count}} booking",
+      "submitMany_other": "Create {{count}} bookings"
     },
     "venues": {
       "new": "New venue",
@@ -1198,7 +1251,6 @@
       "empty": "No activity yet.",
       "retry": "Try again",
       "system": "System",
-      "loadMore": "Load more",
       "openBooking": "View booking",
       "details": "Details",
       "before": "Before",
@@ -1399,7 +1451,6 @@
       "dates": "Dates",
       "games": "Games",
       "answerBy": "Answer by {{when}}",
-      "showMore": "Show more",
       "back": "All series",
       "notFound": "This series does not exist.",
       "details": "Series details",

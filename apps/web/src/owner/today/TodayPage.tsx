@@ -7,6 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { PendingActions } from '../bookings/BookingActions';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StatCard } from '../../components/ui/StatCard';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { errorMessage } from '../../lib/errors';
 import { formatTime, money } from '../../lib/format';
@@ -105,40 +106,44 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
       {upcoming.length === 0 ? (
         <EmptyState size="sm" sport="padel" title={t('owner.today.none')} />
       ) : (
-        <Table caption={t('owner.today.upcoming')}>
-          <thead>
-            <tr>
-              <th>{t('owner.today.time')}</th>
-              <th>{t('owner.today.turf')}</th>
-              <th>{t('owner.today.customer')}</th>
-              <th>{t('owner.today.status')}</th>
-              {canConfirm && <th>{t('owner.bookings.actions.title')}</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {upcoming.map((b) => {
-              const starts = b.slots.map((s) => s.startAt).sort();
-              const ends = b.slots.map((s) => s.endAt).sort();
-              return (
-                <tr key={b.id}>
-                  <td className={styles.time}>
-                    {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
-                  </td>
-                  <td>{b.turf?.name ?? '—'}</td>
-                  <td>
-                    <Link to={`bookings/${encodeURIComponent(b.id)}`} className={styles.link}>
-                      {b.customer?.name ?? b.reference}
-                    </Link>
-                  </td>
-                  <td>
-                    <BookingStatusBadge status={b.status} />
-                  </td>
-                  {canConfirm && <td>{b.status === 'pending' && <PendingActions id={b.id} onDone={reload} />}</td>}
+        <Paged items={upcoming} pageSize={10}>
+          {(rows) => (
+            <Table caption={t('owner.today.upcoming')}>
+              <thead>
+                <tr>
+                  <th>{t('owner.today.time')}</th>
+                  <th>{t('owner.today.turf')}</th>
+                  <th>{t('owner.today.customer')}</th>
+                  <th>{t('owner.today.status')}</th>
+                  {canConfirm && <th>{t('owner.bookings.actions.title')}</th>}
                 </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+              </thead>
+              <tbody>
+                {rows.map((b) => {
+                  const starts = b.slots.map((s) => s.startAt).sort();
+                  const ends = b.slots.map((s) => s.endAt).sort();
+                  return (
+                    <tr key={b.id}>
+                      <td className={styles.time}>
+                        {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
+                      </td>
+                      <td>{b.turf?.name ?? '—'}</td>
+                      <td>
+                        <Link to={`bookings/${encodeURIComponent(b.id)}`} className={styles.link}>
+                          {b.customer?.name ?? b.reference}
+                        </Link>
+                      </td>
+                      <td>
+                        <BookingStatusBadge status={b.status} />
+                      </td>
+                      {canConfirm && <td>{b.status === 'pending' && <PendingActions id={b.id} onDone={reload} />}</td>}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )}
+        </Paged>
       )}
     </>
   );

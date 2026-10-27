@@ -7,6 +7,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -178,46 +179,50 @@ export function SeriesDetailPage() {
         {games.length === 0 ? (
           <EmptyState size="sm" title={t('series.owner.noGames')} />
         ) : (
-          <Table caption={t('series.owner.games')} className={`${styles.grid} ${styles.dense}`}>
-            <thead>
-              <tr>
-                <th>{t('owner.bookings.date')}</th>
-                <th>{t('owner.bookings.time')}</th>
-                <th>{t('owner.bookings.status')}</th>
-                <th>{t('owner.bookings.paid')}</th>
-                <th>{t('owner.bookings.reference')}</th>
-                {canCancelGame && <th className={styles.end}>{t('owner.bookings.actions.title')}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {games.map((g) => (
-                <tr key={g.id}>
-                  <td className={styles.nums}>{formatDate(g.businessDate, 'UTC', lang)}</td>
-                  <td className={styles.nums}>
-                    {formatTime(g.startAt, tz, lang)} – {formatTime(g.endAt, tz, lang)}
-                  </td>
-                  <td>
-                    <BookingStatusBadge status={g.status} />
-                  </td>
-                  <td className={styles.nums}>{fmt(g.amountPaid)}</td>
-                  <td>
-                    <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.ref}>
-                      {g.reference}
-                    </Link>
-                  </td>
-                  {canCancelGame && (
-                    <td className={styles.end}>
-                      {CANCELLABLE.includes(g.status) && (
-                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => setCancelGameId(g.id)}>
-                          {t('series.owner.cancelGame')}
-                        </Button>
+          <Paged items={games} pageSize={10}>
+            {(rows) => (
+              <Table caption={t('series.owner.games')} className={`${styles.grid} ${styles.dense}`}>
+                <thead>
+                  <tr>
+                    <th>{t('owner.bookings.date')}</th>
+                    <th>{t('owner.bookings.time')}</th>
+                    <th>{t('owner.bookings.status')}</th>
+                    <th>{t('owner.bookings.paid')}</th>
+                    <th>{t('owner.bookings.reference')}</th>
+                    {canCancelGame && <th className={styles.end}>{t('owner.bookings.actions.title')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((g) => (
+                    <tr key={g.id}>
+                      <td className={styles.nums}>{formatDate(g.businessDate, 'UTC', lang)}</td>
+                      <td className={styles.nums}>
+                        {formatTime(g.startAt, tz, lang)} – {formatTime(g.endAt, tz, lang)}
+                      </td>
+                      <td>
+                        <BookingStatusBadge status={g.status} />
+                      </td>
+                      <td className={styles.nums}>{fmt(g.amountPaid)}</td>
+                      <td>
+                        <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.ref}>
+                          {g.reference}
+                        </Link>
+                      </td>
+                      {canCancelGame && (
+                        <td className={styles.end}>
+                          {CANCELLABLE.includes(g.status) && (
+                            <Button size="sm" variant="ghost" disabled={pending} onClick={() => setCancelGameId(g.id)}>
+                              {t('series.owner.cancelGame')}
+                            </Button>
+                          )}
+                        </td>
                       )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </Paged>
         )}
       </section>
 

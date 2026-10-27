@@ -11,7 +11,7 @@ import { errorMessage } from '../../lib/errors';
 import { defaultPatternFrom, ISO_DATE, isPatternOk, patternBody, useStartTimeSync } from '../../series/pattern';
 import { SeriesForm } from '../../series/SeriesForm';
 import { SeriesPreviewList } from '../../series/SeriesPreviewList';
-import { CustomerFields, customerErrors, type Customer } from '../CustomerFields';
+import { CustomerFields, customerBody, customerErrors, type Customer } from '../CustomerFields';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
@@ -96,7 +96,7 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
     setSubmitting(true);
     setError(null);
     try {
-      const res = await apiPost<{ series: SeriesJson }>(`${base}/series`, { ...body, customer: { name: customer.name.trim(), phone: customer.phone } });
+      const res = await apiPost<{ series: SeriesJson }>(`${base}/series`, { ...body, customer: customerBody(customer) });
       navigate(`/owner/${encodeURIComponent(ownerId)}/series/${encodeURIComponent(res.series.id)}`);
     } catch (e) {
       setError(e);

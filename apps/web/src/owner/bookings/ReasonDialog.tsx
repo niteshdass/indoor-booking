@@ -14,13 +14,15 @@ export type ReasonDialogProps = {
   title: string;
   confirmLabel: string;
   tone: 'danger' | 'primary';
+  /** Muted line above the reason, e.g. what the action does to money. */
+  description?: string;
   onClose: () => void;
   /** Receives the trimmed reason, or undefined when empty. A rejection keeps the dialog open and shows the error. */
   onSubmit(reason?: string): Promise<void>;
 };
 
 /** Confirmation with an optional free-text reason (reject, and later refund notes). */
-export function ReasonDialog({ open, title, confirmLabel, tone, onClose, onSubmit }: ReasonDialogProps) {
+export function ReasonDialog({ open, title, confirmLabel, tone, description, onClose, onSubmit }: ReasonDialogProps) {
   const { t } = useTranslation();
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -53,6 +55,7 @@ export function ReasonDialog({ open, title, confirmLabel, tone, onClose, onSubmi
     <Dialog open={open} onClose={() => !busy.current && onClose()} title={title}>
       {open && (
         <div className={styles.body}>
+          {description && <p className={styles.description}>{description}</p>}
           <Textarea
             label={t('owner.bookings.reason.label')}
             hint={`${reason.length} / ${REASON_MAX}`}

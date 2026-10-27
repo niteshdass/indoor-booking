@@ -5,11 +5,11 @@ import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import type { Permission } from '../../src/owner/types';
-import type { OwnerSlot, WalkInAddon } from '../../src/owner/types';
+import type { OwnerSlot, OwnerSlotDay, WalkInAddon } from '../../src/owner/types';
 import { walkInEstimate } from '../../src/owner/walkin/walkInEstimate';
 import { SlotGrid } from '../../src/venue/SlotGrid';
 import { renderApp } from '../helpers/render';
-import { mockApi, type Route } from '../helpers/api';
+import { mockApi, type Call, type Route } from '../helpers/api';
 import { OWNER_ID, ownerBooking, ownerRoutes, slotDay, staffUser, turf } from './fixtures';
 
 const NOW = '2026-10-26T04:30:00.000Z';
@@ -46,12 +46,20 @@ function addon(over: Partial<WalkInAddon>): WalkInAddon {
   return { id: 'a1', name: 'Ball', pricingType: 'per_booking', unitPrice: 100, maxQuantity: 1, autoApply: null, ...over };
 }
 
+/** Days other than the shown one have no slots unless `days` names them. */
+const byDate =
+  (shown: OwnerSlotDay, days: Record<string, OwnerSlotDay> = {}) =>
+  (call: Call) => {
+    const date = call.query.get('date')!;
+    return { day: date === shown.businessDate ? shown : (days[date] ?? slotDay({ businessDate: date, slots: [] })) };
+  };
+
 function routes(over: { perms?: Permission[]; day?: ReturnType<typeof slotDay>; post?: Partial<Route> } = {}): Route[] {
   const day = over.day ?? slotDay({ slots: [SLOT_1, SLOT_2] });
   return [
     ...ownerRoutes({ permissions: over.perms ?? PERMS }),
     { path: '/owners/o1/venues/v1/turfs', body: { turfs: [turf(), turf({ id: 't2', name: 'Pitch B', active: false })] } },
-    { path: SLOTS, body: { day } },
+    { path: SLOTS, body: byDate(day) },
     { path: '/owners/o1/venues/v1/turfs/t1/addons', body: { currency: 'BDT', addons: [] } },
     { method: 'POST', path: POST, status: 201, body: { booking: ownerBooking({ id: 'b9' }) }, ...over.post },
   ];
@@ -148,6 +156,50 @@ describe('Walk-in page', () => {
     });
   });
 
+  it('typing a name suggests past customers; picking one fills name, phone and player', async () => {
+    const api = mockApi([
+      ...routes(),
+      { path: '/owners/o1/customers', body: { customers: [{ name: 'Rahim Chowdhury', phone: '+79161234567', playerId: 'u7' }] } },
+    ]);
+    const { user, location } = renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: /10:00/ }));
+    await user.type(screen.getByRole('combobox', { name: en.owner.walkIn.name }), 'rah');
+    const option = await screen.findByRole('option', { name: /Rahim Chowdhury/ });
+    expect(api.calls.find((c) => c.path === '/owners/o1/customers')!.query.get('q')).toBe('rah');
+    await user.click(option);
+    expect((screen.getByRole('combobox', { name: en.owner.walkIn.name }) as HTMLInputElement).value).toBe('Rahim Chowdhury');
+    expect((screen.getByLabelText(en.auth.phone.number) as HTMLInputElement).value).toBe('9161234567');
+    expect(screen.queryByRole('listbox', { name: en.owner.walkIn.customerSuggestions })).toBeNull();
+    await user.click(screen.getByRole('button', { name: en.owner.walkIn.submit }));
+    await waitFor(() => expect(location().pathname).toBe(`/owner/${OWNER_ID}/bookings/b9`));
+    expect((api.calls.find((c) => c.path === POST)!.body as { customer: unknown }).customer).toEqual({
+      name: 'Rahim Chowdhury',
+      phone: '+79161234567',
+      playerId: 'u7',
+    });
+  });
+
+  it('the phone filled from a picked customer can still be edited', async () => {
+    const api = mockApi([
+      ...routes(),
+      { path: '/owners/o1/customers', body: { customers: [{ name: 'Rahim Chowdhury', phone: '+8801711000001', playerId: null }] } },
+    ]);
+    const { user } = renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: /10:00/ }));
+    await user.type(screen.getByRole('combobox', { name: en.owner.walkIn.name }), 'rah');
+    await user.click(await screen.findByRole('option', { name: /Rahim Chowdhury/ }));
+    const phone = screen.getByLabelText(en.auth.phone.number) as HTMLInputElement;
+    expect(phone.value).toBe('1711000001');
+    await user.clear(phone);
+    await user.type(phone, '1811000002');
+    await user.click(screen.getByRole('button', { name: en.owner.walkIn.submit }));
+    await waitFor(() => expect(api.calls.filter((c) => c.path === POST)).toHaveLength(1));
+    expect((api.calls.find((c) => c.path === POST)!.body as { customer: unknown }).customer).toEqual({
+      name: 'Rahim Chowdhury',
+      phone: '+8801811000002',
+    });
+  });
+
   it('cash amount is sent only when edited', async () => {
     const api = mockApi(routes());
     const { user } = renderApp(URL_, { user: staffUser });
@@ -183,13 +235,13 @@ describe('Walk-in page', () => {
     const taken = slotDay({ slots: [{ ...SLOT_1, status: 'booked' }, SLOT_2] });
     const all: Route[] = routes({ post: { status: 409, body: { error: { code: 'slot_taken', message: 'x' } } } });
     let n = 0;
-    const api = mockApi(all.map((r) => (r.path === SLOTS ? { ...r, body: () => ({ day: n++ === 0 ? slotDay({ slots: [SLOT_1, SLOT_2] }) : taken }) } : r)));
+    const api = mockApi(all.map((r) => (r.path === SLOTS ? { ...r, body: (c: Call) => (c.query.get('date') === '2026-10-26' ? { day: n++ === 0 ? slotDay({ slots: [SLOT_1, SLOT_2] }) : taken } : byDate(taken)(c)) } : r)));
     const { user, location } = renderApp(URL_, { user: staffUser });
     await fillAndPick(user);
     await user.click(screen.getByRole('button', { name: en.owner.walkIn.submit }));
     expect(await screen.findByText(en.errors.slot_taken)).toBeTruthy();
     expect((screen.getByLabelText(en.owner.walkIn.name) as HTMLInputElement).value).toBe('Ada Walker');
-    await waitFor(() => expect(api.calls.filter((c) => c.path === SLOTS)).toHaveLength(2));
+    await waitFor(() => expect(api.calls.filter((c) => c.path === SLOTS && c.query.get('date') === '2026-10-26')).toHaveLength(2));
     await waitFor(() => expect((screen.getByRole('button', { name: /10:00/ }) as HTMLButtonElement).disabled).toBe(true));
     expect(location().pathname).toBe('/owner/o1/walk-in');
   });
@@ -199,5 +251,41 @@ describe('Walk-in page', () => {
     renderApp(URL_, { user: staffUser });
     expect(await screen.findByText(en.owner.walkIn.outsideWindow)).toBeTruthy();
     expect((screen.getByRole('button', { name: en.owner.walkIn.submit }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('picks on several courts and days go out as one request with `more`', async () => {
+    const next = slotDay({
+      businessDate: '2026-10-27',
+      slots: [{ ...SLOT_1, startAt: '2026-10-27T04:00:00.000Z', endAt: '2026-10-27T05:00:00.000Z' }],
+    });
+    const api = mockApi([
+      ...routes({ post: { body: { booking: ownerBooking({ id: 'b9', groupId: 'g9' }), bookings: [] } } }).map((r) =>
+        r.path === '/owners/o1/venues/v1/turfs' ? { ...r, body: { turfs: [turf(), turf({ id: 't3', name: 'Pitch C' })] } } : r.path === SLOTS ? { ...r, body: byDate(slotDay({ slots: [SLOT_1, SLOT_2] }), { '2026-10-27': next }) } : r,
+      ),
+      { path: '/owners/o1/venues/v1/turfs/t3/slots', body: byDate(slotDay({ slots: [SLOT_1, SLOT_2] })) },
+      { path: '/owners/o1/venues/v1/turfs/t3/addons', body: { currency: 'BDT', addons: [] } },
+    ]);
+    const { user, location } = renderApp(URL_, { user: staffUser });
+    await fillAndPick(user);
+    const repeat = await screen.findByRole('group', { name: en.slots.repeat });
+    await user.click(await within(repeat).findByRole('button', { name: /Oct 27/ }));
+    await user.click(screen.getByRole('button', { name: /Pitch C/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Pitch C/ }).getAttribute('aria-pressed')).toBe('true'));
+    await user.click(await screen.findByRole('button', { name: /11:00/ }));
+    const submit = await screen.findByRole('button', { name: 'Create 3 bookings' });
+    await waitFor(() => expect((submit as HTMLButtonElement).disabled).toBe(false));
+    await user.click(submit);
+    await waitFor(() => expect(location().pathname).toBe(`/owner/${OWNER_ID}/booking-groups/g9`));
+    expect(api.calls.find((c) => c.path === POST)!.body).toEqual({
+      date: '2026-10-26',
+      startAts: [SLOT_1.startAt],
+      addons: [],
+      more: [
+        { turfId: 't1', date: '2026-10-27', startAts: ['2026-10-27T04:00:00.000Z'] },
+        { turfId: 't3', date: '2026-10-26', startAts: [SLOT_2.startAt] },
+      ],
+      customer: { name: 'Ada Walker', phone: '+8801712345678' },
+      payment: { method: 'unpaid' },
+    });
   });
 });

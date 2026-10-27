@@ -37,7 +37,7 @@ export const addonsSchema = z
   .default([]);
 
 /** More bookings in the same checkout: each a run of slots on its own day and time, on the route's turf unless `turfId` names another of the venue. */
-const moreSchema = z
+export const moreSchema = z
   .array(z.object({ turfId: z.string().min(1).max(64).optional(), date: isoDateSchema, startAts: startAtsSchema }).strict())
   .max(MAX_BOOKINGS_PER_GROUP - 1)
   .default([]);
@@ -48,7 +48,7 @@ type MoreItem = { turfId?: string; date: string; startAts: Date[] };
  * Every item of a checkout, ordered by turf then start; a slot of a turf may appear in one item only.
  * Each further turf must be an active turf of the same venue.
  */
-async function groupItems(
+export async function groupItems(
   venue: VenueDoc,
   turf: TurfDoc,
   input: { date: string; startAts: Date[]; more: MoreItem[] },
@@ -204,7 +204,7 @@ export function publicBookingsRouter(
       if (input.more.length > 0) {
         if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to book several times at once');
         const items = await groupItems(venue, turf, input);
-        const bookings = await createBookingGroup({ venue, items, selection: input.addons, now, playerId: userId });
+        const bookings = await createBookingGroup({ venue, items, selection: input.addons, now, who: { playerId: userId, guest: null, createdBy: userId } });
         const json = await playerBookingsJson(bookings, services.now());
         res.status(201).json({ booking: json[0], bookings: json });
         return;

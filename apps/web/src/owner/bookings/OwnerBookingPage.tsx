@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { SeriesBadge } from '../../series/SeriesBadge';
 import { ApiError } from '../../lib/apiClient';
@@ -95,7 +96,7 @@ export function OwnerBookingPage() {
   }
   if (!data) return <Skeleton kind="detail" label={t('common.loading')} />;
 
-  const { booking: b, payments, refunds } = data;
+  const { booking: b, payments, refunds, group = [] } = data;
   const venue = venues.find((v) => v.id === b.venueId);
   const tz = venue?.timezone ?? 'UTC';
   const fmt = (n: number) => money(n, b.currency, lang);
@@ -154,35 +155,88 @@ export function OwnerBookingPage() {
             </dl>
           </section>
 
+          {group.length > 0 && (
+            <section className={styles.section} aria-label={t('owner.bookings.together')}>
+              <div className={styles.sectionHead}>
+                <h2 className={styles.heading}>{t('owner.bookings.together')}</h2>
+                {b.groupId && (
+                  <Link to={`/owner/${encodeURIComponent(ownerId)}/booking-groups/${encodeURIComponent(b.groupId)}`} className={styles.link}>
+                    {t('owner.bookings.group.viewAll')}
+                  </Link>
+                )}
+              </div>
+              <Paged items={group} pageSize={10}>
+                {(rows) => (
+                  <Table caption={t('owner.bookings.together')}>
+                    <thead>
+                      <tr>
+                        <th>{t('owner.bookings.reference')}</th>
+                        <th>{t('owner.bookings.turf')}</th>
+                        <th>{t('owner.bookings.date')}</th>
+                        <th>{t('owner.bookings.time')}</th>
+                        <th>{t('owner.bookings.status')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((g) => {
+                        const s = g.slots.map((x) => x.startAt).sort();
+                        const e = g.slots.map((x) => x.endAt).sort();
+                        return (
+                          <tr key={g.id}>
+                            <td>
+                              <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.link}>
+                                {g.reference}
+                              </Link>
+                            </td>
+                            <td>{g.turf?.name ?? '—'}</td>
+                            <td className={styles.when}>{formatDate(g.businessDate, tz, lang)}</td>
+                            <td className={styles.when}>{s.length > 0 ? range(s[0]!, e[e.length - 1]!) : '—'}</td>
+                            <td>
+                              <BookingStatusBadge status={g.status} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </Table>
+                )}
+              </Paged>
+            </section>
+          )}
+
           <section className={styles.section} aria-label={t('owner.bookings.payments')}>
             <h2 className={styles.heading}>{t('owner.bookings.payments')}</h2>
             {payments.length === 0 ? (
               <EmptyState size="sm" sport="padel" title={t('owner.bookings.noPayments')} />
             ) : (
-              <Table caption={t('owner.bookings.payments')}>
-                <thead>
-                  <tr>
-                    <th>{t('owner.bookings.payMethod')}</th>
-                    <th className={styles.num}>{t('owner.bookings.payAmount')}</th>
-                    <th>{t('owner.bookings.status')}</th>
-                    <th>{t('owner.bookings.payWhen')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p: PaymentJson) => (
-                    <tr key={p.id}>
-                      <td>{t(`cancel.method.${p.method}`)}</td>
-                      <td className={styles.num}>{money(p.amount, p.currency, lang)}</td>
-                      <td>
-                        <Badge tone={PAYMENT_TONE[p.status]}>{t(`owner.bookings.payStatus.${p.status}`)}</Badge>
-                      </td>
-                      <td className={styles.when}>
-                        {formatDate(p.createdAt, tz, lang)} {formatTime(p.createdAt, tz, lang)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+              <Paged items={payments} pageSize={10}>
+                {(rows) => (
+                  <Table caption={t('owner.bookings.payments')}>
+                    <thead>
+                      <tr>
+                        <th>{t('owner.bookings.payMethod')}</th>
+                        <th className={styles.num}>{t('owner.bookings.payAmount')}</th>
+                        <th>{t('owner.bookings.status')}</th>
+                        <th>{t('owner.bookings.payWhen')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((p: PaymentJson) => (
+                        <tr key={p.id}>
+                          <td>{t(`cancel.method.${p.method}`)}</td>
+                          <td className={styles.num}>{money(p.amount, p.currency, lang)}</td>
+                          <td>
+                            <Badge tone={PAYMENT_TONE[p.status]}>{t(`owner.bookings.payStatus.${p.status}`)}</Badge>
+                          </td>
+                          <td className={styles.when}>
+                            {formatDate(p.createdAt, tz, lang)} {formatTime(p.createdAt, tz, lang)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                )}
+              </Paged>
             )}
           </section>
 

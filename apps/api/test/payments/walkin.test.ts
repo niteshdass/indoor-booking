@@ -221,6 +221,27 @@ describe('walk-in with a payment link', () => {
     expect(payment).toMatchObject({ status: 'succeeded', gatewayRef: 'pi_link_1' });
   });
 
+  it('one link pays for a whole walk-in group, and its payment confirms every booking', async () => {
+    const { webhookSecret } = await connectStripe(ctx.app, owner);
+    const res = await walkin(owner.token, { method: 'link' }, { more: [{ date: D, startAts: [at('20:00')] }] });
+    expect(res.status).toBe(201);
+    expect(res.body.bookings).toHaveLength(2);
+    expect(res.body.payment.amount).toBe(6000);
+    const rows = await Payment.find({ ownerId: owner.ownerId }).sort({ _id: 1 });
+    expect(rows.map((p) => [p.kind, p.amount, p.linkRef])).toEqual([['link', 3000, 'cs_test_1'], ['link', 3000, 'cs_test_1']]);
+    expect(String(rows[0]!.groupId)).toBe(String(rows[1]!.groupId));
+    expect(sessionCalls()).toHaveLength(1);
+    expect(sessionCalls()[0]!.params).toMatchObject({ line_items: [{ price_data: { unit_amount: 6000 } }] });
+
+    const again = await reissue(owner.token, res.body.bookings[1].id);
+    expect(again.body.payment).toMatchObject({ amount: 6000, url: res.body.payment.url });
+
+    const event = piSucceeded({ _id: res.body.payment.id, amount: 6000, currency: 'BDT', gatewayRef: 'pi_group_1' });
+    expect((await postEvent(ctx.app, owner.ownerId, webhookSecret, event)).status).toBe(200);
+    const booked = await Booking.find({ ownerId: owner.ownerId }).lean();
+    expect(booked.map((b) => [b.status, b.amountPaid])).toEqual([['confirmed', 3000], ['confirmed', 3000]]);
+  });
+
   it('confirms a live link hold paid after its in-progress slot ended, without a refund', async () => {
     const { webhookSecret } = await connectStripe(ctx.app, owner);
     ctx.services.clock.advance(Date.parse(at('18:30')) - ctx.services.now().getTime());

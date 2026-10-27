@@ -4,6 +4,7 @@ import { ActivityPage } from './activity/ActivityPage';
 import { AddonsPage } from './addons/AddonsPage';
 import { BookingsPage } from './bookings/BookingsPage';
 import { OwnerBookingPage } from './bookings/OwnerBookingPage';
+import { OwnerGroupPage } from './bookings/OwnerGroupPage';
 import { OwnerIndexPage } from './OwnerIndexPage';
 import { OwnerProvider } from './OwnerProvider';
 import { RequirePermission } from './RequirePermission';
@@ -52,6 +53,7 @@ export function OwnerRoutes() {
         <Route path="schedule" element={<Guarded nav="schedule"><SchedulePage /></Guarded>} />
         <Route path="bookings" element={<Guarded nav="bookings"><BookingsPage /></Guarded>} />
         <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><OwnerBookingPage /></Guarded>} />
+        <Route path="booking-groups/:groupId" element={<Guarded perm={['booking.view']}><OwnerGroupPage /></Guarded>} />
         <Route path="walk-in" element={<Guarded nav="walk-in"><WalkInPage /></Guarded>} />
         <Route path="series/new" element={<Guarded perm={['booking.create']}><NewSeriesPage /></Guarded>} />
         <Route path="series/:seriesId" element={<Guarded perm={['booking.view']}><SeriesDetailPage /></Guarded>} />

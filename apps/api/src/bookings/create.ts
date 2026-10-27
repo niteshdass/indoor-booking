@@ -307,6 +307,8 @@ export type GroupItem = { turf: TurfDoc; date: string; startAts: Date[] };
 type GroupInput = Omit<QuoteInput, 'source' | 'date' | 'startAts' | 'turf'> & {
   /** Distinct slots; any turfs of the venue, any days, any times, each item booked on its own. */
   items: GroupItem[];
+  /** `online` unless staff book a walk-in. */
+  source?: 'online' | 'walkin';
 };
 
 /** A failure on one item of a group, naming its turf, day and first slot so the player knows which one to drop. */
@@ -333,7 +335,7 @@ async function prepareGroup(input: GroupInput) {
   for (const item of input.items) {
     try {
       const selection = await offeredOn(ownerId, input, item.turf, many);
-      const base = { ...input, turf: item.turf, selection, source: 'online' as const };
+      const base = { ...input, turf: item.turf, selection, source: input.source ?? 'online' };
       items.push({ ...(await prepare({ ...base, date: item.date, startAts: item.startAts })), item, selection });
     } catch (err) {
       // Someone else holding a slot is "just booked", as for a single booking.
@@ -356,13 +358,28 @@ export async function quoteGroup(
   return { items: items.map((d) => ({ turfId: String(d.item.turf._id), date: d.item.date, quote: d.quote })), settings: items[0]!.settings };
 }
 
+export type CreateGroupInput = GroupInput & {
+  who: CreateBookingInput['who'];
+  /** Cash taken at creation: each booking's whole total. */
+  cash?: { recordedBy: string };
+  /**
+   * One card payment link for the whole group: every booking is held awaiting_payment for
+   * LINK_HOLD_MINUTES with a pending `link` payment of its total, the rows sharing the groupId.
+   */
+  card?: Omit<NonNullable<CreateBookingInput['card']>, 'amount'>;
+  /** Runs inside the creating transaction after each booking's inserts. */
+  afterInsert?: CreateBookingInput['afterInsert'];
+};
+
 /**
- * Books several runs of slots (any turfs of the venue, any days, any times) for a signed-in player, all or
- * nothing: one transaction under the lockTurf of every turf involved, one booking per item sharing a groupId,
- * each priced on its own with the add-ons its turf offers. A clash on any item books none and names that item.
+ * Books several runs of slots (any turfs of the venue, any days, any times), all or nothing: one transaction
+ * under the lockTurf of every turf involved, one booking per item sharing a groupId, each priced on its own
+ * with the add-ons its turf offers. A clash on any item books none and names that item. Players book online;
+ * staff book walk-ins, optionally taking cash or handing over one payment link.
  */
-export async function createBookingGroup(input: GroupInput & { playerId: string }): Promise<BookingDoc[]> {
-  const { venue, now, playerId } = input;
+export async function createBookingGroup(input: CreateGroupInput): Promise<BookingDoc[]> {
+  const { venue, now, who, cash, card, afterInsert } = input;
+  const source = input.source ?? 'online';
   const days = await prepareGroup(input);
   const { ownerId } = days[0]!;
   const lockOwner = { ownerId };
@@ -384,7 +401,7 @@ export async function createBookingGroup(input: GroupInput & { playerId: string 
       const stocked = [...new Set(days.flatMap((d) => limited(d.offered, d.selection)))].sort();
       for (const addonId of stocked) await lockAddon(lockOwner, addonId, now, session);
       const groupId = new mongoose.Types.ObjectId();
-      const holdExpiresAt = new Date(now.getTime() + HOLD_MINUTES * 60_000);
+      const holdExpiresAt = new Date(now.getTime() + (card ? LINK_HOLD_MINUTES : HOLD_MINUTES) * 60_000);
       const bookings: BookingDoc[] = [];
       for (const d of days) {
         const range = rangeOf(d.picked);
@@ -396,7 +413,12 @@ export async function createBookingGroup(input: GroupInput & { playerId: string 
         } catch (err) {
           throw itemError(d.item, err);
         }
-        const status = initialStatus({ source: 'online', guest: false, advanceRequired: quote.advanceRequired });
+        // Every booking of a link group has something to pay, or the shared link would hold a free one.
+        if (card && quote.total === 0) throw itemError(d.item, new AppError(400, 'nothing_to_pay', 'This booking has nothing to pay'));
+        const status = card
+          ? 'awaiting_payment'
+          : initialStatus({ source, guest: who.guest !== null, advanceRequired: quote.advanceRequired });
+        const amountPaid = cash && quote.total > 0 ? quote.total : 0;
         const [booking] = await Booking.create(
           [
             {
@@ -414,15 +436,15 @@ export async function createBookingGroup(input: GroupInput & { playerId: string 
               addonsTotal: quote.addonsTotal,
               total: quote.total,
               advanceRequired: quote.advanceRequired,
-              amountPaid: 0,
+              amountPaid,
               status,
-              paymentStatus: paymentStatusFor(0, quote.total),
+              paymentStatus: paymentStatusFor(amountPaid, quote.total),
               holdExpiresAt: status === 'awaiting_payment' ? holdExpiresAt : null,
-              source: 'online',
-              playerId,
-              guest: null,
+              source,
+              playerId: who.playerId,
+              guest: who.guest,
               policySnapshot: { paymentPolicy: d.settings.paymentPolicy, refundRules: d.settings.refundRules },
-              createdBy: playerId,
+              createdBy: who.createdBy,
               groupId,
               createdAt: now,
             },
@@ -430,7 +452,26 @@ export async function createBookingGroup(input: GroupInput & { playerId: string 
           { session },
         );
         await lockSlots(ownerId, turf._id, booking!._id, quote.slots, session);
-        if (status === 'confirmed') await noticeBooking('booking_confirmed', booking!, now, session);
+        const paymentRow = amountPaid > 0
+          ? { method: 'cash', amount: amountPaid, status: 'succeeded', recordedBy: cash!.recordedBy }
+          : card
+            ? { method: 'card', kind: 'link', amount: quote.total, status: 'pending', groupId, ...card }
+            : null;
+        let payment: PaymentDoc | null = null;
+        if (paymentRow) {
+          const [created] = await Payment.create(
+            [{ ownerId, venueId: venue._id, bookingId: booking!._id, currency: venue.currency, ...paymentRow }],
+            { session },
+          );
+          payment = created as unknown as PaymentDoc;
+        }
+        if (status === 'pending') {
+          await noticeBooking('booking_pending', booking!, now, session);
+          await noticeBooking('staff_new_pending', booking!, now, session);
+        } else if (status === 'confirmed') {
+          await noticeBooking('booking_confirmed', booking!, now, session);
+        }
+        await afterInsert?.(session, booking!, payment);
         bookings.push(booking!);
       }
       return bookings;

@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { Tabs } from '../../components/ui/Tabs';
 import { apiDelete } from '../../lib/apiClient';
@@ -105,58 +106,62 @@ function MembersTab({ members, roles, onChanged }: { members: Member[]; roles: R
       {members.length === 0 ? (
         <EmptyState size="sm" bare sport="basketball" title={t('owner.staff.memberEmpty')} />
       ) : (
-        <Table caption={t('owner.staff.tab.members')}>
-          <thead>
-            <tr>
-              <th>{t('owner.staff.col.name')}</th>
-              <th>{t('owner.staff.col.contact')}</th>
-              <th>{t('owner.staff.col.role')}</th>
-              <th>{t('owner.staff.col.venues')}</th>
-              <th>{t('owner.staff.col.status')}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {members.map((m) => {
-              const self = m.id === membership.id;
-              // The API refuses changes to the caller's own row and to the owner's (cannot_modify_self, owner_membership_locked).
-              const locked = self || m.role.key === 'owner';
-              return (
-                <tr key={m.id}>
-                  <td>
-                    <span className={styles.nameCell}>
-                      {m.user.name}
-                      {self && <Badge tone="info">{t('owner.staff.you')}</Badge>}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={styles.stack}>
-                      {m.user.email && <span>{m.user.email}</span>}
-                      {m.user.phone && <span className={styles.num}>{m.user.phone}</span>}
-                    </span>
-                  </td>
-                  <td>{roleLabel(m.role, t)}</td>
-                  <td>{venueNames(m.venueIds)}</td>
-                  <td>
-                    <Badge tone={m.status === 'active' ? 'success' : 'neutral'}>{t(`owner.staff.status.${m.status}`)}</Badge>
-                  </td>
-                  <td>
-                    {!locked && (
-                      <div className={styles.rowActions}>
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(m)}>
-                          {t('owner.staff.edit')}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setRemoving(m)}>
-                          {t('owner.staff.remove')}
-                        </Button>
-                      </div>
-                    )}
-                  </td>
+        <Paged items={members}>
+          {(rows) => (
+            <Table caption={t('owner.staff.tab.members')}>
+              <thead>
+                <tr>
+                  <th>{t('owner.staff.col.name')}</th>
+                  <th>{t('owner.staff.col.contact')}</th>
+                  <th>{t('owner.staff.col.role')}</th>
+                  <th>{t('owner.staff.col.venues')}</th>
+                  <th>{t('owner.staff.col.status')}</th>
+                  <th />
                 </tr>
-              );
-            })}
-          </tbody>
-        </Table>
+              </thead>
+              <tbody>
+                {rows.map((m) => {
+                  const self = m.id === membership.id;
+                  // The API refuses changes to the caller's own row and to the owner's (cannot_modify_self, owner_membership_locked).
+                  const locked = self || m.role.key === 'owner';
+                  return (
+                    <tr key={m.id}>
+                      <td>
+                        <span className={styles.nameCell}>
+                          {m.user.name}
+                          {self && <Badge tone="info">{t('owner.staff.you')}</Badge>}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={styles.stack}>
+                          {m.user.email && <span>{m.user.email}</span>}
+                          {m.user.phone && <span className={styles.num}>{m.user.phone}</span>}
+                        </span>
+                      </td>
+                      <td>{roleLabel(m.role, t)}</td>
+                      <td>{venueNames(m.venueIds)}</td>
+                      <td>
+                        <Badge tone={m.status === 'active' ? 'success' : 'neutral'}>{t(`owner.staff.status.${m.status}`)}</Badge>
+                      </td>
+                      <td>
+                        {!locked && (
+                          <div className={styles.rowActions}>
+                            <Button variant="ghost" size="sm" onClick={() => setEditing(m)}>
+                              {t('owner.staff.edit')}
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setRemoving(m)}>
+                              {t('owner.staff.remove')}
+                            </Button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          )}
+        </Paged>
       )}
       <MemberDialog open={creating} member={null} roles={roles} onClose={() => setCreating(false)} onSaved={onChanged} />
       <MemberDialog open={editing !== null} member={editing} roles={roles} onClose={() => setEditing(null)} onSaved={onChanged} />

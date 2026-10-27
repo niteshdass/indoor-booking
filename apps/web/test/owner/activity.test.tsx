@@ -40,7 +40,7 @@ describe('activityText', () => {
 });
 
 describe('ActivityPage', () => {
-  it('load more appends the next page and hides at the end', async () => {
+  it('next page fetches the next batch and stops at the end', async () => {
     mockApi([
       {
         path: '/owners/o1/activity',
@@ -53,10 +53,12 @@ describe('ActivityPage', () => {
     ]);
     const { user } = renderApp(URL, { user: staffUser });
     expect(await screen.findByText(A.action.turf_update)).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: A.loadMore }));
+    expect(screen.getByText('1–1 of 1+')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: en.pagination.next }));
     expect(await screen.findByText(A.action.role_create)).toBeTruthy();
     expect(screen.getByText(A.action.turf_update)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: A.loadMore })).toBeNull();
+    // Everything fits on one page once the server has no more.
+    expect(screen.queryByRole('navigation', { name: en.pagination.label })).toBeNull();
   });
 
   it('shows the venue time zone, the actor and the system fallback', async () => {

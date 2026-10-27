@@ -1,31 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { currencyExponent, localParts, parseMoney, type AddonSelection } from '@booking/shared';
+import { addDays, currencyExponent, localParts, MAX_BOOKINGS_PER_GROUP, parseMoney, type AddonLine, type AddonSelection } from '@booking/shared';
 import { AddonPicker } from '../../checkout/AddonPicker';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
-import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TextField } from '../../components/ui/TextField';
-import { ApiError, apiPost } from '../../lib/apiClient';
+import { ApiError, apiGet, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { money } from '../../lib/format';
+import { SportCourt } from '../../landing/SportCourt';
+import { formatDate, money } from '../../lib/format';
 import type { SlotDay } from '../../lib/types';
 import { DateStrip } from '../../venue/DateStrip';
 import { SlotGrid } from '../../venue/SlotGrid';
-import { keepSelectable, toggleSlot } from '../../venue/slotSelection';
+import { RepeatDays } from '../../venue/RepeatDays';
+import { isSelectable, runsOf } from '../../venue/slotSelection';
 import { PaymentLinkDialog } from '../bookings/PaymentLinkDialog';
-import { CustomerFields, customerErrors, type Customer } from '../CustomerFields';
+import { CustomerFields, customerBody, customerErrors, type Customer } from '../CustomerFields';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useVenueParam } from '../shell/useVenueParam';
 import { VenueSelect } from '../shell/VenueSelect';
-import type { OwnerBooking, OwnerSlotDay, OwnerTurf, OwnerVenue, PaymentLink, WalkInAddon } from '../types';
+import type { OwnerBooking, OwnerSlot, OwnerSlotDay, OwnerTurf, OwnerVenue, PaymentLink, WalkInAddon } from '../types';
 import { ActiveTurfs } from '../turfs/ActiveTurfs';
 import { useResource } from '../useResource';
-import { walkInEstimate } from './walkInEstimate';
+import { walkInEstimate, type WalkInEstimate } from './walkInEstimate';
 import common from '../ownerForm.module.css';
 import styles from './WalkInPage.module.css';
 
@@ -33,8 +34,65 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Errors that mean the slot grid on screen is stale. */
 const STALE_CODES = ['slot_taken', 'slot_unavailable', 'outside_window'];
 type Method = 'cash' | 'link' | 'unpaid';
+/** How many days after the shown one are offered as copy chips. */
+const AHEAD = 7;
 
-/** Owner walk-in: pick a turf, date and slots, add the customer and take (or defer) payment. */
+/** Picked slot starts per court, then per date. */
+type Picks = Record<string, Record<string, string[]>>;
+/** One booking: a run of consecutive slots on one day of one court. */
+type Run = { turfId: string; date: string; slots: OwnerSlot[] };
+
+/** Cache key of one day of one court. */
+const cell = (turfId: string, date: string) => `${turfId}|${date}`;
+
+/** `picks` with one court's day set to `list` (dropped when empty). */
+function withDay(picks: Picks, turfId: string, date: string, list: string[]): Picks {
+  const days = { ...(picks[turfId] ?? {}) };
+  if (list.length > 0) days[date] = [...list].sort();
+  else delete days[date];
+  const next = { ...picks };
+  if (Object.keys(days).length > 0) next[turfId] = days;
+  else delete next[turfId];
+  return next;
+}
+
+/** Every picked run, courts in card order, then by day and time; days not loaded yet are left out. */
+function runsFor(turfs: OwnerTurf[], picks: Picks, days: Record<string, OwnerSlotDay>): Run[] {
+  return turfs.flatMap(({ id }) =>
+    Object.keys(picks[id] ?? {})
+      .sort()
+      .flatMap((d) => {
+        const day = days[cell(id, d)];
+        return day ? runsOf(day.slots, picks[id]![d]!).map((slots) => ({ turfId: id, date: d, slots })) : [];
+      }),
+  );
+}
+
+/** The estimates of several bookings as one: totals summed, the same add-on line merged. */
+function combine(list: WalkInEstimate[]): WalkInEstimate {
+  const lines = new Map<string, AddonLine>();
+  for (const e of list) {
+    for (const l of e.addons) {
+      const key = `${l.addonId}-${l.auto}`;
+      const seen = lines.get(key);
+      lines.set(key, seen ? { ...seen, quantity: seen.quantity + l.quantity, total: seen.total + l.total } : l);
+    }
+  }
+  return {
+    slotsTotal: list.reduce((n, e) => n + e.slotsTotal, 0),
+    addons: [...lines.values()],
+    total: list.reduce((n, e) => n + e.total, 0),
+  };
+}
+
+const gridDayOf = (d: OwnerSlotDay): SlotDay => ({
+  businessDate: d.businessDate,
+  currency: d.currency,
+  status: !d.inWindow ? 'outside_window' : d.closed ? 'closed' : 'open',
+  slots: d.slots,
+});
+
+/** Owner walk-in: pick slots on any courts and days, add the customer and take (or defer) payment for them all. */
 export function WalkInPage() {
   const { t } = useTranslation();
   const [venue] = useVenueParam();
@@ -69,7 +127,10 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   const date = requestedDate && DATE.test(requestedDate) ? requestedDate : today;
   const turf = turfs.find((x) => x.id === params.get('turf')) ?? turfs[0]!;
 
-  const [selected, setSelected] = useState<string[]>([]);
+  const [picks, setPicks] = useState<Picks>({});
+  const [days, setDays] = useState<Record<string, OwnerSlotDay>>({});
+  const [offeredBy, setOfferedBy] = useState<Record<string, WalkInAddon[]>>({});
+  const [capped, setCapped] = useState(false);
   const [addons, setAddons] = useState<AddonSelection[]>([]);
   const [customer, setCustomer] = useState<Customer>({ name: '', phone: '' });
   const [method, setMethod] = useState<Method>('unpaid');
@@ -77,35 +138,166 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   const [tried, setTried] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [link, setLink] = useState<{ link: PaymentLink; bookingId: string } | null>(null);
+  // `to` is where the page goes once the link dialog closes.
+  const [link, setLink] = useState<{ link: PaymentLink; to: string } | null>(null);
   const busy = useRef(false);
+  const side = useRef<HTMLElement>(null);
   const prefill = useRef(params.get('start'));
 
-  const base = ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(turf.id)}`);
+  const turfPath = useCallback(
+    (id: string) => ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(id)}`),
+    [ownerId, venue.id],
+  );
+  const base = turfPath(turf.id);
   const slots = useResource<{ day: OwnerSlotDay }>(`${base}/slots?date=${date}`);
   const addonRes = useResource<{ currency: string; addons: WalkInAddon[] }>(`${base}/addons`);
   const rawDay = slots.state.status === 'ready' ? slots.state.data.day : null;
-  const offered = addonRes.state.status === 'ready' ? addonRes.state.data.addons : [];
+  const offered = addonRes.state.status === 'ready' ? addonRes.state.data.addons : null;
+  const here = cell(turf.id, date);
 
-  // Whenever slots (re)load: apply the schedule's pre-selection once, then drop anything no longer selectable.
+  // The shown day and court's add-ons join the caches the summary and estimate read.
   useEffect(() => {
-    if (!rawDay) return;
+    if (rawDay) setDays((c) => ({ ...c, [here]: rawDay }));
+    // `here` changes with the path, and the resource never shows another path's data.
+  }, [rawDay]);
+  useEffect(() => {
+    if (offered) setOfferedBy((c) => ({ ...c, [turf.id]: offered }));
+  }, [offered]);
+
+  // The schedule's pre-selection, once.
+  useEffect(() => {
     const start = prefill.current;
+    if (!rawDay || !start) return;
     prefill.current = null;
-    setSelected((prev) => keepSelectable(rawDay.slots, start ? toggleSlot(rawDay.slots, [], start) : prev));
+    const slot = rawDay.slots.find((s) => s.startAt === start);
+    if (slot && isSelectable(slot)) setPicks((p) => withDay(p, turf.id, date, [start]));
   }, [rawDay]);
 
-  const gridDay: SlotDay | null = useMemo(
-    () => (rawDay ? { businessDate: rawDay.businessDate, currency: rawDay.currency, status: rawDay.closed ? 'closed' : 'open', slots: rawDay.slots } : null),
-    [rawDay],
-  );
-  const estimate = useMemo(
-    () =>
-      rawDay
-        ? walkInEstimate({ slots: rawDay.slots.filter((s) => selected.includes(s.startAt)), offered, indoor: turf.indoor, selection: addons })
-        : null,
-    [rawDay, selected, offered, turf.indoor, addons],
-  );
+  const selected = picks[turf.id]?.[date] ?? [];
+  const pickedHere = selected.length > 0;
+  const ahead = Array.from({ length: AHEAD }, (_, i) => addDays(date, i + 1));
+
+  // Days with picks on any court (for prices) and, while this day has a pick, the days after it (for the copy chips).
+  const wantedKey = [
+    ...new Set([
+      ...Object.entries(picks).flatMap(([id, p]) => Object.keys(p).map((d) => cell(id, d))),
+      ...(pickedHere ? ahead.map((d) => cell(turf.id, d)) : []),
+    ]),
+  ]
+    .filter((c) => c !== here && !days[c])
+    .sort()
+    .join(',');
+  useEffect(() => {
+    if (!wantedKey) return;
+    let live = true;
+    const cells = wantedKey.split(',');
+    Promise.all(
+      cells.map((c) => {
+        const [id, d] = c.split('|') as [string, string];
+        return apiGet<{ day: OwnerSlotDay }>(`${turfPath(id)}/slots?date=${d}`).then((r) => r.day, () => null);
+      }),
+    ).then((list) => {
+      if (!live) return;
+      setDays((c) => {
+        const next = { ...c };
+        list.forEach((d, i) => {
+          if (d) next[cells[i]!] = d;
+        });
+        return next;
+      });
+    });
+    return () => {
+      live = false;
+    };
+  }, [wantedKey, turfPath]);
+
+  // Add-ons of every picked court, for its share of the estimate.
+  const addonKey = Object.keys(picks)
+    .filter((id) => id !== turf.id && !offeredBy[id])
+    .sort()
+    .join(',');
+  useEffect(() => {
+    if (!addonKey) return;
+    let live = true;
+    const ids = addonKey.split(',');
+    Promise.all(ids.map((id) => apiGet<{ addons: WalkInAddon[] }>(`${turfPath(id)}/addons`).then((r) => r.addons, () => []))).then(
+      (list) => live && setOfferedBy((c) => ({ ...c, ...Object.fromEntries(ids.map((id, i) => [id, list[i]!])) })),
+    );
+    return () => {
+      live = false;
+    };
+  }, [addonKey, turfPath]);
+
+  // Fresh slots: drop picks that are no longer free.
+  useEffect(() => {
+    setPicks((p) => {
+      let changed = false;
+      let next = p;
+      for (const [id, byDay] of Object.entries(p)) {
+        for (const [d, list] of Object.entries(byDay)) {
+          const day = days[cell(id, d)];
+          const left = day ? list.filter((x) => day.slots.some((s) => s.startAt === x && isSelectable(s))) : list;
+          if (left.length === list.length) continue;
+          changed = true;
+          next = withDay(next, id, d, left);
+        }
+      }
+      return changed ? next : p;
+    });
+  }, [days]);
+
+  /** Sets one day's picks on one court, unless that would make more bookings than one go takes. */
+  const setDay = (court: string, d: string, list: string[]) => {
+    const next = withDay(picks, court, d, list);
+    if (runsFor(turfs, next, days).length > MAX_BOOKINGS_PER_GROUP) {
+      setCapped(true);
+      return;
+    }
+    setCapped(false);
+    setPicks(next);
+    setError(null);
+  };
+
+  const onToggle = (startAt: string) => {
+    const slot = rawDay?.slots.find((s) => s.startAt === startAt);
+    if (!slot) return;
+    if (selected.includes(startAt)) setDay(turf.id, date, selected.filter((x) => x !== startAt));
+    else if (isSelectable(slot)) setDay(turf.id, date, [...selected, startAt]);
+  };
+
+  const localStarts = rawDay ? rawDay.slots.filter((s) => selected.includes(s.startAt)).map((s) => s.localStart) : [];
+  /** Copies this day's times onto `d`, or clears `d` when it already has them. */
+  const copyTo = (d: string) => {
+    const target = days[cell(turf.id, d)];
+    if (!target) return;
+    const same = target.slots.filter((s) => localStarts.includes(s.localStart));
+    const list = picks[turf.id]?.[d] ?? [];
+    const on = list.length === same.length && same.every((s) => list.includes(s.startAt));
+    setDay(turf.id, d, on ? [] : same.map((s) => s.startAt));
+  };
+  const aheadDays = ahead
+    .map((d) => days[cell(turf.id, d)])
+    .filter((d): d is OwnerSlotDay => d !== undefined && d.inWindow)
+    .map(gridDayOf);
+  const copied = aheadDays.filter((d) => {
+    const list = picks[turf.id]?.[d.businessDate] ?? [];
+    const same = d.slots.filter((s) => localStarts.includes(s.localStart));
+    return same.length === localStarts.length && list.length === same.length && same.every((s) => list.includes(s.startAt));
+  });
+
+  const runs = runsFor(turfs, picks, days);
+  const slotCount = Object.values(picks).reduce((n, byDay) => n + Object.values(byDay).reduce((m, l) => m + l.length, 0), 0);
+  const pickedTurfs = [...new Set(runs.map((r) => r.turfId))];
+  const ready = runs.length > 0 && runs.reduce((n, r) => n + r.slots.length, 0) === slotCount && pickedTurfs.every((id) => offeredBy[id]);
+  /** The add-ons of the pick that `turfId` offers; one pick of add-ons spans courts that may not all have them. */
+  const selectionOn = (turfId: string) => addons.filter((s) => (offeredBy[turfId] ?? []).some((o) => o.id === s.addonId && o.autoApply === null));
+  const estimates = ready
+    ? runs.map((r) =>
+        walkInEstimate({ slots: r.slots, offered: offeredBy[r.turfId]!, indoor: turfs.find((x) => x.id === r.turfId)!.indoor, selection: selectionOn(r.turfId) }),
+      )
+    : [];
+  const estimate = estimates.length > 0 && estimates.every((e) => e !== null) ? combine(estimates as WalkInEstimate[]) : null;
+  const single = runs.length === 1;
 
   const change = (next: { turf?: string; date?: string }) => {
     setParams(
@@ -119,8 +311,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
       { replace: true },
     );
     prefill.current = null;
-    setSelected([]);
-    if (next.turf) setAddons([]);
+    setCapped(false);
     setError(null);
   };
 
@@ -128,7 +319,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   const inWindow = rawDay?.inWindow ?? true;
   let cashAmount: number | undefined;
   let cashOk = true;
-  if (method === 'cash' && cashText !== null) {
+  if (method === 'cash' && single && cashText !== null) {
     try {
       cashAmount = parseMoney(cashText.trim(), currency);
       cashOk = cashAmount >= 1;
@@ -138,7 +329,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
   }
 
   const submit = async () => {
-    if (busy.current || !rawDay || !inWindow || selected.length === 0) return;
+    if (busy.current || !ready) return;
     setTried(true);
     const bad = customerErrors(customer);
     if (bad.name || bad.phone || !cashOk) return;
@@ -147,19 +338,30 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     setError(null);
     const payment =
       method === 'cash' ? (cashAmount === undefined ? { method: 'cash' as const } : { method: 'cash' as const, amount: cashAmount }) : { method };
+    const [first, ...more] = runs as [Run, ...Run[]];
+    const sent = addons.filter((s) => pickedTurfs.some((id) => selectionOn(id).includes(s)));
     try {
-      const res = await apiPost<{ booking: OwnerBooking; payment?: PaymentLink }>(`${base}/bookings`, {
-        date,
-        startAts: selected,
-        addons,
-        customer: { name: customer.name.trim(), phone: customer.phone },
+      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(`${turfPath(first.turfId)}/bookings`, {
+        date: first.date,
+        startAts: first.slots.map((s) => s.startAt),
+        addons: sent,
+        ...(more.length > 0 ? { more: more.map((r) => ({ turfId: r.turfId, date: r.date, startAts: r.slots.map((s) => s.startAt) })) } : {}),
+        customer: customerBody(customer),
         payment,
       });
-      if (res.payment) setLink({ link: res.payment, bookingId: res.booking.id });
-      else navigate(`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(res.booking.id)}`);
+      // Several bookings open their group page; one opens the booking itself.
+      const to = res.bookings && res.booking.groupId
+        ? `/owner/${encodeURIComponent(ownerId)}/booking-groups/${encodeURIComponent(res.booking.groupId)}`
+        : `/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(res.booking.id)}`;
+      if (res.payment) setLink({ link: res.payment, to });
+      else navigate(to);
     } catch (e) {
       setError(e);
-      if (e instanceof ApiError && STALE_CODES.includes(e.code)) slots.reload();
+      if (e instanceof ApiError && STALE_CODES.includes(e.code)) {
+        // Every picked day may be stale: refetch them all, the shown one through its resource.
+        setDays((c) => (c[here] ? { [here]: c[here] } : {}));
+        slots.reload();
+      }
     } finally {
       busy.current = false;
       setSubmitting(false);
@@ -183,42 +385,140 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         </Button>
       </Alert>
     );
-  } else if (!gridDay) {
+  } else if (!rawDay) {
     grid = <Skeleton kind="detail" label={t('common.loading')} />;
   } else if (!inWindow) {
     grid = <p className={common.notice}>{t('owner.walkIn.outsideWindow')}</p>;
   } else {
-    grid = <SlotGrid day={gridDay} selected={selected} onToggle={(s) => setSelected((prev) => toggleSlot(gridDay.slots, prev, s))} tone="portal" />;
+    grid = <SlotGrid day={gridDayOf(rawDay)} selected={selected} onToggle={onToggle} tone="portal" />;
   }
+
+  const shortDate = (d: string) => formatDate(d, 'UTC', lang);
+  const range = (run: OwnerSlot[]) => `${run[0]!.localStart}–${run[run.length - 1]!.localEnd}`;
+  /** Every court and day with picks, courts in card order. */
+  const picked = turfs.flatMap(({ id, name }) =>
+    Object.keys(picks[id] ?? {})
+      .sort()
+      .map((d) => ({ turfId: id, name, date: d })),
+  );
+  const marked = Object.fromEntries(Object.entries(picks[turf.id] ?? {}).map(([d, list]) => [d, list.length]));
 
   return (
     <form
-      className={common.form}
+      className={styles.layout}
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
-      <section className={common.card}>
-        <Select
-          layout="stacked"
-          label={t('owner.walkIn.turf')}
-          value={turf.id}
-          options={turfs.map((x) => ({ value: x.id, label: x.name }))}
-          onChange={(e) => change({ turf: e.target.value })}
-        />
-        <h2 className={common.heading}>{t('owner.walkIn.date')}</h2>
-        <DateStrip today={today} value={date} onChange={(d) => change({ date: d })} timeZone={venue.timezone} />
-        <h2 className={common.heading}>{t('owner.walkIn.slots')}</h2>
+      <section className={`${common.card} ${styles.card}`}>
+        <div className={styles.courts} role="group" aria-label={t('owner.walkIn.courts')}>
+          {turfs.map((x) => {
+            const active = x.id === turf.id;
+            const count = Object.values(picks[x.id] ?? {}).reduce((n, l) => n + l.length, 0);
+            return (
+              <button
+                key={x.id}
+                type="button"
+                aria-pressed={active}
+                className={[styles.court, active ? styles.courtActive : ''].filter(Boolean).join(' ')}
+                onClick={() => change({ turf: x.id })}
+              >
+                <SportCourt sport={x.sports[0] ?? 'futsal'} className={styles.courtArt} />
+                <span className={styles.courtText}>
+                  <span className={styles.courtName}>{x.name}</span>
+                  <span className={styles.courtKind}>
+                    {[t(x.indoor ? 'venue.indoor' : 'venue.outdoor'), ...x.sports.map((s) => t(`sports.${s}`)), t('venue.slotLength', { count: x.slotLengthMin })].join(' · ')}
+                  </span>
+                </span>
+                {count > 0 && (
+                  <span className={styles.badge}>
+                    <span aria-hidden="true">{count}</span>
+                    <span className={styles.hidden}>{t('slots.picked', { count })}</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <DateStrip today={today} value={date} onChange={(d) => change({ date: d })} marked={marked} timeZone={venue.timezone} />
         {grid}
-        {addonRes.state.status === 'ready' && (
-          <AddonPicker offered={offered} quoteLines={estimate?.addons ?? []} value={addons} onChange={setAddons} currency={currency} />
+        {capped && <Alert tone="warning">{t('slots.full', { count: MAX_BOOKINGS_PER_GROUP })}</Alert>}
+        {rawDay && inWindow && pickedHere && (
+          <RepeatDays
+            days={aheadDays}
+            localStarts={localStarts}
+            value={copied.map((d) => d.businessDate)}
+            full={runs.length + runsOf(rawDay.slots, selected).length > MAX_BOOKINGS_PER_GROUP}
+            onToggle={copyTo}
+          />
+        )}
+        {offered && (
+          <AddonPicker offered={offered} quoteLines={single ? (estimate?.addons ?? []) : []} value={addons} onChange={setAddons} currency={currency} />
+        )}
+        {offered && offered.length > 0 && runs.length > 1 && <p className={common.hint}>{t('owner.walkIn.extrasEach')}</p>}
+        {runs.length > 0 && (
+          <div className={styles.bar}>
+            <span className={styles.barText}>
+              {t('owner.walkIn.bookingCount', { count: runs.length })}
+              {estimate && ` · ${money(estimate.total, currency, lang)}`}
+            </span>
+            <Button
+              size="sm"
+              onClick={() => {
+                side.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                side.current?.querySelector('input')?.focus({ preventScroll: true });
+              }}
+            >
+              {t('owner.walkIn.toCheckout')}
+            </Button>
+          </div>
         )}
       </section>
 
-      <section className={common.card}>
-        <h2 className={common.heading}>{t('owner.walkIn.customer')}</h2>
+      <section ref={side} className={`${common.card} ${styles.card} ${styles.side}`} aria-live="polite">
+        <h2 className={common.heading}>{t('owner.walkIn.selection')}</h2>
+        {picked.length === 0 ? (
+          <p className={common.hint}>{t('owner.walkIn.pickHint')}</p>
+        ) : (
+          <ul className={styles.picked}>
+            {picked.map((p) => {
+              const label = `${p.name}, ${shortDate(p.date)}`;
+              const isHere = p.turfId === turf.id && p.date === date;
+              const cached = days[cell(p.turfId, p.date)];
+              return (
+                <li key={cell(p.turfId, p.date)} className={styles.pick}>
+                  <button
+                    type="button"
+                    className={[styles.pickOpen, isHere ? styles.pickHere : ''].filter(Boolean).join(' ')}
+                    aria-current={isHere ? 'true' : undefined}
+                    aria-label={t('slots.showDay', { date: label })}
+                    onClick={() => change({ turf: p.turfId, date: p.date })}
+                  >
+                    {label}
+                  </button>
+                  <span className={styles.pickTimes}>
+                    {cached &&
+                      runsOf(cached.slots, picks[p.turfId]![p.date]!).map((run, i) => (
+                        <Fragment key={run[0]!.startAt}>
+                          {i > 0 && ', '}
+                          <span className={styles.pickRange}>{range(run)}</span>
+                        </Fragment>
+                      ))}
+                  </span>
+                  <button type="button" className={styles.pickRemove} aria-label={t('slots.clearDay', { date: label })} onClick={() => setDay(p.turfId, p.date, [])}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <h2 className={`${common.heading} ${styles.section}`}>{t('owner.walkIn.customer')}</h2>
         <CustomerFields value={customer} onChange={setCustomer} tried={tried} />
         <fieldset className={styles.methods}>
           <legend className={common.heading}>{t('owner.walkIn.payment')}</legend>
@@ -229,7 +529,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
             </label>
           ))}
         </fieldset>
-        {method === 'cash' && (
+        {method === 'cash' && single && (
           <TextField
             label={t('owner.walkIn.cashAmount')}
             inputMode="decimal"
@@ -238,13 +538,11 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
             onChange={(e) => setCashText(e.target.value)}
           />
         )}
-      </section>
-
-      <section className={common.card} aria-live="polite">
+        {method !== 'unpaid' && runs.length > 1 && <p className={common.hint}>{t('owner.walkIn.wholeEach')}</p>}
         {estimate && (
           <dl className={styles.estimate}>
             <div className={styles.row}>
-              <dt>{t('owner.walkIn.estimateSlots')}</dt>
+              <dt>{runs.length > 1 ? `${t('owner.walkIn.estimateSlots')} · ${t('owner.walkIn.bookingCount', { count: runs.length })}` : t('owner.walkIn.estimateSlots')}</dt>
               <dd>{money(estimate.slotsTotal, currency, lang)}</dd>
             </div>
             {estimate.addons.map((l) => (
@@ -261,8 +559,8 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         )}
         <p className={common.hint}>{t('owner.walkIn.estimate')}</p>
         {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-        <Button type="submit" size="lg" loading={submitting} disabled={!inWindow || selected.length === 0 || !rawDay}>
-          {t('owner.walkIn.submit')}
+        <Button type="submit" size="lg" loading={submitting} disabled={!ready}>
+          {runs.length > 1 ? t('owner.walkIn.submitMany', { count: runs.length }) : t('owner.walkIn.submit')}
         </Button>
       </section>
 
@@ -270,7 +568,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         open={link !== null}
         link={link?.link ?? null}
         load={() => Promise.resolve(link!.link)}
-        onClose={() => link && navigate(`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(link.bookingId)}`)}
+        onClose={() => link && navigate(link.to)}
       />
     </form>
   );

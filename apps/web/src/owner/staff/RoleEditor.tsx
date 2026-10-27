@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Dialog } from '../../components/ui/Dialog';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { TextField } from '../../components/ui/TextField';
 import { apiDelete, apiPatch, apiPost } from '../../lib/apiClient';
@@ -55,43 +56,47 @@ export function RoleEditor({ roles, onChanged }: Props) {
       {roles.length === 0 ? (
         <EmptyState size="sm" bare sport="basketball" title={t('owner.staff.roleEmpty')} />
       ) : (
-        <Table caption={t('owner.staff.tab.roles')}>
-          <thead>
-            <tr>
-              <th>{t('owner.staff.col.name')}</th>
-              <th>{t('owner.staff.col.membersCount')}</th>
-              <th>{t('owner.staff.col.perms')}</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {roles.map((r) => (
-              <tr key={r.id}>
-                <td>
-                  <span className={styles.nameCell}>
-                    {roleLabel(r, t)}
-                    {r.system && <Badge tone="neutral">{t('owner.staff.system')}</Badge>}
-                  </span>
-                </td>
-                <td className={styles.num}>{r.memberCount}</td>
-                <td className={styles.num}>{r.permissions.length}</td>
-                <td>
-                  <div className={styles.rowActions}>
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
-                      {t(r.system ? 'owner.staff.view' : 'owner.staff.edit')}
-                    </Button>
-                    {!r.system && (
-                      <Button variant="ghost" size="sm" disabled={r.memberCount > 0} onClick={() => setRemoving(r)}>
-                        {t('owner.staff.delete')}
-                      </Button>
-                    )}
-                    {!r.system && r.memberCount > 0 && <span className={styles.muted}>{t('errors.role_in_use')}</span>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <Paged items={roles}>
+          {(rows) => (
+            <Table caption={t('owner.staff.tab.roles')}>
+              <thead>
+                <tr>
+                  <th>{t('owner.staff.col.name')}</th>
+                  <th>{t('owner.staff.col.membersCount')}</th>
+                  <th>{t('owner.staff.col.perms')}</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <span className={styles.nameCell}>
+                        {roleLabel(r, t)}
+                        {r.system && <Badge tone="neutral">{t('owner.staff.system')}</Badge>}
+                      </span>
+                    </td>
+                    <td className={styles.num}>{r.memberCount}</td>
+                    <td className={styles.num}>{r.permissions.length}</td>
+                    <td>
+                      <div className={styles.rowActions}>
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                          {t(r.system ? 'owner.staff.view' : 'owner.staff.edit')}
+                        </Button>
+                        {!r.system && (
+                          <Button variant="ghost" size="sm" disabled={r.memberCount > 0} onClick={() => setRemoving(r)}>
+                            {t('owner.staff.delete')}
+                          </Button>
+                        )}
+                        {!r.system && r.memberCount > 0 && <span className={styles.muted}>{t('errors.role_in_use')}</span>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Paged>
       )}
       <RoleDialog open={creating} role={null} onClose={() => setCreating(false)} onSaved={onChanged} />
       <RoleDialog open={editing !== null} role={editing} onClose={() => setEditing(null)} onSaved={onChanged} />

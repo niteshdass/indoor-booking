@@ -9,6 +9,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { TextField } from '../../components/ui/TextField';
 import { apiPost } from '../../lib/apiClient';
@@ -48,34 +49,38 @@ export function TurfList({ venue }: { venue: OwnerVenue }) {
       {turfs.length === 0 ? (
         <EmptyState sport="futsal" title={t('owner.venues.noTurfs')} />
       ) : (
-        <Table caption={t('owner.venues.turfs')}>
-          <thead>
-            <tr>
-              <th>{t('owner.venues.turfName')}</th>
-              <th>{t('owner.venues.sports')}</th>
-              <th>{t('owner.venues.setting')}</th>
-              <th>{t('owner.venues.slotLength')}</th>
-              <th>{t('owner.venues.status')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {turfs.map((x) => (
-              <tr key={x.id}>
-                <td>
-                  <Link to={`/owner/${ownerId}/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(x.id)}`} className={styles.link}>
-                    {x.name}
-                  </Link>
-                </td>
-                <td>{x.sports.map((s) => t(`sports.${s}`)).join(', ')}</td>
-                <td>{t(x.indoor ? 'venue.indoor' : 'venue.outdoor')}</td>
-                <td>{t('owner.venues.minutes', { count: x.slotLengthMin })}</td>
-                <td>
-                  <Badge tone={x.active ? 'success' : 'neutral'}>{t(x.active ? 'owner.venues.turfActive' : 'owner.venues.turfInactive')}</Badge>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        <Paged items={turfs} pageSize={10}>
+          {(rows) => (
+            <Table caption={t('owner.venues.turfs')}>
+              <thead>
+                <tr>
+                  <th>{t('owner.venues.turfName')}</th>
+                  <th>{t('owner.venues.sports')}</th>
+                  <th>{t('owner.venues.setting')}</th>
+                  <th>{t('owner.venues.slotLength')}</th>
+                  <th>{t('owner.venues.status')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((x) => (
+                  <tr key={x.id}>
+                    <td>
+                      <Link to={`/owner/${ownerId}/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(x.id)}`} className={styles.link}>
+                        {x.name}
+                      </Link>
+                    </td>
+                    <td>{x.sports.map((s) => t(`sports.${s}`)).join(', ')}</td>
+                    <td>{t(x.indoor ? 'venue.indoor' : 'venue.outdoor')}</td>
+                    <td>{t('owner.venues.minutes', { count: x.slotLengthMin })}</td>
+                    <td>
+                      <Badge tone={x.active ? 'success' : 'neutral'}>{t(x.active ? 'owner.venues.turfActive' : 'owner.venues.turfInactive')}</Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Paged>
       )}
       {can('turf.manage') && <TurfCreateForm venueId={venue.id} base={base} />}
     </div>

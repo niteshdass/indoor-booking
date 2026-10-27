@@ -29,7 +29,7 @@ export type CancellationPreview = {
   cash: number;
 };
 
-const CANCELLABLE: readonly BookingStatus[] = ['awaiting_payment', 'pending', 'confirmed'];
+export const CANCELLABLE: readonly BookingStatus[] = ['awaiting_payment', 'pending', 'confirmed'];
 
 export const seriesRequestOpen = () =>
   new AppError(409, 'series_request_open', 'This series request is still waiting for an answer');

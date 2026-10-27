@@ -69,6 +69,14 @@
   gap: var(--space-3);
 }
 
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
 .heading {
   margin: 0;
   font-size: var(--text-md);

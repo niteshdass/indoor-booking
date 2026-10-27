@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Paged } from '../../components/ui/Pagination';
 import { Table } from '../../components/ui/Table';
 import { apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -108,14 +109,16 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
   }, [attempt]);
 
   const showMore = async () => {
-    if (load.status !== 'ready' || load.nextBefore === null || load.more) return;
+    if (load.status !== 'ready' || load.nextBefore === null || load.more) return false;
     const { items, nextBefore } = load;
     setLoad({ ...load, more: true, moreError: null });
     try {
       const p = await apiGet<Page>(pathFor(nextBefore));
       setLoad({ status: 'ready', items: [...items, ...p.series], nextBefore: p.nextBefore, more: false, moreError: null });
+      return p.series.length > 0;
     } catch (e) {
       setLoad({ status: 'ready', items, nextBefore, more: false, moreError: e });
+      return false;
     }
   };
 
@@ -134,50 +137,47 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
 
   return (
     <>
-      <Table caption={t('series.title')} className={styles.grid}>
-        <thead>
-          <tr>
-            <th>{t('owner.bookings.customer')}</th>
-            <th>{t('owner.bookings.turf')}</th>
-            <th>{t('series.owner.schedule')}</th>
-            <th>{t('series.owner.dates')}</th>
-            <th>{t('series.owner.games')}</th>
-            <th>{t('owner.bookings.status')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {load.items.map((s) => {
-            const turf = turfList.find((x) => x.id === s.turfId);
-            return (
-              <tr key={s.id}>
-                <td>
-                  <Link to={encodeURIComponent(s.id)} className={styles.link}>
-                    {seriesCustomer(s, t)}
-                  </Link>
-                </td>
-                <td>{turf?.name ?? '—'}</td>
-                <td className={styles.nums}>{patternSummary(s, turf, lang)}</td>
-                <td>{dateRange(s, lang)}</td>
-                <td className={styles.nums}>{s.games.length}</td>
-                <td>
-                  <SeriesStatusBadge status={s.status} />
-                  {s.status === 'requested' && s.respondBy && (
-                    <span className={styles.sub}>{t('series.owner.answerBy', { when: formatDateTime(s.respondBy, venue.timezone, lang) })}</span>
-                  )}
-                </td>
+      <Paged items={load.items} more={load.nextBefore !== null} loading={load.more} onMore={showMore}>
+        {(rows) => (
+          <Table caption={t('series.title')} className={styles.grid}>
+            <thead>
+              <tr>
+                <th>{t('owner.bookings.customer')}</th>
+                <th>{t('owner.bookings.turf')}</th>
+                <th>{t('series.owner.schedule')}</th>
+                <th>{t('series.owner.dates')}</th>
+                <th>{t('series.owner.games')}</th>
+                <th>{t('owner.bookings.status')}</th>
               </tr>
-            );
-          })}
-        </tbody>
-      </Table>
+            </thead>
+            <tbody>
+              {rows.map((s) => {
+                const turf = turfList.find((x) => x.id === s.turfId);
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      <Link to={encodeURIComponent(s.id)} className={styles.link}>
+                        {seriesCustomer(s, t)}
+                      </Link>
+                    </td>
+                    <td>{turf?.name ?? '—'}</td>
+                    <td className={styles.nums}>{patternSummary(s, turf, lang)}</td>
+                    <td>{dateRange(s, lang)}</td>
+                    <td className={styles.nums}>{s.games.length}</td>
+                    <td>
+                      <SeriesStatusBadge status={s.status} />
+                      {s.status === 'requested' && s.respondBy && (
+                        <span className={styles.sub}>{t('series.owner.answerBy', { when: formatDateTime(s.respondBy, venue.timezone, lang) })}</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        )}
+      </Paged>
       {load.moreError !== null && <Alert tone="danger">{errorMessage(load.moreError, t)}</Alert>}
-      {load.nextBefore !== null && (
-        <div className={styles.buttons}>
-          <Button variant="secondary" loading={load.more} onClick={() => void showMore()}>
-            {t('series.owner.showMore')}
-          </Button>
-        </div>
-      )}
     </>
   );
 }

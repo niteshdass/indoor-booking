@@ -92,6 +92,29 @@ describe('owner booking detail', () => {
     expect(screen.getAllByText(/BDT\s6\.00/).length).toBeGreaterThan(0);
   });
 
+  it('booking detail links the other bookings made in the same go', async () => {
+    const other = ownerBooking({ id: 'b2', reference: 'BK-0002', businessDate: '2026-10-27', groupId: 'g1' });
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ groupId: 'g1' }), group: [other] }) }]);
+    const { user, location } = renderApp(URL_, { user: staffUser });
+    const table = await screen.findByRole('table', { name: en.owner.bookings.together });
+    await user.click(within(table).getByRole('link', { name: 'BK-0002' }));
+    await waitFor(() => expect(location().pathname).toBe(`/owner/${OWNER_ID}/bookings/b2`));
+  });
+
+  it('booking detail links to the whole group', async () => {
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ groupId: 'g1' }), group: [ownerBooking({ id: 'b2', groupId: 'g1' })] }) }]);
+    const { user, location } = renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('link', { name: en.owner.bookings.group.viewAll }));
+    await waitFor(() => expect(location().pathname).toBe(`/owner/${OWNER_ID}/booking-groups/g1`));
+  });
+
+  it('booking detail shows no group table for a booking on its own', async () => {
+    mockApi([...ownerRoutes(), { path: GET, body: detail() }]);
+    renderApp(URL_, { user: staffUser });
+    await screen.findByText('BK-0001');
+    expect(screen.queryByRole('table', { name: en.owner.bookings.together })).toBeNull();
+  });
+
   it('booking detail hides actions the member lacks', async () => {
     mockApi([...ownerRoutes(), { path: GET, body: detail() }]);
     renderApp(URL_, { user: staffUser });

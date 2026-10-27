@@ -77,6 +77,8 @@ const bookingSchema = new mongoose.Schema(
 );
 bookingSchema.index({ ownerId: 1, turfId: 1, startAt: 1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, businessDate: 1 });
+// The owner Bookings list, newest made first.
+bookingSchema.index({ ownerId: 1, venueId: 1, createdAt: -1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, startAt: 1, endAt: 1 });
 bookingSchema.index({ playerId: 1, startAt: -1 });
 bookingSchema.index({ ownerId: 1, seriesId: 1, startAt: 1 });

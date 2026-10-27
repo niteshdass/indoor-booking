@@ -126,6 +126,7 @@ describe('owner booking JSON', () => {
     expect(list.body.bookings[0]).toMatchObject({ customer: { name: 'Guest', phone: PHONE }, turf: { name: turfName } });
     const one = await get(`/bookings/${id}`, a.token);
     expect(one.body.booking).toMatchObject({ customer: { name: 'Guest', phone: PHONE }, turf: { name: turfName } });
+    expect(one.body.group).toEqual([]);
   });
 });
 
@@ -183,6 +184,80 @@ describe('walk-in with cash', () => {
     expect(await Payment.countDocuments({}).setOptions({ crossTenant: true })).toBe(0);
     const acts = await ActivityLog.find({ ownerId: a.ownerId, action: /^(booking|payment)\./ }).lean();
     expect(acts.map((r) => r.action)).toEqual(['booking.create']);
+  });
+});
+
+describe('walk-in on several courts and days', () => {
+  it('books every run as one group, takes cash for each, logs each', async () => {
+    const t3 = (await seedTurf(a.ownerId, v1, { pricing: { base: 1000, rules: [] } })).id as string;
+    const D2 = '2026-01-11';
+    const res = await walkin(staff.token, {
+      payment: { method: 'cash' },
+      more: [
+        { turfId: t3, date: D, startAts: [at('18:00').toISOString()] },
+        { date: D2, startAts: [at('10:00', D2).toISOString()] },
+      ],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.bookings).toHaveLength(3);
+    expect(res.body.booking.id).toBe(res.body.bookings[0].id);
+    const rows = await Booking.find({ ownerId: a.ownerId }).sort({ startAt: 1 }).lean();
+    expect(new Set(rows.map((b) => String(b.groupId))).size).toBe(1);
+    expect(rows.every((b) => b.source === 'walkin' && b.status === 'confirmed' && b.paymentStatus === 'paid')).toBe(true);
+    expect(rows.map((b) => [String(b.turfId), b.businessDate, b.total]).sort()).toEqual(
+      [[t1, D, 3000], [t1, D2, 1500], [t3, D, 1000]].sort(),
+    );
+    const payments = await Payment.find({ ownerId: a.ownerId }).lean();
+    expect(payments.map((p) => p.amount).sort()).toEqual([1000, 1500, 3000]);
+    expect(payments.every((p) => p.method === 'cash' && String(p.recordedBy) === staff.userId)).toBe(true);
+    const acts = await ActivityLog.find({ ownerId: a.ownerId }).lean();
+    expect(acts.filter((r) => r.action === 'booking.create')).toHaveLength(3);
+    expect(acts.filter((r) => r.action === 'payment.cash')).toHaveLength(3);
+    const one = await get(`/bookings/${res.body.booking.id}`, staff.token);
+    expect(one.body.group.map((b: { id: string }) => b.id).sort()).toEqual(res.body.bookings.slice(1).map((b: { id: string }) => b.id).sort());
+  });
+
+  it('books none when one run is taken, and refuses an amount or a turf of another venue', async () => {
+    const D2 = '2026-01-11';
+    expect((await walkin(staff.token, { date: D2, startAts: [at('10:00', D2).toISOString()] })).status).toBe(201);
+    const clash = await walkin(staff.token, { more: [{ date: D2, startAts: [at('10:00', D2).toISOString()] }] });
+    expect(clash.status).toBe(409);
+    expect(clash.body.error).toMatchObject({ code: 'slot_taken', details: { date: D2 } });
+    expect(await Booking.countDocuments({ ownerId: a.ownerId })).toBe(1);
+
+    const amount = await walkin(staff.token, { payment: { method: 'cash', amount: 100 }, more: [{ date: D2, startAts: [at('12:00', D2).toISOString()] }] });
+    expect(amount.status).toBe(400);
+    const foreign = await walkin(staff.token, { more: [{ turfId: t2, date: D, startAts: [at('10:00').toISOString()] }] });
+    expect(foreign.status).toBe(404);
+    expect(await Booking.countDocuments({ ownerId: a.ownerId })).toBe(1);
+  });
+
+  it('the group page lists every booking, takes cash for all and cancels all', async () => {
+    const D2 = '2026-01-11';
+    const res = await walkin(staff.token, { payment: { method: 'unpaid' }, more: [{ date: D2, startAts: [at('10:00', D2).toISOString()] }] });
+    const groupId = res.body.booking.groupId as string;
+    const ids = res.body.bookings.map((b: { id: string }) => b.id);
+
+    const one = await get(`/booking-groups/${groupId}`, staff.token);
+    expect(one.status).toBe(200);
+    expect(one.body.bookings.map((b: { id: string }) => b.id)).toEqual(ids);
+    expect(one.body.refunds).toEqual([]);
+    expect((await get('/booking-groups/0123456789abcdef01234567', staff.token)).status).toBe(404);
+    expect((await get('/booking-groups/nope', staff.token)).status).toBe(404);
+
+    const cash = await post(`/booking-groups/${groupId}/payments/cash`, staff.token);
+    expect(cash.status).toBe(201);
+    expect(cash.body.bookings.every((b: { paymentStatus: string; amountPaid: number; total: number }) => b.paymentStatus === 'paid' && b.amountPaid === b.total)).toBe(true);
+    expect(await Payment.countDocuments({ ownerId: a.ownerId, method: 'cash' })).toBe(2);
+    expect((await post(`/booking-groups/${groupId}/payments/cash`, staff.token)).body.error.code).toBe('already_paid');
+
+    expect((await post(`/booking-groups/${groupId}/cancel`, staff.token)).status).toBe(403);
+    const cancel = await post(`/booking-groups/${groupId}/cancel`, manager.token, { reason: 'rain' });
+    expect(cancel.status).toBe(200);
+    expect(cancel.body.bookings.map((b: { status: string }) => b.status)).toEqual(['cancelled', 'cancelled']);
+    expect(cancel.body.refunds).toHaveLength(2);
+    expect((await get(`/booking-groups/${groupId}`, staff.token)).body.refunds).toHaveLength(2);
+    expect((await post(`/booking-groups/${groupId}/cancel`, manager.token)).status).toBe(409);
   });
 });
 
@@ -395,6 +470,64 @@ describe('list', () => {
     expect(day.status).toBe(200); // to defaults to Jan 11
     expect(day.body.bookings).toHaveLength(1);
   });
+
+  it('pages a tab: all, today, upcoming or past, in the chosen order', async () => {
+    await setClock('2026-01-10T06:00:00Z'); // noon on Jan 10 in Dhaka
+    let n = 0;
+    const on = async (date: string, ref: string) => {
+      const id = await pendingBooking({ hm: `${String(8 + n++).padStart(2, '0')}:00` });
+      const startAt = at('10:00', date);
+      await Booking.updateOne({ _id: id, ownerId: a.ownerId }, { businessDate: date, startAt, endAt: new Date(startAt.getTime() + 3_600_000), reference: ref });
+      return id;
+    };
+    const past = await on('2026-01-05', 'RC');
+    const later = await on('2026-01-20', 'RA');
+    const today = await on(D, 'RB');
+    const soon = await on('2026-01-12', 'RD');
+    const list = async (query: string) => {
+      const res = await get(`/bookings?venueId=${v1}&${query}`, a.token);
+      expect(res.status).toBe(200);
+      return { ids: (res.body.bookings as { id: string }[]).map((b) => b.id), total: res.body.total as number };
+    };
+
+    expect(await list('scope=all')).toEqual({ ids: [soon, today, later, past], total: 4 }); // newest made first
+    expect(await list('scope=all&sort=created-asc')).toEqual({ ids: [past, later, today, soon], total: 4 });
+    expect((await list('scope=all&sort=ref-asc')).ids).toEqual([later, today, past, soon]);
+    expect((await list('scope=all&sort=date-desc')).ids).toEqual([later, soon, today, past]);
+    expect(await list('scope=today')).toEqual({ ids: [today], total: 1 });
+    expect(await list('scope=upcoming')).toEqual({ ids: [soon, later], total: 2 });
+    expect(await list('scope=past')).toEqual({ ids: [past], total: 1 });
+    expect(await list('scope=upcoming&to=2026-01-15')).toEqual({ ids: [soon], total: 1 });
+    expect(await list('scope=all&from=2026-01-10&to=2026-01-12&sort=date-asc')).toEqual({ ids: [today, soon], total: 2 });
+    expect(await list('scope=all&sort=date-asc&page=2&pageSize=3')).toEqual({ ids: [later], total: 4 });
+    expect(await list('scope=all&q=rd')).toEqual({ ids: [soon], total: 1 });
+
+    expect((await get('/bookings?scope=today', a.token)).status).toBe(400);
+    expect((await get('/bookings?scope=all', a.token)).status).toBe(200);
+    expect((await get(`/bookings?venueId=${v1}&scope=soon`, a.token)).status).toBe(400);
+    expect((await get(`/bookings?venueId=${v1}&scope=all&pageSize=101`, a.token)).status).toBe(400);
+  });
+
+  it('searches every date by reference, customer name, phone or player', async () => {
+    const old = await pendingBooking({ hm: '09:00' });
+    await Booking.updateOne({ _id: old, ownerId: a.ownerId }, { reference: 'RFIND01', businessDate: '2025-03-01', guest: { name: 'Rahim Uddin', phone: '+8801899999999' } });
+    const player = await User.create({ name: 'Karim Player', phone: '+8801755555555', roles: ['player'] });
+    const mine = await pendingBooking({ hm: '11:00' });
+    await Booking.updateOne({ _id: mine, ownerId: a.ownerId }, { guest: null, playerId: player._id });
+    const other = await pendingBooking({ venueId: v2, turfId: t2 });
+    await Booking.updateOne({ _id: other, ownerId: a.ownerId }, { guest: { name: 'Rahim Other', phone: PHONE } });
+    const ids = async (q: string, token = a.token, extra = '') =>
+      ((await get(`/bookings?q=${encodeURIComponent(q)}${extra}`, token)).body.bookings as { id: string }[]).map((b) => b.id).sort();
+
+    expect(await ids('rfind')).toEqual([old]);
+    expect(await ids('rahim')).toEqual([old, other].sort());
+    expect(await ids('rahim', a.token, `&venueId=${v1}`)).toEqual([old]);
+    expect(await ids('rahim', manager.token)).toEqual([old]); // v2 is outside the manager's venues
+    expect(await ids('1899 999')).toEqual([old]);
+    expect(await ids('karim')).toEqual([mine]);
+    expect(await ids('rahim', a.token, '&status=cancelled')).toEqual([]);
+    expect((await get(`/bookings?q=${'x'.repeat(81)}`, a.token)).status).toBe(400);
+  });
 });
 
 describe('tenancy', () => {
@@ -470,5 +603,43 @@ describe('staff cancellation', () => {
     expect((await get(`/bookings/${id}/cancellation`, manager.token)).status).toBe(404);
     expect((await post(`/bookings/${id}/cancel`, manager.token)).status).toBe(404);
     expect((await Booking.findById(id).setOptions({ crossTenant: true }))!.status).toBe('confirmed');
+  });
+});
+
+describe('customer search', () => {
+  it('finds past guests and players by name or phone, one entry each, within scope', async () => {
+    expect((await walkin(staff.token, { customer: { name: 'Rahim Chowdhury', phone: PHONE } })).status).toBe(201);
+    expect(
+      (await walkin(staff.token, { startAts: [at('10:00').toISOString()], customer: { name: 'Rahim C', phone: PHONE } })).status,
+    ).toBe(201);
+    const player = await User.create({ name: 'Rahima Akter', email: 'ra@test.local', phone: '+8801722222222' });
+    await Booking.create({
+      ownerId: a.ownerId, venueId: v1, turfId: t1, reference: 'RPLAYER1', businessDate: D, startAt: at('12:00'),
+      endAt: at('13:00'), slots: [{ startAt: at('12:00'), endAt: at('13:00'), price: 1500 }], addons: [], currency: 'BDT',
+      subtotal: 1500, addonsTotal: 0, total: 1500, advanceRequired: 0, amountPaid: 0, status: 'confirmed',
+      paymentStatus: 'unpaid', source: 'online', playerId: player._id, guest: null,
+      policySnapshot: { paymentPolicy: { type: 'none' }, refundRules: [] },
+    });
+    expect(
+      (await walkin(staff.token, { startAts: [at('20:00').toISOString()], customer: { name: 'Rahman Away', phone: '+8801733333333' } }, v2, t2)).status,
+    ).toBe(201);
+    await User.create({ name: 'Rahat Stranger', email: 'rs@test.local' });
+
+    const byName = await get('/customers?q=rah', staff.token);
+    expect(byName.status).toBe(200);
+    expect(byName.body.customers).toEqual([
+      { name: 'Rahman Away', phone: '+8801733333333', playerId: null },
+      { name: 'Rahim Chowdhury', phone: PHONE, playerId: null },
+      { name: 'Rahima Akter', phone: '+8801722222222', playerId: player.id },
+    ]);
+
+    const byPhone = await get('/customers?q=01722', staff.token);
+    expect(byPhone.body.customers).toEqual([{ name: 'Rahima Akter', phone: '+8801722222222', playerId: player.id }]);
+
+    const scoped = await get('/customers?q=rahman', manager.token);
+    expect(scoped.body.customers).toEqual([]);
+
+    expect((await get('/customers?q=r', staff.token)).status).toBe(400);
+    expect((await get('/customers?q=(.*', staff.token)).body.customers).toEqual([]);
   });
 });

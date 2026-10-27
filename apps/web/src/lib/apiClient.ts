@@ -111,3 +111,12 @@ export function apiPut<T>(path: string, body: unknown): Promise<T> {
 export async function apiDelete(path: string): Promise<void> {
   await request<undefined>(path, { method: 'DELETE' });
 }
+
+/** POST a file as the raw request body, typed by the blob's own type. */
+export function apiUpload<T>(path: string, blob: Blob): Promise<T> {
+  return request<T>(path, {
+    method: 'POST',
+    headers: { 'Content-Type': blob.type },
+    body: blob,
+  });
+}

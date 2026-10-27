@@ -5,8 +5,14 @@ import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { draftFromVenue, validateVenue, venueBody, type VenueDraft } from '../../src/owner/venues/venueForm';
 import { renderApp } from '../helpers/render';
-import { mockApi } from '../helpers/api';
+import { mockApi, type Call } from '../helpers/api';
 import { OWNER_ID, ownerRoutes, staffUser, turf, venue } from './fixtures';
+
+// Canvas encoding needs a real browser; the fake hands back a small WebP blob.
+vi.mock('../../src/lib/compressImage', async (orig) => ({
+  ...(await orig<typeof import('../../src/lib/compressImage')>()),
+  compressImage: vi.fn(async () => new Blob([new Uint8Array(10)], { type: 'image/webp' })),
+}));
 
 // Leaflet needs a real layout engine; the fake records the handlers the picker registers.
 const leaflet = vi.hoisted(() => ({
@@ -83,7 +89,7 @@ describe('validateVenue', () => {
         lat: '91',
         lng: '-181',
         slug: 'Bad Slug',
-        photos: [{ url: 'http://x.test/a.jpg', alt: '' }],
+        photos: [{ url: 'ftp://x.test/a.jpg', alt: '' }],
       }),
       true,
     );
@@ -91,8 +97,10 @@ describe('validateVenue', () => {
     expect(validateVenue(draft({ lat: '', lng: 'abc' }), false)).toMatchObject({ lat: expect.any(String), lng: expect.any(String) });
     expect(validateVenue(draft({ slug: '' }), true).slug).toBeUndefined();
     expect(validateVenue(draft({ slug: 'ab' }), true).slug).toBeDefined();
-    const many = Array.from({ length: 21 }, () => ({ url: 'https://x.test/a.jpg', alt: '' }));
+    const many = Array.from({ length: 4 }, () => ({ url: 'https://x.test/a.jpg', alt: '' }));
     expect(validateVenue(draft({ photos: many }), false).photos).toBeDefined();
+    // Uploaded photos come from the API host, which is plain http in development.
+    expect(validateVenue(draft({ photos: many.slice(0, 3).map(() => ({ url: 'http://localhost:4000/api/v1/images/abc', alt: '' })) }), false).photos).toBeUndefined();
   });
 });
 
@@ -155,9 +163,8 @@ describe('venue editor', () => {
     await user.type(await screen.findByLabelText(en.owner.venues.name), 'Court Hub');
     await user.type(screen.getByLabelText(en.owner.venues.address), '2 Side Street');
     await user.type(screen.getByLabelText(en.owner.venues.city), 'Dhaka');
-    await user.clear(screen.getByLabelText(en.owner.venues.country));
-    await user.type(screen.getByLabelText(en.owner.venues.country), 'bd');
-    await user.type(screen.getByLabelText(en.owner.venues.timezone), 'Asia/Dhaka');
+    await user.selectOptions(screen.getByLabelText(en.owner.venues.country), 'BD');
+    await user.selectOptions(screen.getByLabelText(en.owner.venues.timezone), 'Asia/Dhaka');
     await user.type(screen.getByLabelText(en.owner.venues.latitude), '23.8');
     await user.type(screen.getByLabelText(en.owner.venues.longitude), '90.4');
     await user.click(screen.getByRole('checkbox', { name: en.amenities.wifi }));
@@ -175,6 +182,62 @@ describe('venue editor', () => {
       amenities: ['wifi'],
       photos: [],
     });
+  });
+
+  it('uploads compressed photos, marks the cover and sends them with the venue', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:preview');
+    URL.revokeObjectURL = vi.fn();
+    let n = 0;
+    const api = mockApi([
+      {
+        method: 'POST',
+        path: '/owners/o1/images',
+        status: 201,
+        body: () => {
+          n += 1;
+          return { image: { id: `i${n}`, url: `http://localhost:4000/api/v1/images/i${n}`, bytes: 10 } };
+        },
+      },
+      ...ownerRoutes({ permissions: [...MANAGE], venues: [venue({ photos: [] })] }),
+      { path: TURFS, body: { turfs: [] } },
+      { method: 'PATCH', path: '/owners/o1/venues/v1', body: (c: Call) => ({ venue: venue({ photos: (c.body as { photos: never[] }).photos }) }) },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}/venues/v1`, { user: staffUser });
+    const input = (await screen.findByText(en.owner.venues.uploadPhotos)).closest('label')!.querySelector('input')!;
+    const file = (name: string) => new File([new Uint8Array(100)], name, { type: 'image/jpeg' });
+    await user.upload(input, [file('a.jpg'), file('b.jpg'), file('c.jpg'), file('d.jpg')]);
+    expect(screen.getByText(en.owner.venues.photoLimit_other.replace('{{count}}', '3'))).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Remove photo/ })).toHaveLength(3));
+    const uploads = api.calls.filter((c) => c.path === '/owners/o1/images');
+    expect(uploads).toHaveLength(3);
+    expect(uploads[0]!.headers.get('Content-Type')).toBe('image/webp');
+    expect(screen.getByText(en.owner.venues.cover)).toBeTruthy();
+    // Full: the drop zone goes away.
+    expect(screen.queryByText(en.owner.venues.uploadPhotos)).toBeNull();
+
+    await user.type(screen.getByLabelText('Photo 1 description'), 'Main court');
+    await user.click(screen.getByRole('button', { name: 'Remove photo 2' }));
+    await user.click(screen.getByRole('button', { name: en.owner.venues.save }));
+    await waitFor(() => expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true));
+    expect(api.calls.find((c) => c.method === 'PATCH')!.body).toEqual({
+      photos: [{ url: expect.stringMatching(/\/images\/i\d$/), alt: 'Main court' }, { url: expect.stringMatching(/\/images\/i\d$/) }],
+    });
+  });
+
+  it('shows an upload failure on the photo and lets it be dismissed', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:preview');
+    URL.revokeObjectURL = vi.fn();
+    mockApi([
+      { method: 'POST', path: '/owners/o1/images', status: 415, body: { error: { code: 'unsupported_image', message: 'x' } } },
+      ...ownerRoutes({ permissions: [...MANAGE], venues: [venue({ photos: [] })] }),
+      { path: TURFS, body: { turfs: [] } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}/venues/v1`, { user: staffUser });
+    const input = (await screen.findByText(en.owner.venues.uploadPhotos)).closest('label')!.querySelector('input')!;
+    await user.upload(input, new File([new Uint8Array(100)], 'a.jpg', { type: 'image/jpeg' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(en.errors.unsupported_image);
+    await user.click(screen.getByRole('button', { name: en.owner.venues.dismissPhoto }));
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('publish without an active turf shows venue_not_ready', async () => {

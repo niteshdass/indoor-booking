@@ -22,6 +22,7 @@ import { publicReviewsRouter } from './reviews/routes/public';
 import { playerReviewsRouter } from './reviews/routes/player';
 import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
+import { publicImagesRouter } from './images/routes';
 
 export type AppDeps = {
   config: Config;
@@ -72,6 +73,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(meRouter(authDeps));
   api.use(myMembershipsRouter(authDeps));
   api.use(publicVenuesRouter());
+  api.use(publicImagesRouter());
   api.use(publicReviewsRouter());
   api.use(publicSlotsRouter(deps.services));
   api.use(publicAddonsRouter());

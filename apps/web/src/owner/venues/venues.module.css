@@ -46,7 +46,11 @@
 
 @media (min-width: 768px) {
   .grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .wide {
+    grid-column: span 2;
   }
 }
 
@@ -69,8 +73,9 @@
 
 .checks {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(var(--field-min), 1fr));
-  gap: var(--space-3);
+  /* Two columns even on a phone; wider screens fit as many --field-min columns as there is room for. */
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--field-min), calc(50% - var(--space-3))), 1fr));
+  gap: var(--space-2) var(--space-3);
 }
 
 .error {
@@ -113,22 +118,16 @@
 }
 
 .location {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-4);
-}
-
-@media (min-width: 1024px) {
-  .location {
-    grid-template-columns: 2fr 1fr;
-    align-items: start;
-  }
-}
-
-.coords {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
+}
+
+/* Latitude and longitude always side by side. */
+.coords {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
 }
 
 /* Map tiles are never inverted in dark mode; only the frame and pin follow the theme. */
@@ -143,7 +142,7 @@
 
 .map {
   width: 100%;
-  height: var(--map-height);
+  height: var(--venue-map-height);
   background: var(--bg-subtle);
 }
 
@@ -167,4 +166,251 @@
 .pinWrap:focus-visible .pin {
   outline: var(--focus-width) solid var(--text-strong);
   outline-offset: var(--focus-width);
+}
+
+/* Venue details form: compact main column; from lg a sticky side card holds photos and the submit button. */
+.formLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .formLayout {
+    grid-template-columns: minmax(0, 1fr) var(--side-card-width);
+  }
+
+  .formSide {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+  }
+}
+
+.formMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.formCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-xs);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+
+.formCard .grid {
+  gap: var(--space-3);
+}
+
+.headRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Photo uploader */
+.photos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.photoList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.photoItem {
+  display: grid;
+  grid-template-columns: var(--photo-thumb) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.thumb {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb[data-busy] img {
+  opacity: var(--opacity-muted);
+}
+
+.cover {
+  position: absolute;
+  inset-inline-start: var(--space-1);
+  inset-block-end: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-body);
+}
+
+.altInput {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-md);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-default);
+  font: inherit;
+  font-size: var(--text-md);
+}
+
+.altInput::placeholder {
+  color: var(--text-subtle);
+}
+
+.altInput:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.altInput:disabled {
+  opacity: var(--opacity-muted);
+}
+
+.photoStatus,
+.photoError {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.photoStatus {
+  color: var(--text-muted);
+}
+
+.photoError {
+  color: var(--danger);
+}
+
+.photoRemove {
+  display: inline-grid;
+  place-items: center;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.photoRemove:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.photoRemove:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.photoRemove svg,
+.dropIcon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--court-line);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Drop zone: the one dashed outline in the portal, so it reads as a target rather than a container. */
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-3);
+  position: relative;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
+}
+
+.drop:hover,
+.drop[data-over] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.drop:focus-within {
+  border-color: var(--primary);
+  box-shadow: var(--focus-ring);
+}
+
+.dropIcon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--primary);
+}
+
+.dropTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--primary);
+}
+
+.dropHint,
+.photoNotice {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.photoNotice {
+  color: var(--warning);
+}
+
+/* Visually hidden but focusable, so the label works from the keyboard. */
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

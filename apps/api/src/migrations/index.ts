@@ -1,7 +1,9 @@
 import { Booking } from '../bookings/booking.model';
 import { Payment } from '../bookings/payment.model';
+import { Image } from '../images/image.model';
 import { PaymentGatewayAccount } from '../payments/gateway.model';
 import { Refund } from '../payments/refund.model';
+import { Venue } from '../venues/venue.model';
 import { Migration } from './model';
 
 const cross = { crossTenant: true };
@@ -62,6 +64,20 @@ export const MIGRATIONS: MigrationStep[] = [
         const payments = await Payment.updateMany(stamped, { $set: { gatewayMode: mode } }, { ...cross, timestamps: false });
         const refunds = await Refund.updateMany(stamped, { $set: { gatewayMode: mode } }, { ...cross, timestamps: false });
         changed += 1 + payments.modifiedCount + refunds.modifiedCount;
+      }
+      return changed;
+    },
+  },
+  {
+    // Uploads made before images tracked their venue would look unclaimed to the pending-images sweep.
+    id: '2026-10-27-image-venue',
+    async run() {
+      const venues = await Venue.find({ 'photos.url': /\/api\/v1\/images\/[0-9a-f]{24}$/ }, { ownerId: 1, photos: 1 }).setOptions(cross).lean();
+      let changed = 0;
+      for (const v of venues) {
+        const ids = v.photos.map((p) => /\/api\/v1\/images\/([0-9a-f]{24})$/.exec(p.url)?.[1]).filter((id): id is string => !!id);
+        const res = await Image.updateMany({ ownerId: v.ownerId, _id: { $in: ids }, venueId: null }, { $set: { venueId: v._id } }, { timestamps: false });
+        changed += res.modifiedCount;
       }
       return changed;
     },

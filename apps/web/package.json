@@ -13,6 +13,7 @@
     "@booking/shared": "workspace:^",
     "@stripe/react-stripe-js": "^7.0.0",
     "@stripe/stripe-js": "^10.1.0",
+    "heic-to": "1.6.6",
     "html2canvas-pro": "^1.6.7",
     "i18next": "^26.5.6",
     "jspdf": "^3.0.4",

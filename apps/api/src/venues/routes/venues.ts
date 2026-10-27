@@ -13,7 +13,11 @@ import {
 } from '@booking/shared';
 import { AppError } from '../../errors';
 import { isDuplicateKeyError, runInTransaction } from '../../db';
+import type { Config } from '../../config';
 import type { AppServices } from '../../services';
+import { assertOwnImages, syncVenueImages, uploadedIds } from '../../images/attach';
+import { Image } from '../../images/image.model';
+import { imageBase } from '../../images/routes';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf, type TenantContext } from '../../tenancy/context';
 import { Owner } from '../../tenancy/owner.model';
@@ -28,6 +32,7 @@ import { Membership } from '../../tenancy/membership.model';
 import { activeTurfCount, lockVenue, venueNotFound } from '../guards';
 
 const SLUG_MAX = 60;
+export const MAX_VENUE_PHOTOS = 3;
 const MAX_SLUG_SUFFIX = 20;
 /** Random-suffix tries after the numbered ones, so a generated slug never comes back taken. */
 const RANDOM_SLUG_TRIES = 5;
@@ -53,25 +58,32 @@ const fields = {
   timezone: z.string().refine(isTimeZone, 'Unknown time zone'),
   location: z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) }).strict(),
   slug: slugSchema,
-  photos: z
-    .array(
-      z
-        .object({
-          url: z.string().max(2000).url().refine((u) => u.startsWith('https://'), 'Must be an https URL'),
-          alt: z.string().trim().max(200).optional(),
-        })
-        .strict(),
-    )
-    .max(20),
   amenities: z.array(z.enum(AMENITIES)).transform((a) => [...new Set(a)]),
   settings: venueSettingsPatchSchema,
 };
 
-const createSchema = z
+/** Photos are any https URL or an image uploaded here (plain http on a local API). */
+const photosSchema = (uploads: string) =>
+  z
+    .array(
+      z
+        .object({
+          url: z
+            .string()
+            .max(2000)
+            .url()
+            .refine((u) => u.startsWith('https://') || u.startsWith(uploads), 'Must be an https URL or an uploaded image'),
+          alt: z.string().trim().max(200).optional(),
+        })
+        .strict(),
+    )
+    .max(MAX_VENUE_PHOTOS);
+
+const createSchemaFor = (photos: ReturnType<typeof photosSchema>) => z
   .object({
     ...fields,
     slug: fields.slug.optional(),
-    photos: fields.photos.optional(),
+    photos: photos.optional(),
     amenities: fields.amenities.optional(),
     settings: fields.settings.optional(),
     currency: z.string().refine(isCurrency, 'Unknown currency').optional(),
@@ -86,12 +98,10 @@ export const venuePatchFields = {
   country: fields.country.optional(),
   timezone: fields.timezone.optional(),
   location: fields.location.optional(),
-  photos: fields.photos.optional(),
   amenities: fields.amenities.optional(),
   settings: fields.settings.optional(),
   published: z.boolean().optional(),
 };
-const patchSchema = z.object(venuePatchFields).strict();
 
 const slugTaken = () => new AppError(409, 'slug_taken', 'That link is already taken');
 
@@ -162,8 +172,12 @@ const snapshotOf = (v: VenueDoc, keys: string[]) =>
   Object.fromEntries(keys.map((k) => [k, k === 'location' ? toLatLng(v.location) : structuredClone((v.toObject() as Record<string, unknown>)[k])]));
 
 /** Mounted on ownerRouter. */
-export function venuesRouter(services: AppServices): Router {
+export function venuesRouter(config: Config, services: AppServices): Router {
   const router = Router({ mergeParams: true });
+  const photos = photosSchema(imageBase(config));
+  const createSchema = createSchemaFor(photos);
+  const patchSchema = z.object({ ...venuePatchFields, photos: photos.optional() }).strict();
+  const photoIds = (list: { url: string }[]) => uploadedIds(list.map((p) => p.url), imageBase(config));
 
   router.get('/venues', async (req, res) => {
     const t = tenantOf(req);
@@ -183,6 +197,8 @@ export function venuesRouter(services: AppServices): Router {
       throw new AppError(403, 'forbidden', 'You do not have permission to do this');
     }
     const input = createSchema.parse(req.body);
+    const imageIds = photoIds(input.photos ?? []);
+    await assertOwnImages(t.ownerId, imageIds, null);
     const owner = await Owner.findById(t.ownerId, { defaultCurrency: 1 }).lean();
     const base = input.slug ?? slugify(input.name);
     const doc = {
@@ -205,6 +221,9 @@ export function venuesRouter(services: AppServices): Router {
       try {
         const venue = await runInTransaction(async (session) => {
           const [created] = await Venue.create([{ ...doc, slug }], { session });
+          // Re-checked inside the transaction so a photo claimed meanwhile by another venue is refused.
+          await assertOwnImages(t.ownerId, imageIds, null, session);
+          await syncVenueImages(t.ownerId, created!._id, imageIds, session);
           await logActivity(
             t,
             {
@@ -238,6 +257,8 @@ export function venuesRouter(services: AppServices): Router {
     const t = tenantOf(req);
     const input = patchSchema.parse(req.body);
     const venue = await scopedVenue(t, req.params.venueId as string);
+    const imageIds = input.photos ? photoIds(input.photos) : null;
+    if (imageIds) await assertOwnImages(t.ownerId, imageIds, venue._id);
     const keys = Object.keys(input).filter((k) => input[k as keyof typeof input] !== undefined);
     const beforeAll = snapshotOf(venue, keys);
 
@@ -262,6 +283,10 @@ export function venuesRouter(services: AppServices): Router {
           if ((await activeTurfCount(t, venue.id as string, session)) === 0) {
             throw new AppError(409, 'venue_not_ready', 'Add an active turf before publishing');
           }
+        }
+        if (imageIds) {
+          await assertOwnImages(t.ownerId, imageIds, venue._id, session);
+          await syncVenueImages(t.ownerId, venue._id, imageIds, session);
         }
         await venue.save({ session });
         await logActivity(
@@ -290,6 +315,7 @@ export function venuesRouter(services: AppServices): Router {
       // No turfs are left, so only venue-level rows remain.
       await Closure.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
       await AddonAssignment.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
+      await Image.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
       await Membership.updateMany(
         { ownerId: t.ownerId, venueIds: venue._id },
         { $pull: { venueIds: venue._id } },

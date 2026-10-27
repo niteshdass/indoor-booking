@@ -21,6 +21,7 @@ import { ownerSeriesRouter } from '../../series/routes/owner';
 import { gatewaysRouter } from '../../payments/routes/gateways';
 import { ownerReviewsRouter } from '../../reviews/routes/owner';
 import { refundsRouter } from '../../payments/routes/refunds';
+import { ownerImagesRouter } from '../../images/routes';
 
 /** Everything under /owners/:ownerId; later plans mount their routers on the returned router. */
 export function ownerRouter({ config, services }: AuthDeps): Router {
@@ -55,7 +56,8 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(rolesRouter(services));
   router.use(membersRouter(services));
   router.use(settingsRouter(services));
-  router.use(venuesRouter(services));
+  router.use(ownerImagesRouter(config));
+  router.use(venuesRouter(config, services));
   router.use(turfsRouter(services));
   router.use(pricingRouter(services));
   router.use(closuresRouter(services));

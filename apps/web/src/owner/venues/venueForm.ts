@@ -15,7 +15,8 @@ export type VenueDraft = {
   photos: { url: string; alt: string }[];
 };
 
-export const MAX_PHOTOS = 20;
+/** Same as the API's `MAX_VENUE_PHOTOS`. */
+export const MAX_PHOTOS = 3;
 const SLUG_MIN = 3;
 const SLUG_MAX = 60;
 
@@ -59,7 +60,8 @@ export function validateVenue(d: VenueDraft, isNew: boolean): Partial<Record<key
   if (slug !== '' && (!SLUG_RE.test(slug) || slug.length < SLUG_MIN || slug.length > SLUG_MAX)) e.slug = 'owner.venues.err.slug';
   if (isNew && d.currency.trim() !== '' && !/^[A-Za-z]{3}$/.test(d.currency.trim())) e.currency = 'owner.venues.err.currency';
   if (d.photos.length > MAX_PHOTOS) e.photos = 'owner.venues.err.photoCount';
-  else if (d.photos.some((p) => !p.url.trim().startsWith('https://') || p.url.trim().length > 2000)) e.photos = 'owner.venues.err.photoUrl';
+  // Uploaded photos live on the API's own host (plain http in development); the API checks which hosts it accepts.
+  else if (d.photos.some((p) => !/^https?:\/\//.test(p.url.trim()) || p.url.trim().length > 2000)) e.photos = 'owner.venues.err.photoUrl';
   return e;
 }
 

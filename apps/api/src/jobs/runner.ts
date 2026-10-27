@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import type { Config } from '../config';
 import type { AppServices } from '../services';
 import { deliverNotifications } from '../notifications/outbox';
+import { sweepPendingImages } from '../images/attach';
 import { reconcileRefunds } from '../payments/refunds';
 import { JobRun } from './jobRun.model';
 import { autoCompleteBookings, autoDeclineSeries, autoRejectPending, endSeries, expireHolds, sendReminders, sendReviewRequests, warnExpiringHolds } from './sweeps';
@@ -26,6 +27,7 @@ export const JOBS: Job[] = [
   { name: 'series-end', everyMs: 300_000, run: (now) => endSeries(now) },
   { name: 'deliver-notifications', everyMs: 15_000, run: (now, deps) => deliverNotifications(now, deps) },
   { name: 'reconcile-refunds', everyMs: 300_000, run: (now, deps) => reconcileRefunds(now, deps) },
+  { name: 'pending-images', everyMs: 3_600_000, run: (now) => sweepPendingImages(now) },
 ];
 
 /** Takes the job's lease if it is free and due; false when another holder has it or its interval has not elapsed. */

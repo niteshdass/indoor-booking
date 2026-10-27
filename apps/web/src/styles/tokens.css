@@ -97,7 +97,8 @@
   --gallery-tile: 85%; /* one photo in the phone gallery strip, so the next one peeks in */
   --date-tile: 3.25rem; /* day tile at the start of a My bookings row */
   --court-thumb: 3.5rem; /* court drawing in a venue page court tab */
-  --venue-map-height: 15rem; /* location map on the venue page */
+  --venue-map-height: 15rem; /* location map on the venue page and the owner venue form */
+  --photo-thumb: 5rem; /* photo thumbnail in the owner venue form */
   --avatar-sm: 2rem; /* reviewer initial disc */
   --side-card-width: 20rem;
   --checkout-side-width: 24rem; /* checkout summary card, room for date, time and price on one line */

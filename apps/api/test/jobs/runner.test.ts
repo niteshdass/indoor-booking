@@ -92,7 +92,7 @@ describe('startJobs', () => {
 });
 
 describe('JOBS', () => {
-  it('JOBS registers every sweep, delivery and refund reconcile', () => {
+  it('JOBS registers every sweep, delivery, refund reconcile and image cleanup', () => {
     expect(JOBS.map((j) => [j.name, j.everyMs])).toEqual([
       ['expire-holds', 30_000],
       ['auto-reject', 60_000],
@@ -104,6 +104,7 @@ describe('JOBS', () => {
       ['series-end', 300_000],
       ['deliver-notifications', 15_000],
       ['reconcile-refunds', 300_000],
+      ['pending-images', 3_600_000],
     ]);
   });
 });

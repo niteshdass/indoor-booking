@@ -77,6 +77,24 @@
   display: none;
 }
 
+.select[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.hint,
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.hint {
+  color: var(--text-muted);
+}
+
+.error {
+  color: var(--danger);
+}
+
 @supports (appearance: base-select) {
   .select {
     appearance: base-select;

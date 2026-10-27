@@ -9,9 +9,12 @@ import type { BookingJson } from '../lib/types';
 import { BookingStatusBadge, PaymentStatusBadge } from './BookingStatusBadge';
 import styles from './BookingFacts.module.css';
 
-function addonLabel(a: AddonLine, t: TFunction): string {
+const OWING = new Set(['pending', 'confirmed']);
+
+export function addonLabel(a: AddonLine, t: TFunction): string {
   if (a.pricingType === 'per_unit') return `${a.name} × ${a.quantity}`;
-  if (a.pricingType === 'per_hour' && a.minutes) return `${a.name} · ${t('checkout.durationM', { minutes: a.minutes })}`;
+  if (a.pricingType === 'per_hour' && a.minutes)
+    return `${a.name} · ${t('checkout.durationM', { minutes: a.minutes })}`;
   return a.name;
 }
 
@@ -20,7 +23,8 @@ function CopyReference({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const available = typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function';
+  const available =
+    typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function';
 
   const copy = async () => {
     try {
@@ -47,6 +51,13 @@ function CopyReference({ value }: { value: string }) {
   );
 }
 
+/** What is still owed on a live booking; nothing once it is cancelled or refunded. */
+export function amountDue(booking: BookingJson): number {
+  return OWING.has(booking.status) && booking.amountRefunded === 0
+    ? booking.total - booking.amountPaid
+    : 0;
+}
+
 /** Purely presentational: shared by the signed-in detail page and the guest lookup page. */
 export function BookingFacts({ booking }: { booking: BookingJson }) {
   const { t, i18n } = useTranslation();
@@ -56,43 +67,47 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
   const first = booking.slots[0];
   const last = booking.slots[booking.slots.length - 1];
 
+  const due = amountDue(booking);
+
   return (
     <section className={styles.facts} aria-label={t('booking.title')}>
-      <div className={styles.refRow}>
-        <div className={styles.refBlock}>
-          <span className={styles.label}>{t('booking.reference')}</span>
-          <span className={styles.reference}>{booking.reference}</span>
-        </div>
-        <CopyReference value={booking.reference} />
-      </div>
-
-      <div className={styles.badges}>
-        <BookingStatusBadge status={booking.status} />
-        <PaymentStatusBadge status={booking.paymentStatus} />
-      </div>
-
-      {booking.status === 'pending' && <p className={styles.note}>{t('booking.pendingNote')}</p>}
-
       <header className={styles.head}>
-        {booking.venue && (
-          <h2 className={styles.venue}>
-            <Link to={`/venues/${encodeURIComponent(booking.venue.slug)}`}>{booking.venue.name}</Link>
-          </h2>
-        )}
+        <div className={styles.headTop}>
+          {booking.venue && (
+            <h2 className={styles.venue}>
+              <Link to={`/venues/${encodeURIComponent(booking.venue.slug)}`}>
+                {booking.venue.name}
+              </Link>
+            </h2>
+          )}
+          <div className={styles.badges}>
+            <BookingStatusBadge status={booking.status} />
+            <PaymentStatusBadge status={booking.paymentStatus} />
+          </div>
+        </div>
         <p className={styles.meta}>
           {booking.turf && <span>{booking.turf.name}</span>}
           {booking.turf && ' · '}
           <span>{formatDate(booking.businessDate, 'UTC', lang)}</span>
+          {first && last && (
+            <>
+              {' · '}
+              <span className={styles.time}>
+                {formatTime(first.startAt, tz, lang)} – {formatTime(last.endAt, tz, lang)}
+              </span>
+            </>
+          )}
+          {!booking.venue && <span className={styles.utc}> · {t('booking.timesUtc')}</span>}
         </p>
-        {first && last && (
-          <p className={styles.time}>
-            {formatTime(first.startAt, tz, lang)} – {formatTime(last.endAt, tz, lang)}
-            {!booking.venue && <span className={styles.utc}> · {t('booking.timesUtc')}</span>}
-          </p>
-        )}
       </header>
 
+      {booking.status === 'pending' && <p className={styles.note}>{t('booking.pendingNote')}</p>}
+
       <dl className={styles.rows}>
+        <div className={styles.row}>
+          <dt>{t('checkout.subtotal')}</dt>
+          <dd>{fmt(booking.subtotal)}</dd>
+        </div>
         {booking.addons.map((a) => (
           <div className={styles.row} key={a.addonId}>
             <dt>{addonLabel(a, t)}</dt>
@@ -107,6 +122,12 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
           <dt>{t('booking.paid')}</dt>
           <dd>{fmt(booking.amountPaid)}</dd>
         </div>
+        {due > 0 && (
+          <div className={styles.row}>
+            <dt>{t('checkout.payLater')}</dt>
+            <dd>{fmt(due)}</dd>
+          </div>
+        )}
         {booking.amountRefunded > 0 && (
           <div className={styles.row}>
             <dt>{t('booking.refunded')}</dt>
@@ -114,6 +135,16 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
           </div>
         )}
       </dl>
+
+      <div className={styles.refRow}>
+        <div className={styles.refBlock}>
+          <span className={styles.label}>{t('booking.reference')}</span>
+          <span className={styles.reference}>{booking.reference}</span>
+        </div>
+        <div className={styles.copy}>
+          <CopyReference value={booking.reference} />
+        </div>
+      </div>
     </section>
   );
 }

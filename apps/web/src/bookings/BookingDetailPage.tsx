@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { ActionMenu } from '../components/ActionMenu';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { Skeleton } from '../components/ui/Skeleton';
+import { useAuth } from '../auth/useAuth';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
@@ -15,12 +17,22 @@ import { ReviewDialog } from './ReviewDialog';
 import { BookingFacts } from './BookingFacts';
 import { BookingRow } from './BookingRow';
 import { CancelDialog } from './CancelDialog';
+import { Receipt } from './Receipt';
+import { downloadReceiptPdf } from './receiptPdf';
 import { RefundList } from './RefundList';
 import styles from './BookingDetailPage.module.css';
 
 const CANCELLABLE = new Set(['awaiting_payment', 'pending', 'confirmed']);
 const POLL_MS = 2000;
 const POLL_BUDGET_MS = 60_000;
+
+function DownloadGlyph() {
+  return (
+    <svg className={styles.glyph} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+    </svg>
+  );
+}
 
 type State =
   | { status: 'loading' }
@@ -31,12 +43,17 @@ type State =
 export function BookingDetailPage() {
   const { id = '' } = useParams();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const paid = params.get('paid') === '1';
   // Stripe appends redirect_status to the return URL; a declined/cancelled redirect method comes back as failed.
   const redirectStatus = params.get('redirect_status');
-  const redirectFailed = paid && redirectStatus !== null && redirectStatus !== 'succeeded' && redirectStatus !== 'processing';
+  const redirectFailed =
+    paid &&
+    redirectStatus !== null &&
+    redirectStatus !== 'succeeded' &&
+    redirectStatus !== 'processing';
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [slow, setSlow] = useState(false);
@@ -45,6 +62,9 @@ export function BookingDetailPage() {
   // The other days booked in the same go.
   const [group, setGroup] = useState<BookingJson[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
+  // The receipt is mounted off screen only while its PDF is being made.
+  const [receipt, setReceipt] = useState<'idle' | 'busy' | 'failed'>('idle');
+  const receiptRef = useRef<HTMLDivElement>(null);
   const [reviewOpen, setReviewOpen] = useState(false);
   const askedForReview = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -62,7 +82,13 @@ export function BookingDetailPage() {
         setGroup(res.group ?? []);
         setState({ status: 'ready', booking: res.booking });
       },
-      (error) => live && setState(error instanceof ApiError && error.status === 404 ? { status: 'not_found' } : { status: 'error', error }),
+      (error) =>
+        live &&
+        setState(
+          error instanceof ApiError && error.status === 404
+            ? { status: 'not_found' }
+            : { status: 'error', error },
+        ),
     );
     return () => {
       live = false;
@@ -109,6 +135,18 @@ export function BookingDetailPage() {
     }
   }, [params, reviewable]);
 
+  const reference = booking?.reference;
+  useEffect(() => {
+    if (receipt !== 'busy' || !reference || !receiptRef.current) return;
+    downloadReceiptPdf(receiptRef.current, `Receipt-${reference}.pdf`).then(
+      () => setReceipt('idle'),
+      (err: unknown) => {
+        console.error('[receipt] PDF failed', err);
+        setReceipt('failed');
+      },
+    );
+  }, [receipt, reference]);
+
   useEffect(() => {
     if (cancelledAt > 0) headingRef.current?.focus();
   }, [cancelledAt]);
@@ -121,17 +159,68 @@ export function BookingDetailPage() {
   if (state.status === 'not_found') return <NotFoundPage />;
 
   const holdLive = !booking?.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();
-  const showPayNow = booking?.status === 'awaiting_payment' && holdLive && (!paid || redirectFailed || slow);
+  const showPayNow =
+    booking?.status === 'awaiting_payment' && holdLive && (!paid || redirectFailed || slow);
   const received =
-    paid && !redirectFailed && !!booking && (booking.status === 'pending' || booking.status === 'confirmed' || polling);
-  const heading = isNew ? t('booking.received') : received ? t('booking.paymentReceived') : t('booking.title');
+    paid &&
+    !redirectFailed &&
+    !!booking &&
+    (booking.status === 'pending' || booking.status === 'confirmed' || polling);
+  const heading = isNew
+    ? t('booking.received')
+    : received
+      ? t('booking.paymentReceived')
+      : t('booking.title');
+
+  const holder = booking?.guest
+    ? { name: booking.guest.name, contact: booking.guest.phone }
+    : user
+      ? { name: user.name, contact: user.email ?? user.phone }
+      : null;
 
   return (
     <main className={styles.page}>
-      <h1 ref={headingRef} tabIndex={-1} className={[styles.title, isNew || received ? styles.success : ''].filter(Boolean).join(' ')}>{heading}</h1>
-      {state.status === 'loading' && (
-        <Skeleton kind="detail" label={t('common.loading')} />
-      )}
+      <div className={styles.titleRow}>
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className={[styles.title, isNew || received ? styles.success : '']
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {heading}
+        </h1>
+        {booking && (
+          <div className={styles.titleActions}>
+            {booking.amountPaid > 0 && (
+              <Button
+                variant="secondary"
+                size="lg"
+                className={styles.plain}
+                loading={receipt === 'busy'}
+                onClick={() => setReceipt('busy')}
+              >
+                <DownloadGlyph />
+                {t('receipt.download')}
+              </Button>
+            )}
+            {CANCELLABLE.has(booking.status) && (
+              <ActionMenu
+                label={t('booking.moreActions')}
+                items={[
+                  {
+                    key: 'cancel',
+                    label: t('cancel.open'),
+                    tone: 'danger',
+                    onSelect: () => setCancelOpen(true),
+                  },
+                ]}
+              />
+            )}
+          </div>
+        )}
+      </div>
+      {state.status === 'loading' && <Skeleton kind="detail" label={t('common.loading')} />}
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(state.error, t)}</span>
@@ -142,6 +231,11 @@ export function BookingDetailPage() {
       )}
       {booking && (
         <>
+          {receipt === 'failed' && (
+            <Alert tone="danger" className={styles.alert}>
+              <span>{t('receipt.failed')}</span>
+            </Alert>
+          )}
           {redirectFailed && booking.status === 'awaiting_payment' && (
             <Alert tone="danger" className={styles.alert}>
               <span>{t('payment.redirectFailed')}</span>
@@ -173,7 +267,9 @@ export function BookingDetailPage() {
                 <h2 id="booking-group-heading" className={styles.groupTitle}>
                   {t('booking.groupTitle')}
                 </h2>
-                <p className={styles.groupNote}>{t('booking.groupNote', { count: group.length + 1 })}</p>
+                <p className={styles.groupNote}>
+                  {t('booking.groupNote', { count: group.length + 1 })}
+                </p>
               </div>
               <ul className={styles.groupList}>
                 {group.map((b) => (
@@ -201,7 +297,10 @@ export function BookingDetailPage() {
               bookingPath={path}
               onEdit={() => setReviewOpen(true)}
               onDeleted={() => {
-                setState({ status: 'ready', booking: { ...booking, review: null, reviewableUntil: null } });
+                setState({
+                  status: 'ready',
+                  booking: { ...booking, review: null, reviewableUntil: null },
+                });
                 setCancelledAt((n) => n + 1);
               }}
             />
@@ -213,32 +312,44 @@ export function BookingDetailPage() {
               bookingPath={path}
               review={booking.review}
               onSaved={(review) => {
-                setState({ status: 'ready', booking: { ...booking, review, reviewableUntil: null } });
+                setState({
+                  status: 'ready',
+                  booking: { ...booking, review, reviewableUntil: null },
+                });
                 setReviewOpen(false);
                 if (!booking.review) setCancelledAt((n) => n + 1);
               }}
             />
           )}
           {CANCELLABLE.has(booking.status) && (
-            <>
-              <Button variant="secondary" size="lg" block onClick={() => setCancelOpen(true)}>
-                {t('cancel.open')}
-              </Button>
-              <CancelDialog
-                open={cancelOpen}
-                onClose={() => setCancelOpen(false)}
-                loadPreview={() => apiGet<{ preview: CancellationPreview }>(`${path}/cancellation`).then((r) => r.preview)}
-                cancel={(reason) => apiPost<{ booking: BookingJson; refunds: RefundJson[] }>(`${path}/cancel`, reason ? { reason } : {})}
-                onCancelled={(b, rs) => {
-                  setState({ status: 'ready', booking: b });
-                  setRefunds(rs);
-                  setCancelOpen(false);
-                  setCancelledAt((n) => n + 1);
-                }}
-              />
-            </>
+            <CancelDialog
+              open={cancelOpen}
+              onClose={() => setCancelOpen(false)}
+              loadPreview={() =>
+                apiGet<{ preview: CancellationPreview }>(`${path}/cancellation`).then(
+                  (r) => r.preview,
+                )
+              }
+              cancel={(reason) =>
+                apiPost<{ booking: BookingJson; refunds: RefundJson[] }>(
+                  `${path}/cancel`,
+                  reason ? { reason } : {},
+                )
+              }
+              onCancelled={(b, rs) => {
+                setState({ status: 'ready', booking: b });
+                setRefunds(rs);
+                setCancelOpen(false);
+                setCancelledAt((n) => n + 1);
+              }}
+            />
           )}
         </>
+      )}
+      {booking && receipt === 'busy' && (
+        <div ref={receiptRef} className={styles.receiptStage} aria-hidden="true">
+          <Receipt booking={booking} holder={holder} />
+        </div>
       )}
     </main>
   );

@@ -401,7 +401,19 @@
     "backToVenue": "Back to venue",
     "loadFailed": "Couldn't load the payment form. Please try again."
   },
+  "receipt": {
+    "failed": "The receipt could not be made. Try again.",
+    "download": "Download receipt",
+    "title": "Receipt",
+    "billedTo": "Billed to",
+    "booking": "Booking",
+    "issued": "Booked on",
+    "item": "Item",
+    "amount": "Amount",
+    "thanks": "Thank you for booking with us. Show the reference at the venue."
+  },
   "booking": {
+    "moreActions": "More actions",
     "title": "Booking",
     "received": "Booking received",
     "paymentReceived": "Payment received",

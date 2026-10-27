@@ -70,6 +70,8 @@
   --qr-size: 12rem;
   --container-narrow: 28rem;
   --container-checkout: 64rem; /* checkout page: extras plus the summary card */
+  --container-detail: 42rem; /* booking detail and payment pages: one compact column */
+  --receipt-width: 794px; /* PDF receipt: A4 width at 96dpi */
   --field-min: 10rem;
   --map-height: 32rem;
   --demo-dot: 1.5rem; /* landing demo stepper dot */

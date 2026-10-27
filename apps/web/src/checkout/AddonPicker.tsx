@@ -12,6 +12,19 @@ type Props = {
   currency: string;
 };
 
+function Text({ id, name, unit }: { id: string; name: string; unit: string }) {
+  return (
+    <span className={styles.text}>
+      <span id={`addon-${id}-name`} className={styles.name}>
+        {name}
+      </span>
+      <span id={`addon-${id}-unit`} className={styles.unit}>
+        {unit}
+      </span>
+    </span>
+  );
+}
+
 /** Selectable add-ons only; auto-applied ones are listed in the summary. */
 export function AddonPicker({ offered, quoteLines, value, onChange, currency }: Props) {
   const { t, i18n } = useTranslation();
@@ -36,42 +49,47 @@ export function AddonPicker({ offered, quoteLines, value, onChange, currency }: 
           const unit = `${money(a.unitPrice, currency, i18n.language)} · ${t(`addons.${a.pricingType}`)}`;
           return (
             <li key={a.id} className={styles.item}>
-              <div className={styles.text}>
-                {a.pricingType !== 'per_unit' ? (
-                  <label className={styles.check}>
-                    <input type="checkbox" checked={q > 0} onChange={(e) => set(a.id, e.target.checked ? 1 : 0)} />
-                    <span className={styles.name}>{a.name}</span>
-                  </label>
-                ) : (
-                  <span className={styles.name}>{a.name}</span>
-                )}
-                <span className={styles.unit}>{unit}</span>
-                {line && <span className={styles.line}>{money(line.total, currency, i18n.language)}</span>}
-              </div>
-              {a.pricingType === 'per_unit' && (
-                <div className={styles.stepper} role="group" aria-label={a.name}>
-                  <button
-                    type="button"
-                    className={styles.step}
-                    aria-label={t('checkout.decrease', { name: a.name })}
-                    disabled={q <= 0}
-                    onClick={() => set(a.id, q - 1)}
-                  >
-                    −
-                  </button>
-                  <output className={styles.qty} aria-label={t('checkout.quantity', { name: a.name })}>
-                    {q}
-                  </output>
-                  <button
-                    type="button"
-                    className={styles.step}
-                    aria-label={t('checkout.increase', { name: a.name })}
-                    disabled={q >= a.maxQuantity}
-                    onClick={() => set(a.id, q + 1)}
-                  >
-                    +
-                  </button>
-                </div>
+              {a.pricingType !== 'per_unit' ? (
+                // The whole row toggles; the checkbox is named by the add-on name only.
+                <label className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={q > 0}
+                    aria-labelledby={`addon-${a.id}-name`}
+                    aria-describedby={`addon-${a.id}-unit`}
+                    onChange={(e) => set(a.id, e.target.checked ? 1 : 0)}
+                  />
+                  <Text id={a.id} name={a.name} unit={unit} />
+                  {line && <span className={styles.line}>{money(line.total, currency, i18n.language)}</span>}
+                </label>
+              ) : (
+                <>
+                  <Text id={a.id} name={a.name} unit={unit} />
+                  {line && <span className={styles.line}>{money(line.total, currency, i18n.language)}</span>}
+                  <div className={styles.stepper} role="group" aria-label={a.name}>
+                    <button
+                      type="button"
+                      className={styles.step}
+                      aria-label={t('checkout.decrease', { name: a.name })}
+                      disabled={q <= 0}
+                      onClick={() => set(a.id, q - 1)}
+                    >
+                      −
+                    </button>
+                    <output className={styles.qty} aria-label={t('checkout.quantity', { name: a.name })}>
+                      {q}
+                    </output>
+                    <button
+                      type="button"
+                      className={styles.step}
+                      aria-label={t('checkout.increase', { name: a.name })}
+                      disabled={q >= a.maxQuantity}
+                      onClick={() => set(a.id, q + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </>
               )}
             </li>
           );

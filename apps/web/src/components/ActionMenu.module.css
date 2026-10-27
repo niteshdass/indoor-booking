@@ -1,0 +1,37 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+  color: var(--text-strong);
+  cursor: pointer;
+  transition: background-color var(--duration-fast);
+}
+
+.trigger:hover,
+.trigger[aria-expanded='true'] {
+  background: var(--bg-hover);
+}
+
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dots {
+  stroke-width: 3;
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.danger:hover {
+  background: var(--danger-soft);
+}

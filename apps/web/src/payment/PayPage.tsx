@@ -8,11 +8,14 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import { money } from '../lib/format';
+import { formatDate, formatTime, money } from '../lib/format';
 import type { BookingJson, PaymentStart } from '../lib/types';
 import { stripeAppearance } from './stripeAppearance';
 import { useCountdown } from './useCountdown';
 import styles from './PayPage.module.css';
+
+/** The hold pill turns to warning for the last minute. */
+const HOLD_WARN_MS = 60_000;
 
 const stripes = new Map<string, Promise<Stripe | null>>();
 /** One Stripe instance per publishable key (the key is per venue owner). */
@@ -43,7 +46,37 @@ function formatClock(ms: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-function PayForm({ id, start, expired, onConfirming }: { id: string; start: PaymentStart; expired: boolean; onConfirming(v: boolean): void }) {
+/** "Arena One · Court 1 · Tue, Oct 27 · 13:00 – 15:00"; one payment for several bookings names only the venue and court. */
+function BookingLine({ booking }: { booking: BookingJson }) {
+  const { i18n } = useTranslation();
+  const lang = i18n.language;
+  const tz = booking.venue?.timezone ?? 'UTC';
+  const first = booking.slots[0];
+  const last = booking.slots[booking.slots.length - 1];
+  const parts = [booking.venue?.name, booking.turf?.name];
+  if (!booking.groupId) {
+    parts.push(formatDate(booking.businessDate, 'UTC', lang));
+    if (first && last) parts.push(`${formatTime(first.startAt, tz, lang)} – ${formatTime(last.endAt, tz, lang)}`);
+  }
+  const text = parts.filter(Boolean).join(' · ');
+  return text ? <p className={styles.meta}>{text}</p> : null;
+}
+
+function PayForm({
+  id,
+  booking,
+  start,
+  msLeft,
+  expired,
+  onConfirming,
+}: {
+  id: string;
+  booking: BookingJson;
+  start: PaymentStart;
+  msLeft: number;
+  expired: boolean;
+  onConfirming(v: boolean): void;
+}) {
   const { t, i18n } = useTranslation();
   const stripe = useStripe();
   const elements = useElements();
@@ -97,7 +130,15 @@ function PayForm({ id, start, expired, onConfirming }: { id: string; start: Paym
 
   return (
     <form className={styles.card} onSubmit={(e) => void onSubmit(e)}>
-      <p className={styles.amount}>{t('payment.payNow', { amount: money(payment.amount, payment.currency, i18n.language) })}</p>
+      <div className={styles.head}>
+        <div className={styles.headTop}>
+          <p className={styles.amount}>{t('payment.payNow', { amount: money(payment.amount, payment.currency, i18n.language) })}</p>
+          <p className={[styles.hold, msLeft < HOLD_WARN_MS ? styles.holdEnding : ''].filter(Boolean).join(' ')} aria-live="off">
+            {t('payment.holdEndsIn', { time: formatClock(msLeft) })}
+          </p>
+        </div>
+        <BookingLine booking={booking} />
+      </div>
       <PaymentElement />
       {error && <Alert tone="danger">{error}</Alert>}
       <Button type="submit" size="lg" block loading={busy} disabled={!stripe || !elements || busy}>
@@ -122,7 +163,7 @@ function Expired({ slug }: { slug: string | null }) {
 }
 
 function PayElements({ id, booking, start }: { id: string; booking: BookingJson; start: PaymentStart }) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const [confirming, setConfirming] = useState(false);
   const { msLeft, expired } = useCountdown(start.holdExpiresAt);
   const stripe = useMemo(() => stripeFor(start.payment.publishableKey), [start.payment.publishableKey]);
@@ -133,14 +174,9 @@ function PayElements({ id, booking, start }: { id: string; booking: BookingJson;
   );
   if (expired && !confirming) return <Expired slug={booking.venue?.slug ?? null} />;
   return (
-    <>
-      <p className={styles.hold} aria-live="off">
-        {t('payment.holdEndsIn', { time: formatClock(msLeft) })}
-      </p>
-      <Elements stripe={stripe} options={options}>
-        <PayForm id={id} start={start} expired={expired} onConfirming={setConfirming} />
-      </Elements>
-    </>
+    <Elements stripe={stripe} options={options}>
+      <PayForm id={id} booking={booking} start={start} msLeft={msLeft} expired={expired} onConfirming={setConfirming} />
+    </Elements>
   );
 }
 

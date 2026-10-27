@@ -2,15 +2,21 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-5);
-  border: 1px solid var(--border-default);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-xs);
   min-width: 0;
 }
 
-.refRow {
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.headTop {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -18,53 +24,12 @@
   gap: var(--space-2) var(--space-3);
 }
 
-.refBlock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.label {
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.reference {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-semibold);
-  color: var(--text-strong);
-  overflow-wrap: anywhere;
-}
-
-.copied {
-  font-size: var(--text-sm);
-  color: var(--success);
-}
-
-.badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.note {
-  margin: 0;
-  font-size: var(--text-base);
-  color: var(--text-default);
-}
-
-.head {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .venue {
   margin: 0;
+  min-width: 0;
   font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
@@ -73,8 +38,13 @@
   color: inherit;
 }
 
-.meta,
-.time {
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.meta {
   margin: 0;
   font-size: var(--text-base);
   color: var(--text-muted);
@@ -82,6 +52,13 @@
 
 .time {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-default);
 }
 
 .rows {
@@ -89,14 +66,17 @@
   flex-direction: column;
   gap: var(--space-2);
   margin: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
   font-variant-numeric: tabular-nums;
 }
 
+/* Label left, amount right; the amount never drops to its own line. */
 .row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--space-3);
   font-size: var(--text-base);
   color: var(--text-default);
 }
@@ -109,10 +89,12 @@
 .row dd {
   margin: 0;
   color: var(--text-strong);
+  text-align: end;
+  white-space: nowrap;
 }
 
 .sep {
-  padding-top: var(--space-3);
+  padding-top: var(--space-2);
   border-top: 1px solid var(--border-subtle);
 }
 
@@ -123,6 +105,49 @@
 
 .totalLabel {
   font-weight: var(--weight-semibold);
+}
+
+/* Reference stub at the foot of the card */
+.refRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.refBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.reference {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.copy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.copied {
+  font-size: var(--text-sm);
+  color: var(--success);
 }
 
 .utc {

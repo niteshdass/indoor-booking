@@ -75,7 +75,8 @@ const setup = (opts: { preview?: unknown; previewStatus?: number; cancelStatus?:
 
 async function openDialog() {
   const view = renderApp('/me/bookings/b1', { user: player });
-  await view.user.click(await screen.findByRole('button', { name: en.cancel.open }));
+  await view.user.click(await screen.findByRole('button', { name: en.booking.moreActions }));
+  await view.user.click(screen.getByRole('menuitem', { name: en.cancel.open }));
   const dialog = await screen.findByRole('dialog');
   return { ...view, dialog };
 }
@@ -134,7 +135,7 @@ describe('cancel dialog', () => {
     expect(m.calls.find((c) => c.method === 'POST')?.body).toEqual({ reason: 'Rain' });
     expect(screen.getByText(en.cancel.refundsTitle)).toBeInTheDocument();
     expect(screen.getByText(en.cancel.refundStatus.pending, { exact: false })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: en.cancel.open })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: en.booking.moreActions })).not.toBeInTheDocument();
   });
 
   it('omits empty reason', async () => {

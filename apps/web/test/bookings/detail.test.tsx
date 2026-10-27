@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, screen } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import i18n from '../../src/i18n';
 import en from '../../src/i18n/locales/en.json';
 import ru from '../../src/i18n/locales/ru.json';
@@ -8,7 +8,18 @@ import { setAccessToken } from '../../src/lib/apiClient';
 import { renderApp } from '../helpers/render';
 import type { BookingJson, PublicUser } from '../../src/lib/types';
 
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const pdf = vi.hoisted(() => vi.fn<(node: HTMLElement, fileName: string) => Promise<void>>());
+vi.mock('../../src/bookings/receiptPdf', () => ({ downloadReceiptPdf: pdf }));
+
+const player: PublicUser = {
+  id: 'u1',
+  name: 'Pat',
+  email: 'p@x.com',
+  emailVerified: true,
+  phone: null,
+  hasPassword: true,
+  hasGoogle: false,
+};
 
 const booking = (over: Partial<BookingJson> = {}) =>
   ({
@@ -22,7 +33,17 @@ const booking = (over: Partial<BookingJson> = {}) =>
       { startAt: '2026-11-03T12:00:00.000Z', endAt: '2026-11-03T13:00:00.000Z', price: 1000 },
       { startAt: '2026-11-03T13:00:00.000Z', endAt: '2026-11-03T14:00:00.000Z', price: 1000 },
     ],
-    addons: [{ addonId: 'a1', name: 'Bibs', pricingType: 'flat', unitPrice: 150, quantity: 1, minutes: null, total: 150 }],
+    addons: [
+      {
+        addonId: 'a1',
+        name: 'Bibs',
+        pricingType: 'flat',
+        unitPrice: 150,
+        quantity: 1,
+        minutes: null,
+        total: 150,
+      },
+    ],
     currency: 'BDT',
     subtotal: 2000,
     addonsTotal: 150,
@@ -36,24 +57,69 @@ const booking = (over: Partial<BookingJson> = {}) =>
     source: 'online',
     playerId: 'u1',
     guest: null,
-    venue: { slug: 'arena-one', name: 'Arena One', address: 'x', city: 'Dhaka', timezone: 'Asia/Dhaka' },
+    venue: {
+      slug: 'arena-one',
+      name: 'Arena One',
+      address: 'x',
+      city: 'Dhaka',
+      timezone: 'Asia/Dhaka',
+    },
     turf: { name: 'Turf A' },
     ...over,
   }) as BookingJson;
 
 const api = (body: (n: number) => BookingJson) =>
-  mockApi([{ path: '/me/bookings/b1', body: (_c: unknown, n: number) => ({ booking: body(n), refunds: [] }) }]);
+  mockApi([
+    {
+      path: '/me/bookings/b1',
+      body: (_c: unknown, n: number) => ({ booking: body(n), refunds: [] }),
+    },
+  ]);
 
 beforeEach(() => {
   setAccessToken(null);
   return i18n.changeLanguage('en');
 });
 afterEach(() => {
+  pdf.mockReset();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe('booking detail', () => {
+  it('download receipt makes a PDF of the receipt, then removes it', async () => {
+    api(() => booking({ createdAt: '2026-10-27T04:00:00.000Z' }));
+    let text = '';
+    pdf.mockImplementation(async (node: HTMLElement) => {
+      text = node.textContent ?? '';
+    });
+    const { user } = renderApp('/me/bookings/b1', { user: player });
+    await user.click(await screen.findByRole('button', { name: en.receipt.download }));
+    await waitFor(() => expect(pdf).toHaveBeenCalledOnce());
+    expect(pdf.mock.calls[0]![1]).toBe('Receipt-AB12CD.pdf');
+    expect(text).toContain(en.receipt.title);
+    expect(text).toContain('Pat');
+    expect(text).toContain('Arena One');
+    await waitFor(() => expect(screen.queryByText(en.receipt.title)).not.toBeInTheDocument());
+  });
+
+  it('a failed PDF says so', async () => {
+    api(() => booking());
+    pdf.mockRejectedValue(new Error('canvas'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { user } = renderApp('/me/bookings/b1', { user: player });
+    await user.click(await screen.findByRole('button', { name: en.receipt.download }));
+    expect(await screen.findByText(en.receipt.failed)).toBeInTheDocument();
+  });
+
+  it('no receipt before anything is paid', async () => {
+    api(() => booking({ status: 'pending', amountPaid: 0, paymentStatus: 'unpaid' }));
+    renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByText('AB12CD')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: en.receipt.download })).not.toBeInTheDocument();
+  });
+
   it('shows reference, venue-zone times and badges', async () => {
     api(() => booking());
     renderApp('/me/bookings/b1', { user: player });
@@ -62,7 +128,10 @@ describe('booking detail', () => {
     expect(screen.getByText(/^Tue, (3 Nov|Nov 3)$/)).toBeInTheDocument();
     expect(screen.getByText(en.status.confirmed)).toBeInTheDocument();
     expect(screen.getByText(en.paymentStatus.partially_paid)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Arena One' })).toHaveAttribute('href', '/venues/arena-one');
+    expect(screen.getByRole('link', { name: 'Arena One' })).toHaveAttribute(
+      'href',
+      '/venues/arena-one',
+    );
     expect(screen.getByText('Turf A')).toBeInTheDocument();
     expect(screen.getByText(/Bibs/)).toBeInTheDocument();
   });
@@ -74,16 +143,23 @@ describe('booking detail', () => {
   });
 
   it('awaiting payment without paid flag offers pay now', async () => {
-    const m = api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0 }));
+    const m = api(() =>
+      booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0 }),
+    );
     renderApp('/me/bookings/b1?new=1', { user: player });
     expect(await screen.findByRole('heading', { name: en.booking.received })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: en.booking.payNow })).toHaveAttribute('href', '/me/bookings/b1/pay');
+    expect(screen.getByRole('link', { name: en.booking.payNow })).toHaveAttribute(
+      'href',
+      '/me/bookings/b1/pay',
+    );
     expect(m.calls).toHaveLength(1);
   });
 
   it('polls until confirmed', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const m = api((n) => booking(n < 2 ? { status: 'awaiting_payment', paymentStatus: 'unpaid' } : {}));
+    const m = api((n) =>
+      booking(n < 2 ? { status: 'awaiting_payment', paymentStatus: 'unpaid' } : {}),
+    );
     renderApp('/me/bookings/b1?paid=1', { user: player });
     expect(await screen.findByText(en.booking.processing)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: en.booking.paymentReceived })).toBeInTheDocument();
@@ -118,12 +194,19 @@ describe('booking detail', () => {
 
   it('failed Stripe redirect shows an error, Pay now, and does not poll', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const m = api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0 }));
+    const m = api(() =>
+      booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0 }),
+    );
     renderApp('/me/bookings/b1?paid=1&redirect_status=failed', { user: player });
     expect(await screen.findByText(en.payment.redirectFailed)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: en.booking.payNow })).toHaveAttribute('href', '/me/bookings/b1/pay');
+    expect(screen.getByRole('link', { name: en.booking.payNow })).toHaveAttribute(
+      'href',
+      '/me/bookings/b1/pay',
+    );
     expect(screen.queryByText(en.booking.processing)).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: en.booking.paymentReceived })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: en.booking.paymentReceived }),
+    ).not.toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(10_000));
     expect(m.calls).toHaveLength(1);
   });
@@ -146,7 +229,9 @@ describe('booking detail', () => {
     api(() => booking({ status: 'expired', paymentStatus: 'unpaid', amountPaid: 0 }));
     renderApp('/me/bookings/b1?paid=1', { user: player });
     expect(await screen.findByText(en.status.expired)).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: en.booking.paymentReceived })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: en.booking.paymentReceived }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: en.booking.title })).toBeInTheDocument();
   });
 
@@ -163,14 +248,22 @@ describe('booking detail', () => {
 
   it('russian status labels', async () => {
     await i18n.changeLanguage('ru');
-    api(() => booking({ status: 'no_show', paymentStatus: 'partially_refunded', amountRefunded: 500 }));
+    api(() =>
+      booking({ status: 'no_show', paymentStatus: 'partially_refunded', amountRefunded: 500 }),
+    );
     renderApp('/me/bookings/b1', { user: player });
     expect(await screen.findByText(ru.status.no_show)).toBeInTheDocument();
     expect(screen.getByText(ru.paymentStatus.partially_refunded)).toBeInTheDocument();
   });
 
   it('404 shows not found', async () => {
-    mockApi([{ path: '/me/bookings/b1', status: 404, body: { error: { code: 'not_found', message: 'x', details: null } } }]);
+    mockApi([
+      {
+        path: '/me/bookings/b1',
+        status: 404,
+        body: { error: { code: 'not_found', message: 'x', details: null } },
+      },
+    ]);
     renderApp('/me/bookings/b1', { user: player });
     expect(await screen.findByText(en.notFound.title)).toBeInTheDocument();
   });

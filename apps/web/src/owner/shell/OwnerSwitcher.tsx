@@ -63,6 +63,11 @@ export function OwnerSwitcher() {
           <span className={styles.switcherName}>{owner.name}</span>
           <span className={styles.switcherRole}>{roleLabel(membership.role, t)}</span>
         </span>
+        {memberships.length > 1 && (
+          <svg className={styles.switcherChevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m7 15 5 5 5-5M7 9l5-5 5 5" />
+          </svg>
+        )}
       </button>
       {open && (
         <ul id={listId} role="listbox" aria-label={t('owner.switcher')} className={styles.switcherList}>

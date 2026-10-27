@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/useAuth';
-import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { LanguageMenu } from '../../components/LanguageSwitcher';
 import { Button } from '../../components/ui/Button';
-import { ThemeToggle } from '../../theme/ThemeToggle';
+import { ThemeMenu } from '../../theme/ThemeToggle';
 import type { SeriesJson } from '@booking/shared';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
@@ -27,6 +27,14 @@ export function useOwnerTitle(title: string): void {
 
 const SIDEBAR_ID = 'owner-sidebar';
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join('');
+}
+
 /** Weekly booking requests waiting for a reply across the team's venues; refreshed on every page change. */
 function useOpenRequests(enabled: boolean, pathname: string): { count: number; more: boolean } | null {
   const { ownerId } = useOwner();
@@ -48,8 +56,9 @@ function useOpenRequests(enabled: boolean, pathname: string): { count: number; m
 /** Owner portal layout: sidebar from lg, a drawer below it, and a top bar with the page title. */
 export function OwnerShell() {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { can } = useOwner();
+  const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const venueParam = new URLSearchParams(search).get('venue');
   const requests = useOpenRequests(can('booking.view'), pathname);
@@ -84,6 +93,12 @@ export function OwnerShell() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
+  const leave = async () => {
+    // Leave first: clearing the session while still here would bounce through RequireAuth to /login.
+    navigate('/', { replace: true });
+    await signOut();
+  };
+
   const items = NAV.filter((n) => (n.any ? n.perms.some(can) : n.perms.every(can)));
 
   return (
@@ -114,11 +129,28 @@ export function OwnerShell() {
           })}
         </nav>
         <div className={styles.footer}>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <Link to="/" className={styles.playerLink}>
+          <Link to="/" className={styles.link}>
+            <NavIcon navKey="playerSite" />
             {t('owner.nav.playerSite')}
+            <svg className={styles.linkTrail} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M7 17 17 7M8 7h9v9" />
+            </svg>
           </Link>
+          {user && (
+            <div className={styles.account}>
+              <Link to="/profile" className={styles.profile}>
+                <span className={styles.avatar} aria-hidden="true">
+                  {initials(user.name)}
+                </span>
+                <span className={styles.accountName}>{user.name}</span>
+              </Link>
+              <button type="button" className={styles.signOut} aria-label={t('profile.signOut')} title={t('profile.signOut')} onClick={() => void leave()}>
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
       {open && <div className={styles.scrim} onClick={close} aria-hidden="true" />}
@@ -141,7 +173,10 @@ export function OwnerShell() {
               {t('owner.shell.newWalkIn')}
             </Button>
           )}
-          {user && <span className={styles.userName}>{user.name}</span>}
+          <div className={styles.tools}>
+            <LanguageMenu />
+            <ThemeMenu />
+          </div>
         </header>
         <main className={styles.content}>
           <TitleContext.Provider value={setTitle}>

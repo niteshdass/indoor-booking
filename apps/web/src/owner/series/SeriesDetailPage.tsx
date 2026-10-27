@@ -19,7 +19,7 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import type { OwnerTurf } from '../types';
 import { useResource } from '../useResource';
-import { patternSummary, seriesCustomer } from './seriesText';
+import { dateRange, patternSummary, seriesCustomer } from './seriesText';
 import styles from './series.module.css';
 
 /** The statuses a staff member can still cancel a game from. */
@@ -122,6 +122,25 @@ export function SeriesDetailPage() {
       <header className={styles.head}>
         <h1 className={styles.title}>{seriesCustomer(series, t)}</h1>
         <SeriesStatusBadge status={series.status} />
+        {(canAnswer || canCancelFuture) && (
+          <div className={styles.headActions}>
+            {canAnswer && (
+              <>
+                <Button disabled={pending} onClick={accept}>
+                  {t('series.owner.accept')}
+                </Button>
+                <Button variant="secondary" disabled={pending} onClick={() => setDeclineOpen(true)}>
+                  {t('series.owner.decline')}
+                </Button>
+              </>
+            )}
+            {canCancelFuture && (
+              <Button variant="danger" disabled={pending} onClick={() => setCancelAllOpen(true)}>
+                {t('series.owner.cancelFuture')}
+              </Button>
+            )}
+          </div>
+        )}
       </header>
 
       {series.status === 'requested' && series.respondBy && (
@@ -130,42 +149,36 @@ export function SeriesDetailPage() {
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       {kept !== null && kept.length > 0 && <Alert tone="warning">{t('series.owner.kept', { dates: kept.join(', ') })}</Alert>}
 
-      {(canAnswer || canCancelFuture) && (
-        <div className={styles.buttons}>
-          {canAnswer && (
-            <>
-              <Button disabled={pending} onClick={accept}>
-                {t('series.owner.accept')}
-              </Button>
-              <Button variant="secondary" disabled={pending} onClick={() => setDeclineOpen(true)}>
-                {t('series.owner.decline')}
-              </Button>
-            </>
-          )}
-          {canCancelFuture && (
-            <Button variant="danger" disabled={pending} onClick={() => setCancelAllOpen(true)}>
-              {t('series.owner.cancelFuture')}
-            </Button>
-          )}
-        </div>
-      )}
-
-      <section className={styles.card} aria-label={t('series.owner.details')}>
+      <section className={`${styles.card} ${styles.compact}`} aria-label={t('series.owner.details')}>
         <dl className={styles.facts}>
           {series.guest?.phone && <Fact label={t('owner.bookings.phone')}>{series.guest.phone}</Fact>}
           <Fact label={t('owner.venue')}>{venue?.name ?? '—'}</Fact>
           <Fact label={t('owner.bookings.turf')}>{turf?.name ?? '—'}</Fact>
           <Fact label={t('series.owner.schedule')}>{patternSummary(series, turf, lang)}</Fact>
+          <Fact label={t('series.owner.dates')}>{dateRange(series, lang)}</Fact>
+          <Fact label={t('series.owner.games')}>{series.games.length}</Fact>
           {series.declineReason && <Fact label={t('owner.bookings.reason.recorded')}>{series.declineReason}</Fact>}
         </dl>
+        {series.skipped.length > 0 && (
+          <div className={`${styles.fact} ${styles.group}`}>
+            <h2 className={styles.groupLabel}>{t('series.owner.skippedTitle')}</h2>
+            <ul className={styles.skippedList}>
+              {series.skipped.map((s) => (
+                <li key={s.date}>
+                  {formatDate(s.date, 'UTC', lang)} · {t(`series.reason.${s.reason}`)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </section>
 
       <section className={styles.page} aria-label={t('series.owner.games')}>
-        <h2 className={styles.heading}>{t('series.owner.games')}</h2>
+        <h2 className={styles.subheading}>{t('series.owner.games')}</h2>
         {games.length === 0 ? (
           <EmptyState size="sm" title={t('series.owner.noGames')} />
         ) : (
-          <Table caption={t('series.owner.games')}>
+          <Table caption={t('series.owner.games')} className={`${styles.grid} ${styles.dense}`}>
             <thead>
               <tr>
                 <th>{t('owner.bookings.date')}</th>
@@ -173,7 +186,7 @@ export function SeriesDetailPage() {
                 <th>{t('owner.bookings.status')}</th>
                 <th>{t('owner.bookings.paid')}</th>
                 <th>{t('owner.bookings.reference')}</th>
-                {canCancelGame && <th>{t('owner.bookings.actions.title')}</th>}
+                {canCancelGame && <th className={styles.end}>{t('owner.bookings.actions.title')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -188,12 +201,12 @@ export function SeriesDetailPage() {
                   </td>
                   <td className={styles.nums}>{fmt(g.amountPaid)}</td>
                   <td>
-                    <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.link}>
+                    <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.ref}>
                       {g.reference}
                     </Link>
                   </td>
                   {canCancelGame && (
-                    <td>
+                    <td className={styles.end}>
                       {CANCELLABLE.includes(g.status) && (
                         <Button size="sm" variant="ghost" disabled={pending} onClick={() => setCancelGameId(g.id)}>
                           {t('series.owner.cancelGame')}
@@ -207,19 +220,6 @@ export function SeriesDetailPage() {
           </Table>
         )}
       </section>
-
-      {series.skipped.length > 0 && (
-        <section className={styles.card} aria-label={t('series.owner.skippedTitle')}>
-          <h2 className={styles.heading}>{t('series.owner.skippedTitle')}</h2>
-          <ul className={styles.skippedList}>
-            {series.skipped.map((s) => (
-              <li key={s.date}>
-                {formatDate(s.date, 'UTC', lang)} · {t(`series.reason.${s.reason}`)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
 
       <ReasonDialog
         open={declineOpen}

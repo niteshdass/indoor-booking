@@ -59,20 +59,20 @@ function SeriesVenue({ venue }: { venue: OwnerVenue }) {
   return (
     <div className={styles.page}>
       <div className={styles.toolbar}>
-        <VenueSelect />
-        <Select
-          label={t('owner.bookings.status')}
-          value={status ?? ''}
-          onChange={(e) => setStatus(SERIES_STATUSES.find((s) => s === e.target.value) ?? null)}
-          options={[
-            { value: '', label: t('owner.bookings.allStatuses') },
-            ...SERIES_STATUSES.map((s) => ({ value: s, label: t(`series.status.${s}`) })),
-          ]}
-        />
+        <div className={styles.filters}>
+          <VenueSelect />
+          <Select
+            label={t('owner.bookings.status')}
+            value={status ?? ''}
+            onChange={(e) => setStatus(SERIES_STATUSES.find((s) => s === e.target.value) ?? null)}
+            options={[
+              { value: '', label: t('owner.bookings.allStatuses') },
+              ...SERIES_STATUSES.map((s) => ({ value: s, label: t(`series.status.${s}`) })),
+            ]}
+          />
+        </div>
         {can('booking.create') && (
-          <div className={styles.buttons}>
-            <Button onClick={() => navigate(`new?venue=${encodeURIComponent(venue.id)}`)}>{t('series.owner.newSeries')}</Button>
-          </div>
+          <Button onClick={() => navigate(`new?venue=${encodeURIComponent(venue.id)}`)}>{t('series.owner.newSeries')}</Button>
         )}
       </div>
       <SeriesRows key={`${venue.id}|${status ?? ''}`} venue={venue} status={status} />
@@ -134,7 +134,7 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
 
   return (
     <>
-      <Table caption={t('series.title')}>
+      <Table caption={t('series.title')} className={styles.grid}>
         <thead>
           <tr>
             <th>{t('owner.bookings.customer')}</th>

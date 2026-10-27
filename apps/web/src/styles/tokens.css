@@ -45,6 +45,7 @@
   --control-md: 36px;
   --control-lg: 44px;
   --table-row: 3.25rem;
+  --table-row-compact: 2.5rem; /* dense table row (series games) */
   --sidebar-width: 15rem;
   --topbar-height: 3.5rem;
   --header-height: 4rem;

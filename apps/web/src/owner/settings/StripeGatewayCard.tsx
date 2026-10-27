@@ -230,6 +230,8 @@ export function StripeGatewayCard() {
     <section className={styles.card} aria-label={title}>
       <h2 className={styles.heading}>{title}</h2>
       <p className={styles.muted}>{t('owner.gateway.intro')}</p>
+      <div className={styles.split}>
+      <div className={styles.column}>
       {stripe.connected && stripe.mode ? (
         <>
           <div className={styles.statusRow}>
@@ -252,6 +254,14 @@ export function StripeGatewayCard() {
         <p className={styles.muted}>{t('owner.gateway.notConnected')}</p>
       )}
 
+      <h3 className={styles.subheading}>{t('owner.gateway.keysTitle')}</h3>
+      <Tabs label={t('owner.gateway.keysTitle')} tabs={MODES.map((m) => ({ id: m, label: t(`owner.gateway.mode.${m}`) }))} value={shown} onChange={(id) => setTab(id as Mode)} />
+      <div role="tabpanel" aria-label={t(`owner.gateway.mode.${shown}`)}>
+        <ModeKeys key={shown} mode={shown} view={stripe} base={base} onSaved={store} />
+      </div>
+      </div>
+
+      <div className={styles.column}>
       <h3 className={styles.subheading}>{t('owner.gateway.webhookTitle')}</h3>
       <p className={styles.muted}>{t('owner.gateway.webhookHint')}</p>
       <CopyField label={t('owner.gateway.webhookUrl')} value={stripe.webhookUrl} />
@@ -261,11 +271,7 @@ export function StripeGatewayCard() {
         ))}
       </ul>
       <CopyField label={t('owner.gateway.events')} value={stripe.webhookEvents.join(',')} />
-
-      <h3 className={styles.subheading}>{t('owner.gateway.keysTitle')}</h3>
-      <Tabs label={t('owner.gateway.keysTitle')} tabs={MODES.map((m) => ({ id: m, label: t(`owner.gateway.mode.${m}`) }))} value={shown} onChange={(id) => setTab(id as Mode)} />
-      <div role="tabpanel" aria-label={t(`owner.gateway.mode.${shown}`)}>
-        <ModeKeys key={shown} mode={shown} view={stripe} base={base} onSaved={store} />
+      </div>
       </div>
     </section>
   );

@@ -104,6 +104,8 @@
   --checkout-side-width: 24rem; /* checkout summary card, room for date, time and price on one line */
   --slot-min: 6rem;
   --slot-label: 7rem;
+  --hours-day: 7rem; /* weekday name column in the opening hours editor */
+  --hours-mode-min: 7rem; /* narrowest the Open/Closed select gets there */
   --hero-panel-max: 40rem;
   --meter-height: 6px;
   /* Loading skeletons: heights of a stat card, a panel (timeline, detail) and a list item */

@@ -88,6 +88,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
 
   const errors = settingsErrors(draft);
   const names = weekdayNames(i18n.language);
+  const short = weekdayNames(i18n.language, 'short');
   const from = inherited ?? effective;
   const edit = (next: Draft) => {
     setDone(false);
@@ -172,9 +173,11 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
   const hoursInherited = inheriting('hours');
 
   return (
-    <form className={styles.stack} onSubmit={submit} noValidate>
-      {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-      {done && <Alert tone="success">{t('owner.settings.saved')}</Alert>}
+    <form className={styles.layout} onSubmit={submit} noValidate>
+      {error !== null && <Alert className={styles.full} tone="danger">{errorMessage(error, t)}</Alert>}
+      {done && <Alert className={styles.full} tone="success">{t('owner.settings.saved')}</Alert>}
+
+      <div className={styles.column}>
 
       {section(
         'hours',
@@ -191,23 +194,66 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
         </>,
       )}
 
+      <div className={styles.pair}>
+      {section(
+        'bookingWindowDays',
+        t('owner.settings.windowTitle'),
+        <TextField
+          label={t('owner.settings.bookingWindow')}
+          hint={t('owner.settings.windowHint')}
+          type="number"
+          min={1}
+          max={365}
+          value={numText(value('bookingWindowDays'))}
+          disabled={locked('bookingWindowDays')}
+          error={showErr('window', 'owner.settings.errors.window')}
+          onChange={(e) => edit({ ...draft, bookingWindowDays: toNum(e.target.value) })}
+        />,
+      )}
+
+      {!venue && (
+        <Section title={t('owner.settings.autoRejectTitle')} inheritable={false} inheriting={false} onInherit={() => {}}>
+          <TextField
+            label={t('owner.settings.autoReject')}
+            hint={t('owner.settings.autoRejectHint')}
+            type="number"
+            min={0}
+            max={72}
+            value={numText(value('pendingAutoRejectHours'))}
+            disabled={disabled}
+            error={showErr('autoReject', 'owner.settings.errors.autoReject')}
+            onChange={(e) => edit({ ...draft, pendingAutoRejectHours: toNum(e.target.value) })}
+          />
+        </Section>
+      )}
+      </div>
+
+      </div>
+
+      <div className={styles.column}>
       {section(
         'weekendDays',
         t('owner.settings.weekendTitle'),
         <>
           <p className={styles.muted}>{t('owner.settings.weekendHint')}</p>
-          <div className={styles.checks}>
-            {WEEKDAYS.map((d) => (
-              <Checkbox
-                key={d}
-                label={names[d]}
-                checked={weekend.includes(d)}
-                disabled={locked('weekendDays')}
-                onChange={(on) =>
-                  edit({ ...draft, weekendDays: WEEKDAYS.filter((x) => (x === d ? on : weekend.includes(x))) })
-                }
-              />
-            ))}
+          <div className={styles.chips} role="group" aria-label={t('owner.settings.weekendTitle')}>
+            {WEEKDAYS.map((d) => {
+              const on = weekend.includes(d);
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  className={styles.chip}
+                  aria-pressed={on}
+                  aria-label={names[d]}
+                  title={names[d]}
+                  disabled={locked('weekendDays')}
+                  onClick={() => edit({ ...draft, weekendDays: WEEKDAYS.filter((x) => (x === d ? !on : weekend.includes(x))) })}
+                >
+                  {short[d]}
+                </button>
+              );
+            })}
           </div>
         </>,
       )}
@@ -260,7 +306,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
       {section(
         'guestBooking',
         t('owner.settings.guestTitle'),
-        <div className={styles.stack}>
+        <div className={styles.checkList}>
           <Checkbox
             label={t('owner.settings.guestAllowed')}
             checked={guest.allowed}
@@ -321,40 +367,10 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
         </>,
       )}
 
-      {section(
-        'bookingWindowDays',
-        t('owner.settings.windowTitle'),
-        <TextField
-          label={t('owner.settings.bookingWindow')}
-          hint={t('owner.settings.windowHint')}
-          type="number"
-          min={1}
-          max={365}
-          value={numText(value('bookingWindowDays'))}
-          disabled={locked('bookingWindowDays')}
-          error={showErr('window', 'owner.settings.errors.window')}
-          onChange={(e) => edit({ ...draft, bookingWindowDays: toNum(e.target.value) })}
-        />,
-      )}
-
-      {!venue && (
-        <Section title={t('owner.settings.autoRejectTitle')} inheritable={false} inheriting={false} onInherit={() => {}}>
-          <TextField
-            label={t('owner.settings.autoReject')}
-            hint={t('owner.settings.autoRejectHint')}
-            type="number"
-            min={0}
-            max={72}
-            value={numText(value('pendingAutoRejectHours'))}
-            disabled={disabled}
-            error={showErr('autoReject', 'owner.settings.errors.autoReject')}
-            onChange={(e) => edit({ ...draft, pendingAutoRejectHours: toNum(e.target.value) })}
-          />
-        </Section>
-      )}
+      </div>
 
       {!disabled && (
-        <div>
+        <div className={styles.full}>
           <Button type="submit" loading={busy}>
             {t('owner.settings.save')}
           </Button>

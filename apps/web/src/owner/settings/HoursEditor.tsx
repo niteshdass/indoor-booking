@@ -15,8 +15,8 @@ type Props = {
 const FALLBACK = { open: '08:00', close: '22:00' };
 
 /** Weekday names in the active language; 2024-01-01 was a Monday. */
-export function weekdayNames(lang: string): Record<Weekday, string> {
-  const fmt = new Intl.DateTimeFormat(lang, { weekday: 'long', timeZone: 'UTC' });
+export function weekdayNames(lang: string, style: 'long' | 'short' = 'long'): Record<Weekday, string> {
+  const fmt = new Intl.DateTimeFormat(lang, { weekday: style, timeZone: 'UTC' });
   return Object.fromEntries(WEEKDAYS.map((d, i) => [d, fmt.format(new Date(Date.UTC(2024, 0, 1 + i)))])) as Record<Weekday, string>;
 }
 
@@ -35,6 +35,13 @@ export function HoursEditor({ value, inherited, onChange, disabled }: Props) {
 
   return (
     <div className={styles.hours}>
+      {/* Column labels for the time fields; each field also carries its own label for screen readers. */}
+      <div className={styles.hoursHead} aria-hidden="true">
+        <span className={styles.headTimes}>
+          <span>{t('owner.hours.opens')}</span>
+          <span>{t('owner.hours.closes')}</span>
+        </span>
+      </div>
       {WEEKDAYS.map((day) => {
         const h = value[day];
         const mode = h === undefined ? (inherited ? 'inherit' : 'open') : h === 'closed' ? 'closed' : 'open';
@@ -48,8 +55,12 @@ export function HoursEditor({ value, inherited, onChange, disabled }: Props) {
         ];
         return (
           <div key={day} className={styles.hoursRow}>
+            <span className={styles.day} aria-hidden="true">
+              {names[day]}
+            </span>
             <Select
               label={names[day]}
+              hideLabel
               layout="stacked"
               value={mode}
               options={options}

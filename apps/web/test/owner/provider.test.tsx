@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { I18nextProvider } from 'react-i18next';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import en from '../../src/i18n/locales/en.json';
@@ -159,6 +159,19 @@ describe('profile portal link', () => {
     renderApp('/profile', { user: staffUser });
     await waitFor(() => expect(api.calls.length).toBeGreaterThan(0));
     expect(screen.queryByRole('link', { name: en.owner.portalLink })).not.toBeInTheDocument();
+  });
+});
+
+describe('sidebar sign out', () => {
+  it('asks before signing out, then leaves the portal', async () => {
+    const api = mockApi([...ownerRoutes(), { method: 'POST', path: '/auth/logout', status: 204 }]);
+    const h = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await h.user.click(await screen.findByRole('button', { name: en.profile.signOut }));
+    const dialog = screen.getByRole('dialog', { name: en.profile.signOutConfirm.title });
+    expect(api.calls.some((c) => c.path === '/auth/logout')).toBe(false);
+    await h.user.click(within(dialog).getByRole('button', { name: en.profile.signOut }));
+    await waitFor(() => expect(h.location().pathname).toBe('/'));
+    expect(api.calls.some((c) => c.path === '/auth/logout')).toBe(true);
   });
 });
 

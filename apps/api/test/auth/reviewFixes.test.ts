@@ -11,6 +11,7 @@ import { RefreshToken } from '../../src/auth/refreshToken.model';
 import { OtpCode } from '../../src/auth/otp.model';
 import { OtpThrottle } from '../../src/auth/otpThrottle.model';
 import { issueTokens, rotateRefreshToken } from '../../src/auth/tokens';
+import { registerAccount } from '../helpers/register';
 
 beforeAll(async () => {
   await startTestDb();
@@ -97,7 +98,7 @@ describe('I-2 phone link does not replace', () => {
 describe('I-3 password reset proves email ownership', () => {
   it('reset marks the email verified', async () => {
     const api = () => request(ctx.app);
-    await api().post('/api/v1/auth/register').send({ name: 'A', email: 'a@x.com', password: 'secret123' });
+    await registerAccount(ctx.app, { name: 'A', email: 'a@x.com', password: 'secret123' });
     await api().post('/api/v1/auth/password/forgot').send({ email: 'a@x.com' });
     const token = /token=([A-Za-z0-9_-]+)/.exec(ctx.services.email.sent.at(-1)?.text ?? '')?.[1];
     expect((await api().post('/api/v1/auth/password/reset').send({ token, password: 'newsecret1' })).status).toBe(204);

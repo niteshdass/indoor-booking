@@ -1,20 +1,13 @@
 import { Link, NavLink, Outlet } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/useAuth';
+import { initials } from '../lib/initials';
 import { ThemeMenu } from '../theme/ThemeToggle';
+import { EmailVerifyNotice } from './EmailVerifyNotice';
 import { LanguageMenu } from './LanguageSwitcher';
 import { LogoMark } from './LogoMark';
 import { Button } from './ui/Button';
 import styles from './AppShell.module.css';
-
-/** Up to two initials for the profile button. */
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join('');
-}
 
 export function AppShell() {
   const { t } = useTranslation();
@@ -53,6 +46,7 @@ export function AppShell() {
           )}
         </div>
       </header>
+      <EmailVerifyNotice className={styles.notice} />
       <Outlet />
     </div>
   );

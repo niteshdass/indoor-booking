@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
 
-export const OTP_PURPOSES = ['login', 'link', 'guest_booking', 'guest_cancel'] as const;
+export const OTP_PURPOSES = ['login', 'link', 'guest_booking', 'guest_cancel', 'register', 'verify_email'] as const;
 
 const otpCodeSchema = new mongoose.Schema({
+  /** E.164 phone number; for `verify_email`, the email address the code was mailed to. */
   phone: { type: String, required: true },
   purpose: { type: String, enum: OTP_PURPOSES, required: true },
   codeHash: { type: String, required: true },

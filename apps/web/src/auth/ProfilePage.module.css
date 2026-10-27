@@ -1,0 +1,248 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--container-detail);
+  margin-inline: auto;
+  padding: var(--space-6) var(--space-4);
+  min-width: 0;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Identity: the header's initials disc, larger, beside the name */
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding-block: var(--space-2);
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--avatar-lg);
+  height: var(--avatar-lg);
+  border-radius: var(--radius-full);
+  background: var(--court-blue);
+  color: var(--ball);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  box-shadow: inset 0 0 0 var(--court-line) var(--ball);
+}
+
+.identityText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.contact {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+}
+
+/* Name field and Save share a row from sm; Save lines up with the input */
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.field {
+  flex: 1 1 var(--field-min);
+  min-width: 0;
+}
+
+.save {
+  flex: 1 1 auto;
+}
+
+/* Label left, value right; stacks on narrow phones */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  min-height: var(--control-lg);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.row:last-child {
+  padding-bottom: 0;
+}
+
+.rowLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.rowValue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+}
+
+.value {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  font-size: var(--text-base);
+  color: var(--text-subtle);
+}
+
+/* Owner portal: one tappable row card */
+.portal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--duration-fast);
+}
+
+.portal:hover {
+  background: var(--bg-hover);
+}
+
+.portal:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.portalIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.portalIcon svg,
+.chevron,
+.icon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.portalText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.portalTitle {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.portalHint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.chevron {
+  flex: none;
+  color: var(--text-subtle);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .page {
+    padding-block: var(--space-8);
+  }
+
+  .card {
+    padding: var(--space-6);
+  }
+
+  .save {
+    flex: 0 0 auto;
+  }
+}

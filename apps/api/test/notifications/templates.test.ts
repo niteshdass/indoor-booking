@@ -30,6 +30,14 @@ describe('notification templates', () => {
     }
   });
 
+  it('the confirmation sms names the venue, court and local start', () => {
+    const en = renderNotice('booking_confirmed', 'en', data, appUrl).sms;
+    const ru = renderNotice('booking_confirmed', 'ru', data, appUrl).sms;
+    expect(en).toBe('Booking confirmed: Arena, Court 1, Nov 10, 2026, 11:00 PM. BK7Q2M https://app.test/b/BK7Q2M');
+    expect(ru).toContain('Бронирование подтверждено: Arena, Court 1,');
+    expect(ru).toContain('23:00');
+  });
+
   it('times are shown in the venue timezone', () => {
     const en = renderNotice('booking_confirmed', 'en', data, appUrl).text;
     const ru = renderNotice('booking_confirmed', 'ru', data, appUrl).text;

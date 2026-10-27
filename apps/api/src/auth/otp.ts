@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { z } from 'zod';
 import { AppError } from '../errors';
 import type { AppServices } from '../services';
 import { sha256 } from './crypto';
@@ -15,6 +16,8 @@ const MAX_ATTEMPTS = 5;
 
 const hashCode = (phone: string, code: string) => sha256(`${phone}:${code}`);
 const defaultCode = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
+export const otpCodeSchema = z.string().regex(/^\d{6}$/, 'must be 6 digits');
+
 const invalid = () => new AppError(400, 'otp_invalid', 'Invalid verification code');
 
 /** `phone` must already be E.164 (normalizePhone). Only the newest code per phone+purpose is live. */
@@ -23,21 +26,47 @@ export async function requestOtp(
   purpose: OtpPurpose,
   services: AppServices,
 ): Promise<{ expiresInSec: number; resendInSec: number }> {
+  return issueCode(phone, purpose, services, (code) =>
+    services.sms.send(phone, `Your verification code is ${code}. It expires in 5 minutes.`),
+  );
+}
+
+/** Mails a `verify_email` code to `email` (normalizeEmail); check it with verifyOtp(email, 'verify_email', ...). */
+export async function requestEmailCode(
+  email: string,
+  services: AppServices,
+): Promise<{ expiresInSec: number; resendInSec: number }> {
+  return issueCode(email, 'verify_email', services, (code) =>
+    services.email.send({
+      to: email,
+      subject: 'Verify your email',
+      text: `Your email verification code is ${code}. It expires in 5 minutes.\nIf you did not ask for this, ignore this email.`,
+    }),
+  );
+}
+
+/** Throttles, stores and delivers a new code for `to` (phone or email); the same limits apply to both. */
+async function issueCode(
+  to: string,
+  purpose: OtpPurpose,
+  services: AppServices,
+  deliver: (code: string) => Promise<void>,
+): Promise<{ expiresInSec: number; resendInSec: number }> {
   const now = services.now();
-  await reserveSend(phone, now);
+  await reserveSend(to, now);
   const code = (services.otpCode ?? defaultCode)();
   await OtpCode.create({
-    phone,
+    phone: to,
     purpose,
-    codeHash: hashCode(phone, code),
+    codeHash: hashCode(to, code),
     createdAt: now,
     expiresAt: new Date(now.getTime() + EXPIRES_SEC * 1000),
   });
-  await services.sms.send(phone, `Your verification code is ${code}. It expires in 5 minutes.`);
+  await deliver(code);
   return { expiresInSec: EXPIRES_SEC, resendInSec: RESEND_SEC };
 }
 
-/** Consumes the code on success; every attempt counts, so the 6th guess fails even if right. */
+/** `phone` is the address the code went to (an email for `verify_email`). Consumes the code on success; every attempt counts, so the 6th guess fails even if right. */
 export async function verifyOtp(
   phone: string,
   purpose: OtpPurpose,

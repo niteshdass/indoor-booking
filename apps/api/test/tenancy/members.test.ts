@@ -15,6 +15,7 @@ import { Membership } from '../../src/tenancy/membership.model';
 import { ActivityLog } from '../../src/tenancy/activityLog.model';
 import { Venue } from '../../src/venues/venue.model';
 import { seedVenue } from '../helpers/venues';
+import { registerAccount } from '../helpers/register';
 
 beforeAll(async () => {
   await startTestDb();
@@ -57,7 +58,7 @@ const PHONE = '+8801712345678';
 
 describe('members API', () => {
   it('adds an existing user by email', async () => {
-    const reg = await api().post('/api/v1/auth/register').send({ name: 'Ana', email: ' Ana@X.com ', password: 'secret123' });
+    const reg = await registerAccount(ctx.app, { name: 'Ana', email: ' Ana@X.com ', password: 'secret123' });
     await User.updateOne({ _id: reg.body.user.id }, { emailVerified: true });
     const before = await User.countDocuments();
     const res = await add(a.token, { name: 'Whoever', email: 'ana@x.com', roleId: staffRoleId, venueIds: 'all' });
@@ -72,7 +73,7 @@ describe('members API', () => {
   });
 
   it('refuses to attach an unverified email account → 409 email_unverified', async () => {
-    const mallory = await api().post('/api/v1/auth/register').send({ name: 'Mallory', email: 'staff@arena.com', password: 'secret123' });
+    const mallory = await registerAccount(ctx.app, { name: 'Mallory', email: 'staff@arena.com', password: 'secret123' });
     const res = await add(a.token, { name: 'Real Staff', email: 'staff@arena.com', roleId: staffRoleId, venueIds: 'all' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('email_unverified');

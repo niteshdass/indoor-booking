@@ -5,7 +5,7 @@ import { isDuplicateKeyError } from '../../db';
 import type { AuthDeps } from '../deps';
 import { hashPassword } from '../crypto';
 import { normalizeEmail, normalizePhone } from '../normalize';
-import { requestOtp, verifyOtp } from '../otp';
+import { requestEmailCode, requestOtp, verifyOtp } from '../otp';
 import { requireAuth } from '../requireAuth';
 import { User, toPublicUser, type UserDoc } from '../user.model';
 import { nameSchema, passwordSchema } from './emailAuth';
@@ -16,6 +16,7 @@ const patchSchema = z.object({ name: nameSchema });
 const phoneSchema = z.object({ phone: z.string() });
 const phoneVerifySchema = z.object({ phone: z.string(), code: otpCodeSchema });
 const emailSchema = z.object({ email: z.string(), password: passwordSchema });
+const emailVerifySchema = z.object({ code: otpCodeSchema });
 
 const identityInUse = () =>
   new AppError(409, 'identity_in_use', 'This sign-in method belongs to another account');
@@ -73,6 +74,25 @@ export function meRouter({ config, services }: AuthDeps): Router {
     user.phone = phone;
     user.phoneVerified = true;
     await saveLinked(user);
+    res.json({ user: toPublicUser(user) });
+  });
+
+  router.post('/me/email/verify/request', async (req, res) => {
+    const user = await currentUser(req);
+    if (!user.email) throw new AppError(409, 'email_not_set', 'This account has no email');
+    if (user.emailVerified) throw new AppError(409, 'email_already_verified', 'This email is already verified');
+    res.status(202).json(await requestEmailCode(user.email, services));
+  });
+
+  router.post('/me/email/verify', async (req, res) => {
+    const { code } = emailVerifySchema.parse(req.body);
+    const user = await currentUser(req);
+    if (!user.email) throw new AppError(409, 'email_not_set', 'This account has no email');
+    if (!user.emailVerified) {
+      await verifyOtp(user.email, 'verify_email', code, services);
+      user.emailVerified = true;
+      await user.save();
+    }
     res.json({ user: toPublicUser(user) });
   });
 

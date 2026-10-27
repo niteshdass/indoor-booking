@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
@@ -42,18 +42,42 @@ describe('ProfilePage', () => {
 
   it('shows email, verified badge, phone and Google', () => {
     renderApp('/profile', { user });
-    expect(screen.getByText('ada@example.com')).toBeInTheDocument();
-    expect(screen.getByText(en.profile.verified)).toBeInTheDocument();
-    expect(screen.getByText('+8801712345678')).toBeInTheDocument();
-    expect(screen.getByText(en.profile.google)).toBeInTheDocument();
+    const card = within(screen.getByRole('region', { name: en.profile.signInMethods }));
+    expect(card.getByText('ada@example.com')).toBeInTheDocument();
+    expect(card.getByText(en.profile.verified)).toBeInTheDocument();
+    expect(card.getByText('+8801712345678')).toBeInTheDocument();
+    expect(card.getByText(en.profile.google)).toBeInTheDocument();
+    expect(card.getByText(en.profile.connected)).toBeInTheDocument();
   });
 
-  it('sign out returns home and shows sign-in link', async () => {
-    mockApi([{ method: 'POST', path: '/auth/logout', status: 204 }]);
+  it('save stays disabled until the name changes', async () => {
+    const h = renderApp('/profile', { user });
+    const save = screen.getByRole('button', { name: en.profile.save });
+    expect(save).toBeDisabled();
+    await h.user.type(screen.getByLabelText(en.profile.name), 'x');
+    expect(save).toBeEnabled();
+  });
+
+  it('sign out asks first, then returns home and shows sign-in link', async () => {
+    const api = mockApi([{ method: 'POST', path: '/auth/logout', status: 204 }]);
     const h = renderApp('/profile', { user });
     await h.user.click(screen.getByRole('button', { name: en.profile.signOut }));
+    const dialog = screen.getByRole('dialog', { name: en.profile.signOutConfirm.title });
+    expect(api.calls.some((c) => c.path === '/auth/logout')).toBe(false);
+    await h.user.click(within(dialog).getByRole('button', { name: en.profile.signOut }));
     await waitFor(() => expect(h.location().pathname).toBe('/'));
     expect(await screen.findByRole('link', { name: en.nav.signIn })).toBeInTheDocument();
+  });
+
+  it('cancel keeps the user signed in', async () => {
+    const api = mockApi([{ method: 'POST', path: '/auth/logout', status: 204 }]);
+    const h = renderApp('/profile', { user });
+    await h.user.click(screen.getByRole('button', { name: en.profile.signOut }));
+    const dialog = screen.getByRole('dialog', { name: en.profile.signOutConfirm.title });
+    await h.user.click(within(dialog).getByRole('button', { name: en.profile.signOutConfirm.cancel }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(h.location().pathname).toBe('/profile');
+    expect(api.calls.some((c) => c.path === '/auth/logout')).toBe(false);
   });
 });
 

@@ -116,31 +116,60 @@ describe('LoginPage', () => {
 });
 
 describe('RegisterPage', () => {
+  const sendRoute = { method: 'POST', path: '/auth/register/otp/request', status: 202, body: otpSent };
+
   async function fill(h: ReturnType<typeof renderApp>) {
+    await h.user.type(screen.getByLabelText(en.auth.phone.number), '1712345678');
+    await h.user.click(screen.getByRole('button', { name: en.auth.phone.sendCode }));
+    await screen.findByRole('group', { name: en.auth.phone.code });
+    await h.user.click(screen.getAllByRole('textbox')[0]!);
+    await h.user.keyboard('123456');
     await h.user.type(screen.getByLabelText(en.auth.name), 'Ada');
     await h.user.type(screen.getByLabelText(en.auth.email), 'ada@example.com');
     await h.user.type(screen.getByLabelText(en.auth.password), 'secret123');
     await h.user.click(screen.getByRole('button', { name: en.auth.register.submit }));
   }
 
-  it('register then signed in', async () => {
-    const api = mockApi([{ method: 'POST', path: '/auth/register', status: 201, body: authRes }]);
+  it('asks for the phone first, without the account fields', () => {
+    mockApi([]);
+    renderApp('/register');
+    expect(screen.getByText(en.auth.register.phoneFirst)).toBeInTheDocument();
+    expect(screen.getByLabelText(en.auth.phone.number)).toBeInTheDocument();
+    expect(screen.queryByLabelText(en.auth.email)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: en.auth.register.submit })).not.toBeInTheDocument();
+  });
+
+  it('verifies the phone, registers, then signed in', async () => {
+    const api = mockApi([sendRoute, { method: 'POST', path: '/auth/register', status: 201, body: authRes }]);
     const h = renderApp('/register?next=%2Fme%2Fbookings');
     await fill(h);
     await waitFor(() => expect(h.location().pathname).toBe('/me/bookings'));
+    expect(api.calls.find((c) => c.path === '/auth/register/otp/request')?.body).toEqual({ phone: '+8801712345678' });
     expect(api.calls.find((c) => c.path === '/auth/register')?.body).toEqual({
       name: 'Ada',
       email: 'ada@example.com',
       password: 'secret123',
+      phone: '+8801712345678',
+      code: '123456',
     });
   });
 
-  it('register email_in_use shows login link', async () => {
-    mockApi([{ method: 'POST', path: '/auth/register', status: 409, body: { error: { code: 'email_in_use', message: 'x' } } }]);
+  it('a number with an account shows phone_in_use and a sign-in link', async () => {
+    mockApi([{ method: 'POST', path: '/auth/register/otp/request', status: 409, body: { error: { code: 'phone_in_use', message: 'x' } } }]);
+    const h = renderApp('/register?next=%2Fme%2Fbookings');
+    await h.user.type(screen.getByLabelText(en.auth.phone.number), '1712345678');
+    await h.user.click(screen.getByRole('button', { name: en.auth.phone.sendCode }));
+    expect(await screen.findByText(en.errors.phone_in_use)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.auth.register.toLogin })).toHaveAttribute('href', '/login?next=%2Fme%2Fbookings');
+  });
+
+  it('register email_in_use shows login link and keeps the code step', async () => {
+    mockApi([sendRoute, { method: 'POST', path: '/auth/register', status: 409, body: { error: { code: 'email_in_use', message: 'x' } } }]);
     const h = renderApp('/register?next=%2Fme%2Fbookings');
     await fill(h);
     expect(await screen.findByText(en.errors.email_in_use)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: en.auth.register.toLogin })).toHaveAttribute('href', '/login?next=%2Fme%2Fbookings');
+    expect(screen.getByLabelText(en.auth.email)).toHaveValue('ada@example.com');
   });
 
   it('signed-in user visiting /register is redirected', () => {

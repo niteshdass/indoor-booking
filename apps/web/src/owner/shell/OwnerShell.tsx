@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { SignOutDialog } from '../../auth/SignOutDialog';
 import { useAuth } from '../../auth/useAuth';
+import { EmailVerifyNotice } from '../../components/EmailVerifyNotice';
 import { LanguageMenu } from '../../components/LanguageSwitcher';
 import { Button } from '../../components/ui/Button';
+import { initials } from '../../lib/initials';
 import { ThemeMenu } from '../../theme/ThemeToggle';
 import type { SeriesJson } from '@booking/shared';
 import { useOwner } from '../OwnerProvider';
@@ -27,14 +30,6 @@ export function useOwnerTitle(title: string): void {
 
 const SIDEBAR_ID = 'owner-sidebar';
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join('');
-}
-
 /** Weekly booking requests waiting for a reply across the team's venues; refreshed on every page change. */
 function useOpenRequests(enabled: boolean, pathname: string): { count: number; more: boolean } | null {
   const { ownerId } = useOwner();
@@ -56,14 +51,14 @@ function useOpenRequests(enabled: boolean, pathname: string): { count: number; m
 /** Owner portal layout: sidebar from lg, a drawer below it, and a top bar with the page title. */
 export function OwnerShell() {
   const { t } = useTranslation();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { can } = useOwner();
-  const navigate = useNavigate();
   const { pathname, search } = useLocation();
   const venueParam = new URLSearchParams(search).get('venue');
   const requests = useOpenRequests(can('booking.view'), pathname);
   const [title, setTitle] = useState('');
   const [open, setOpen] = useState(false);
+  const [confirmOut, setConfirmOut] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);
 
   const close = () => {
@@ -92,12 +87,6 @@ export function OwnerShell() {
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
-
-  const leave = async () => {
-    // Leave first: clearing the session while still here would bounce through RequireAuth to /login.
-    navigate('/', { replace: true });
-    await signOut();
-  };
 
   const items = NAV.filter((n) => (n.any ? n.perms.some(can) : n.perms.every(can)));
 
@@ -144,7 +133,7 @@ export function OwnerShell() {
                 </span>
                 <span className={styles.accountName}>{user.name}</span>
               </Link>
-              <button type="button" className={styles.signOut} aria-label={t('profile.signOut')} title={t('profile.signOut')} onClick={() => void leave()}>
+              <button type="button" className={styles.signOut} aria-label={t('profile.signOut')} title={t('profile.signOut')} onClick={() => setConfirmOut(true)}>
                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                   <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10" />
                 </svg>
@@ -153,6 +142,7 @@ export function OwnerShell() {
           )}
         </div>
       </aside>
+      <SignOutDialog open={confirmOut} onClose={() => setConfirmOut(false)} />
       {open && <div className={styles.scrim} onClick={close} aria-hidden="true" />}
       <div className={styles.main}>
         <header className={styles.topbar}>
@@ -179,6 +169,7 @@ export function OwnerShell() {
           </div>
         </header>
         <main className={styles.content}>
+          <EmailVerifyNotice className={styles.notice} />
           <TitleContext.Provider value={setTitle}>
             <Outlet />
           </TitleContext.Provider>

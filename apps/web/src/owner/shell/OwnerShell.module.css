@@ -106,6 +106,10 @@
   padding: var(--space-4);
 }
 
+.notice {
+  margin-bottom: var(--space-4);
+}
+
 .nav {
   display: flex;
   flex-direction: column;

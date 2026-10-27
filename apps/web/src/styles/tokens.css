@@ -100,6 +100,7 @@
   --venue-map-height: 15rem; /* location map on the venue page and the owner venue form */
   --photo-thumb: 5rem; /* photo thumbnail in the owner venue form */
   --avatar-sm: 2rem; /* reviewer initial disc */
+  --avatar-lg: 4rem; /* initials disc at the top of the profile page */
   --side-card-width: 20rem;
   --checkout-side-width: 24rem; /* checkout summary card, room for date, time and price on one line */
   --slot-min: 6rem;

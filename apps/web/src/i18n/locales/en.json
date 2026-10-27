@@ -52,7 +52,8 @@
       "submit": "Create account",
       "passwordHint": "At least 8 characters.",
       "haveAccount": "Already have an account? Sign in",
-      "toLogin": "Sign in instead"
+      "toLogin": "Sign in instead",
+      "phoneFirst": "Start with your phone number. We'll text you a code to verify it, and send booking confirmations there."
     },
     "or": "or",
     "forgot": {
@@ -176,7 +177,10 @@
     "payload_too_large": "That file is too large.",
     "invalid_photo": "One of the photos isn't from this team. Remove it and upload it again.",
     "too_many_uploads": "Too many photos waiting. Save the venue first, or try again tomorrow.",
-    "image_storage_full": "Your team's photo storage is full. Remove photos from other venues first."
+    "image_storage_full": "Your team's photo storage is full. Remove photos from other venues first.",
+    "phone_in_use": "That phone number already has an account.",
+    "email_not_set": "This account has no email address.",
+    "email_already_verified": "Your email is already verified."
   },
   "myBookings": {
     "title": "My bookings",
@@ -195,8 +199,19 @@
     "phone": "Phone",
     "verified": "Verified",
     "notSet": "Not set",
-    "google": "Signed in with Google",
-    "signOut": "Sign out"
+    "google": "Google",
+    "connected": "Connected",
+    "details": "Personal details",
+    "signInMethods": "Contact and sign-in",
+    "ownerPortal": "Owner portal",
+    "ownerPortalHint": "Manage venues, bookings and staff",
+    "signOut": "Sign out",
+    "signOutConfirm": {
+      "title": "Sign out?",
+      "body": "You'll need to sign in again to book courts or manage your venues.",
+      "cancel": "Cancel"
+    },
+    "notVerified": "Not verified"
   },
   "search": {
     "title": "Find a court",
@@ -1691,5 +1706,16 @@
       "list": "List your venue",
       "rights": "© {{year}} Slot Booking"
     }
+  },
+  "verifyEmail": {
+    "label": "Verify your email",
+    "message": "Verify {{email}} to get booking emails and to recover your password.",
+    "sentTo": "We sent a 6-digit code to {{email}}.",
+    "send": "Send verification code",
+    "code": "Email verification code",
+    "verify": "Verify email",
+    "later": "Later",
+    "done": "Your email is verified.",
+    "dismiss": "Dismiss"
   }
 }

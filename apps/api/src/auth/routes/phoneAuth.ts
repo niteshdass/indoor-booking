@@ -3,12 +3,12 @@ import { z } from 'zod';
 import { isDuplicateKeyError } from '../../db';
 import type { AuthDeps } from '../deps';
 import { normalizePhone } from '../normalize';
-import { requestOtp, verifyOtp } from '../otp';
+import { otpCodeSchema, requestOtp, verifyOtp } from '../otp';
 import { issueTokens, sendAuthResponse } from '../tokens';
 import { User, assertActive } from '../user.model';
 import { nameSchema } from './emailAuth';
 
-export const otpCodeSchema = z.string().regex(/^\d{6}$/, 'must be 6 digits');
+export { otpCodeSchema };
 const requestSchema = z.object({ phone: z.string() });
 const verifySchema = z.object({ phone: z.string(), code: otpCodeSchema, name: nameSchema.optional() });
 

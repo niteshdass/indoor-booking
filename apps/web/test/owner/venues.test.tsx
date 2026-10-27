@@ -260,8 +260,10 @@ describe('venue editor', () => {
     ]);
     const { user } = renderApp(`/owner/${OWNER_ID}/venues/v1`, { user: staffUser });
     await user.click(await screen.findByRole('button', { name: en.owner.venues.delete }));
-    const dialog = await screen.findByRole('dialog', { hidden: true });
-    await user.click(within(dialog).getByRole('button', { name: en.owner.venues.deleteConfirm, hidden: true }));
+    // The shell's sign-out dialog is mounted too, so pick the delete one by its button.
+    const confirm = await screen.findByRole('button', { name: en.owner.venues.deleteConfirm, hidden: true });
+    const dialog = confirm.closest('dialog')!;
+    await user.click(confirm);
     expect((await within(dialog).findByText(en.errors.venue_has_turfs, undefined, { timeout: 2000 })).textContent).toBeTruthy();
   });
 

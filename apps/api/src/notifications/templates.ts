@@ -57,6 +57,8 @@ type Ctx = {
   /** Venue, turf, local date and time range. */
   when: string;
   start: string;
+  /** Local date and start time. */
+  startsAt: string;
   holdUntil: string;
   money: string;
   link: string;
@@ -120,15 +122,15 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
     }),
   },
   booking_confirmed: {
-    en: ({ d }) => ({
+    en: ({ d, startsAt }) => ({
       subject: `Booking confirmed (${d.reference})`,
       lead: 'Your booking is confirmed.',
-      sms: `Booking confirmed. ${d.reference}`,
+      sms: `Booking confirmed: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
     }),
-    ru: ({ d }) => ({
+    ru: ({ d, startsAt }) => ({
       subject: `Бронирование подтверждено (${d.reference})`,
       lead: 'Ваше бронирование подтверждено.',
-      sms: `Бронирование подтверждено. ${d.reference}`,
+      sms: `Бронирование подтверждено: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
     }),
   },
   booking_rejected: {
@@ -372,6 +374,7 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
     d,
     when: `${d.venueName}, ${d.turfName}\n${dateTime(d.startAt)} - ${time(d.endAt)}`,
     start: time(d.startAt),
+    startsAt: dateTime(d.startAt),
     holdUntil: d.holdExpiresAt ? time(d.holdExpiresAt) : '',
     money: d.amount ? formatMoney(d.amount, d.currency, locale) : '',
     link,

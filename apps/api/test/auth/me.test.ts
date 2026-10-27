@@ -6,6 +6,7 @@ import { User } from '../../src/auth/user.model';
 import { OtpCode } from '../../src/auth/otp.model';
 import { OtpThrottle } from '../../src/auth/otpThrottle.model';
 import { RefreshToken } from '../../src/auth/refreshToken.model';
+import { hashPassword } from '../../src/auth/crypto';
 
 beforeAll(async () => {
   await startTestDb();
@@ -23,8 +24,10 @@ beforeEach(async () => {
 const PHONE = '+8801712345678';
 const api = () => request(ctx.app);
 
+/** An email account without a phone, as made before registration required one. */
 async function emailUser(email = 'ana@x.com') {
-  const res = await api().post('/api/v1/auth/register').send({ name: 'Ana', email, password: 'secret123' });
+  await User.create({ name: 'Ana', email, passwordHash: await hashPassword('secret123') });
+  const res = await api().post('/api/v1/auth/login').send({ email, password: 'secret123' });
   return { id: res.body.user.id as string, auth: `Bearer ${res.body.accessToken}` };
 }
 async function phoneUser(phone = PHONE) {
@@ -155,5 +158,72 @@ describe('account linking', () => {
       .send({ email: 'other@x.com', password: 'secret123' });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('email_already_set');
+  });
+});
+
+describe('email verification', () => {
+  const requestCode = (auth: string) => api().post('/api/v1/me/email/verify/request').set('Authorization', auth).send({});
+  const verify = (auth: string, code: string) => api().post('/api/v1/me/email/verify').set('Authorization', auth).send({ code });
+
+  it('mails a code to the account email; the right code marks it verified', async () => {
+    const u = await emailUser();
+    const sent = await requestCode(u.auth);
+    expect(sent.status).toBe(202);
+    expect(sent.body).toEqual({ expiresInSec: 300, resendInSec: 60 });
+    expect(ctx.services.email.sent.at(-1)).toMatchObject({ to: 'ana@x.com', subject: 'Verify your email' });
+    expect(ctx.services.email.sent.at(-1)?.text).toContain('123456');
+    expect(ctx.services.sms.sent).toHaveLength(0);
+
+    const res = await verify(u.auth, '123456');
+    expect(res.status).toBe(200);
+    expect(res.body.user.emailVerified).toBe(true);
+    expect((await User.findById(u.id))?.emailVerified).toBe(true);
+  });
+
+  it('a wrong code → 400 otp_invalid and the email stays unverified', async () => {
+    const u = await emailUser();
+    await requestCode(u.auth);
+    const res = await verify(u.auth, '000000');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('otp_invalid');
+    expect((await User.findById(u.id))?.emailVerified).toBe(false);
+  });
+
+  it('a second request inside 60 s → 429 otp_cooldown', async () => {
+    const u = await emailUser();
+    await requestCode(u.auth);
+    const res = await requestCode(u.auth);
+    expect(res.status).toBe(429);
+    expect(res.body.error.code).toBe('otp_cooldown');
+    expect(ctx.services.email.sent).toHaveLength(1);
+  });
+
+  it('an already verified email → 409 email_already_verified, nothing sent', async () => {
+    const u = await emailUser();
+    await User.updateOne({ _id: u.id }, { emailVerified: true });
+    const res = await requestCode(u.auth);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('email_already_verified');
+    expect(ctx.services.email.sent).toHaveLength(0);
+  });
+
+  it('an account without an email → 409 email_not_set', async () => {
+    const u = await phoneUser();
+    const res = await requestCode(u.auth);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('email_not_set');
+  });
+
+  it('a code sent for another purpose to the same address does not verify', async () => {
+    const u = await emailUser();
+    await requestCode(u.auth);
+    await OtpCode.updateMany({}, { purpose: 'login' });
+    const res = await verify(u.auth, '123456');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('otp_invalid');
+  });
+
+  it('needs a signed-in user → 401', async () => {
+    expect((await api().post('/api/v1/me/email/verify/request').send({})).status).toBe(401);
   });
 });

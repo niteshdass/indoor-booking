@@ -5,21 +5,36 @@ import { buildTestApp } from '../helpers/testApp';
 import { User } from '../../src/auth/user.model';
 import { RefreshToken } from '../../src/auth/refreshToken.model';
 import { PasswordReset } from '../../src/auth/passwordReset.model';
+import { OtpCode } from '../../src/auth/otp.model';
+import { OtpThrottle } from '../../src/auth/otpThrottle.model';
 
 beforeAll(async () => {
   await startTestDb();
-  await Promise.all([User.init(), RefreshToken.init(), PasswordReset.init()]);
+  await Promise.all([User.init(), RefreshToken.init(), PasswordReset.init(), OtpCode.init(), OtpThrottle.init()]);
 });
 afterAll(stopTestDb);
 
 let ctx: ReturnType<typeof buildTestApp>;
 beforeEach(async () => {
-  await Promise.all([User.deleteMany({}), RefreshToken.deleteMany({}), PasswordReset.deleteMany({})]);
+  await Promise.all([
+    User.deleteMany({}),
+    RefreshToken.deleteMany({}),
+    PasswordReset.deleteMany({}),
+    OtpCode.deleteMany({}),
+    OtpThrottle.deleteMany({}),
+  ]);
   ctx = buildTestApp();
 });
 
-const body = { name: 'Ana', email: 'ana@x.com', password: 'secret123' };
-const register = (b: object) => request(ctx.app).post('/api/v1/auth/register').send(b);
+const PHONE = '+8801712345678';
+const body = { name: 'Ana', email: 'ana@x.com', password: 'secret123', phone: PHONE, code: '123456' };
+const requestCode = (phone = PHONE) => request(ctx.app).post('/api/v1/auth/register/otp/request').send({ phone });
+const postRegister = (b: object) => request(ctx.app).post('/api/v1/auth/register').send(b);
+/** Sends the phone code first, as the register page does. */
+const register = async (b: { phone?: string } & Record<string, unknown>) => {
+  await requestCode(b.phone ?? PHONE);
+  return postRegister(b);
+};
 const login = (b: object) => request(ctx.app).post('/api/v1/auth/login').send(b);
 const forgot = (email: string) =>
   request(ctx.app).post('/api/v1/auth/password/forgot').send({ email });
@@ -31,30 +46,67 @@ const resetTokenFromEmail = () => {
 };
 
 describe('register', () => {
-  it('registers and returns tokens', async () => {
-    const res = await register({ ...body, email: ' Ana@X.com ' });
+  it('verifies the phone, registers and returns tokens', async () => {
+    const sent = await requestCode();
+    expect(sent.status).toBe(202);
+    expect(ctx.services.sms.sent.at(-1)).toMatchObject({ to: PHONE });
+    const res = await postRegister({ ...body, email: ' Ana@X.com ', phone: '+880 1712-345678' });
     expect(res.status).toBe(201);
     expect(res.body.user).toMatchObject({
       name: 'Ana',
       email: 'ana@x.com',
       hasPassword: true,
       emailVerified: false,
-      phone: null,
+      phone: PHONE,
       hasGoogle: false,
     });
     expect(res.body.user.passwordHash).toBeUndefined();
     expect(typeof res.body.accessToken).toBe('string');
     expect(typeof res.body.refreshToken).toBe('string');
+    expect((await User.findOne({ email: 'ana@x.com' }))?.phoneVerified).toBe(true);
   });
-  it('same email in different case → 409 email_in_use', async () => {
-    await register(body);
-    const res = await register({ ...body, email: 'ANA@x.com' });
+  it('no phone or code → 400 validation_error', async () => {
+    const res = await postRegister({ name: 'Ana', email: 'ana@x.com', password: 'secret123' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('validation_error');
+  });
+  it('wrong code → 400 otp_invalid, no account', async () => {
+    await requestCode();
+    const res = await postRegister({ ...body, code: '000000' });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('otp_invalid');
+    expect(await User.countDocuments()).toBe(0);
+  });
+  it('a code sent for sign-in does not register', async () => {
+    await request(ctx.app).post('/api/v1/auth/otp/request').send({ phone: PHONE });
+    const res = await postRegister(body);
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('otp_invalid');
+  });
+  it('code for a number that has an account → 409 phone_in_use, no SMS', async () => {
+    await User.create({ phone: PHONE, phoneVerified: true });
+    const res = await requestCode();
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe('email_in_use');
+    expect(res.body.error.code).toBe('phone_in_use');
+    expect(ctx.services.sms.sent).toHaveLength(0);
   });
-  it('concurrent duplicate registrations → one 201, one 409', async () => {
-    const [a, b] = await Promise.all([register(body), register(body)]);
-    expect([a.status, b.status].sort()).toEqual([201, 409]);
+  it('same email in different case → 409 email_in_use, and the code is still usable', async () => {
+    await register(body);
+    const other = '+8801812345678';
+    await requestCode(other);
+    const taken = await postRegister({ ...body, email: 'ANA@x.com', phone: other });
+    expect(taken.status).toBe(409);
+    expect(taken.body.error.code).toBe('email_in_use');
+    const fixed = await postRegister({ ...body, email: 'bo@x.com', phone: other });
+    expect(fixed.status).toBe(201);
+  });
+  it('concurrent duplicate registrations → one 201, the other refused', async () => {
+    await requestCode();
+    const [a, b] = await Promise.all([postRegister(body), postRegister(body)]);
+    const statuses = [a.status, b.status].sort();
+    expect(statuses[0]).toBe(201);
+    expect([400, 409]).toContain(statuses[1]);
+    expect(await User.countDocuments()).toBe(1);
   });
   it('short password → 400 validation_error', async () => {
     const res = await register({ ...body, password: 'short' });

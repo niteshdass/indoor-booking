@@ -2,14 +2,10 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../../components/ui/Badge';
+import { initials } from '../../lib/initials';
 import { useOwner } from '../OwnerProvider';
 import { roleLabel } from '../roleLabel';
 import styles from './OwnerShell.module.css';
-
-function initials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  return words.slice(0, 2).map((w) => [...w][0]!.toUpperCase()).join('');
-}
 
 /** Sidebar header: shows the current team and role, and lists every membership to switch between. */
 export function OwnerSwitcher() {

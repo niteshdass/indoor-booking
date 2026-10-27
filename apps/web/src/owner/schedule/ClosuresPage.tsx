@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
@@ -128,7 +129,7 @@ export function ClosuresPage() {
       {(state.status === 'loading' || state.status === 'idle') && <Skeleton kind="table" label={t('common.loading')} />}
       {state.status === 'ready' &&
         (state.data.closures.length === 0 ? (
-          <p className={styles.muted}>{t('owner.closures.empty')}</p>
+          <EmptyState sport="badminton" title={t('owner.closures.empty')} />
         ) : (
           <Table caption={t('owner.closures.title')}>
             <thead>

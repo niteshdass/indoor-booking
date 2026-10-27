@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { localParts, type SeriesJson, type SeriesPattern, type SeriesPreview } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Select } from '../../components/ui/Select';
 import { apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -26,7 +27,7 @@ export function NewSeriesPage() {
   const { t } = useTranslation();
   const [venue] = useVenueParam();
   useOwnerTitle(t('series.newTitle'));
-  if (!venue) return <p className={styles.empty}>{t('owner.today.noVenues')}</p>;
+  if (!venue) return <EmptyState title={t('owner.today.noVenues')} />;
   return (
     <div className={styles.page}>
       <VenueSelect />

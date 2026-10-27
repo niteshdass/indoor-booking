@@ -252,11 +252,6 @@
   white-space: nowrap;
 }
 
-.empty {
-  margin: 0;
-  font-size: var(--text-base);
-  color: var(--text-muted);
-}
 
 .alert {
   display: flex;

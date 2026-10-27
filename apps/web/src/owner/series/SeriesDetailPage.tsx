@@ -5,6 +5,7 @@ import type { BookingStatus, SeriesGameJson, SeriesJson } from '@booking/shared'
 import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { ApiError, apiPost } from '../../lib/apiClient';
@@ -162,7 +163,7 @@ export function SeriesDetailPage() {
       <section className={styles.page} aria-label={t('series.owner.games')}>
         <h2 className={styles.heading}>{t('series.owner.games')}</h2>
         {games.length === 0 ? (
-          <p className={styles.muted}>{t('series.owner.noGames')}</p>
+          <EmptyState size="sm" title={t('series.owner.noGames')} />
         ) : (
           <Table caption={t('series.owner.games')}>
             <thead>

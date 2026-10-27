@@ -4,20 +4,20 @@
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-default);
   text-decoration: none;
   box-shadow: var(--shadow-xs);
   transition:
-    border-color var(--duration-fast),
+    background-color var(--duration-fast),
     box-shadow var(--duration-fast);
 }
 
+/* No border to light up: the card lifts, and in dark (no shadows) the raised surface tone shows it */
 .card:hover,
 .active {
-  border-color: var(--border-strong);
+  background: var(--bg-surface-raised);
   box-shadow: var(--shadow-md);
 }
 

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { PendingActions } from '../bookings/BookingActions';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StatCard } from '../../components/ui/StatCard';
@@ -32,7 +33,7 @@ export function TodayPage() {
   if (!venue) {
     return (
       <div className={styles.page}>
-        <p className={styles.empty}>{t('owner.today.noVenues')}</p>
+        <EmptyState title={t('owner.today.noVenues')} />
         {can('venue.manage') && (
           <Link to="venues/new" className={styles.cta}>
             {t('owner.today.createVenue')}
@@ -102,7 +103,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
       <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
       <h2 className={styles.heading}>{t('owner.today.upcoming')}</h2>
       {upcoming.length === 0 ? (
-        <p className={styles.empty}>{t('owner.today.none')}</p>
+        <EmptyState size="sm" sport="padel" title={t('owner.today.none')} />
       ) : (
         <Table caption={t('owner.today.upcoming')}>
           <thead>

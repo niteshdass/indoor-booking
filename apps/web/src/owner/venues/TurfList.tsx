@@ -5,6 +5,7 @@ import { SPORTS, type Sport } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -45,7 +46,7 @@ export function TurfList({ venue }: { venue: OwnerVenue }) {
   return (
     <div className={styles.stack}>
       {turfs.length === 0 ? (
-        <p className={styles.muted}>{t('owner.venues.noTurfs')}</p>
+        <EmptyState sport="futsal" title={t('owner.venues.noTurfs')} />
       ) : (
         <Table caption={t('owner.venues.turfs')}>
           <thead>

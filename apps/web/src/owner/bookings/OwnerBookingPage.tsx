@@ -7,6 +7,7 @@ import { BookingStatusBadge, PaymentStatusBadge } from '../../bookings/BookingSt
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { SeriesBadge } from '../../series/SeriesBadge';
@@ -123,90 +124,97 @@ export function OwnerBookingPage() {
         onConflict={reload}
       />
 
-      <section className={styles.card} aria-label={t('owner.bookings.details')}>
-        <dl className={styles.facts}>
-          <Fact label={t('owner.venue')}>{venue?.name ?? '—'}</Fact>
-          <Fact label={t('owner.bookings.turf')}>{b.turf?.name ?? '—'}</Fact>
-          <Fact label={t('owner.bookings.date')}>{formatDate(b.businessDate, tz, lang)}</Fact>
-          <Fact label={t('owner.bookings.time')}>
-            {starts.length > 0 ? range(starts[0]!, ends[ends.length - 1]!) : '—'}
-          </Fact>
-          <Fact label={t('owner.bookings.source')}>
-            {b.source === 'walkin' ? t('owner.bookings.sourceWalkin') : t('owner.bookings.sourceOnline')}
-          </Fact>
-          <Fact label={t('owner.bookings.customer')}>{customerName}</Fact>
-          {b.customer?.phone && (
-            <Fact label={t('owner.bookings.phone')}>
-              <a href={`tel:${b.customer.phone}`} className={styles.link}>
-                {b.customer.phone}
-              </a>
-            </Fact>
-          )}
-          {b.customer?.email && <Fact label={t('owner.bookings.email')}>{b.customer.email}</Fact>}
-          {b.rejectReason && <Fact label={t('owner.bookings.reason.recorded')}>{b.rejectReason}</Fact>}
-          {b.cancelReason && <Fact label={t('owner.bookings.reason.recorded')}>{b.cancelReason}</Fact>}
-        </dl>
-      </section>
+      {/* Facts, payments and refunds on the left; the money summary is a sticky side card from lg */}
+      <div className={styles.layout}>
+        <div className={styles.main}>
+          <section className={styles.card} aria-label={t('owner.bookings.details')}>
+            <dl className={styles.facts}>
+              <Fact label={t('owner.venue')}>{venue?.name ?? '—'}</Fact>
+              <Fact label={t('owner.bookings.turf')}>{b.turf?.name ?? '—'}</Fact>
+              <Fact label={t('owner.bookings.date')}>{formatDate(b.businessDate, tz, lang)}</Fact>
+              <Fact label={t('owner.bookings.time')}>
+                {starts.length > 0 ? range(starts[0]!, ends[ends.length - 1]!) : '—'}
+              </Fact>
+              <Fact label={t('owner.bookings.source')}>
+                {b.source === 'walkin' ? t('owner.bookings.sourceWalkin') : t('owner.bookings.sourceOnline')}
+              </Fact>
+            </dl>
+            <dl className={[styles.facts, styles.group].join(' ')}>
+              <Fact label={t('owner.bookings.customer')}>{customerName}</Fact>
+              {b.customer?.phone && (
+                <Fact label={t('owner.bookings.phone')}>
+                  <a href={`tel:${b.customer.phone}`} className={styles.link}>
+                    {b.customer.phone}
+                  </a>
+                </Fact>
+              )}
+              {b.customer?.email && <Fact label={t('owner.bookings.email')}>{b.customer.email}</Fact>}
+              {b.rejectReason && <Fact label={t('owner.bookings.reason.recorded')}>{b.rejectReason}</Fact>}
+              {b.cancelReason && <Fact label={t('owner.bookings.reason.recorded')}>{b.cancelReason}</Fact>}
+            </dl>
+          </section>
 
-      <section className={styles.card} aria-label={t('owner.bookings.slots')}>
-        <h2 className={styles.heading}>{t('owner.bookings.slots')}</h2>
-        <dl className={styles.rows}>
-          {b.slots.map((s) => (
-            <div className={styles.row} key={s.startAt}>
-              <dt>{range(s.startAt, s.endAt)}</dt>
-              <dd>{fmt(s.price)}</dd>
-            </div>
-          ))}
-          {b.addons.map((a) => (
-            <div className={styles.row} key={a.addonId}>
-              <dt>{addonLabel(a, t)}</dt>
-              <dd>{fmt(a.total)}</dd>
-            </div>
-          ))}
-        </dl>
-        <dl className={[styles.rows, styles.totals].join(' ')}>
-          <Row label={t('owner.bookings.subtotal')} value={fmt(b.subtotal)} />
-          {b.addonsTotal > 0 && <Row label={t('owner.bookings.addons')} value={fmt(b.addonsTotal)} />}
-          <Row label={t('owner.bookings.total')} value={fmt(b.total)} strong />
-          {b.advanceRequired > 0 && <Row label={t('owner.bookings.advance')} value={fmt(b.advanceRequired)} />}
-          <Row label={t('owner.bookings.paid')} value={fmt(b.amountPaid)} />
-          {b.amountRefunded > 0 && <Row label={t('owner.bookings.refunded')} value={fmt(b.amountRefunded)} />}
-        </dl>
-      </section>
+          <section className={styles.section} aria-label={t('owner.bookings.payments')}>
+            <h2 className={styles.heading}>{t('owner.bookings.payments')}</h2>
+            {payments.length === 0 ? (
+              <EmptyState size="sm" sport="padel" title={t('owner.bookings.noPayments')} />
+            ) : (
+              <Table caption={t('owner.bookings.payments')}>
+                <thead>
+                  <tr>
+                    <th>{t('owner.bookings.payMethod')}</th>
+                    <th className={styles.num}>{t('owner.bookings.payAmount')}</th>
+                    <th>{t('owner.bookings.status')}</th>
+                    <th>{t('owner.bookings.payWhen')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p: PaymentJson) => (
+                    <tr key={p.id}>
+                      <td>{t(`cancel.method.${p.method}`)}</td>
+                      <td className={styles.num}>{money(p.amount, p.currency, lang)}</td>
+                      <td>
+                        <Badge tone={PAYMENT_TONE[p.status]}>{t(`owner.bookings.payStatus.${p.status}`)}</Badge>
+                      </td>
+                      <td className={styles.when}>
+                        {formatDate(p.createdAt, tz, lang)} {formatTime(p.createdAt, tz, lang)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </section>
 
-      <section className={styles.section} aria-label={t('owner.bookings.payments')}>
-        <h2 className={styles.heading}>{t('owner.bookings.payments')}</h2>
-        {payments.length === 0 ? (
-          <p className={styles.muted}>{t('owner.bookings.noPayments')}</p>
-        ) : (
-          <Table caption={t('owner.bookings.payments')}>
-            <thead>
-              <tr>
-                <th>{t('owner.bookings.payMethod')}</th>
-                <th>{t('owner.bookings.payAmount')}</th>
-                <th>{t('owner.bookings.status')}</th>
-                <th>{t('owner.bookings.payWhen')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((p: PaymentJson) => (
-                <tr key={p.id}>
-                  <td>{t(`cancel.method.${p.method}`)}</td>
-                  <td>{money(p.amount, p.currency, lang)}</td>
-                  <td>
-                    <Badge tone={PAYMENT_TONE[p.status]}>{t(`owner.bookings.payStatus.${p.status}`)}</Badge>
-                  </td>
-                  <td>
-                    {formatDate(p.createdAt, tz, lang)} {formatTime(p.createdAt, tz, lang)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        )}
-      </section>
+          <OwnerRefunds refunds={refunds} onChanged={reload} />
+        </div>
 
-      <OwnerRefunds refunds={refunds} onChanged={reload} />
+        <section className={[styles.card, styles.summary].join(' ')} aria-label={t('owner.bookings.slots')}>
+          <h2 className={styles.heading}>{t('owner.bookings.slots')}</h2>
+          <dl className={styles.rows}>
+            {b.slots.map((s) => (
+              <div className={styles.row} key={s.startAt}>
+                <dt>{range(s.startAt, s.endAt)}</dt>
+                <dd>{fmt(s.price)}</dd>
+              </div>
+            ))}
+            {b.addons.map((a) => (
+              <div className={styles.row} key={a.addonId}>
+                <dt>{addonLabel(a, t)}</dt>
+                <dd>{fmt(a.total)}</dd>
+              </div>
+            ))}
+          </dl>
+          <dl className={[styles.rows, styles.totals].join(' ')}>
+            <Row label={t('owner.bookings.subtotal')} value={fmt(b.subtotal)} />
+            {b.addonsTotal > 0 && <Row label={t('owner.bookings.addons')} value={fmt(b.addonsTotal)} />}
+            <Row label={t('owner.bookings.total')} value={fmt(b.total)} strong />
+            {b.advanceRequired > 0 && <Row label={t('owner.bookings.advance')} value={fmt(b.advanceRequired)} />}
+            <Row label={t('owner.bookings.paid')} value={fmt(b.amountPaid)} />
+            {b.amountRefunded > 0 && <Row label={t('owner.bookings.refunded')} value={fmt(b.amountRefunded)} />}
+          </dl>
+        </section>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  width: 100%;
+  max-width: var(--container-detail);
+  margin-inline: auto;
   padding: var(--space-4);
   min-width: 0;
 }
@@ -53,17 +56,18 @@
 .list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  display: grid;
+  grid-template-columns: var(--date-tile) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-xs);
@@ -81,48 +85,71 @@
   box-shadow: var(--focus-ring);
 }
 
-.top,
-.bottom {
+.day {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
+  justify-content: center;
+  align-self: stretch;
+  padding-block: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  line-height: var(--leading-heading);
+}
+
+.dayName {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.dayNum {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
 }
 
 .venue {
   min-width: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
 .meta {
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .time,
 .total {
-  font-size: var(--text-base);
   font-variant-numeric: tabular-nums;
 }
 
 .total {
+  font-size: var(--text-base);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
+  white-space: nowrap;
 }
 
-.empty {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-base);
-}
 
 .alert {
   display: flex;
@@ -140,6 +167,7 @@
 .badges {
   display: inline-flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--space-2);
 }

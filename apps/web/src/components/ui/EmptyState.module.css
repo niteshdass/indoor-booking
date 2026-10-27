@@ -1,0 +1,94 @@
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-10) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.bare {
+  background: none;
+  box-shadow: none;
+}
+
+/* The same court device as the result cards and the landing, so an empty list still looks like this product */
+.art {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surround);
+}
+
+.court {
+  display: block;
+  width: var(--empty-court);
+  border-radius: var(--radius-sm);
+  background: var(--court-blue);
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
+}
+
+.title {
+  max-width: 40ch;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+  text-wrap: balance;
+}
+
+.description {
+  max-width: 40ch;
+  margin: 0;
+  font-size: var(--text-base);
+  text-wrap: pretty;
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.sm {
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-4);
+}
+
+.sm .art {
+  margin-bottom: var(--space-2);
+  padding: var(--space-2);
+}
+
+.sm .court {
+  width: var(--empty-court-sm);
+}
+
+.sm .title {
+  font-family: inherit;
+  font-size: var(--text-md);
+}
+
+.sm .description {
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 639px) {
+  .empty {
+    padding: var(--space-8) var(--space-4);
+  }
+  .sm {
+    padding: var(--space-5) var(--space-3);
+  }
+}

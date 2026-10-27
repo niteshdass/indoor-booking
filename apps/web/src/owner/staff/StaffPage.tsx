@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { Tabs } from '../../components/ui/Tabs';
@@ -102,7 +103,7 @@ function MembersTab({ members, roles, onChanged }: { members: Member[]; roles: R
         <Button onClick={() => setCreating(true)}>{t('owner.staff.memberAdd')}</Button>
       </div>
       {members.length === 0 ? (
-        <p className={styles.muted}>{t('owner.staff.memberEmpty')}</p>
+        <EmptyState size="sm" bare sport="basketball" title={t('owner.staff.memberEmpty')} />
       ) : (
         <Table caption={t('owner.staff.tab.members')}>
           <thead>

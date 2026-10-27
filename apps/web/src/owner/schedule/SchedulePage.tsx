@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { apiGet } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
@@ -29,7 +30,7 @@ export function SchedulePage() {
   const { t } = useTranslation();
   const [venue] = useVenueParam();
   useOwnerTitle(t('owner.nav.schedule'));
-  if (!venue) return <p className={styles.empty}>{t('owner.today.noVenues')}</p>;
+  if (!venue) return <EmptyState title={t('owner.today.noVenues')} />;
   return (
     <div className={styles.page}>
       <VenueSelect />
@@ -96,7 +97,7 @@ function ScheduleVenue({ venue }: { venue: OwnerVenue }) {
   } else if (state.status === 'loading' || !layout) {
     body = <Skeleton kind="detail" label={t('common.loading')} />;
   } else if (state.data.turfs.length === 0) {
-    body = <p className={styles.empty}>{t('owner.schedule.noTurfs')}</p>;
+    body = <EmptyState sport="futsal" title={t('owner.schedule.noTurfs')} />;
   } else {
     body = (
       <>

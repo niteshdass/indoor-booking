@@ -72,6 +72,10 @@
   --container-checkout: 64rem; /* checkout page: extras plus the summary card */
   --container-detail: 42rem; /* booking detail and payment pages: one compact column */
   --receipt-width: 794px; /* PDF receipt: A4 width at 96dpi */
+  --filter-search-max: 28rem; /* widest the toolbar search grows */
+  --filter-panel-width: 24rem; /* filter dropdown under the filter icon */
+  --date-field-min: 8.5rem; /* narrowest a date field gets before a From/To pair stacks */
+  --fact-min: 8.5rem; /* narrowest column in a label-over-value fact grid */
   --field-min: 10rem;
   --map-height: 32rem;
   --demo-dot: 1.5rem; /* landing demo stepper dot */
@@ -83,10 +87,13 @@
   --result-min: 10rem; /* shortest search result card (rows) */
   --result-grid-min: 16rem; /* narrowest search result card column (grid) */
   --icon-sm: 1rem; /* inline icon next to small text */
-  --empty-court: 7.5rem; /* court drawing in an empty result list */
+  --icon-md: 1.125rem; /* glyph in an icon-only button */
+  --empty-court: 7.5rem; /* court drawing in an empty table or list (EmptyState) */
+  --empty-court-sm: 4.5rem; /* court drawing in a small EmptyState inside a section */
   --tab-underline: 2px;
   --gallery-height: 26rem; /* venue page photo mosaic from md */
   --gallery-tile: 85%; /* one photo in the phone gallery strip, so the next one peeks in */
+  --date-tile: 3.25rem; /* day tile at the start of a My bookings row */
   --court-thumb: 3.5rem; /* court drawing in a venue page court tab */
   --venue-map-height: 15rem; /* location map on the venue page */
   --avatar-sm: 2rem; /* reviewer initial disc */
@@ -135,7 +142,7 @@
   --shadow-ball: 0 6px 14px rgba(0, 0, 0, 0.3);
   --shadow-night: 0 30px 80px rgba(0, 0, 0, 0.45);
 
-  --shadow-xs: 0 1px 2px rgba(11, 20, 51, 0.04);
+  --shadow-xs: 0 1px 3px rgba(11, 20, 51, 0.07), 0 1px 2px rgba(11, 20, 51, 0.04);
   --shadow-sm: 0 2px 8px rgba(11, 20, 51, 0.06);
   --shadow-md: 0 12px 32px rgba(11, 20, 51, 0.1), 0 2px 8px rgba(11, 20, 51, 0.05);
   --shadow-lg: 0 24px 64px rgba(11, 20, 51, 0.18), 0 4px 16px rgba(11, 20, 51, 0.08);

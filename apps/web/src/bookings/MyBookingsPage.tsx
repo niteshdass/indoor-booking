@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'r
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { apiGet } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
@@ -130,18 +131,17 @@ export function MyBookingsPage() {
         )}
         {state.status === 'ready' &&
           (list.length === 0 ? (
-            <p className={styles.empty}>
-              {tab === 'upcoming' ? (
-                <>
-                  <span>{t('myBookings.noUpcoming')}</span>
+            <EmptyState
+              sport={tab === 'upcoming' ? 'padel' : 'tennis'}
+              title={t(tab === 'upcoming' ? 'myBookings.noUpcoming' : 'myBookings.noPast')}
+              action={
+                tab === 'upcoming' && (
                   <Button to="/search" variant="brand">
                     {t('myBookings.findVenues')}
                   </Button>
-                </>
-              ) : (
-                t('myBookings.noPast')
-              )}
-            </p>
+                )
+              }
+            />
           ) : (
             <ul className={styles.list}>
               {list.map((b) => (

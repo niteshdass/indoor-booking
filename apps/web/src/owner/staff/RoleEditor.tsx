@@ -4,6 +4,7 @@ import type { Permission } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Dialog } from '../../components/ui/Dialog';
 import { Table } from '../../components/ui/Table';
@@ -52,7 +53,7 @@ export function RoleEditor({ roles, onChanged }: Props) {
         <Button onClick={() => setCreating(true)}>{t('owner.staff.roleAdd')}</Button>
       </div>
       {roles.length === 0 ? (
-        <p className={styles.muted}>{t('owner.staff.roleEmpty')}</p>
+        <EmptyState size="sm" bare sport="basketball" title={t('owner.staff.roleEmpty')} />
       ) : (
         <Table caption={t('owner.staff.tab.roles')}>
           <thead>

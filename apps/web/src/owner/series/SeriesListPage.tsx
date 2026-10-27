@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { SERIES_STATUSES, type SeriesJson, type SeriesStatus } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
@@ -32,7 +33,7 @@ export function SeriesListPage() {
   const { t } = useTranslation();
   const [venue] = useVenueParam();
   useOwnerTitle(t('series.title'));
-  if (!venue) return <p className={styles.muted}>{t('owner.today.noVenues')}</p>;
+  if (!venue) return <EmptyState title={t('owner.today.noVenues')} />;
   return <SeriesVenue venue={venue} />;
 }
 
@@ -129,7 +130,7 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
       </Alert>
     );
   }
-  if (load.items.length === 0) return <p className={styles.muted}>{t('series.owner.empty')}</p>;
+  if (load.items.length === 0) return <EmptyState title={t('series.owner.empty')} />;
 
   return (
     <>

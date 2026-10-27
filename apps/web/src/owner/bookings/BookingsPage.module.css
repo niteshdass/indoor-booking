@@ -4,16 +4,206 @@
   gap: var(--space-4);
 }
 
+/* Search fills the row; every other filter sits in one dropdown behind the filter icon */
 .filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.search {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  max-width: var(--filter-search-max);
+}
+
+.searchIcon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.searchInput {
+  min-width: 0;
+  min-height: var(--control-lg);
+  padding-inline: calc(var(--space-3) + var(--icon-sm) + var(--space-2)) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  /* 16px so iOS does not zoom in on focus */
+  font-size: var(--text-md);
+}
+
+.searchInput::placeholder {
+  color: var(--text-subtle);
+}
+
+.searchInput:focus-visible {
+  border-color: var(--border-strong);
+}
+
+.filterRoot {
+  position: relative;
+  flex: none;
+}
+
+.filterButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-lg);
+  height: var(--control-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast),
+    border-color var(--duration-fast);
+}
+
+.filterButton:hover,
+.filterButton[aria-expanded='true'] {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.filterIcon {
+  width: var(--icon-md);
+  height: var(--icon-md);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Number of filters away from the default view, on the button's corner */
+.filterCount {
+  position: absolute;
+  top: calc(var(--space-1) * -1.5);
+  inset-inline-end: calc(var(--space-1) * -1.5);
+  min-width: var(--space-5);
+  height: var(--space-5);
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  line-height: var(--space-5);
+  text-align: center;
+}
+
+.panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  inset-inline-end: 0;
+  z-index: 30;
+  display: grid;
+  gap: var(--space-3);
+  width: min(var(--filter-panel-width), calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel {
+    animation: drop var(--duration-fast) var(--ease-out);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+/* From and To side by side; they stack when Russian labels or a narrow phone leave no room */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--date-field-min), 1fr));
   gap: var(--space-3);
 }
 
-@media (min-width: 768px) {
-  .filters {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+}
+
+.date {
+  min-width: 0;
+  min-height: var(--control-md);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.date:focus-visible {
+  border-color: var(--border-strong);
+}
+
+.date::-webkit-calendar-picker-indicator {
+  opacity: var(--opacity-muted);
+  cursor: pointer;
+}
+
+.panelFoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.count {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
 }
 
 .empty {
@@ -21,14 +211,177 @@
   color: var(--text-muted);
 }
 
+/* Header on a subtle band, labels in the default text colour at semibold so they read as headings */
+.list thead th {
+  padding-block: var(--space-3);
+  background: var(--bg-subtle);
+  border-bottom: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-default);
+  white-space: nowrap;
+}
+
+.list tbody td {
+  vertical-align: middle;
+}
+
 .link {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
   color: var(--primary);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.series {
+  margin-inline-start: var(--space-2);
+}
+
+.when {
+  white-space: nowrap;
+  color: var(--text-strong);
+}
+
+.customer {
   font-weight: var(--weight-medium);
+  color: var(--text-strong);
+}
+
+/* Money lines up on the right so amounts compare at a glance */
+tr > .num {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.total {
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.list tbody .zero {
+  color: var(--text-subtle);
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
 }
 
 .time {
   display: block;
+  margin-top: var(--space-1);
   font-size: var(--text-xs);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Below lg (sidebar hidden, too narrow for 7 columns) each booking is a ruled card instead of a row that scrolls sideways.
+   Reference (source under it) and badges on top, customer, when and court, then total and paid with small labels. */
+@media (max-width: 1023px) {
+  .head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .list,
+  .list tbody {
+    display: block;
+  }
+
+  .list tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'ref status'
+      'customer customer'
+      'when turf'
+      'total paid';
+    gap: var(--space-2) var(--space-3);
+    align-items: start;
+    padding: var(--space-4);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .list tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .list tbody td {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .list tbody .ref {
+    grid-area: ref;
+  }
+
+  .list tbody .status {
+    grid-area: status;
+  }
+
+  .list tbody .badges {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+
+  .list tbody .customer {
+    grid-area: customer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list tbody .when {
+    grid-area: when;
+    font-size: var(--text-sm);
+    white-space: normal;
+  }
+
+  .list tbody .when .time {
+    display: inline;
+    margin: 0;
+    margin-inline-start: var(--space-2);
+  }
+
+  .list tbody .turf {
+    grid-area: turf;
+    font-size: var(--text-sm);
+    text-align: end;
+  }
+
+  .list tbody .total,
+  .list tbody .paid {
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .list tbody .total {
+    grid-area: total;
+    text-align: start;
+  }
+
+  .list tbody .paid {
+    grid-area: paid;
+  }
+
+  .list tbody .total::before,
+  .list tbody .paid::before {
+    content: attr(data-label);
+    display: block;
+    font-size: var(--text-xs);
+    font-weight: var(--weight-regular);
+    color: var(--text-muted);
+  }
 }

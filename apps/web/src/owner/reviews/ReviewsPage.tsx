@@ -5,6 +5,7 @@ import { REVIEW_STARS, type OwnerReviewJson, type RatingSummary } from '@booking
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Dialog } from '../../components/ui/Dialog';
 import { Select } from '../../components/ui/Select';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -169,7 +170,7 @@ export function ReviewsPage() {
       </div>
 
       {rows.length === 0 ? (
-        <p className={styles.muted}>{t('owner.reviews.empty')}</p>
+        <EmptyState sport="basketball" title={t('owner.reviews.empty')} />
       ) : (
         <ul className={styles.list}>
           {rows.map((r) => (

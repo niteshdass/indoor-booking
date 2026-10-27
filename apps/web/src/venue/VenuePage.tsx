@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCourt } from '../landing/SportCourt';
 import { apiGet, ApiError } from '../lib/apiClient';
@@ -269,7 +270,7 @@ export function VenuePage() {
             />
           </>
         ) : (
-          <p className={styles.empty}>{t('venue.noTurfs')}</p>
+          <EmptyState size="sm" title={t('venue.noTurfs')} />
         )}
       </section>
 

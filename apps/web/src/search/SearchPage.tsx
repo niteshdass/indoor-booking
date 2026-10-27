@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Spinner } from '../components/ui/Spinner';
 import { Skeleton } from '../components/ui/Skeleton';
-import { SportCourt } from '../landing/SportCourt';
 import { errorMessage } from '../lib/errors';
 import { ResultCard, type ResultLayout } from './ResultCard';
 import { SearchForm } from './SearchForm';
@@ -196,18 +196,17 @@ export function SearchPage() {
               {loading && <Skeleton kind="list" label={t('common.loading')} />}
 
               {status === 'idle' && !hasMore && results.length === 0 && (
-                <div className={styles.empty}>
-                  <span className={styles.emptyArt} aria-hidden="true">
-                    <SportCourt sport="tennis" className={styles.emptyCourt} />
-                  </span>
-                  <h2 className={styles.emptyTitle}>{t('search.emptyTitle')}</h2>
-                  <p>{t('search.empty')}</p>
-                  {filtered && (
-                    <Button to="/search" variant="secondary" size="lg">
-                      {t('search.clearFilters')}
-                    </Button>
-                  )}
-                </div>
+                <EmptyState
+                  title={t('search.emptyTitle')}
+                  description={t('search.empty')}
+                  action={
+                    filtered && (
+                      <Button to="/search" variant="secondary" size="lg">
+                        {t('search.clearFilters')}
+                      </Button>
+                    )
+                  }
+                />
               )}
 
               {loadMoreButton}

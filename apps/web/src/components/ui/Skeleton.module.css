@@ -35,7 +35,7 @@
 .table {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xs);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   overflow: hidden;

@@ -57,7 +57,7 @@ describe('booking page, several days', () => {
     expect(within(section).getByText(/3 bookings made in one go/)).toBeInTheDocument();
     const links = within(section).getAllByRole('link');
     expect(links.map((a) => a.getAttribute('href'))).toEqual(['/me/bookings/b2', '/me/bookings/b3']);
-    expect(within(section).getByText(/Nov 3/)).toBeInTheDocument();
+    expect(within(section).getByLabelText(/Nov 3/)).toBeInTheDocument();
   });
 
   it('shows nothing extra for a single booking', async () => {

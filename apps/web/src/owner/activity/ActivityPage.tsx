@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
 import { apiGet } from '../../lib/apiClient';
@@ -70,7 +71,7 @@ export function ActivityPage() {
   return (
     <div className={styles.page}>
       {items.length === 0 ? (
-        <p className={styles.muted}>{t('owner.activity.empty')}</p>
+        <EmptyState sport="basketball" title={t('owner.activity.empty')} />
       ) : (
         <Table caption={t('owner.activity.title')}>
           <thead>

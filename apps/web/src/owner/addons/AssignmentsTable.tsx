@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { parseMoney } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Table } from '../../components/ui/Table';
@@ -29,7 +30,7 @@ type Props = {
 /** One row per catalogue add-on: switch it on for the venue or turf, optionally with its own price (and venue stock). */
 export function AssignmentsTable({ level, venue, turfId, addons, assignments, onChanged }: Props) {
   const { t } = useTranslation();
-  if (addons.length === 0) return <p className={styles.muted}>{t('owner.addons.assign.none')}</p>;
+  if (addons.length === 0) return <EmptyState size="sm" bare sport="volleyball" title={t('owner.addons.assign.none')} />;
   return (
     <div className={styles.stack}>
       <p className={styles.muted}>{t('owner.addons.offeredHint')}</p>

@@ -67,7 +67,7 @@ h2 {
     min-width: anchor-size(width);
     max-height: var(--picker-max);
     overflow-y: auto;
-    border: 1px solid var(--border-default);
+    border: 0;
     border-radius: var(--radius-md);
     background: var(--bg-surface);
     color: var(--text-strong);

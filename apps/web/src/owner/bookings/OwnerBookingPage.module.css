@@ -15,7 +15,7 @@
 .reference {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
   overflow-wrap: anywhere;
@@ -27,12 +27,36 @@
   gap: var(--space-2);
 }
 
+/* Main column and, from lg, a sticky money summary beside it */
+.layout {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) var(--side-card-width);
+  }
+
+  .summary {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+  }
+}
+
 .card {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-5);
-  border: 1px solid var(--border-default);
+  padding: var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-xs);
@@ -47,22 +71,23 @@
 
 .heading {
   margin: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   color: var(--text-strong);
 }
 
+/* As many fact columns as fit (2 on a phone, up to 5 on desktop) */
 .facts {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(var(--fact-min), 1fr));
+  gap: var(--space-3) var(--space-4);
   margin: 0;
 }
 
-@media (min-width: 768px) {
-  .facts {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* Customer facts under a hairline, apart from the booking facts */
+.group {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .fact {
@@ -73,7 +98,7 @@
 }
 
 .label {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -87,7 +112,7 @@
 .rows {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   margin: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -102,7 +127,7 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-1) var(--space-3);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--text-default);
 }
 
@@ -117,7 +142,23 @@
 }
 
 .strong {
+  padding-block: var(--space-1);
+  font-size: var(--text-md);
   font-weight: var(--weight-semibold);
+}
+
+.strong dt,
+.strong dd {
+  color: var(--text-strong);
+}
+
+tr > .num {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.when {
+  white-space: nowrap;
 }
 
 .muted {

@@ -45,7 +45,6 @@
   max-width: var(--container-text);
   margin-top: var(--space-8);
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   background: var(--bg-surface);
   box-shadow: var(--shadow-md);
@@ -474,7 +473,6 @@
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-xs);
@@ -543,8 +541,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
+  background: var(--bg-subtle);
 }
 
 .result > span:first-child {
@@ -863,16 +861,19 @@
   gap: var(--space-3);
   height: 100%;
   padding: var(--space-4);
-  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xs);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   color: var(--text-default);
   text-decoration: none;
-  transition: border-color var(--duration-fast);
+  transition:
+    background-color var(--duration-fast),
+    box-shadow var(--duration-fast);
 }
 
 .sport:hover {
-  border-color: var(--primary);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-sm);
 }
 
 .sport strong {
@@ -1045,7 +1046,6 @@
   min-width: 0;
   overflow: hidden;
   padding: var(--space-4);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   background: var(--bg-surface);
   box-shadow: var(--shadow-night);

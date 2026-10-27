@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Table } from '../../components/ui/Table';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
@@ -31,7 +32,7 @@ export function VenuesPage() {
         </div>
       )}
       {venues.length === 0 ? (
-        <p className={styles.muted}>{t('owner.venues.empty')}</p>
+        <EmptyState sport="futsal" title={t('owner.venues.empty')} />
       ) : (
         <Table caption={t('owner.nav.venues')}>
           <thead>

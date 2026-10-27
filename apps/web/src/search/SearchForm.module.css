@@ -9,7 +9,6 @@
   display: grid;
   gap: var(--space-1);
   padding: var(--space-1);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-xl);
   background: var(--bg-surface);
   box-shadow: var(--shadow-md);
@@ -273,7 +272,7 @@
   display: grid;
   gap: var(--space-6);
   padding: var(--space-6);
-  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xs);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
 }

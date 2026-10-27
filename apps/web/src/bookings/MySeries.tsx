@@ -56,6 +56,9 @@ function SeriesCard({ series, onChanged }: { series: PlayerSeries; onChanged: ()
   const next = nextGames(series.games, now);
   const cancellable = next.filter((g) => Date.parse(g.startAt) > now);
   const first = games[0];
+  const canWithdraw = series.status === 'requested';
+  const canCancel = series.status === 'active' && cancellable.length > 0;
+  const hasFoot = next.length > 0 || series.skipped.length > 0 || canWithdraw || canCancel;
   const time = first
     ? `${formatTime(first.startAt, tz, lang)} – ${formatTime(first.endAt, tz, lang)}`
     : series.pattern.startTime;
@@ -100,7 +103,7 @@ function SeriesCard({ series, onChanged }: { series: PlayerSeries; onChanged: ()
       </p>
 
       {series.status === 'requested' && series.respondBy && (
-        <Alert tone="info">{t('series.player.answerBy', { when: formatDateTime(series.respondBy, tz, lang) })}</Alert>
+        <p className={styles.note}>{t('series.player.answerBy', { when: formatDateTime(series.respondBy, tz, lang) })}</p>
       )}
       {series.status === 'declined' && series.declineReason && (
         <p className={styles.meta}>{t('series.player.reason', { reason: series.declineReason })}</p>
@@ -109,46 +112,51 @@ function SeriesCard({ series, onChanged }: { series: PlayerSeries; onChanged: ()
       {result && result.cancelled > 0 && <Alert tone="success">{t('series.player.cancelled', { count: result.cancelled })}</Alert>}
       {result && result.kept.length > 0 && <Alert tone="warning">{t('series.player.kept', { dates: result.kept.join(', ') })}</Alert>}
 
-      {next.length > 0 && (
-        <details className={styles.details}>
-          <summary className={styles.summary}>{t('series.player.nextGames', { count: next.length })}</summary>
-          <ul className={styles.games}>
-            {next.map((g) => (
-              <li key={g.id}>
-                <Link to={`/me/bookings/${encodeURIComponent(g.id)}`} className={styles.game}>
-                  <span className={styles.nums}>
-                    {formatDate(g.businessDate, 'UTC', lang)}, {formatTime(g.startAt, tz, lang)}
-                  </span>
-                  <BookingStatusBadge status={g.status} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      {series.skipped.length > 0 && (
-        <details className={styles.details}>
-          <summary className={styles.summary}>{t('series.player.skippedDates', { count: series.skipped.length })}</summary>
-          <ul className={styles.games}>
-            {series.skipped.map((k) => (
-              <li key={k.date} className={styles.game}>
-                <span>{formatDate(k.date, 'UTC', lang)}</span>
-                <span className={styles.muted}>{t(`series.reason.${k.reason}`)}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      {series.status === 'requested' && (
-        <Button variant="secondary" size="lg" loading={pending} onClick={withdraw}>
-          {t('series.player.withdraw')}
-        </Button>
-      )}
-      {series.status === 'active' && cancellable.length > 0 && (
-        <Button variant="danger" size="lg" disabled={pending} onClick={() => setConfirming(true)}>
-          {t('series.player.cancelFuture')}
-        </Button>
+      {hasFoot && (
+        <div className={styles.foot}>
+          <div className={styles.lists}>
+            {next.length > 0 && (
+              <details className={styles.details}>
+                <summary className={styles.summary}>{t('series.player.nextGames', { count: next.length })}</summary>
+                <ul className={styles.games}>
+                  {next.map((g) => (
+                    <li key={g.id}>
+                      <Link to={`/me/bookings/${encodeURIComponent(g.id)}`} className={styles.game}>
+                        <span className={styles.nums}>
+                          {formatDate(g.businessDate, 'UTC', lang)}, {formatTime(g.startAt, tz, lang)}
+                        </span>
+                        <BookingStatusBadge status={g.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {series.skipped.length > 0 && (
+              <details className={styles.details}>
+                <summary className={styles.summary}>{t('series.player.skippedDates', { count: series.skipped.length })}</summary>
+                <ul className={styles.games}>
+                  {series.skipped.map((k) => (
+                    <li key={k.date} className={styles.game}>
+                      <span>{formatDate(k.date, 'UTC', lang)}</span>
+                      <span className={styles.muted}>{t(`series.reason.${k.reason}`)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+          {canWithdraw && (
+            <Button variant="secondary" loading={pending} onClick={withdraw}>
+              {t('series.player.withdraw')}
+            </Button>
+          )}
+          {canCancel && (
+            <Button variant="danger" disabled={pending} onClick={() => setConfirming(true)}>
+              {t('series.player.cancelFuture')}
+            </Button>
+          )}
+        </div>
       )}
 
       <Dialog open={confirming} onClose={() => !pending && setConfirming(false)} title={t('series.player.cancelFutureTitle', { count: cancellable.length })}>

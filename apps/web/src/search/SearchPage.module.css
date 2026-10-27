@@ -106,51 +106,6 @@
   color: var(--text-muted);
 }
 
-.empty {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-3);
-  padding: var(--space-10) var(--space-6);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
-  text-align: center;
-  color: var(--text-muted);
-}
-
-/* The same court device as the result cards, so an empty list still looks like this product */
-.emptyArt {
-  display: grid;
-  place-items: center;
-  margin-bottom: var(--space-3);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--surround);
-}
-
-.emptyCourt {
-  display: block;
-  width: var(--empty-court);
-  border-radius: var(--radius-sm);
-  background: var(--court-blue);
-  fill: none;
-  stroke: var(--chalk);
-  stroke-width: var(--court-line);
-}
-
-.emptyTitle {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  color: var(--text-strong);
-}
-
-.empty p {
-  max-width: 36ch;
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-base);
-}
-
 .tools {
   display: flex;
   flex-wrap: wrap;

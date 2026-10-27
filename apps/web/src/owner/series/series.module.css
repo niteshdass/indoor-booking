@@ -60,7 +60,6 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-5);
-  border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
   box-shadow: var(--shadow-xs);

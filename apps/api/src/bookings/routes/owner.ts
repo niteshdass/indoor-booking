@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { BOOKING_STATUSES, localParts, paymentStatusFor, type BookingStatus } from '@booking/shared';
 import { normalizePhone } from '../../auth/normalize';
 import { nameSchema } from '../../auth/routes/emailAuth';
-import { User } from '../../auth/user.model';
 import type { Config } from '../../config';
 import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
@@ -101,10 +100,16 @@ const daysBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(f
 
 const tooEarly = () => new AppError(409, 'too_early', 'It is too early for this action');
 
-/** The registered player a walk-in names, or null; 400 player_not_found for an unknown id. */
-export async function walkinPlayerId(id: string | undefined): Promise<string | null> {
+/**
+ * The registered player a walk-in names, or null. Only a player who has already booked within the
+ * member's venues can be named (the same people the customer search offers), so staff cannot attach
+ * an arbitrary account and read its phone and email back; anyone else is 400 player_not_found.
+ */
+export async function walkinPlayerId(t: TenantContext, id: string | undefined): Promise<string | null> {
   if (id === undefined) return null;
-  const player = mongoose.isValidObjectId(id) ? await User.exists({ _id: id }) : null;
+  const player = mongoose.isValidObjectId(id)
+    ? await tenantRepo(Booking, t, { venueField: 'venueId' }).findOne({ playerId: id }).select('_id')
+    : null;
   if (!player) throw new AppError(400, 'player_not_found', 'No such player');
   return id;
 }
@@ -250,7 +255,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const input = walkinSchema.parse(req.body);
     const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
     const phone = normalizePhone(input.customer.phone);
-    const playerId = await walkinPlayerId(input.customer.playerId);
+    const playerId = await walkinPlayerId(t, input.customer.playerId);
     const now = services.now();
     const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'walkin' as const, now };
     const many = input.more.length > 0;

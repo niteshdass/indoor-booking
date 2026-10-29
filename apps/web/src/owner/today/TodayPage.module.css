@@ -257,6 +257,12 @@
   background: var(--warning-soft);
 }
 
+.due {
+  --legend-fill: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
 .walk {
   --legend-fill: var(--primary);
   border-color: var(--primary);

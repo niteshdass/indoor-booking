@@ -1,6 +1,9 @@
 import { Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Spinner } from '../components/ui/Spinner';
 import { errorMessage } from '../lib/errors';
 import { LAST_OWNER_KEY } from './OwnerProvider';
@@ -16,7 +19,7 @@ function lastOwner(): string | null {
   }
 }
 
-/** `/owner`: sends the user to their remembered team, or the first one. */
+/** `/owner`: sends the user to their remembered active team, or the first active one; otherwise says where things stand. */
 export function OwnerIndexPage() {
   const { t } = useTranslation();
   const { state } = useResource<{ memberships: OwnerMembership[] }>('/me/memberships');
@@ -32,11 +35,38 @@ export function OwnerIndexPage() {
   if (memberships.length === 0) {
     return (
       <div className={styles.state}>
-        <Alert tone="info">{t('owner.noTeams')}</Alert>
+        <EmptyState
+          title={t('owner.noTeams')}
+          description={t('owner.noTeamsHint')}
+          action={
+            <Button to="/list-your-venue" variant="brand">
+              {t('landing.owners.cta')}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+  const active = memberships.filter((m) => m.ownerStatus === 'active');
+  if (active.length === 0) {
+    // Only businesses waiting for approval or suspended: one card each, saying which.
+    return (
+      <div className={styles.state}>
+        {memberships.map((m) => (
+          <Alert key={m.ownerId} tone={m.ownerStatus === 'suspended' ? 'danger' : 'info'}>
+            <span className={styles.teamStatus}>
+              <strong>{m.ownerName}</strong>
+              <Badge tone={m.ownerStatus === 'suspended' ? 'danger' : 'warning'}>{t(`owner.status.${m.ownerStatus}`)}</Badge>
+            </span>
+            <p className={styles.teamNote}>
+              {m.ownerStatus === 'suspended' ? t('owner.suspendedNote') : t('owner.pendingNote')}
+            </p>
+          </Alert>
+        ))}
       </div>
     );
   }
   const last = lastOwner();
-  const target = memberships.find((m) => m.ownerId === last) ?? memberships[0]!;
+  const target = active.find((m) => m.ownerId === last) ?? active[0]!;
   return <Navigate to={`/owner/${target.ownerId}`} replace />;
 }

@@ -1,4 +1,4 @@
-import { InvalidCurrencyError, currencyExponent, type Locale } from '@booking/shared';
+import { InvalidCurrencyError, currencyExponent, type Locale, type OwnerStatus } from '@booking/shared';
 import { AppError } from '../errors';
 import { runInTransaction } from '../db';
 import { Owner, type OwnerDoc } from './owner.model';
@@ -12,6 +12,8 @@ export type CreateOwnerInput = {
   country: string;
   currency: string;
   locale?: Locale;
+  /** Defaults to active; self-registered owners start pending_approval. */
+  status?: OwnerStatus;
 };
 
 const invalidOwner = (message: string) => new AppError(400, 'invalid_owner', message);
@@ -45,6 +47,7 @@ export async function createOwner(
           country: input.country,
           defaultCurrency: input.currency,
           defaultLocale: input.locale ?? 'en',
+          status: input.status ?? 'active',
         },
       ],
       { session },

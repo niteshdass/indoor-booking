@@ -77,7 +77,7 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
     const { pattern, customer } = ownerSeriesSchema.parse(req.body);
     const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
     const phone = normalizePhone(customer.phone);
-    const playerId = await walkinPlayerId(customer.playerId);
+    const playerId = await walkinPlayerId(t, customer.playerId);
     const now = services.now();
     const out = await bookSeries({
       venue,

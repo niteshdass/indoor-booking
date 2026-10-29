@@ -754,6 +754,9 @@ async function main(): Promise<number> {
 
     const now = new Date();
     const passwordHash = await hashPassword(PASSWORD);
+    const admin = await newUser(`admin@${EMAIL_DOMAIN}`, 'Platform Admin', null, passwordHash);
+    admin.platformRoleId = (await systemRole('super_admin'))._id;
+    await admin.save();
     const players: Person[] = [];
     for (let i = 1; i <= PLAYER_COUNT; i++) {
       const name = i % 10 === 0 ? RU_NAMES[(i / 10 - 1) % RU_NAMES.length]! : `${world.pick(FIRST)} ${world.pick(LAST)}`;
@@ -783,6 +786,7 @@ async function main(): Promise<number> {
 
     console.log(`\nTotals: ${Object.entries(totals).map(([k, n]) => `${k} ${n}`).join(', ')}`);
     console.log(`\nSign in with password "${PASSWORD}":`);
+    console.log(`  admin   admin@${EMAIL_DOMAIN} (Super admin, /admin)`);
     console.log(`  owners  owner@${EMAIL_DOMAIN} (3 venues), owner2@${EMAIL_DOMAIN}, owner3 … owner${ownerCount}@${EMAIL_DOMAIN}`);
     console.log(`  staff   staff.owner@${EMAIL_DOMAIN}, staff.owner2@${EMAIL_DOMAIN}, staff.ownerN@… where the owner has a desk`);
     console.log(`  players player1 … player${PLAYER_COUNT}@${EMAIL_DOMAIN}`);

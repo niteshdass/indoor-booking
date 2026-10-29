@@ -57,3 +57,15 @@ export async function addMember(
   });
   return { userId, membershipId: membership.id as string, token };
 }
+
+/** A fresh user, optionally holding the Super admin platform role. */
+export async function seedUser(
+  services: AppServices,
+  opts: { name?: string; platformAdmin?: boolean } = {},
+): Promise<{ userId: string; token: string }> {
+  const created = await newUser(services, opts.name ?? 'Some User');
+  if (opts.platformAdmin) {
+    await User.updateOne({ _id: created.userId }, { $set: { platformRoleId: (await systemRole('super_admin'))._id } });
+  }
+  return created;
+}

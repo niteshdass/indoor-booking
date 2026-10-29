@@ -12,7 +12,7 @@ const PHONE_MIN_DIGITS = 3;
 
 export type CustomerJson = { name: string; phone: string; playerId: string | null };
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * People who have booked with this owner (within the member's venues) whose name or phone matches

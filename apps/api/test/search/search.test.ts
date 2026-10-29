@@ -165,6 +165,27 @@ describe('GET /api/v1/search', () => {
     expect(second.body.nextCursor).toBeNull();
   });
 
+  it('a filtered search reads in batches, not per turf', async () => {
+    for (let i = 0; i < 6; i++) {
+      const { venueId } = await listed(`Venue ${i}`);
+      await seedTurf(ownerId, venueId, { name: `Second ${i}`, pricing });
+      await seedTurf(ownerId, venueId, { name: `Third ${i}`, pricing });
+    }
+    let queries = 0;
+    mongoose.set('debug', () => {
+      queries++;
+    });
+    try {
+      const res = await search({ date: TODAY, available: 'true' });
+      expect(results(res)).toHaveLength(6);
+    } finally {
+      mongoose.set('debug', false);
+    }
+    // 18 turfs used to cost about 6 reads each; now one candidate read plus 4 for the wave.
+    expect(queries).toBeGreaterThanOrEqual(4);
+    expect(queries).toBeLessThanOrEqual(10);
+  });
+
   it('bad query → 400 validation_error', async () => {
     const res = await search({ radiusKm: '10' });
     expect(res.status).toBe(400);

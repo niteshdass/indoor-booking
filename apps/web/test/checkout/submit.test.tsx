@@ -24,7 +24,7 @@ const venue: PublicVenue = {
 const START = '2026-01-01T12:00:00.000Z';
 const PATH = `/venues/arena-one/checkout?turf=t1&date=2026-01-01&slots=${encodeURIComponent(START)}`;
 const MORE2 = '2026-01-02T09:00:00.000Z';
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 
 function qr(over: Partial<QuoteResponse> = {}, advance = 0): QuoteResponse {
   return {
@@ -123,7 +123,9 @@ describe('placing a booking', () => {
     await fillGuest(user);
     await user.click(screen.getByRole('button', { name: en.checkout.book }));
     await waitFor(() => expect(location().pathname).toBe('/lookup'));
-    expect(location().search).toBe('?reference=AB12CD&phone=%2B8801712345678&new=1');
+    expect(location().search).toBe('?reference=AB12CD&new=1');
+    // The phone rides in history state, so lookup still finds the booking without it in the URL.
+    await waitFor(() => expect(calls.find((c) => c.path === '/bookings/lookup')?.body).toEqual({ reference: 'AB12CD', phone: '+8801712345678' }));
     expect(createCalls(calls)[0]!.body).toEqual({
       date: '2026-01-01',
       startAts: [START],
@@ -223,6 +225,21 @@ describe('placing a booking', () => {
     expect(await screen.findByText(en.errors.generic)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: en.checkout.book }));
     await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
+  });
+
+  it('a retry of the same booking resends its Idempotency-Key', async () => {
+    const a = api(qr(), {
+      create: (_c: Call, n: number) =>
+        n === 0 ? { status: 500, body: { error: { code: 'internal', message: 'x' } } } : { status: 201, body: { booking: booking() } },
+    });
+    const { user, location } = renderApp(PATH, { user: player });
+    await user.click(await screen.findByRole('button', { name: en.checkout.book }));
+    expect(await screen.findByText(en.errors.generic)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.checkout.book }));
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
+    const [first, second] = createCalls(a.calls).map((c) => c.headers.get('Idempotency-Key'));
+    expect(first).toMatch(/^[A-Za-z0-9_-]{8,100}$/);
+    expect(second).toBe(first);
   });
 
   it('two rapid clicks send one create request', async () => {

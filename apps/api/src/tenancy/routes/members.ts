@@ -11,7 +11,7 @@ import { User } from '../../auth/user.model';
 import { logActivity } from '../activityLog.model';
 import { assertCanGrant, requirePermission, tenantOf, type TenantContext } from '../context';
 import { Membership } from '../membership.model';
-import { Role } from '../role.model';
+import { OWNER_SCOPE, Role } from '../role.model';
 import { Venue } from '../../venues/venue.model';
 
 const objectIdString = z.string().regex(/^[0-9a-f]{24}$/i, 'Must be an id');
@@ -46,7 +46,7 @@ type RoleLean = { _id: unknown; key?: string | null; name: string; system?: bool
 /** A role this owner may assign: one of its custom roles, or a system role other than owner. */
 async function assignableRole(t: TenantContext, roleId: string): Promise<RoleLean> {
   const role = mongoose.isValidObjectId(roleId)
-    ? await Role.findOne({ _id: roleId, ownerId: { $in: [t.ownerId, null] } }).lean()
+    ? await Role.findOne({ _id: roleId, ownerId: { $in: [t.ownerId, null] }, ...OWNER_SCOPE }).lean()
     : null;
   if (!role) throw new AppError(404, 'not_found', 'Role not found');
   if (role.system && role.key === 'owner') {

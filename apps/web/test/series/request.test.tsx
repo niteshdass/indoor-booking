@@ -9,7 +9,7 @@ import { setAccessToken } from '../../src/lib/apiClient';
 import type { PublicUser, PublicVenue, SlotDay } from '../../src/lib/types';
 import { seriesJson, seriesPreview } from '../owner/fixtures';
 
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 
 const venue: PublicVenue = {
   slug: 'arena-one',

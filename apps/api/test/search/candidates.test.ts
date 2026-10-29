@@ -10,7 +10,7 @@ import { Membership } from '../../src/tenancy/membership.model';
 import { Venue } from '../../src/venues/venue.model';
 import { Turf } from '../../src/venues/turf.model';
 import { parseSearchQuery } from '../../src/search/query';
-import { findCandidates } from '../../src/search/candidates';
+import { bboxFilter, findCandidates } from '../../src/search/candidates';
 
 beforeAll(async () => {
   await startTestDb();
@@ -63,6 +63,30 @@ describe('findCandidates', () => {
     await listed('Dhaka', { location: [90.41, 23.81] });
     const res = await findCandidates(parseSearchQuery({ bbox: '170,-25,-165,-5' }), 0, 10);
     expect(names(res)).toEqual(['Fiji', 'Samoa']);
+  });
+
+  it('a map box wider than a hemisphere still finds venues on both sides', async () => {
+    await listed('Dhaka', { location: [90.41, 23.81] });
+    await listed('Lima', { location: [-77.04, -12.05] });
+    await listed('Oslo', { location: [10.75, 59.91] });
+    const res = await findCandidates(parseSearchQuery({ bbox: '-120,-40,120,50' }), 0, 10);
+    expect(names(res).sort()).toEqual(['Dhaka', 'Lima']);
+  });
+
+  it('a venue just inside the edge of a wide box is kept', async () => {
+    // Mid-edge of a 90° wide parallel, where a plain great-circle edge would sag furthest.
+    await listed('Edge', { location: [45, 59.995] });
+    await listed('Outside', { location: [45, 60.005] });
+    const res = await findCandidates(parseSearchQuery({ bbox: '0,0,90,60' }), 0, 10);
+    expect(names(res)).toEqual(['Edge']);
+  });
+
+  it('a map box reads the location index', async () => {
+    await listed('Dhaka', { location: [90.41, 23.81] });
+    const plan = await Venue.find(bboxFilter({ west: 90.2, south: 23.6, east: 90.6, north: 24 }))
+      .setOptions({ crossTenant: true })
+      .explain('queryPlanner');
+    expect(JSON.stringify(plan)).toContain('location_2dsphere');
   });
 
   it('sorted by distance; radius excludes farther venues', async () => {

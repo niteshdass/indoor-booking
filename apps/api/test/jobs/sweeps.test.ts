@@ -26,6 +26,7 @@ import { runInTransaction } from '../../src/db';
 import {
   SWEEP_BATCH,
   autoCompleteBookings,
+  AUTO_COMPLETE_GRACE_HOURS,
   autoRejectPending,
   expireHolds,
   sendReminders,
@@ -313,10 +314,20 @@ describe('autoRejectPending', () => {
 });
 
 describe('autoCompleteBookings', () => {
+  const GRACE = AUTO_COMPLETE_GRACE_HOURS * 60 * MIN;
+
+  it('a game that just ended stays confirmed so staff can still mark a no-show', async () => {
+    await setup({});
+    const confirmed = await bookAs((await newPlayer()).token, '18:00');
+    advanceTo(new Date((await bookingOf(confirmed.id)).endAt.getTime() + MIN));
+    expect(await autoCompleteBookings(now())).toBe(0);
+    expect((await bookingOf(confirmed.id)).status).toBe('confirmed');
+  });
+
   it('auto-complete stamps completedAt with the sweep time', async () => {
     await setup({});
     const confirmed = await bookAs((await newPlayer()).token, '18:00');
-    advanceTo((await bookingOf(confirmed.id)).endAt);
+    advanceTo(new Date((await bookingOf(confirmed.id)).endAt.getTime() + GRACE));
     expect(await autoCompleteBookings(now())).toBe(1);
     expect((await bookingOf(confirmed.id)).completedAt).toEqual(now());
   });
@@ -330,11 +341,11 @@ describe('autoCompleteBookings', () => {
     expect(pending.status).toBe('pending');
     const end = (await bookingOf(confirmed.id)).endAt;
 
-    advanceTo(new Date(end.getTime() - MIN));
+    advanceTo(new Date(end.getTime() + GRACE - MIN));
     expect(await autoCompleteBookings(now())).toBe(0);
     expect((await bookingOf(confirmed.id)).status).toBe('confirmed');
 
-    advanceTo((await bookingOf(pending.id)).endAt);
+    advanceTo(new Date((await bookingOf(pending.id)).endAt.getTime() + GRACE));
     expect(await autoCompleteBookings(now())).toBe(1);
     expect((await bookingOf(confirmed.id)).status).toBe('completed');
     expect((await bookingOf(pending.id)).status).toBe('pending');

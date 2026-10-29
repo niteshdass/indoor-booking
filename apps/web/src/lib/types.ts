@@ -10,6 +10,8 @@ export type PublicUser = {
   phone: string | null;
   hasPassword: boolean;
   hasGoogle: boolean;
+  /** Holds a platform role: the Admin portal is open to them. */
+  platformAdmin: boolean;
 };
 
 export type AuthResponse = { user: PublicUser; accessToken: string; refreshToken: string };

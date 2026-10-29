@@ -19,6 +19,7 @@ const user: PublicUser = {
   phone: null,
   hasPassword: true,
   hasGoogle: false,
+  platformAdmin: false,
 };
 const authRes = { user, accessToken: 'fresh-token', refreshToken: 'r' };
 

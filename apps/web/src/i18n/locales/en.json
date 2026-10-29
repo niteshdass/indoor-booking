@@ -100,6 +100,7 @@
   "errors": {
     "generic": "Something went wrong. Please try again.",
     "network_error": "Can't reach the server. Check your connection and try again.",
+    "too_many_holds": "You have too many unpaid or unconfirmed bookings. Pay for or cancel one first.",
     "slot_taken": "Someone just took that slot. Please pick another.",
     "slot_unavailable": "One of the selected slots is no longer available.",
     "hold_expired": "Your hold has expired. Please start again.",
@@ -180,7 +181,11 @@
     "image_storage_full": "Your team's photo storage is full. Remove photos from other venues first.",
     "phone_in_use": "That phone number already has an account.",
     "email_not_set": "This account has no email address.",
-    "email_already_verified": "Your email is already verified."
+    "email_already_verified": "Your email is already verified.",
+    "invalid_status": "This business has already moved on to another status. Refresh the page.",
+    "cannot_change_admin": "Platform admin accounts cannot be changed here.",
+    "not_flagged": "This review is no longer flagged. Refresh the page.",
+    "application_pending": "Your business is already waiting for approval."
   },
   "myBookings": {
     "title": "My bookings",
@@ -211,7 +216,11 @@
       "body": "You'll need to sign in again to book courts or manage your venues.",
       "cancel": "Cancel"
     },
-    "notVerified": "Not verified"
+    "notVerified": "Not verified",
+    "listVenue": "List your venue",
+    "listVenueHint": "Run a club or arena? Take bookings here",
+    "adminPortal": "Admin portal",
+    "adminPortalHint": "Approve businesses, manage users and reviews"
   },
   "search": {
     "title": "Find a court",
@@ -576,7 +585,8 @@
       "noVenues": "Create a venue to start taking bookings.",
       "createVenue": "Create a venue",
       "courts": "Courts today",
-      "legendPaid": "Booked",
+      "legendPaid": "Paid",
+      "legendDue": "Payment due",
       "legendWaiting": "Waiting",
       "legendWalkIn": "Walk-in",
       "lastWeek": "Same day last week: {{n}}",
@@ -1487,7 +1497,10 @@
       "newWalkIn": "New walk-in",
       "seriesWaiting_one": "{{count}} request waiting",
       "seriesWaiting_other": "{{count}} requests waiting"
-    }
+    },
+    "noTeamsHint": "Run a club or arena? Apply to list it and take bookings here.",
+    "pendingNote": "Your application is waiting for a platform admin. We will let you in as soon as it is approved.",
+    "suspendedNote": "This business is suspended. Contact support to find out more."
   },
   "reviews": {
     "starsLabel": "{{value}} out of 5",
@@ -1717,5 +1730,201 @@
     "later": "Later",
     "done": "Your email is verified.",
     "dismiss": "Dismiss"
+  },
+  "admin": {
+    "noAccess": "This area is for platform admins only.",
+    "home": "Back to the home page",
+    "portal": "Admin portal",
+    "role": {
+      "super_admin": "Super Admin"
+    },
+    "search": "Search",
+    "reason": "Reason",
+    "cancel": "Cancel",
+    "loadMore": "Show more",
+    "nav": {
+      "label": "Admin",
+      "overview": "Overview",
+      "owners": "Businesses",
+      "users": "Users",
+      "reviews": "Reviews",
+      "activity": "Activity"
+    },
+    "shell": {
+      "ownersWaiting_one": "{{count}} business waiting for approval",
+      "ownersWaiting_other": "{{count}} businesses waiting for approval",
+      "flagsOpen_one": "{{count}} flagged review",
+      "flagsOpen_other": "{{count}} flagged reviews"
+    },
+    "overview": {
+      "businesses": "Active businesses",
+      "businessesHint": "{{pending}} waiting · {{suspended}} suspended",
+      "users": "Users",
+      "usersHint_one": "{{n}} new in {{days}} days",
+      "usersHint_other": "{{n}} new in {{days}} days",
+      "venues": "Published venues",
+      "venuesHint": "of {{total}} venues",
+      "bookings": "Bookings, {{days}} days",
+      "earned": "Earned, {{days}} days",
+      "flags": "Flagged reviews",
+      "flagsHint": "Waiting for a decision",
+      "trend": "{{pct}}% vs previous {{days}} days",
+      "pending": "Waiting for approval",
+      "newest": "Newest businesses",
+      "seeAll": "See all",
+      "noPending": "Nobody is waiting for approval.",
+      "noOwners": "No businesses yet."
+    },
+    "owners": {
+      "filter": "Business status",
+      "all": "All",
+      "search": "Business, owner name or email",
+      "empty": "No businesses here yet.",
+      "noMatch": "No businesses match that search.",
+      "applied": "applied {{date}}",
+      "venuesValue": "{{published}} of {{total}}",
+      "col": {
+        "business": "Business",
+        "contact": "Owner",
+        "status": "Status",
+        "venues": "Published venues",
+        "bookings": "Bookings, 30 days",
+        "joined": "Joined"
+      }
+    },
+    "owner": {
+      "back": "All businesses",
+      "approve": "Approve",
+      "suspend": "Suspend",
+      "reactivate": "Reactivate",
+      "pendingNote": "This business applied to list its venues. Approving lets its team publish venues and take bookings.",
+      "suspendedNote": "Suspended: its venues are hidden and its team cannot sign in to the owner portal.",
+      "country": "Country",
+      "currency": "Currency",
+      "joined": "Joined",
+      "members": "Team members",
+      "bookings": "Bookings, {{days}} days",
+      "earned": "Earned, {{days}} days",
+      "venues": "Venues",
+      "noVenues": "No venues yet.",
+      "published": "Published",
+      "draft": "Draft",
+      "contacts": "Owners",
+      "noContacts": "No active owner.",
+      "history": "History",
+      "noHistory": "No platform actions yet.",
+      "col": {
+        "venue": "Venue",
+        "courts": "Courts",
+        "rating": "Rating",
+        "state": "State"
+      },
+      "approveTitle": "Approve {{name}}?",
+      "approveBody": "The team can publish venues and take bookings straight away.",
+      "suspendTitle": "Suspend {{name}}?",
+      "suspendBody": "Its venues leave search, new bookings stop and its team loses access to the owner portal. Existing bookings stay as they are. The reason is kept in the history.",
+      "reactivateTitle": "Reactivate {{name}}?",
+      "reactivateBody": "Its published venues come back to search and its team can work again."
+    },
+    "users": {
+      "filter": "Account status",
+      "status": {
+        "all": "All",
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "search": "Name, email or phone",
+      "empty": "No users here.",
+      "noMatch": "No users match that search.",
+      "admin": "Admin",
+      "disable": "Disable",
+      "enable": "Enable",
+      "disableTitle": "Disable {{name}}?",
+      "disableBody": "They are signed out everywhere and cannot sign in until enabled again. Their bookings stay.",
+      "enableTitle": "Enable {{name}}?",
+      "enableBody": "They can sign in again.",
+      "col": {
+        "name": "Name",
+        "contact": "Contact",
+        "teams": "Teams",
+        "joined": "Joined",
+        "status": "Status",
+        "actions": "Actions"
+      }
+    },
+    "reviews": {
+      "filter": "Review queue",
+      "tab": {
+        "flagged": "Flagged",
+        "hidden": "Hidden",
+        "kept": "Kept"
+      },
+      "state": {
+        "flagged": "Flagged",
+        "hidden": "Hidden",
+        "kept": "Kept",
+        "visible": "Visible"
+      },
+      "empty": {
+        "flagged": "No flagged reviews. All clear.",
+        "hidden": "No hidden reviews.",
+        "kept": "No kept reviews."
+      },
+      "label": "Review of {{venue}}",
+      "anonymous": "Player",
+      "noComment": "No comment, stars only.",
+      "flagged": "Flagged by {{by}} on {{date}}",
+      "reply": "Owner reply",
+      "hide": "Hide",
+      "keep": "Keep",
+      "hideTitle": "Hide this review?",
+      "hideBody": "It disappears from the venue page and stops counting towards the rating. This cannot be undone.",
+      "keepTitle": "Keep this review?",
+      "keepBody": "The flag is cleared and the review cannot be flagged again."
+    },
+    "activity": {
+      "empty": "Nothing has happened yet.",
+      "removed": "(removed)",
+      "col": {
+        "time": "Time",
+        "actor": "Who",
+        "action": "What",
+        "reason": "Reason"
+      },
+      "action": {
+        "owner": {
+          "applied": "{{target}} applied",
+          "approved": "Approved {{target}}",
+          "suspended": "Suspended {{target}}",
+          "reactivated": "Reactivated {{target}}"
+        },
+        "user": {
+          "disabled": "Disabled {{target}}",
+          "enabled": "Enabled {{target}}"
+        },
+        "review": {
+          "hidden": "Hid a review of {{target}}",
+          "kept": "Kept a review of {{target}}"
+        }
+      }
+    }
+  },
+  "apply": {
+    "title": "List your venue",
+    "lead": "Tell us about your business. Once a platform admin approves it, you can add venues and take bookings.",
+    "name": "Business name",
+    "nameHint": "The name players see, e.g. your club or arena.",
+    "country": "Country",
+    "currency": "Currency",
+    "currencyHint": "Prices and payouts use this currency.",
+    "language": "Language for your team",
+    "locale": {
+      "en": "English",
+      "ru": "Русский"
+    },
+    "choose": "Choose…",
+    "submit": "Send application",
+    "review": "We usually review applications within a day.",
+    "seeStatus": "See its status"
   }
 }

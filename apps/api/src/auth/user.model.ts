@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema(
     phoneVerified: { type: Boolean, default: false },
     googleSub: { type: String },
     status: { type: String, enum: ['active', 'disabled'], default: 'active' },
+    /** A platform-scope Role (Super Admin); platform access never comes from a Membership. */
+    platformRoleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', default: null },
   },
   { timestamps: true },
 );
@@ -36,6 +38,7 @@ export type PublicUser = {
   phone: string | null;
   hasPassword: boolean;
   hasGoogle: boolean;
+  platformAdmin: boolean;
 };
 
 export function toPublicUser(doc: UserDoc): PublicUser {
@@ -47,6 +50,7 @@ export function toPublicUser(doc: UserDoc): PublicUser {
     phone: doc.phone ?? null,
     hasPassword: Boolean(doc.passwordHash),
     hasGoogle: Boolean(doc.googleSub),
+    platformAdmin: doc.platformRoleId != null,
   };
 }
 

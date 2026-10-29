@@ -10,7 +10,7 @@ import { renderApp } from '../helpers/render';
 import { money } from '../../src/lib/format';
 import type { BookingJson, CancellationPreview, PublicUser } from '../../src/lib/types';
 
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 
 const booking = (over: Partial<BookingJson> = {}) =>
   ({

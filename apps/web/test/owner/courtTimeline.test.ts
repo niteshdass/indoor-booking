@@ -9,9 +9,9 @@ describe('buildLanes', () => {
   it('groups live bookings by court in venue time and skips dead ones', () => {
     const { lanes, from, to } = buildLanes(
       [
-        ownerBooking({ id: 'a', turfId: 't2', turf: { name: 'Court B' }, status: 'confirmed' }),
+        ownerBooking({ id: 'a', turfId: 't2', turf: { name: 'Court B' }, status: 'confirmed', paymentStatus: 'paid' }),
         ownerBooking({ id: 'b', turfId: 't1', turf: { name: 'Court A' }, status: 'pending' }),
-        ownerBooking({ id: 'c', turfId: 't1', turf: { name: 'Court A' }, status: 'confirmed', source: 'walkin' }),
+        ownerBooking({ id: 'c', turfId: 't1', turf: { name: 'Court A' }, status: 'confirmed', source: 'walkin', paymentStatus: 'paid' }),
         ownerBooking({ id: 'd', turfId: 't1', turf: { name: 'Court A' }, status: 'cancelled' }),
       ],
       TZ,
@@ -22,6 +22,19 @@ describe('buildLanes', () => {
     ]);
     expect(lanes[0]!.blocks[0]).toMatchObject({ start: 10, end: 11 }); // 04:00Z = 10:00 in Dhaka
     expect([from, to]).toEqual([8, 23]);
+  });
+
+  it('marks a going-ahead booking with money still to collect as due, never as paid', () => {
+    const { lanes } = buildLanes(
+      [
+        ownerBooking({ id: 'online', status: 'confirmed', paymentStatus: 'unpaid' }),
+        ownerBooking({ id: 'walk', status: 'confirmed', source: 'walkin', paymentStatus: 'partially_paid' }),
+        ownerBooking({ id: 'done', status: 'completed', paymentStatus: 'unpaid' }),
+        ownerBooking({ id: 'free', status: 'confirmed', paymentStatus: 'unpaid', total: 0 }),
+      ],
+      TZ,
+    );
+    expect(lanes[0]!.blocks.map((b) => `${b.id}:${b.kind}`)).toEqual(['online:due', 'walk:due', 'done:due', 'free:ok']);
   });
 
   it('widens the axis for early bookings and reads a midnight end as 24', () => {

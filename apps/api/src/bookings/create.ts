@@ -49,6 +49,8 @@ export type CreateBookingInput = QuoteInput & {
    * `link` payment is inserted. An omitted amount means the whole total.
    */
   card?: { amount?: number; gateway: string; gatewayAccountId: string; gatewayMode: 'test' | 'live' };
+  /** Stored on the booking; a second booking with the same key fails on the unique index (keyHas 'requestKey'). */
+  requestKey?: string;
   /** Runs inside the creating transaction after the inserts, e.g. to log activity atomically. */
   afterInsert?: (session: ClientSession, booking: BookingDoc, payment: PaymentDoc | null) => Promise<void>;
 };
@@ -177,7 +179,7 @@ export async function quoteFor(
  * sees the winner. Does not log activity; staff routes do that.
  */
 export async function createBooking(input: CreateBookingInput): Promise<BookingDoc> {
-  const { venue, turf, selection, source, now, who, cash, card, afterInsert } = input;
+  const { venue, turf, selection, source, now, who, cash, card, requestKey, afterInsert } = input;
   let prepared: Awaited<ReturnType<typeof prepare>>;
   try {
     prepared = await prepare(input);
@@ -250,6 +252,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             guest: who.guest,
             policySnapshot: { paymentPolicy: settings.paymentPolicy, refundRules: settings.refundRules },
             createdBy: who.createdBy,
+            requestKey,
             // The app clock, not the wall clock: the reminder sweep compares it with startAt.
             createdAt: now,
           },
@@ -367,6 +370,8 @@ export type CreateGroupInput = GroupInput & {
    * LINK_HOLD_MINUTES with a pending `link` payment of its total, the rows sharing the groupId.
    */
   card?: Omit<NonNullable<CreateBookingInput['card']>, 'amount'>;
+  /** Stored on the first booking only (see CreateBookingInput). */
+  requestKey?: string;
   /** Runs inside the creating transaction after each booking's inserts. */
   afterInsert?: CreateBookingInput['afterInsert'];
 };
@@ -378,7 +383,7 @@ export type CreateGroupInput = GroupInput & {
  * staff book walk-ins, optionally taking cash or handing over one payment link.
  */
 export async function createBookingGroup(input: CreateGroupInput): Promise<BookingDoc[]> {
-  const { venue, now, who, cash, card, afterInsert } = input;
+  const { venue, now, who, cash, card, requestKey, afterInsert } = input;
   const source = input.source ?? 'online';
   const days = await prepareGroup(input);
   const { ownerId } = days[0]!;
@@ -446,6 +451,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
               policySnapshot: { paymentPolicy: d.settings.paymentPolicy, refundRules: d.settings.refundRules },
               createdBy: who.createdBy,
               groupId,
+              requestKey: bookings.length === 0 ? requestKey : undefined,
               createdAt: now,
             },
           ],

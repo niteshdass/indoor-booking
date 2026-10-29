@@ -15,6 +15,7 @@ const user: PublicUser = {
   phone: '+8801712345678',
   hasPassword: true,
   hasGoogle: true,
+  platformAdmin: false,
 };
 
 beforeEach(async () => {

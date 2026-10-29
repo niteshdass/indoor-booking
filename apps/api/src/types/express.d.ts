@@ -1,3 +1,4 @@
+import type { PlatformContext } from '../admin/context';
 import type { TenantContext } from '../tenancy/context';
 
 declare global {
@@ -7,6 +8,8 @@ declare global {
       auth?: { userId: string };
       /** Set by requireTenant. */
       tenant?: TenantContext;
+      /** Set by requirePlatform. */
+      platform?: PlatformContext;
     }
   }
 }

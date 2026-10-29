@@ -445,3 +445,10 @@
 .topAction {
   flex-shrink: 0;
 }
+
+/* The same header card, shown as a label (the Admin portal has no team to switch). */
+.switcherButton.static,
+.switcherButton.static:hover {
+  cursor: default;
+  background: var(--bg-subtle);
+}

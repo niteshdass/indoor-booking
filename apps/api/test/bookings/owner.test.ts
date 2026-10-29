@@ -4,7 +4,7 @@ import { hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { addMember, bearer, seedOwner } from '../helpers/tenancy';
-import { seedTurf, seedVenue } from '../helpers/venues';
+import { seedCustomer, seedTurf, seedVenue } from '../helpers/venues';
 import { signAccessToken } from '../../src/auth/jwt';
 import { User } from '../../src/auth/user.model';
 import { Owner } from '../../src/tenancy/owner.model';
@@ -156,7 +156,16 @@ describe('walk-in with cash', () => {
     expect(unknown.status).toBe(400);
     expect(unknown.body.error.code).toBe('player_not_found');
 
+    // A real account that has never booked here cannot be attached: staff would read its phone and email.
     const player = await User.create({ name: 'Player', email: 'p@test.local' });
+    const stranger = await walkin(staff.token, {
+      startAts: [at('10:00').toISOString()],
+      customer: { name: 'X', phone: PHONE, playerId: player.id },
+    });
+    expect(stranger.status).toBe(400);
+    expect(stranger.body.error.code).toBe('player_not_found');
+
+    await seedCustomer(a.ownerId, v1, t1, player.id as string);
     const linked = await walkin(staff.token, {
       startAts: [at('10:00').toISOString()],
       customer: { name: 'X', phone: PHONE, playerId: player.id },
@@ -164,7 +173,7 @@ describe('walk-in with cash', () => {
     expect(linked.status).toBe(201);
     const token = await signAccessToken(player.id as string, ctx.config.jwtSecret, ctx.services.now());
     const mine = await api().get('/api/v1/me/bookings').set(...bearer(token));
-    expect(mine.body.bookings.map((b: { id: string }) => b.id)).toEqual([linked.body.booking.id]);
+    expect(mine.body.bookings.map((b: { id: string }) => b.id)).toContain(linked.body.booking.id);
   });
 
   it('rejects a bad cash amount and a taken slot', async () => {

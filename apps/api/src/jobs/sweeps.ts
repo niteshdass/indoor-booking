@@ -18,6 +18,8 @@ export const sweepConfig = { batch: SWEEP_BATCH };
 export const REMINDER_LEAD_MINUTES = 120;
 export const HOLD_WARNING_MINUTES = 10;
 export const REVIEW_REQUEST_DELAY_MINUTES = 180;
+/** How long after a game ends staff can still mark it a no-show before it auto-completes. */
+export const AUTO_COMPLETE_GRACE_HOURS = 12;
 /** Matches REVIEW_WINDOW_DAYS: no point asking once the review window has closed. */
 const REVIEW_REQUEST_MAX_DAYS = REVIEW_WINDOW_DAYS;
 /** Stored on the booking for staff; the customer's notice is worded by its template, per locale. */
@@ -136,9 +138,10 @@ export async function autoRejectPending(now: Date): Promise<number> {
   );
 }
 
-/** Completes confirmed bookings once they have ended. */
+/** Completes confirmed bookings AUTO_COMPLETE_GRACE_HOURS after they end; until then staff can mark a no-show. */
 export async function autoCompleteBookings(now: Date): Promise<number> {
-  return sweep('autoCompleteBookings', { status: 'confirmed', endAt: { $lte: now } }, 'endAt', async (b, session) => {
+  const cutoff = new Date(now.getTime() - AUTO_COMPLETE_GRACE_HOURS * 3_600_000);
+  return sweep('autoCompleteBookings', { status: 'confirmed', endAt: { $lte: cutoff } }, 'endAt', async (b, session) => {
     await transition(system(b), b, 'completed', now, session);
     return true;
   });

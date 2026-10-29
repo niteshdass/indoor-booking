@@ -1,7 +1,7 @@
 import { Router, type RequestHandler } from 'express';
 import { SPORTS, localParts, type SearchResponse, type SearchResult } from '@booking/shared';
 import type { AppServices } from '../services';
-import { inWindow, loadDay } from '../schedule/load';
+import { dayBatch, inWindow, loadDay, type DaySources } from '../schedule/load';
 import { ratingJson } from '../reviews/rating';
 import { findCandidates, type Candidate } from './candidates';
 import { parseSearchQuery, type SearchQuery } from './query';
@@ -10,7 +10,7 @@ import { summarizeDay, type DaySummary } from './summarize';
 /** How many candidate venues one request reads; tests lower it to exercise paging. */
 export const searchConfig = { scanBatch: 100 };
 
-/** Venues whose days are loaded at once. */
+/** Venues whose days are loaded at once, with one batch of reads (dayBatch) per wave. */
 const CONCURRENCY = 8;
 
 /** Unauthenticated venue search across every owner. */
@@ -27,11 +27,16 @@ export function searchRouter(services: AppServices, limiter?: RequestHandler): R
     const out: SearchResult[] = [];
     let walked = 0;
     while (walked < candidates.length && out.length < q.limit) {
+      const batch = candidates.slice(walked, walked + CONCURRENCY).map((c) => ({
+        c,
+        date: q.date ?? localParts(now, c.venue.timezone).date,
+      }));
+      const sources = await dayBatch(
+        batch.map(({ c, date }) => ({ ownerId: String(c.venue.ownerId), venue: c.venue, turfs: c.turfs, date })),
+        now,
+      );
       const wave = await Promise.all(
-        candidates.slice(walked, walked + CONCURRENCY).map(async (c) => {
-          const date = q.date ?? localParts(now, c.venue.timezone).date;
-          return { c, date, summary: await summarize(c, date, q, now) };
-        }),
+        batch.map(async ({ c, date }) => ({ c, date, summary: await summarize(c, date, q, now, sources) })),
       );
       for (const { c, date, summary } of wave) {
         if (out.length >= q.limit) break;
@@ -49,11 +54,11 @@ export function searchRouter(services: AppServices, limiter?: RequestHandler): R
   return router;
 }
 
-async function summarize(c: Candidate, date: string, q: SearchQuery, now: Date): Promise<DaySummary> {
+async function summarize(c: Candidate, date: string, q: SearchQuery, now: Date, sources: DaySources): Promise<DaySummary> {
   const ownerId = String(c.venue.ownerId);
   const days = await Promise.all(
     c.turfs.map(async (turf) => {
-      const { day, settings } = await loadDay(ownerId, c.venue, turf, date, now);
+      const { day, settings } = await loadDay(ownerId, c.venue, turf, date, now, sources);
       return {
         turfId: turf.id as string,
         turfName: turf.name,

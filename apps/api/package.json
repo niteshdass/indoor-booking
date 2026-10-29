@@ -9,6 +9,7 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "create-owner": "tsx --env-file-if-exists=../../.env src/scripts/createOwner.ts",
+    "platform-admin": "tsx --env-file-if-exists=../../.env src/scripts/platformAdmin.ts",
     "seed": "tsx --env-file-if-exists=../../.env src/scripts/seed.ts"
   },
   "dependencies": {

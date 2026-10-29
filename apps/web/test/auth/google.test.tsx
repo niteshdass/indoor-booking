@@ -15,6 +15,7 @@ const user: PublicUser = {
   phone: null,
   hasPassword: false,
   hasGoogle: true,
+  platformAdmin: false,
 };
 
 type Init = { client_id: string; callback(r: { credential: string }): void };

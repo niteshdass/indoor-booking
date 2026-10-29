@@ -83,7 +83,7 @@ describe('player booking JSON', () => {
       .send({ date: D, startAts: [at('19:00')], guest: { name: 'Guest', phone: PHONE } });
     expect(g.status).toBe(201);
     expect(g.body.booking.turf.name).toBe('Court 2');
-    const look = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: g.body.booking.reference, phone: PHONE });
+    const look = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: g.body.booking.reference, phone: PHONE });
     expect(look.body.booking.turf.name).toBe('Court 2');
   });
 

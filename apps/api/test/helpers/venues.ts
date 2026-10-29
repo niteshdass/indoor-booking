@@ -1,6 +1,7 @@
 import type { Sport, TurfPricing } from '@booking/shared';
 import { Venue, type VenueDoc } from '../../src/venues/venue.model';
 import { Turf, type TurfDoc } from '../../src/venues/turf.model';
+import { Booking } from '../../src/bookings/booking.model';
 
 let seq = 0;
 
@@ -58,5 +59,36 @@ export async function seedTurf(
     active: over.active ?? true,
     settings: over.settings ?? {},
     pricing: over.pricing ?? null,
+  });
+}
+
+/**
+ * A long-past cancelled booking of `playerId` at the turf, inserted directly: makes the player one of
+ * the venue's customers, whom staff may then name on a walk-in or series.
+ */
+export async function seedCustomer(ownerId: string, venueId: string, turfId: string, playerId: string): Promise<void> {
+  seq += 1;
+  const startAt = new Date('2020-01-01T10:00:00Z');
+  const endAt = new Date('2020-01-01T11:00:00Z');
+  await Booking.create({
+    ownerId,
+    venueId,
+    turfId,
+    reference: `PAST${seq}`,
+    businessDate: '2020-01-01',
+    startAt,
+    endAt,
+    slots: [{ startAt, endAt, price: 1000 }],
+    currency: 'BDT',
+    subtotal: 1000,
+    addonsTotal: 0,
+    total: 1000,
+    advanceRequired: 0,
+    status: 'cancelled',
+    paymentStatus: 'unpaid',
+    source: 'online',
+    playerId,
+    guest: null,
+    policySnapshot: { paymentPolicy: { type: 'none' }, refundRules: [] },
   });
 }

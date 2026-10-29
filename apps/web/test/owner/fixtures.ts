@@ -26,6 +26,7 @@ export const staffUser: PublicUser = {
   phone: null,
   hasPassword: true,
   hasGoogle: false,
+  platformAdmin: false,
 };
 
 export function membership(over: Partial<Membership> = {}): Membership {

@@ -15,6 +15,7 @@ const user: PublicUser = {
   phone: '+8801712345678',
   hasPassword: true,
   hasGoogle: false,
+  platformAdmin: false,
 };
 const otpSent = { expiresInSec: 300, resendInSec: 60 };
 const message = en.verifyEmail.message.replace('{{email}}', 'ada@example.com');

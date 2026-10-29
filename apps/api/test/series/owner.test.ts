@@ -4,7 +4,7 @@ import { hmToMin, localToUtc, type SeriesPattern } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { addMember, bearer, seedOwner } from '../helpers/tenancy';
-import { seedTurf, seedVenue } from '../helpers/venues';
+import { seedCustomer, seedTurf, seedVenue } from '../helpers/venues';
 import { signAccessToken } from '../../src/auth/jwt';
 import { User } from '../../src/auth/user.model';
 import { Owner } from '../../src/tenancy/owner.model';
@@ -73,6 +73,7 @@ beforeEach(async () => {
   manager = await addMember(ctx.services, a.ownerId, { roleKey: 'manager', venueIds: [v1] });
   const u = await User.create({ name: 'Rahim', email: `p${Math.random()}@test.local`, emailVerified: true });
   player = { userId: u.id as string, email: u.email!, token: '' };
+  await seedCustomer(a.ownerId, v1, t1, player.userId);
   await resign();
 });
 
@@ -212,8 +213,9 @@ describe('owner series: preview and create', () => {
     expect(res.status).toBe(201);
     expect(res.body.series.player).toEqual({ id: player.userId, name: 'Rahim' });
     const mine = await api().get('/api/v1/me/bookings').set(...bearer(player.token));
-    expect(mine.body.bookings).toHaveLength(4);
-    expect(mine.body.bookings.every((b: { seriesId: string; playerId: string }) => b.seriesId === res.body.series.id && b.playerId === player.userId)).toBe(true);
+    const games = mine.body.bookings.filter((b: { seriesId: string | null }) => b.seriesId !== null);
+    expect(games).toHaveLength(4);
+    expect(games.every((b: { seriesId: string; playerId: string }) => b.seriesId === res.body.series.id && b.playerId === player.userId)).toBe(true);
 
     const bad = await post(turfBase(), a.token, groupBody({ customer: { name: 'X', phone: PHONE, playerId: 'nope' } }));
     expect(bad.status).toBe(400);

@@ -22,6 +22,7 @@ import { Booking } from '../../src/bookings/booking.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
 import { Payment } from '../../src/bookings/payment.model';
 import { Refund } from '../../src/payments/refund.model';
+import { MAX_GUEST_PENDING, MAX_OPEN_HOLDS } from '../../src/bookings/routes/public';
 
 beforeAll(async () => {
   await startTestDb();
@@ -184,11 +185,11 @@ describe('guest lookup', () => {
     await requestOtpFor();
     const created = await post(`${base()}/bookings`, guestBody());
     const ref = created.body.booking.reference as string;
-    const ok = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: ref, phone: '+880 1711 111111' });
+    const ok = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: ref, phone: '+880 1711 111111' });
     expect(ok.status).toBe(200);
     expect(ok.body.booking.id).toBe(created.body.booking.id);
-    const wrongPhone = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: ref, phone: '+8801722222222' });
-    const unknown = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: PHONE });
+    const wrongPhone = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: ref, phone: '+8801722222222' });
+    const unknown = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: 'ZZZZZZZZ', phone: PHONE });
     expect(wrongPhone.status).toBe(404);
     expect(unknown.status).toBe(404);
     expect(wrongPhone.body).toEqual(unknown.body);
@@ -268,15 +269,112 @@ describe('validation', () => {
 });
 
 describe('guest OTP rate limit', () => {
-  it('429 rate_limited on the 21st request when limiting is on', async () => {
+  it('429 rate_limited on the 11th code in an hour from one address, whatever the phone', async () => {
     ctx = buildTestApp({ services: ctx.services, rateLimit: true });
     const codes: string[] = [];
-    for (let i = 0; i < 21; i++) {
+    for (let i = 0; i < 11; i++) {
       const res = await post(`/api/v1/venues/${slug}/bookings/otp`, { phone: `+88017${String(10000000 + i)}` });
       codes.push(res.body.error?.code ?? 'ok');
     }
-    expect(codes.slice(0, 20)).not.toContain('rate_limited');
-    expect(codes[20]).toBe('rate_limited');
+    expect(codes.slice(0, 10)).not.toContain('rate_limited');
+    expect(codes[10]).toBe('rate_limited');
+    // One bucket for every code-sending route: the sign-in OTP is refused too.
+    const login = await post('/api/v1/auth/otp/request', { phone: '+8801799999999' });
+    expect(login.body.error.code).toBe('rate_limited');
+  });
+
+  it('lookup is rate limited: 429 on the 31st guess', async () => {
+    ctx = buildTestApp({ services: ctx.services, rateLimit: true });
+    const statuses: number[] = [];
+    for (let i = 0; i < 31; i++) statuses.push((await post('/api/v1/bookings/lookup', { reference: `ZZ${i}`, phone: PHONE })).status);
+    expect(statuses.slice(0, 30).every((s) => s === 404)).toBe(true);
+    expect(statuses[30]).toBe(429);
+  });
+});
+
+describe('hold caps', () => {
+  it('a player with MAX_OPEN_HOLDS live unpaid holds cannot hold another until they lapse', async () => {
+    const { userId, token } = await newPlayer();
+    const hours = Array.from({ length: MAX_OPEN_HOLDS }, (_, i) => `${String(8 + i).padStart(2, '0')}:00`);
+    for (const hm of hours) expect((await post(`${base()}/bookings`, { date: D, startAts: [at(hm)] }, token)).status).toBe(201);
+    const later = new Date(ctx.services.now().getTime() + 10 * 60_000);
+    await Booking.updateMany({ playerId: userId }, { $set: { status: 'awaiting_payment', holdExpiresAt: later } }).setOptions({ crossTenant: true });
+
+    const refused = await post(`${base()}/bookings`, { date: D, startAts: [at('22:00')] }, token);
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.code).toBe('too_many_holds');
+
+    ctx.services.clock.advance(11 * 60_000);
+    expect((await post(`${base()}/bookings`, { date: D, startAts: [at('22:00')] }, token)).status).toBe(201);
+  });
+
+  it('one guest phone may have MAX_GUEST_PENDING bookings waiting', async () => {
+    await setup({ guestBooking: { allowed: true, requireOtp: false } });
+    const hours = Array.from({ length: MAX_GUEST_PENDING }, (_, i) => `${String(8 + i).padStart(2, '0')}:00`);
+    for (const hm of hours) expect((await post(`${base()}/bookings`, guestBody({}, [hm]))).status).toBe(201);
+    const refused = await post(`${base()}/bookings`, guestBody({}, ['20:00']));
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.code).toBe('too_many_holds');
+    // Another phone is unaffected.
+    const other = await post(`${base()}/bookings`, guestBody({ guest: { name: 'B', phone: '+8801722222222' } }, ['20:00']));
+    expect(other.status).toBe(201);
+  });
+});
+
+describe('Idempotency-Key', () => {
+  const keyed = (body: unknown, key: string, auth?: string) => post(`${base()}/bookings`, body, auth).set('Idempotency-Key', key);
+  const count = () => Booking.countDocuments({}).setOptions({ crossTenant: true });
+
+  it('a retried player booking returns the first booking and holds nothing new', async () => {
+    const { token } = await newPlayer();
+    const body = { date: D, startAts: [at('18:00')] };
+    const first = await keyed(body, 'checkout-1111', token);
+    expect(first.status).toBe(201);
+    const again = await keyed(body, 'checkout-1111', token);
+    expect(again.status).toBe(201);
+    expect(again.body.booking.id).toBe(first.body.booking.id);
+    expect(await count()).toBe(1);
+  });
+
+  it('two copies sent at once make one booking', async () => {
+    const { token } = await newPlayer();
+    const body = { date: D, startAts: [at('18:00')] };
+    const [a, b] = await Promise.all([keyed(body, 'checkout-race', token), keyed(body, 'checkout-race', token)]);
+    expect([a.status, b.status]).toEqual([201, 201]);
+    expect(a.body.booking.id).toBe(b.body.booking.id);
+    expect(await count()).toBe(1);
+  });
+
+  it('a guest retry needs no second code and is not counted against the pending cap', async () => {
+    await requestOtpFor();
+    const first = await keyed(guestBody(), 'guest-key-1');
+    expect(first.status).toBe(201);
+    // The code was used up by the first request; the replay must not ask for it again.
+    const again = await keyed(guestBody(), 'guest-key-1');
+    expect(again.status).toBe(201);
+    expect(again.body.booking.reference).toBe(first.body.booking.reference);
+    expect(await count()).toBe(1);
+  });
+
+  it("keys are scoped per booker and can't be reused for another court", async () => {
+    const a = await newPlayer();
+    const b = await newPlayer();
+    const first = await keyed({ date: D, startAts: [at('18:00')] }, 'shared-key', a.token);
+    const other = await keyed({ date: D, startAts: [at('19:00')] }, 'shared-key', b.token);
+    expect(other.status).toBe(201);
+    expect(other.body.booking.id).not.toBe(first.body.booking.id);
+
+    await setup();
+    const moved = await keyed({ date: D, startAts: [at('18:00')] }, 'shared-key', a.token);
+    expect(moved.status).toBe(422);
+    expect(moved.body.error.code).toBe('idempotency_key_reused');
+  });
+
+  it('a malformed key is a 400', async () => {
+    const { token } = await newPlayer();
+    const res = await keyed({ date: D, startAts: [at('18:00')] }, 'no spaces!', token);
+    expect(res.status).toBe(400);
+    expect(await count()).toBe(0);
   });
 });
 
@@ -297,8 +395,8 @@ describe('guest gate at venue level', () => {
 
 describe('lookup with a malformed phone', () => {
   it('is the same 404', async () => {
-    const miss = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: PHONE });
-    const bad = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: 'ZZZZZZZZ', phone: 'abc' });
+    const miss = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: 'ZZZZZZZZ', phone: PHONE });
+    const bad = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: 'ZZZZZZZZ', phone: 'abc' });
     expect(bad.status).toBe(404);
     expect(bad.body).toEqual(miss.body);
   });
@@ -380,7 +478,7 @@ describe('guest cancellation', () => {
 
   it('guest cancel needs a code sent to the booking phone', async () => {
     const reference = await guestBookingRef();
-    const preview = await request(ctx.app).get('/api/v1/bookings/lookup/cancellation').query({ reference, phone: PHONE });
+    const preview = await request(ctx.app).post('/api/v1/bookings/lookup/cancellation').send({ reference, phone: PHONE });
     expect(preview.status).toBe(200);
     expect(preview.body.preview).toMatchObject({ amount: 0, amountPaid: 0 });
 
@@ -407,11 +505,11 @@ describe('guest cancellation', () => {
   it('guest otp and cancel answer 404 for a wrong phone', async () => {
     const reference = await guestBookingRef();
     const sentBefore = ctx.services.sms.sent.length;
-    const miss = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference, phone: '+8801722222222' });
+    const miss = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference, phone: '+8801722222222' });
     for (const phone of ['+8801722222222', 'abc']) {
       const otp = await lookupOtp(reference, phone);
       const cancel = await post('/api/v1/bookings/lookup/cancel', { reference, phone, otpCode: '123456' });
-      const preview = await request(ctx.app).get('/api/v1/bookings/lookup/cancellation').query({ reference, phone });
+      const preview = await request(ctx.app).post('/api/v1/bookings/lookup/cancellation').send({ reference, phone });
       for (const r of [otp, cancel, preview]) {
         expect(r.status).toBe(404);
         expect(r.body).toEqual(miss.body);
@@ -456,6 +554,6 @@ describe('guest cancellation', () => {
     expect((await lookupOtp(reference)).status).toBe(404);
     expect((await post('/api/v1/bookings/lookup/cancel', { reference, phone: PHONE, otpCode: '123456' })).status).toBe(404);
     expect(ctx.services.sms.sent).toHaveLength(sent);
-    expect((await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference, phone: PHONE })).status).toBe(200);
+    expect((await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference, phone: PHONE })).status).toBe(200);
   });
 });

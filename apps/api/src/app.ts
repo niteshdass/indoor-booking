@@ -13,6 +13,8 @@ import { googleAuthRouter } from './auth/routes/googleAuth';
 import { meRouter } from './auth/routes/me';
 import { ownerRouter } from './tenancy/routes/owner';
 import { myMembershipsRouter } from './tenancy/routes/myMemberships';
+import { applyOwnerRouter } from './tenancy/routes/apply';
+import { adminRouter } from './admin/routes';
 import { publicVenuesRouter } from './venues/routes/public';
 import { publicSlotsRouter } from './schedule/routes/publicSlots';
 import { publicAddonsRouter } from './addons/routes/publicAddons';
@@ -23,6 +25,7 @@ import { playerReviewsRouter } from './reviews/routes/player';
 import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
+import { MongoRateLimitStore } from './rateLimitStore';
 
 export type AppDeps = {
   config: Config;
@@ -30,19 +33,35 @@ export type AppDeps = {
   services: AppServices;
   /** Rate-limit /auth; defaults to on outside tests. */
   rateLimit?: boolean;
+  /** Keep rate-limit counts in MongoDB, shared by every server; defaults to on outside tests. */
+  sharedRateLimits?: boolean;
   extraRoutes?: (router: express.Router) => void;
 };
 
-function authLimiter(limit: number): express.RequestHandler {
-  return rateLimit({
-    windowMs: 15 * 60_000,
-    limit,
-    standardHeaders: 'draft-8',
-    legacyHeaders: false,
-    handler: (_req, _res, next) => {
-      next(new AppError(429, 'rate_limited', 'Too many requests; try again later'));
-    },
-  });
+const WINDOW_MS = 15 * 60_000;
+
+/** Routes that send an SMS or email code: each send costs money, so they share one tight per-IP bucket. */
+const CODE_SEND_PATHS = [
+  '/auth/otp/request',
+  '/auth/register/otp/request',
+  '/me/link/phone/request',
+  '/me/email/verify/request',
+  '/venues/:slug/bookings/otp',
+  '/bookings/lookup/otp',
+];
+
+function makeLimiter(shared: boolean) {
+  return (name: string, limit: number, windowMs = WINDOW_MS): express.RequestHandler =>
+    rateLimit({
+      windowMs,
+      limit,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      ...(shared ? { store: new MongoRateLimitStore(name) } : {}),
+      handler: (_req, _res, next) => {
+        next(new AppError(429, 'rate_limited', 'Too many requests; try again later'));
+      },
+    });
 }
 
 export function createApp(deps: AppDeps): express.Express {
@@ -62,10 +81,16 @@ export function createApp(deps: AppDeps): express.Express {
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();
   const limited = deps.rateLimit ?? deps.config.nodeEnv !== 'test';
+  const limiter = makeLimiter(deps.sharedRateLimits ?? deps.config.nodeEnv !== 'test');
+  if (limited) {
+    api.post(CODE_SEND_PATHS, limiter('code-send', 10, 60 * 60_000));
+    // Reference and phone are the only secret here, so guessing them is throttled like a sign-in.
+    api.use('/bookings/lookup', limiter('lookup', 30));
+  }
   // Refresh runs on every page load and token expiry, so it gets its own, looser bucket.
-  if (limited) auth.use('/refresh', authLimiter(120));
+  if (limited) auth.use('/refresh', limiter('refresh', 120));
   auth.use(sessionRouter(authDeps));
-  if (limited) auth.use(authLimiter(20));
+  if (limited) auth.use(limiter('auth', 20));
   auth.use(emailAuthRouter(authDeps));
   auth.use(phoneAuthRouter(authDeps));
   auth.use(googleAuthRouter(authDeps));
@@ -77,11 +102,13 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(publicReviewsRouter());
   api.use(publicSlotsRouter(deps.services));
   api.use(publicAddonsRouter());
-  api.use(searchRouter(deps.services, limited ? authLimiter(300) : undefined));
-  api.use(publicBookingsRouter(deps.config, deps.services, limited ? authLimiter(20) : undefined));
+  api.use(searchRouter(deps.services, limited ? limiter('search', 300) : undefined));
+  api.use(publicBookingsRouter(deps.config, deps.services));
   api.use(playerSeriesRouter(deps.config, deps.services));
   api.use(playerReviewsRouter(deps.config, deps.services));
+  api.use(applyOwnerRouter(authDeps));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
+  api.use('/admin', adminRouter(authDeps));
 
   deps.extraRoutes?.(api);
   app.use('/api/v1', api);

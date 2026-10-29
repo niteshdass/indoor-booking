@@ -52,7 +52,7 @@ function quote(over: Partial<QuoteJson> = {}): QuoteJson {
 function qr(q: QuoteJson, guestAllowed = true): QuoteResponse {
   return { quote: q, guestAllowed, guestOtpRequired: false };
 }
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 
 function api(quoteBody: (c: Call, n: number) => unknown) {
   return mockApi([

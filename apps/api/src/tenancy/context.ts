@@ -4,7 +4,7 @@ import { isPermission, type Permission, type SystemRoleKey } from '@booking/shar
 import { AppError } from '../errors';
 import { Owner } from './owner.model';
 import { Membership } from './membership.model';
-import { Role } from './role.model';
+import { OWNER_SCOPE, Role } from './role.model';
 
 export type TenantContext = {
   ownerId: string;
@@ -35,7 +35,7 @@ export function requireTenant(): RequestHandler {
       throw new AppError(403, 'owner_inactive', 'This business is not active');
     }
     // System roles have ownerId null; custom roles belong to this owner.
-    const role = await Role.findOne({ _id: membership.roleId, ownerId: { $in: [null, ownerId] } }).lean();
+    const role = await Role.findOne({ _id: membership.roleId, ownerId: { $in: [null, ownerId] }, ...OWNER_SCOPE }).lean();
     if (!role) throw ownerNotFound();
 
     req.tenant = {

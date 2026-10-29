@@ -34,8 +34,11 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [confirmOut, setConfirmOut] = useState(false);
   const portalHint = useId();
+  const adminHint = useId();
+  const applyHint = useId();
   const teams = useResource<{ memberships: OwnerMembership[] }>('/me/memberships');
   const isMember = teams.state.status === 'ready' && teams.state.data.memberships.length > 0;
+  const noTeams = teams.state.status === 'ready' && teams.state.data.memberships.length === 0;
 
   if (!user) return null;
 
@@ -148,6 +151,44 @@ export function ProfilePage() {
             <span className={styles.portalTitle}>{t('profile.ownerPortal')}</span>
             <span id={portalHint} className={styles.portalHint}>
               {t('profile.ownerPortalHint')}
+            </span>
+          </span>
+          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </Link>
+      )}
+
+      {noTeams && !user.platformAdmin && (
+        <Link to="/list-your-venue" className={styles.portal} aria-describedby={applyHint}>
+          <span className={styles.portalIcon} aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </span>
+          <span className={styles.portalText}>
+            <span className={styles.portalTitle}>{t('profile.listVenue')}</span>
+            <span id={applyHint} className={styles.portalHint}>
+              {t('profile.listVenueHint')}
+            </span>
+          </span>
+          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </Link>
+      )}
+
+      {user.platformAdmin && (
+        <Link to="/admin" className={styles.portal} aria-describedby={adminHint}>
+          <span className={styles.portalIcon} aria-hidden="true">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" />
+            </svg>
+          </span>
+          <span className={styles.portalText}>
+            <span className={styles.portalTitle}>{t('profile.adminPortal')}</span>
+            <span id={adminHint} className={styles.portalHint}>
+              {t('profile.adminPortalHint')}
             </span>
           </span>
           <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">

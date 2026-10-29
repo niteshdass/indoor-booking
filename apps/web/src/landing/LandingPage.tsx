@@ -508,7 +508,7 @@ export function LandingPage() {
                 ))}
               </ul>
               <div className={styles.ownerCta}>
-                <Button to="/register" variant="ball" size="lg">
+                <Button to="/list-your-venue" variant="ball" size="lg">
                   {t('landing.owners.cta')}
                 </Button>
               </div>
@@ -564,7 +564,7 @@ export function LandingPage() {
               <h2 id="landing-footer-venues">{t('landing.footer.venues')}</h2>
               <ul>
                 <li>
-                  <Link to="/register">{t('landing.footer.list')}</Link>
+                  <Link to="/list-your-venue">{t('landing.footer.list')}</Link>
                 </li>
                 <li>
                   <Link to="/owner">{t('landing.footer.portal')}</Link>

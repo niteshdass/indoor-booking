@@ -1,4 +1,4 @@
-import { Router, type RequestHandler } from 'express';
+import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { MAX_BOOKINGS_PER_GROUP, MAX_SLOTS_PER_BOOKING, type BookingQuote, type EffectiveSettings } from '@booking/shared';
@@ -88,10 +88,57 @@ const createSchema = z
 
 const otpSchema = z.object({ phone: z.string().max(32) }).strict();
 
-const lookupQuery = z.object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32) });
+/** POST bodies, never a query string: the phone would land in access logs and browser history. */
+const lookupSchema = z.object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32) }).strict();
 
 /** Guests need the venue to allow them and no payment policy at all (a policy can demand an advance). */
 const guestsAllowed = (s: EffectiveSettings) => s.guestBooking.allowed && s.paymentPolicy.type === 'none';
+
+/** Unpaid holds one player may keep open at once, across venues: enough for one full group. */
+export const MAX_OPEN_HOLDS = MAX_BOOKINGS_PER_GROUP;
+/** Upcoming bookings one guest phone may have waiting on staff at once. */
+export const MAX_GUEST_PENDING = 3;
+
+const tooManyHolds = () =>
+  new AppError(409, 'too_many_holds', 'You have too many unpaid or unconfirmed bookings; finish or cancel one first');
+
+/** Refuses `adding` more bookings while a player's live unpaid holds would pass MAX_OPEN_HOLDS, so one player cannot hold every slot. */
+async function assertHoldRoom(playerId: string, adding: number, now: Date) {
+  const open = await Booking.countDocuments({ playerId, status: 'awaiting_payment', holdExpiresAt: { $gt: now } }).setOptions({
+    crossTenant: true,
+  });
+  if (open > 0 && open + adding > MAX_OPEN_HOLDS) throw tooManyHolds();
+}
+
+/** Refuses a guest phone that already has MAX_GUEST_PENDING upcoming bookings waiting on staff. */
+async function assertGuestRoom(phone: string, now: Date) {
+  const pending = await Booking.countDocuments({ 'guest.phone': phone, status: 'pending', endAt: { $gt: now } }).setOptions({
+    crossTenant: true,
+  });
+  if (pending >= MAX_GUEST_PENDING) throw tooManyHolds();
+}
+
+/** A client-made id for one checkout, sent again on every retry of it. */
+const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/, 'Use 8 to 100 letters, digits, - or _');
+
+/** The Idempotency-Key header scoped to the booker, so one client's key can never reach another's bookings. */
+function requestKeyOf(header: string | undefined, who: { playerId: string } | { phone: string }): string | undefined {
+  if (header === undefined) return undefined;
+  const key = idempotencyKeySchema.parse(header);
+  return 'playerId' in who ? `player:${who.playerId}:${key}` : `guest:${who.phone}:${key}`;
+}
+
+/** The bookings an earlier request with this key made (the whole group for a group), or null. */
+async function bookingsForKey(requestKey: string | undefined, turf: TurfDoc): Promise<BookingDoc[] | null> {
+  if (requestKey === undefined) return null;
+  const lead = await Booking.findOne({ requestKey }).setOptions({ crossTenant: true });
+  if (!lead) return null;
+  if (String(lead.turfId) !== String(turf._id)) {
+    throw new AppError(422, 'idempotency_key_reused', 'This Idempotency-Key was used for a different booking');
+  }
+  if (!lead.groupId) return [lead];
+  return Booking.find({ ownerId: lead.ownerId, groupId: lead.groupId }).sort({ _id: 1 });
+}
 
 const guestDisabled = () =>
   new AppError(403, 'guest_booking_disabled', 'Guest booking is not available at this venue');
@@ -134,15 +181,8 @@ const quoteJson = (q: BookingQuote, currency: string) => ({
   advanceRequired: q.advanceRequired,
 });
 
-/**
- * Player-facing booking routes. `otpLimiter` guards the SMS-sending guest OTP route (the caller
- * passes it only when rate limiting is on).
- */
-export function publicBookingsRouter(
-  config: Config,
-  services: AppServices,
-  otpLimiter?: RequestHandler,
-): Router {
+/** Player-facing booking routes. The app rate-limits the code-sending and lookup routes. */
+export function publicBookingsRouter(config: Config, services: AppServices): Router {
   const router = Router();
 
   router.post('/venues/:slug/turfs/:turfId/quote', async (req, res) => {
@@ -179,7 +219,7 @@ export function publicBookingsRouter(
   });
 
   // No slots here, so no advance to compute: any payment policy counts as "advance possible".
-  router.post('/venues/:slug/bookings/otp', ...(otpLimiter ? [otpLimiter] : []), async (req, res) => {
+  router.post('/venues/:slug/bookings/otp', async (req, res) => {
     const { phone } = otpSchema.parse(req.body);
     const venue = await publicVenueBySlug(req.params.slug as string);
     const settings = await effectiveForVenue(String(venue.ownerId), venue);
@@ -200,53 +240,80 @@ export function publicBookingsRouter(
       const { venue, turf } = await publicTurf(req.params.slug as string, req.params.turfId as string);
       const now = services.now();
       const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'online' as const, now };
+      const header = req.get('Idempotency-Key');
+      const guestPhone = input.guest ? normalizePhone(input.guest.phone) : null;
+      const requestKey = requestKeyOf(header, userId ? { playerId: userId } : { phone: guestPhone! });
 
-      if (input.more.length > 0) {
-        if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to book several times at once');
-        const items = await groupItems(venue, turf, input);
-        const bookings = await createBookingGroup({ venue, items, selection: input.addons, now, who: { playerId: userId, guest: null, createdBy: userId } });
-        const json = await playerBookingsJson(bookings, services.now());
-        res.status(201).json({ booking: json[0], bookings: json });
-        return;
+      const send = async (bookings: BookingDoc[]) => {
+        if (bookings.length > 1 || bookings[0]!.groupId) {
+          const json = await playerBookingsJson(bookings, services.now());
+          res.status(201).json({ booking: json[0], bookings: json });
+        } else if (userId) {
+          res.status(201).json({ booking: await playerBookingJson(bookings[0]!, services.now()) });
+        } else {
+          res.status(201).json({ booking: await guestBookingJson(bookings[0]!, services.now()) });
+        }
+      };
+      // A retry gets what the first request made, before any cap or code check could refuse it.
+      const earlier = await bookingsForKey(requestKey, turf);
+      if (earlier) return send(earlier);
+
+      try {
+        await send(await create());
+      } catch (err) {
+        // Two copies of the same request raced: the loser (slot_taken, or the requestKey index)
+        // answers with the winner's bookings.
+        const won = await bookingsForKey(requestKey, turf);
+        if (!won) throw err;
+        await send(won);
       }
 
-      if (userId) {
-        const booking = await createBooking({ ...base, who: { playerId: userId, guest: null, createdBy: userId } });
-        res.status(201).json({ booking: await playerBookingJson(booking, services.now()) });
-        return;
-      }
+      async function create(): Promise<BookingDoc[]> {
+        if (userId) await assertHoldRoom(userId, 1 + input.more.length, now);
+        if (input.more.length > 0) {
+          if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to book several times at once');
+          const items = await groupItems(venue, turf, input);
+          return createBookingGroup({ venue, items, selection: input.addons, now, requestKey, who: { playerId: userId, guest: null, createdBy: userId } });
+        }
 
-      const g = input.guest!;
-      const phone = normalizePhone(g.phone);
-      const { quote, settings } = await quoteFor(base);
-      // Disabled first, so a venue that refuses guests never consumes a code.
-      if (!guestsAllowed(settings) || quote.advanceRequired > 0) throw guestDisabled();
-      if (settings.guestBooking.requireOtp) {
-        if (g.otpCode === undefined) throw new AppError(400, 'otp_required', 'A verification code is required');
-        // Consumed here, before the transaction: a slot_taken race afterwards needs a new code.
-        await verifyOtp(phone, 'guest_booking', g.otpCode, services);
+        if (userId) return [await createBooking({ ...base, requestKey, who: { playerId: userId, guest: null, createdBy: userId } })];
+
+        const g = input.guest!;
+        const phone = guestPhone!;
+        const { quote, settings } = await quoteFor(base);
+        // Disabled first, so a venue that refuses guests never consumes a code.
+        if (!guestsAllowed(settings) || quote.advanceRequired > 0) throw guestDisabled();
+        // Before the code too, so a refused booking never consumes one.
+        await assertGuestRoom(phone, now);
+        if (settings.guestBooking.requireOtp) {
+          if (g.otpCode === undefined) throw new AppError(400, 'otp_required', 'A verification code is required');
+          // Consumed here, before the transaction: a slot_taken race afterwards needs a new code.
+          await verifyOtp(phone, 'guest_booking', g.otpCode, services);
+        }
+        return [
+          await createBooking({
+            ...base,
+            requestKey,
+            who: { playerId: null, guest: { name: g.name, phone }, createdBy: null },
+          }),
+        ];
       }
-      const booking = await createBooking({
-        ...base,
-        who: { playerId: null, guest: { name: g.name, phone }, createdBy: null },
-      });
-      res.status(201).json({ booking: await guestBookingJson(booking, services.now()) });
     },
   );
 
-  router.get('/bookings/lookup', async (req, res) => {
-    const q = lookupQuery.parse(req.query);
+  router.post('/bookings/lookup', async (req, res) => {
+    const q = lookupSchema.parse(req.body);
     res.json({ booking: await guestBookingJson(await guestBooking(q.reference, q.phone), services.now()) });
   });
 
-  router.get('/bookings/lookup/cancellation', async (req, res) => {
-    const q = lookupQuery.parse(req.query);
+  router.post('/bookings/lookup/cancellation', async (req, res) => {
+    const q = lookupSchema.parse(req.body);
     const booking = await guestBooking(q.reference, q.phone, { unowned: true });
     res.json({ preview: await previewCancellation(booking, 'guest', services.now()) });
   });
 
   // Cancelling can move money, so a guest always needs a code, even where booking needs none.
-  router.post('/bookings/lookup/otp', ...(otpLimiter ? [otpLimiter] : []), async (req, res) => {
+  router.post('/bookings/lookup/otp', async (req, res) => {
     const q = guestOtpSchema.parse(req.body);
     const booking = await guestBooking(q.reference, q.phone, { unowned: true });
     // No SMS for a booking that cannot be cancelled.

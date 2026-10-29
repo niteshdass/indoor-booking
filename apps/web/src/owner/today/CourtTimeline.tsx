@@ -8,8 +8,16 @@ const SHOWN = new Set(['pending', 'awaiting_payment', 'confirmed', 'completed'])
 const DEFAULT_FROM = 8;
 const DEFAULT_TO = 23;
 
-type Kind = 'ok' | 'wait' | 'walk';
-type Block = { id: string; start: number; end: number; kind: Kind; label: string; status: OwnerBooking['status'] };
+type Kind = 'ok' | 'wait' | 'walk' | 'due';
+type Block = {
+  id: string;
+  start: number;
+  end: number;
+  kind: Kind;
+  label: string;
+  status: OwnerBooking['status'];
+  paymentStatus: OwnerBooking['paymentStatus'];
+};
 type Span = [start: number, end: number];
 type Lane = { id: string; name: string; blocks: Block[]; closed: Span[] };
 
@@ -72,8 +80,13 @@ export function courtUsage(bookings: OwnerBooking[], courts: Courts | null, tz: 
   return { booked: Math.min(booked, open), open };
 }
 
+/** Money still to collect on a booking that is going ahead. */
+const DUE = new Set<OwnerBooking['paymentStatus']>(['unpaid', 'partially_paid']);
+
 function kindOf(b: OwnerBooking): Kind {
   if (b.status === 'pending' || b.status === 'awaiting_payment') return 'wait';
+  // Before walk-in: an unpaid walk-in is exactly the one staff must not forget to collect.
+  if (DUE.has(b.paymentStatus) && b.total > 0) return 'due';
   return b.source === 'walkin' ? 'walk' : 'ok';
 }
 
@@ -105,7 +118,15 @@ export function buildLanes(
     from = Math.min(from, Math.floor(start));
     to = Math.max(to, Math.ceil(end));
     const lane = lanes.get(b.turfId) ?? { id: b.turfId, name: b.turf?.name ?? '—', blocks: [], closed: [] };
-    lane.blocks.push({ id: b.id, start, end, kind: kindOf(b), label: b.customer?.name ?? b.reference, status: b.status });
+    lane.blocks.push({
+      id: b.id,
+      start,
+      end,
+      kind: kindOf(b),
+      label: b.customer?.name ?? b.reference,
+      status: b.status,
+      paymentStatus: b.paymentStatus,
+    });
     lanes.set(b.turfId, lane);
   }
   for (const lane of lanes.values()) lane.closed = closedSpans(courts?.days[lane.id], from, to);
@@ -147,6 +168,7 @@ export function CourtTimeline({
         </h2>
         <ul className={styles.legend}>
           <li className={styles.ok}>{t('owner.today.legendPaid')}</li>
+          <li className={styles.due}>{t('owner.today.legendDue')}</li>
           <li className={styles.wait}>{t('owner.today.legendWaiting')}</li>
           <li className={styles.walk}>{t('owner.today.legendWalkIn')}</li>
           {anyClosed && <li className={styles.closedKey}>{t('owner.today.legendClosed')}</li>}
@@ -173,7 +195,7 @@ export function CourtTimeline({
                     key={b.id}
                     className={`${styles.block} ${styles[b.kind]}`}
                     style={{ left: pct(b.start), width: `${((b.end - b.start) / span) * 100}%` }}
-                    title={`${b.label}, ${clock(b.start)}–${clock(b.end)}, ${t(`status.${b.status}`)}`}
+                    title={`${b.label}, ${clock(b.start)}–${clock(b.end)}, ${t(`status.${b.status}`)}, ${t(`paymentStatus.${b.paymentStatus}`)}`}
                   >
                     <span className={styles.blockLabel}>{b.label}</span>
                   </span>

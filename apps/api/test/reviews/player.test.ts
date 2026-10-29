@@ -294,7 +294,7 @@ describe('guest lookup of a player-linked walk-in', () => {
     const phone = '+8801822222222';
     const b = await seedBooking({ source: 'walkin', guest: { name: 'Karim', phone } });
     expect((await post(b)).status).toBe(201);
-    const look = await request(ctx.app).get('/api/v1/bookings/lookup').query({ reference: b.reference, phone });
+    const look = await request(ctx.app).post('/api/v1/bookings/lookup').send({ reference: b.reference, phone });
     expect(look.status).toBe(200);
     expect(look.body.booking).toMatchObject({ review: null, reviewableUntil: null });
     // The player still sees it on their own bookings.

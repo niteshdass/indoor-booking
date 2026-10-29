@@ -47,8 +47,8 @@ const preview = { percent: 100, amount: 1150, rule: null, amountPaid: 1150, amou
 
 const setup = (over: { booking?: BookingJson; lookup?: Route; cancel?: Route } = {}) =>
   mockApi([
-    over.lookup ?? { path: '/bookings/lookup', body: { booking: over.booking ?? booking() } },
-    { path: '/bookings/lookup/cancellation', body: { preview } },
+    over.lookup ?? { method: 'POST', path: '/bookings/lookup', body: { booking: over.booking ?? booking() } },
+    { method: 'POST', path: '/bookings/lookup/cancellation', body: { preview } },
     { method: 'POST', path: '/bookings/lookup/otp', body: { sent: true, resendInSec: 60 } },
     over.cancel ?? {
       method: 'POST',
@@ -75,8 +75,19 @@ describe('guest lookup', () => {
     expect(await screen.findByText('Arena One')).toBeInTheDocument();
     expect(screen.getByText('AB12CD')).toBeInTheDocument();
     const call = m.calls.find((c) => c.path === '/bookings/lookup')!;
-    expect(call.query.get('reference')).toBe('AB12CD');
-    expect(call.query.get('phone')).toBe(PHONE);
+    // The phone goes in the POST body, never a query string.
+    expect(call.method).toBe('POST');
+    expect(call.query.toString()).toBe('');
+    expect(call.body).toEqual({ reference: 'AB12CD', phone: PHONE });
+  });
+
+  it('an old link with ?phone= drops it from the URL and keeps the lookup', async () => {
+    setup();
+    const { location } = renderApp(URL_OK);
+    expect(await screen.findByText('Arena One')).toBeInTheDocument();
+    const q = new URLSearchParams(location().search);
+    expect(q.get('reference')).toBe('AB12CD');
+    expect(q.get('phone')).toBeNull();
   });
 
   it('typed reference is uppercased and the form writes the URL', async () => {
@@ -91,25 +102,25 @@ describe('guest lookup', () => {
     expect(m.calls.filter((c) => c.path === '/bookings/lookup')).toHaveLength(1);
     const q = new URLSearchParams(location().search);
     expect(q.get('reference')).toBe('AB12CD');
-    expect(q.get('phone')).toBe(PHONE);
+    expect(q.get('phone')).toBeNull();
     expect(q.get('new')).toBeNull();
   });
 
   it('not found message is generic', async () => {
-    setup({ lookup: { path: '/bookings/lookup', status: 404, body: errBody('not_found') } });
+    setup({ lookup: { method: 'POST', path: '/bookings/lookup', status: 404, body: errBody('not_found') } });
     renderApp(URL_OK);
     expect(await screen.findByText(en.lookup.notFound)).toBeInTheDocument();
   });
 
   it('other errors show localised text', async () => {
-    setup({ lookup: { path: '/bookings/lookup', status: 500, body: errBody('internal', 'Boom') } });
+    setup({ lookup: { method: 'POST', path: '/bookings/lookup', status: 500, body: errBody('internal', 'Boom') } });
     renderApp(URL_OK);
     expect(await screen.findByText(en.errors.generic)).toBeInTheDocument();
     expect(screen.queryByText('Boom')).not.toBeInTheDocument();
   });
 
   it('rate limit shows its localised text', async () => {
-    setup({ lookup: { path: '/bookings/lookup', status: 429, body: errBody('rate_limited', 'Slow') } });
+    setup({ lookup: { method: 'POST', path: '/bookings/lookup', status: 429, body: errBody('rate_limited', 'Slow') } });
     renderApp(URL_OK);
     expect(await screen.findByText(en.errors.rate_limited)).toBeInTheDocument();
   });
@@ -176,7 +187,7 @@ describe('guest lookup', () => {
     expect(within(dialog).getByRole('button', { name: en.cancel.confirm })).toBeEnabled();
   });
 
-  it('copy link omits new=1 and carries reference and phone', async () => {
+  it('copy link carries the reference only, never new=1 or the phone', async () => {
     setup();
     const { user } = renderApp(`${URL_OK}&new=1`);
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined);
@@ -184,7 +195,7 @@ describe('guest lookup', () => {
     const link = writeText.mock.calls[0]![0] as string;
     expect(link).toContain('/lookup?');
     expect(link).toContain('reference=AB12CD');
-    expect(link).toContain(`phone=${encodeURIComponent(PHONE)}`);
+    expect(link).not.toContain('phone=');
     expect(link).not.toContain('new=1');
   });
 
@@ -223,7 +234,7 @@ describe('guest lookup', () => {
   });
 
   it('form re-syncs when the URL changes', async () => {
-    setup({ lookup: { path: '/bookings/lookup', status: 404, body: errBody('not_found') } });
+    setup({ lookup: { method: 'POST', path: '/bookings/lookup', status: 404, body: errBody('not_found') } });
     const { user } = renderApp(URL_OK);
     await screen.findByText(en.lookup.notFound);
     expect(screen.getByLabelText(en.lookup.reference)).toHaveValue('AB12CD');

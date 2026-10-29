@@ -8,7 +8,7 @@ import type { AppServices } from '../../services';
 import { logActivity } from '../activityLog.model';
 import { assertCanGrant, requirePermission, tenantOf, type TenantContext } from '../context';
 import { Membership } from '../membership.model';
-import { Role } from '../role.model';
+import { OWNER_SCOPE, Role } from '../role.model';
 
 const nameSchema = z.string().trim().min(1).max(50);
 const permissionsSchema = z
@@ -90,7 +90,7 @@ export function rolesRouter(services: AppServices): Router {
   router.get('/roles', async (req, res) => {
     const t = tenantOf(req);
     const [roles, counts] = await Promise.all([
-      Role.find({ ownerId: { $in: [t.ownerId, null] } }).lean(),
+      Role.find({ ownerId: { $in: [t.ownerId, null] }, ...OWNER_SCOPE }).lean(),
       memberCounts(t.ownerId),
     ]);
     const system = roles

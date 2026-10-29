@@ -19,6 +19,7 @@ const player: PublicUser = {
   phone: null,
   hasPassword: true,
   hasGoogle: false,
+  platformAdmin: false,
 };
 
 const booking = (over: Partial<BookingJson> = {}) =>

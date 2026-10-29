@@ -149,7 +149,7 @@ export function CheckoutPage() {
       });
       if (!mounted.current) return;
       if (guest) {
-        navigate(`/lookup?reference=${encodeURIComponent(booking.reference)}&phone=${encodeURIComponent(guest.phone)}&new=1`);
+        navigate(`/lookup?reference=${encodeURIComponent(booking.reference)}&new=1`, { state: { phone: guest.phone } });
       } else if (booking.status === 'awaiting_payment') {
         navigate(`/me/bookings/${encodeURIComponent(booking.id)}/pay`);
       } else {

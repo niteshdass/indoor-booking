@@ -18,10 +18,11 @@ beforeEach(async () => {
 const oid = () => new mongoose.Types.ObjectId();
 
 describe('system roles', () => {
-  it('ensureSystemRoles creates owner/manager/staff once', async () => {
+  it('ensureSystemRoles creates owner/manager/staff and super_admin once', async () => {
     await ensureSystemRoles();
     await ensureSystemRoles();
-    expect(await Role.countDocuments({ ownerId: null, system: true })).toBe(3);
+    expect(await Role.countDocuments({ ownerId: null, system: true, scope: 'owner' })).toBe(3);
+    expect(await Role.countDocuments({ ownerId: null, system: true, scope: 'platform' })).toBe(1);
     const owner = await Role.findOne({ ownerId: null, key: 'owner' });
     expect([...(owner?.permissions ?? [])].sort()).toEqual([...PERMISSIONS].sort());
   });

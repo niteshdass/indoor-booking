@@ -7,3 +7,15 @@
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);
 }
+
+/* A business that is not active yet (or any more), on /owner. */
+.teamStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.teamNote {
+  margin: var(--space-1) 0 0;
+}

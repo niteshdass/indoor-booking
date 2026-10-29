@@ -16,7 +16,7 @@ describe('landing page', () => {
     renderApp('/');
     expect(screen.getByRole('heading', { level: 1, name: en.landing.title })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: new RegExp(en.sports.padel) })).toHaveAttribute('href', '/search?sport=padel&available=true');
-    for (const a of screen.getAllByRole('link', { name: en.landing.owners.cta })) expect(a).toHaveAttribute('href', '/register');
+    for (const a of screen.getAllByRole('link', { name: en.landing.owners.cta })) expect(a).toHaveAttribute('href', '/list-your-venue');
   });
 
   it('hero search goes to /search with the chosen sport and date', async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useLocation, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useCooldown } from '../auth/useCooldown';
 import { BookingFacts } from '../bookings/BookingFacts';
@@ -11,7 +11,7 @@ import { OtpInput } from '../components/ui/OtpInput';
 import { PhoneInput } from '../components/ui/PhoneInput';
 import { Spinner } from '../components/ui/Spinner';
 import { TextField } from '../components/ui/TextField';
-import { apiGet, apiPost, ApiError } from '../lib/apiClient';
+import { apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, OtpSent, RefundJson } from '../lib/types';
 import styles from './LookupPage.module.css';
@@ -28,8 +28,12 @@ type State =
 export function LookupPage() {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const urlRef = (params.get('reference') ?? '').trim().toUpperCase();
-  const urlPhone = params.get('phone') ?? '';
+  // The phone travels in history state, never the URL, so it stays out of server logs and history.
+  // Older links still carry ?phone=; it is moved into state below.
+  const legacyPhone = params.get('phone');
+  const urlPhone = (location.state as { phone?: string } | null)?.phone ?? legacyPhone ?? '';
   const [cancelledAt, setCancelledAt] = useState(0);
   const isNew = params.get('new') === '1' && cancelledAt === 0;
 
@@ -41,7 +45,12 @@ export function LookupPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const query = `reference=${encodeURIComponent(urlRef)}&phone=${encodeURIComponent(urlPhone)}`;
+  useEffect(() => {
+    if (legacyPhone === null) return;
+    const next = new URLSearchParams(params);
+    next.delete('phone');
+    setParams(next, { replace: true, state: { phone: legacyPhone } });
+  }, [legacyPhone, params, setParams]);
 
   useEffect(() => {
     if (!urlRef || !urlPhone) {
@@ -51,7 +60,7 @@ export function LookupPage() {
     let live = true;
     setState({ status: 'loading' });
     setRefunds([]);
-    apiGet<{ booking: BookingJson }>(`/bookings/lookup?reference=${encodeURIComponent(urlRef)}&phone=${encodeURIComponent(urlPhone)}`).then(
+    apiPost<{ booking: BookingJson }>('/bookings/lookup', { reference: urlRef, phone: urlPhone }).then(
       (res) => live && setState({ status: 'ready', booking: res.booking }),
       (error) => live && setState(error instanceof ApiError && error.status === 404 ? { status: 'not_found' } : { status: 'error', error }),
     );
@@ -73,7 +82,7 @@ export function LookupPage() {
     e.preventDefault();
     const ref = reference.trim();
     if (!ref || !phone || state.status === 'loading') return;
-    setParams({ reference: ref, phone }, { replace: true });
+    setParams({ reference: ref }, { replace: true, state: { phone } });
     setAttempt((n) => n + 1);
   };
 
@@ -115,7 +124,7 @@ export function LookupPage() {
 
       {booking && (
         <>
-          {isNew && <SaveReference reference={urlRef} phone={urlPhone} />}
+          {isNew && <SaveReference reference={urlRef} />}
           <BookingFacts booking={booking} />
           <RefundList refunds={refunds} />
           {booking.playerId !== null ? (
@@ -128,7 +137,6 @@ export function LookupPage() {
               <GuestCancel
                 reference={urlRef}
                 phone={urlPhone}
-                query={query}
                 open={cancelOpen}
                 setOpen={setCancelOpen}
                 onCancelled={(b, rs) => {
@@ -146,7 +154,7 @@ export function LookupPage() {
   );
 }
 
-function SaveReference({ reference, phone }: { reference: string; phone: string }) {
+function SaveReference({ reference }: { reference: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -154,7 +162,8 @@ function SaveReference({ reference, phone }: { reference: string; phone: string 
   const available = typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function';
 
   const copy = async () => {
-    const link = `${window.location.origin}/lookup?reference=${encodeURIComponent(reference)}&phone=${encodeURIComponent(phone)}`;
+    // Reference only: whoever opens the link still has to know the phone.
+    const link = `${window.location.origin}/lookup?reference=${encodeURIComponent(reference)}`;
     try {
       await navigator.clipboard.writeText(link);
     } catch {
@@ -185,13 +194,12 @@ function SaveReference({ reference, phone }: { reference: string; phone: string 
 type GuestCancelProps = {
   reference: string;
   phone: string;
-  query: string;
   open: boolean;
   setOpen(open: boolean): void;
   onCancelled(b: BookingJson, refunds: RefundJson[]): void;
 };
 
-function GuestCancel({ reference, phone, query, open, setOpen, onCancelled }: GuestCancelProps) {
+function GuestCancel({ reference, phone, open, setOpen, onCancelled }: GuestCancelProps) {
   const { t } = useTranslation();
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState('');
@@ -243,7 +251,7 @@ function GuestCancel({ reference, phone, query, open, setOpen, onCancelled }: Gu
       <CancelDialog
         open={open}
         onClose={() => setOpen(false)}
-        loadPreview={() => apiGet<{ preview: CancellationPreview }>(`/bookings/lookup/cancellation?${query}`).then((r) => r.preview)}
+        loadPreview={() => apiPost<{ preview: CancellationPreview }>('/bookings/lookup/cancellation', { reference, phone }).then((r) => r.preview)}
         cancel={async (reason) => {
           try {
             return await apiPost<{ booking: BookingJson; refunds: RefundJson[] }>('/bookings/lookup/cancel', {

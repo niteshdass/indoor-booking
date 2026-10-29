@@ -1,0 +1,286 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* KPI strip: 2 across on a phone, 3 at md, 6 at xl. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+@media (min-width: 1280px) {
+  .stats {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* Every section is a card with its title (and count) inside, like the owner Today page. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.panelHead > :last-child:not(:first-child) {
+  margin-inline-start: auto;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.count {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Two cards side by side from xl, stacked below. */
+.split {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (min-width: 1280px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .split.wide {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  }
+}
+
+.muted {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.link {
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Search box and filters above a list. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.search {
+  display: flex;
+  flex: 1 1 var(--filter-search-min);
+  align-items: flex-end;
+  gap: var(--space-2);
+  max-width: var(--filter-search-max);
+}
+
+.search > :first-child {
+  flex: 1;
+}
+
+/* A plain list of rows, divided by hairlines. */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding-block: var(--space-3);
+}
+
+.row:first-child {
+  padding-block-start: 0;
+}
+
+.row:last-child {
+  padding-block-end: 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.row > .stack {
+  flex: 1 1 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Owner detail: name and status on top, the actions to the end side. */
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.heroName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-display);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.hero > .actions {
+  margin-inline-start: auto;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--fact-min), 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.facts div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.facts dt {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* Review queue: one card per review. */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.reviewMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.comment {
+  margin: 0;
+  color: var(--text-default);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.quote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-inline-start: var(--reply-rule) solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  font-size: var(--text-sm);
+  color: var(--text-default);
+  overflow-wrap: anywhere;
+}
+
+.reply {
+  border-inline-start-color: var(--border-default);
+  background: var(--bg-subtle);
+}
+
+.more {
+  align-self: center;
+}
+
+/* Action dialogs. */
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

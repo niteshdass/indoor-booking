@@ -211,6 +211,21 @@ describe('multi-day booking', () => {
   });
 });
 
+describe('multi-day retry', () => {
+  it('the same Idempotency-Key returns the whole group again', async () => {
+    await setup();
+    const { token } = await newPlayer();
+    const first = await post(`${base()}/bookings`, groupBody(), token).set('Idempotency-Key', 'group-key-1');
+    expect(first.status).toBe(201);
+    const again = await post(`${base()}/bookings`, groupBody(), token).set('Idempotency-Key', 'group-key-1');
+    expect(again.status).toBe(201);
+    const ids = (r: typeof first) => r.body.bookings.map((b: { id: string }) => b.id);
+    expect(ids(again)).toEqual(ids(first));
+    expect(again.body.booking.id).toBe(first.body.booking.id);
+    expect(await bookings()).toHaveLength(1 + ALSO.length);
+  });
+});
+
 describe('multi-day payment', () => {
   let player: { userId: string; token: string };
   let secret: string;

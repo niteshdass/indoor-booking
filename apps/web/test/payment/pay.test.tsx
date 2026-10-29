@@ -26,7 +26,7 @@ vi.mock('@stripe/react-stripe-js', () => ({
   useElements: () => ({}),
 }));
 
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 const PATH = '/me/bookings/b1/pay';
 
 const booking = (over: Partial<BookingJson> = {}) =>

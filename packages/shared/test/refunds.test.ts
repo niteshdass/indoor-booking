@@ -50,6 +50,11 @@ describe('matchRefundRule', () => {
 });
 
 describe('cancellationRefund', () => {
+  it('has no floating-point shortfall: 375 at 18.4% is 69, not 68', () => {
+    const r = cancellationRefund({ rules: [{ minHoursBefore: 0, percent: 18.4 }], startAt, now: hoursBefore(1), refundable: 375, byStaff: false });
+    expect(r.amount).toBe(69);
+  });
+
   it('applies the matched rule to the refundable amount', () => {
     expect(
       cancellationRefund({ rules, startAt, now: hoursBefore(80), refundable: 5000, byStaff: false }),

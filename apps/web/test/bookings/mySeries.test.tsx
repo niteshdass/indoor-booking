@@ -9,7 +9,7 @@ import type { BookingJson, PublicUser } from '../../src/lib/types';
 import { seriesJson } from '../owner/fixtures';
 import type { SeriesGameJson, SeriesJson } from '@booking/shared';
 
-const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false };
+const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 
 type PlayerSeries = SeriesJson & { venue: { slug: string; name: string; timezone: string }; turf: { name: string } };
 

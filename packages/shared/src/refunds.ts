@@ -25,7 +25,9 @@ export function cancellationRefund(input: {
 }): { percent: number; amount: number; rule: RefundRule | null } {
   const rule = matchRefundRule(input.rules, input.startAt, input.now);
   const percent = input.byStaff ? 100 : (rule?.percent ?? 0);
-  return { percent, amount: Math.floor((input.refundable * percent) / 100), rule };
+  // Integer basis points: 375 * 18.4 / 100 is 68.99999… in floating point, and would floor a unit short.
+  const basisPoints = Math.round(percent * 100);
+  return { percent, amount: Math.floor((input.refundable * basisPoints) / 10_000), rule };
 }
 
 /** Payment status once refunds are counted: refunded amounts take precedence over how much was paid. */

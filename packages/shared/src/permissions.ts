@@ -39,3 +39,23 @@ const PERMISSION_SET: ReadonlySet<string> = new Set(PERMISSIONS);
 export function isPermission(value: string): value is Permission {
   return PERMISSION_SET.has(value);
 }
+
+/** Platform (Super Admin) permissions; never part of an owner role. */
+export const PLATFORM_PERMISSIONS = ['platform.view', 'platform.owners', 'platform.users', 'platform.reviews'] as const;
+export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number];
+
+export const PLATFORM_ROLES: Record<'super_admin', readonly PlatformPermission[]> = {
+  super_admin: PLATFORM_PERMISSIONS,
+};
+
+export type PlatformRoleKey = keyof typeof PLATFORM_ROLES;
+
+export const PLATFORM_ROLE_NAMES: Record<PlatformRoleKey, string> = {
+  super_admin: 'Super admin',
+};
+
+const PLATFORM_PERMISSION_SET: ReadonlySet<string> = new Set(PLATFORM_PERMISSIONS);
+
+export function isPlatformPermission(value: string): value is PlatformPermission {
+  return PLATFORM_PERMISSION_SET.has(value);
+}

@@ -63,6 +63,11 @@ const bookingSchema = new mongoose.Schema(
     seriesId: { type: ObjectId, ref: 'RecurringSeries', default: null },
     /** Shared by the bookings of one multi-day checkout: the same time on several days, paid together. */
     groupId: { type: ObjectId, default: null },
+    /**
+     * The client's Idempotency-Key, scoped to whoever booked, on the single or first booking of a
+     * checkout: a retried request finds it and gets the same bookings back instead of new ones.
+     */
+    requestKey: { type: String, default: undefined },
     rejectReason: { type: String, default: null },
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
@@ -82,7 +87,10 @@ bookingSchema.index({ ownerId: 1, venueId: 1, createdAt: -1 });
 bookingSchema.index({ ownerId: 1, venueId: 1, startAt: 1, endAt: 1 });
 bookingSchema.index({ playerId: 1, startAt: -1 });
 bookingSchema.index({ ownerId: 1, seriesId: 1, startAt: 1 });
+// Guest lookup, and the cap on a guest phone's pending bookings.
+bookingSchema.index({ 'guest.phone': 1, status: 1, endAt: 1 });
 bookingSchema.index({ ownerId: 1, groupId: 1 }, { partialFilterExpression: { groupId: { $type: 'objectId' } } });
+bookingSchema.index({ requestKey: 1 }, { unique: true, partialFilterExpression: { requestKey: { $type: 'string' } } });
 // Cross-tenant lifecycle sweeps (jobs/sweeps.ts), paged on (time, _id).
 bookingSchema.index({ status: 1, holdExpiresAt: 1, _id: 1 });
 bookingSchema.index({ status: 1, startAt: 1, _id: 1 });

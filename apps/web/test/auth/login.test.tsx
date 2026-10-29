@@ -15,6 +15,7 @@ const user: PublicUser = {
   phone: null,
   hasPassword: true,
   hasGoogle: false,
+  platformAdmin: false,
 };
 const authRes = { user, accessToken: 'tok', refreshToken: 'r' };
 const otpSent = { expiresInSec: 300, resendInSec: 60 };

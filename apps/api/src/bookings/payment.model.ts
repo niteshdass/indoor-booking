@@ -64,6 +64,8 @@ paymentSchema.index(
   { ownerId: 1, provider: 1, trxId: 1 },
   { unique: true, partialFilterExpression: { trxId: { $type: 'string' }, status: { $in: ['pending', 'succeeded'] } } },
 );
+// Wallet payments waiting for staff, for the bookings list's "Payment to check" view.
+paymentSchema.index({ ownerId: 1, venueId: 1 }, { partialFilterExpression: { kind: 'manual', status: 'pending' } });
 paymentSchema.plugin(tenantScoped);
 
 export const Payment = mongoose.model('Payment', paymentSchema);

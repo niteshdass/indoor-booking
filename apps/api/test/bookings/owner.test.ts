@@ -539,6 +539,55 @@ describe('list', () => {
   });
 });
 
+describe('list: payments to check', () => {
+  /** A wallet payment of `status` on the booking, as a player's submit leaves it. */
+  const manualPayment = (bookingId: string, status = 'pending', ownerId = a.ownerId, venueId = v1) =>
+    Payment.create({
+      ownerId, venueId, bookingId, method: 'wallet', kind: 'manual', status, amount: 300, currency: 'BDT',
+      provider: 'bkash', trxId: `T${Math.random().toString(36).slice(2, 11).toUpperCase()}`, senderNumber: PHONE,
+    });
+  const ids = async (query: string, token = a.token) => {
+    const res = await get(`/bookings?${query}`, token);
+    expect(res.status).toBe(200);
+    return { ids: (res.body.bookings as { id: string }[]).map((b) => b.id), total: res.body.total as number };
+  };
+
+  it('scope=to_verify lists bookings of any date and status with an unchecked wallet payment, soonest first', async () => {
+    await setClock('2026-01-10T06:00:00Z');
+    const later = await pendingBooking({ hm: '10:00' });
+    await Booking.updateOne({ _id: later, ownerId: a.ownerId }, { businessDate: '2026-01-20', startAt: at('10:00', '2026-01-20'), endAt: at('11:00', '2026-01-20') });
+    const today = await pendingBooking({ hm: '12:00' });
+    const expired = await pendingBooking({ hm: '14:00' });
+    await Booking.updateOne({ _id: expired, ownerId: a.ownerId }, { status: 'expired' });
+    const checked = await pendingBooking({ hm: '16:00' });
+    const plain = await pendingBooking({ hm: '18:00' });
+    const otherVenue = await pendingBooking({ venueId: v2, turfId: t2 });
+    for (const id of [later, today, expired]) await manualPayment(id);
+    await manualPayment(checked, 'succeeded');
+    await manualPayment(otherVenue, 'pending', a.ownerId, v2);
+    // Another owner's waiting payment never shows.
+    const b = await seedOwner(ctx.services, { name: 'Other' });
+    const bv = (await seedVenue(b.ownerId, { timezone: TZ })).id as string;
+    const bt = (await seedTurf(b.ownerId, bv)).id as string;
+    const foreign = await pendingBooking({ ownerId: b.ownerId, venueId: bv, turfId: bt });
+    await manualPayment(foreign, 'pending', b.ownerId, bv);
+
+    expect(await ids(`venueId=${v1}&scope=to_verify`)).toEqual({ ids: [today, expired, later], total: 3 });
+    expect(await ids(`venueId=${v1}&scope=to_verify&pageSize=1`)).toEqual({ ids: [today], total: 3 });
+    expect((await ids('scope=to_verify')).ids.sort()).toEqual([later, today, expired, otherVenue].sort());
+    expect((await ids('scope=to_verify', manager.token)).ids.sort()).toEqual([later, today, expired].sort());
+    expect((await ids('scope=to_verify')).ids).not.toContain(plain);
+    expect((await ids('scope=to_verify')).ids).not.toContain(foreign);
+    expect((await get(`/bookings?venueId=${v2}&scope=to_verify`, manager.token)).status).toBe(404);
+  });
+
+  it('scope=to_verify needs booking.view like the rest of the list', async () => {
+    const role = await Role.create({ ownerId: a.ownerId, name: 'Cashier', permissions: ['booking.create'] });
+    const member = await addMember(ctx.services, a.ownerId, { roleId: role.id as string });
+    expect((await get(`/bookings?venueId=${v1}&scope=to_verify`, member.token)).status).toBe(403);
+  });
+});
+
 describe('tenancy', () => {
   it('404s identically for another owner, an out-of-scope venue and a malformed id', async () => {
     const b = await seedOwner(ctx.services, { name: 'Other' });

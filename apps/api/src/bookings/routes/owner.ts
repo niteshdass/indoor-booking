@@ -31,7 +31,8 @@ import { addonsSchema, groupItems, moreSchema, startAtsSchema } from './public';
 
 const MAX_RANGE_DAYS = 31;
 const LIST_LIMIT = 500;
-const LIST_SCOPES = ['all', 'today', 'upcoming', 'past'] as const;
+/** `to_verify`: any date and status, with a wallet payment staff have not checked yet. */
+const LIST_SCOPES = ['all', 'today', 'upcoming', 'past', 'to_verify'] as const;
 /** Field and direction: when the booking was made, the reference, or when it is played. */
 const LIST_SORTS = ['created-desc', 'created-asc', 'date-asc', 'date-desc', 'ref-asc', 'ref-desc'] as const;
 const MAX_PAGE_SIZE = 100;
@@ -49,6 +50,7 @@ const DEFAULT_SORT: Record<(typeof LIST_SCOPES)[number], (typeof LIST_SORTS)[num
   today: 'date-asc',
   upcoming: 'date-asc',
   past: 'date-desc',
+  to_verify: 'date-asc',
 };
 const CHECK_IN_LEAD_MS = 60 * 60_000;
 /** Statuses that still take a cash payment. */
@@ -137,7 +139,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       if (q.turfId) filter.turfId = q.turfId;
       if (q.status) filter.status = q.status;
       // Today, upcoming and past are venue-local dates, so they need the venue.
-      if (scope !== 'all' && !q.venueId) throw new AppError(400, 'validation_error', 'venueId is required for this scope');
+      if (scope !== 'all' && scope !== 'to_verify' && !q.venueId) throw new AppError(400, 'validation_error', 'venueId is required for this scope');
       const today = q.venueId ? localParts(services.now(), (await scopedVenue(t, q.venueId)).timezone).date : null;
       const date: Record<string, string> = {};
       if (scope === 'today') Object.assign(date, { $gte: today!, $lte: today! });
@@ -147,6 +149,10 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       if (q.to) date.$lte = date.$lte && date.$lte < q.to ? date.$lte : q.to;
       if (Object.keys(date).length) filter.businessDate = date;
       if (q.q) Object.assign(filter, await bookingSearchFilter(q.q));
+      if (scope === 'to_verify') {
+        const waiting = { ownerId: t.ownerId, kind: 'manual', status: 'pending', ...(q.venueId ? { venueId: q.venueId } : {}) };
+        filter._id = { $in: await Payment.distinct('bookingId', waiting) };
+      }
       const repo = tenantRepo(Booking, t, { venueField: 'venueId' });
       const [total, bookings] = await Promise.all([
         repo.countDocuments(filter),

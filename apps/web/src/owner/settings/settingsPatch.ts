@@ -9,6 +9,8 @@ export type SettingsLevel = 'owner' | 'venue';
 export type StoredSettings = Omit<Partial<OwnerSettings>, 'hours'> & { hours?: Partial<WeeklyHours> };
 export type Draft = StoredSettings;
 
+const BD_MOBILE = /^(?:\+?880|0)?1[3-9]\d{8}$/;
+
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
@@ -33,7 +35,7 @@ export function hoursPatch(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-const KEYS = ['weekendDays', 'paymentPolicy', 'guestBooking', 'refundRules', 'bookingWindowDays', 'pendingAutoRejectHours'] as const;
+const KEYS = ['weekendDays', 'paymentPolicy', 'paymentMethods', 'guestBooking', 'refundRules', 'bookingWindowDays', 'pendingAutoRejectHours'] as const;
 
 /**
  * The PATCH body: only keys that differ from `before`. At venue level a key removed from the draft becomes
@@ -61,7 +63,7 @@ export function settingsPatch(level: SettingsLevel, before: StoredSettings, draf
   return out;
 }
 
-export type SettingsError = 'hours' | 'percent' | 'amount' | 'refund' | 'duplicate' | 'window' | 'autoReject';
+export type SettingsError = 'hours' | 'percent' | 'amount' | 'refund' | 'duplicate' | 'wallet' | 'window' | 'autoReject';
 
 const inRange = (n: number | undefined, min: number, max: number) =>
   n !== undefined && Number.isInteger(n) && n >= min && n <= max;
@@ -80,6 +82,7 @@ export function settingsErrors(draft: Draft): Set<SettingsError> {
   }
   if (draft.bookingWindowDays !== undefined && !inRange(draft.bookingWindowDays, 1, 365)) e.add('window');
   if (draft.pendingAutoRejectHours !== undefined && !inRange(draft.pendingAutoRejectHours, 0, 72)) e.add('autoReject');
+  if (draft.paymentMethods?.manualWallets.some((w) => !BD_MOBILE.test(w.number.replace(/[\s-]/g, '')))) e.add('wallet');
   const times = Object.values(draft.hours ?? {});
   if (times.some((h) => h !== 'closed' && (!h.open || !h.close))) e.add('hours');
   return e;

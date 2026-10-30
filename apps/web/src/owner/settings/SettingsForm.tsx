@@ -13,7 +13,9 @@ import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Select } from '../../components/ui/Select';
 import { TextField } from '../../components/ui/TextField';
+import { ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
+import { PaymentMethodsFields } from './PaymentMethodsFields';
 import { HoursEditor, weekdayNames } from './HoursEditor';
 import { settingsErrors, settingsPatch, type Draft, type SettingsLevel, type StoredSettings } from './settingsPatch';
 import styles from './settings.module.css';
@@ -30,6 +32,8 @@ type Props = {
   currency: string;
   onSave(patch: Record<string, unknown>): Promise<void>;
   disabled?: boolean;
+  /** The owner's Stripe account is connected and on; the card switch stays off until then. */
+  stripeReady?: boolean;
 };
 
 const MAX_RULES = 10;
@@ -72,7 +76,7 @@ function Section({
 }
 
 /** Owner- or venue-level settings editor; Task 13 mounts it with `level="venue"`. */
-export function SettingsForm({ level, stored, effective, inherited, currency, onSave, disabled }: Props) {
+export function SettingsForm({ level, stored, effective, inherited, currency, onSave, disabled, stripeReady = false }: Props) {
   const { t, i18n } = useTranslation();
   const venue = level === 'venue';
   const [base, setBase] = useState<StoredSettings>(() => clone(venue ? stored : effective));
@@ -145,6 +149,10 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
   };
   const dup = (i: number) => rules.some((r, j) => j !== i && r.minHoursBefore === rules[i]!.minHoursBefore);
 
+  const methods = value('paymentMethods');
+  const noMethod = error instanceof ApiError && error.code === 'no_payment_method';
+  const walletsBad = submitted && errors.has('wallet');
+
   const guest = value('guestBooking');
   const weekend = value('weekendDays');
 
@@ -174,7 +182,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
 
   return (
     <form className={styles.layout} onSubmit={submit} noValidate>
-      {error !== null && <Alert className={styles.full} tone="danger">{errorMessage(error, t)}</Alert>}
+      {error !== null && !noMethod && <Alert className={styles.full} tone="danger">{errorMessage(error, t)}</Alert>}
       {done && <Alert className={styles.full} tone="success">{t('owner.settings.saved')}</Alert>}
 
       <div className={styles.column}>
@@ -300,6 +308,22 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
             )}
           </div>
           <p className={styles.muted}>{t('owner.settings.paymentNote')}</p>
+        </>,
+      )}
+
+      {section(
+        'paymentMethods',
+        t('owner.settings.methods.title'),
+        <>
+          <p className={styles.muted}>{t('owner.settings.methods.hint')}</p>
+          <PaymentMethodsFields
+            value={methods}
+            disabled={locked('paymentMethods')}
+            stripeReady={stripeReady}
+            onChange={(v) => edit({ ...draft, paymentMethods: v })}
+          />
+          {walletsBad && <p className={styles.error}>{t('owner.settings.errors.wallet')}</p>}
+          {noMethod && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
         </>,
       )}
 

@@ -116,6 +116,7 @@
     "account_exists": "An account with these details already exists. Please sign in.",
     "too_late": "It's too late to book or change this slot.",
     "too_early": "It's too early for this action on this booking.",
+    "no_payment_method": "Turn on at least one way to pay online, or set the advance to none.",
     "payment_in_progress": "A payment for this booking is already in progress.",
     "payments_unavailable": "Online payments are unavailable right now.",
     "outside_window": "That date is outside the booking window.",
@@ -998,6 +999,16 @@
         "partial_fixed": "Fixed amount"
       },
       "paymentNote": "Any advance payment turns guest booking off: players must sign in.",
+      "methods": {
+        "title": "Payment methods",
+        "hint": "How players pay the advance online. Wallet payments are checked by your team.",
+        "number": "Number",
+        "accountType": "Account type",
+        "account": { "personal": "Personal", "merchant": "Merchant", "agent": "Agent" },
+        "note": "Note for players (optional)",
+        "card": "Card (Stripe)",
+        "connectStripe": "Connect Stripe first"
+      },
       "guestTitle": "Guest booking",
       "guestAllowed": "Allow booking without an account",
       "guestOtp": "Require a phone code for guests",
@@ -1021,6 +1032,7 @@
         "amount": "Enter an amount above zero.",
         "refund": "Hours must be 0 to 8760 and percent 0 to 100.",
         "window": "Enter a whole number from 1 to 365.",
+        "wallet": "Enter a Bangladesh mobile number, like 01712345678.",
         "autoReject": "Enter a whole number from 0 to 72."
       }
     },

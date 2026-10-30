@@ -3,6 +3,7 @@ import { apiPatch } from '../../lib/apiClient';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { SettingsForm } from '../settings/SettingsForm';
+import { useStripeReady } from '../settings/PaymentMethodsFields';
 import type { OwnerVenue } from '../types';
 import styles from './venues.module.css';
 
@@ -16,6 +17,8 @@ type Props = {
 /** Per-venue overrides of the owner's settings; an absent key inherits. Saved under the venue's `settings` key. */
 export function VenueSettingsTab({ venue, ownerSettings, onSaved }: Props) {
   const { ownerId, can, reloadVenues } = useOwner();
+
+  const stripeReady = useStripeReady();
 
   const save = async (patch: Record<string, unknown>) => {
     const res = await apiPatch<{ venue: OwnerVenue }>(ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}`), { settings: patch });
@@ -33,6 +36,7 @@ export function VenueSettingsTab({ venue, ownerSettings, onSaved }: Props) {
         currency={venue.currency}
         onSave={save}
         disabled={!can('venue.manage')}
+        stripeReady={stripeReady}
       />
     </div>
   );

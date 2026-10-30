@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DEFAULT_OWNER_SETTINGS, type WeeklyHours } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
@@ -8,6 +8,7 @@ import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { HoursEditor } from '../../src/owner/settings/HoursEditor';
 import { SettingsForm } from '../../src/owner/settings/SettingsForm';
 import { hoursPatch, settingsPatch, type StoredSettings } from '../../src/owner/settings/settingsPatch';
+import { ApiError } from '../../src/lib/apiClient';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
 import { OWNER_ID, ownerRoutes, staffUser } from './fixtures';
@@ -123,7 +124,7 @@ describe('SettingsForm', () => {
     const stored: StoredSettings = { refundRules: [{ minHoursBefore: 24, percent: 50 }] };
     const onSave = renderForm('venue', { stored });
     const boxes = screen.getAllByLabelText(S.inherit);
-    expect(boxes.length).toBe(6);
+    expect(boxes.length).toBe(7);
     await user.click(within(screen.getByRole('region', { name: S.refundTitle })).getByLabelText(S.inherit));
     await user.click(screen.getByRole('button', { name: S.save }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ refundRules: null }));
@@ -157,6 +158,70 @@ describe('SettingsForm', () => {
     await user.click(screen.getByRole('button', { name: S.save }));
     expect((await screen.findAllByText(S.duplicate)).length).toBeGreaterThan(0);
     expect(onSave).not.toHaveBeenCalled();
+  });
+});
+
+describe('payment methods', () => {
+  const PM = S.methods;
+
+  it('owner turns on bKash with a number and saves', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('owner');
+    const card = screen.getByRole('region', { name: PM.title });
+    await user.click(within(card).getByLabelText('bKash'));
+    const number = within(card).getByLabelText(PM.number);
+    expect(number.getAttribute('inputmode')).toBe('tel');
+    await user.type(number, '01712345678');
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const body = onSave.mock.calls[0]![0] as { paymentMethods: { manualWallets: unknown[] } };
+    expect(body.paymentMethods.manualWallets[0]).toEqual({ provider: 'bkash', number: '01712345678', accountType: 'personal' });
+  });
+
+  it('shows a stored number formatted until it is edited', () => {
+    renderForm('owner', {
+      effective: { ...DEFAULTS, paymentMethods: { manualWallets: [{ provider: 'nagad', number: '+8801712345678', accountType: 'merchant' }], gateways: [] } },
+    });
+    expect((screen.getByLabelText(PM.number) as HTMLInputElement).value).toBe('+880 1712-345678');
+  });
+
+  it('venue inherits payment methods until overridden', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('venue');
+    const card = screen.getByRole('region', { name: PM.title });
+    expect((within(card).getByLabelText('bKash') as HTMLInputElement).disabled).toBe(true);
+    await user.click(within(card).getByLabelText(S.inherit));
+    await user.click(within(card).getByLabelText('bKash'));
+    await user.type(within(card).getByLabelText(PM.number), '01712345678');
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0]).toEqual({
+      paymentMethods: { manualWallets: [{ provider: 'bkash', number: '01712345678', accountType: 'personal' }], gateways: [] },
+    });
+  });
+
+  it('save error no_payment_method shows its message next to the group', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockRejectedValue(new ApiError(400, 'no_payment_method', 'x'));
+    renderForm('owner', { onSave, effective: { ...DEFAULTS, bookingWindowDays: 30 } });
+    await user.clear(screen.getByLabelText(S.bookingWindow));
+    await user.type(screen.getByLabelText(S.bookingWindow), '31');
+    await user.click(screen.getByRole('button', { name: S.save }));
+    const card = screen.getByRole('region', { name: PM.title });
+    expect(await within(card).findByText(en.errors.no_payment_method)).toBeTruthy();
+  });
+
+  it('card is disabled until Stripe is connected', async () => {
+    const user = userEvent.setup();
+    renderForm('owner');
+    const card = screen.getByLabelText(PM.card) as HTMLInputElement;
+    expect(card.disabled).toBe(true);
+    expect(screen.getByText(PM.connectStripe)).toBeTruthy();
+    cleanup();
+    const onSave = renderForm('owner', { stripeReady: true });
+    await user.click(screen.getByLabelText(PM.card));
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ paymentMethods: { manualWallets: [], gateways: ['stripe'] } }));
   });
 });
 

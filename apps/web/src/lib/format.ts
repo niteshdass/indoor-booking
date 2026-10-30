@@ -1,5 +1,11 @@
 import { currencyExponent, formatMoney } from '@booking/shared';
 
+/** Minor units as an input value, e.g. 1000 BDT -> "10.00". */
+export function forInput(minor: number, currency: string): string {
+  const exponent = currencyExponent(currency);
+  return (minor / 10 ** exponent).toFixed(exponent);
+}
+
 export function money(minor: number, currency: string, lang: string): string {
   return formatMoney(minor, currency, lang);
 }

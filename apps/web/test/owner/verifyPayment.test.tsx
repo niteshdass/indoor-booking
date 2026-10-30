@@ -21,11 +21,11 @@ const V = en.owner.verify;
 const sp = (s: string) => s.replace(/\s/g, ' ');
 const POST = `/owners/${OWNER_ID}/bookings/b1/payments/manual`;
 
-function setup(routes: Parameters<typeof mockApi>[0] = []) {
+function setup(routes: Parameters<typeof mockApi>[0] = [], over: Parameters<typeof ownerBooking>[0] = {}) {
   const api = mockApi([...ownerRoutes({ permissions: ['booking.view', 'payment.verify'] }), ...routes]);
   const onDone = vi.fn();
   const onConflict = vi.fn();
-  const booking = ownerBooking({ manualPayment: manualPayment() });
+  const booking = ownerBooking({ manualPayment: manualPayment(), ...over });
   render(
     <I18nextProvider i18n={i18n}>
       <MemoryRouter initialEntries={[`/owner/${OWNER_ID}`]}>
@@ -99,6 +99,18 @@ describe('VerifyPaymentDialog', () => {
     await waitFor(() => expect(onConflict).toHaveBeenCalledTimes(1));
     expect(onDone).not.toHaveBeenCalled();
     expect(within(dialog).getByText(en.errors.invalid_transition)).toBeTruthy();
+  });
+});
+
+describe('late payment', () => {
+  it('an expired booking says everything received will be sent back, not that it stays due', async () => {
+    const { user } = setup([], { status: 'expired' });
+    const dialog = await screen.findByRole('dialog', { name: V.title });
+    const field = within(dialog).getByLabelText(V.amountReceived);
+    await user.clear(field);
+    await user.type(field, '6.00');
+    expect(within(dialog).getByText(V.lateHint)).toBeTruthy();
+    expect(within(dialog).queryByText(/stays due/)).toBeNull();
   });
 });
 

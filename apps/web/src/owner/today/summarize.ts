@@ -1,3 +1,4 @@
+import { awaitsVerification } from '../bookings/availableActions';
 import type { OwnerBooking } from '../types';
 
 const DEAD = new Set(['cancelled', 'rejected', 'expired']);
@@ -14,7 +15,8 @@ export function summarize(bookings: OwnerBooking[], now: Date = new Date()): Tod
   return {
     count: bookings.filter((b) => !DEAD.has(b.status)).length,
     collected: bookings.reduce((sum, b) => sum + b.amountPaid - b.amountRefunded, 0),
-    pending: bookings.filter((b) => b.status === 'pending').length,
+    // A booking waiting on a wallet check is counted in payments to verify instead.
+    pending: bookings.filter((b) => b.status === 'pending' && !awaitsVerification(b)).length,
     upcoming: bookings
       .filter((b) => OPEN.has(b.status) && lastEnd(b) > nowMs)
       .sort((a, b) => firstStart(a) - firstStart(b)),

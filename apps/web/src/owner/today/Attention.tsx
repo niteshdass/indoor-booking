@@ -61,7 +61,7 @@ export function Attention({
   const bookingTo = (b: OwnerBooking) => `bookings/${encodeURIComponent(b.id)}`;
 
   const submittedAt = (b: OwnerBooking) => Date.parse(b.manualPayment?.submittedAt ?? b.createdAt);
-  const toVerify = bookings.filter((b) => b.status === 'pending' && awaitsVerification(b));
+  const toVerify = bookings.filter(awaitsVerification);
   const oldestVerify = toVerify.reduce<OwnerBooking | null>((o, b) => (o === null || submittedAt(b) < submittedAt(o) ? b : o), null);
   // Bookings in the "payments to verify" row are not also counted as waiting for confirmation.
   const pending = bookings.filter((b) => b.status === 'pending' && !awaitsVerification(b));

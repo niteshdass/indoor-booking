@@ -141,7 +141,7 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
         onConflict={cb.onConflict}
         onDone={(b) => {
           setVerifyOpen(false);
-          cb.onUpdated(b);
+          cb.onPaid(b); // updates the booking and reloads its payments, refunds and group
         }}
       />
       <PaymentLinkDialog

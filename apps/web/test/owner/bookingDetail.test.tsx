@@ -136,13 +136,34 @@ describe('owner booking detail', () => {
   it('a submitted wallet payment shows Payment to check and a Verify payment button, never Paid', async () => {
     mockApi([
       ...ownerRoutes({ permissions: [...OWNER_PERMS, 'payment.verify'] }),
-      { path: GET, body: detail({ booking: ownerBooking({ manualPayment: manualPayment() }) }) },
+      { path: GET, body: detail({ booking: ownerBooking({ manualPayment: manualPayment(), paymentStatus: 'paid', amountPaid: 1000 }) }) },
     ]);
     renderApp(URL_, { user: staffUser });
     expect(await screen.findByText(en.status.paymentToCheck)).toBeTruthy();
     expect(screen.getByRole('button', { name: en.owner.bookings.actions.verify })).toBeTruthy();
     expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull();
     expect(screen.queryByText(en.paymentStatus.paid, { selector: 'span' })).toBeNull();
+  });
+
+  it('verify on the booking page reloads and shows the new overpayment refund', async () => {
+    const wallet = { id: 'rw', paymentId: 'p1', method: 'wallet', amount: 250, currency: 'BDT', reason: 'overpayment', ruleApplied: null, status: 'pending', failureCode: null, retryOf: null, createdAt: '2026-10-25T01:00:00.000Z', trxId: null, provider: 'bkash', sendTo: '+8801812345678' };
+    const api = mockApi([
+      ...ownerRoutes({ permissions: [...OWNER_PERMS, 'payment.verify'] }),
+      { method: 'GET', path: GET, body: (_c: unknown, n: number) => (n === 0 ? detail({ booking: ownerBooking({ manualPayment: manualPayment() }) }) : detail({ booking: ownerBooking({ status: 'confirmed', amountPaid: 1000 }), refunds: [wallet as never] })) },
+      { method: 'POST', path: `${GET}/payments/manual/verify`, body: { booking: ownerBooking({ status: 'confirmed', amountPaid: 1000 }) } },
+    ]);
+    const { user } = renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.verify }));
+    const dialog = await screen.findByRole('dialog', { name: en.owner.verify.title });
+    await user.click(within(dialog).getByRole('button', { name: en.owner.verify.received }));
+    expect(await screen.findByText(/Send .*2\.50.* back to/)).toBeTruthy();
+    expect(api.calls.filter((c) => c.method === 'GET' && c.path === GET)).toHaveLength(2);
+  });
+
+  it('a late payment on an expired booking still shows Payment to check', async () => {
+    mockApi([...ownerRoutes({ permissions: [...OWNER_PERMS, 'payment.verify'] }), { path: GET, body: detail({ booking: ownerBooking({ status: 'expired', manualPayment: manualPayment() }) }) }]);
+    renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText(en.status.paymentToCheck)).toBeTruthy();
   });
 
   it('confirm posts once even when double-clicked and updates the status', async () => {

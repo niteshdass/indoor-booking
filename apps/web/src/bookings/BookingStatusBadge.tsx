@@ -27,7 +27,7 @@ const PAYMENT_TONE: Record<PaymentStatus, Tone> = {
  */
 export function BookingStatusBadge({ status, toVerify = false }: { status: BookingStatus; toVerify?: boolean }) {
   const { t } = useTranslation();
-  if (toVerify && status === 'pending') return <Badge tone="warning">{t('status.paymentToCheck')}</Badge>;
+  if (toVerify) return <Badge tone="warning">{t('status.paymentToCheck')}</Badge>;
   return <Badge tone={BOOKING_TONE[status]}>{t(`status.${status}`)}</Badge>;
 }
 

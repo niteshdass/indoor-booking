@@ -113,7 +113,7 @@ export function OwnerBookingPage() {
         <h1 className={styles.reference}>{b.reference}</h1>
         <div className={styles.badges}>
           <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
-          <PaymentStatusBadge status={b.paymentStatus} />
+          {!awaitsVerification(b) && <PaymentStatusBadge status={b.paymentStatus} />}
           {b.seriesId && <SeriesBadge href={`/owner/${encodeURIComponent(ownerId)}/series/${encodeURIComponent(b.seriesId)}`} />}
         </div>
       </header>

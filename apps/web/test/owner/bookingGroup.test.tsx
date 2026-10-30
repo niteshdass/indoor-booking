@@ -6,7 +6,7 @@ import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import type { BookingGroup } from '../../src/owner/types';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
-import { OWNER_ID, ownerBooking, ownerRoutes, staffUser } from './fixtures';
+import { OWNER_ID, manualPayment, ownerBooking, ownerRoutes, staffUser } from './fixtures';
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
@@ -73,5 +73,13 @@ describe('owner booking group page', () => {
     mockApi([...ownerRoutes(), { path: GET, status: 404, body: { error: { code: 'not_found', message: 'x' } } }]);
     renderApp(URL_, { user: staffUser });
     expect(await screen.findByText(en.owner.bookings.group.notFound)).toBeTruthy();
+  });
+
+  it('hides Mark cash paid for all while a wallet payment is pending', async () => {
+    const pending = ownerBooking({ id: 'b3', groupId: 'g1', status: 'pending', manualPayment: manualPayment() });
+    mockApi([...ownerRoutes({ permissions: ['booking.view', 'payment.mark_cash'] }), { path: GET, body: group({ bookings: [b1, pending] }) }]);
+    renderApp(URL_, { user: staffUser });
+    await screen.findAllByText('BK-0001');
+    expect(screen.queryByRole('button', { name: en.owner.bookings.group.cashAll })).toBeNull();
   });
 });

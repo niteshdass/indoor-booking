@@ -38,6 +38,14 @@ describe('summarize', () => {
     expect(s.pending).toBe(1);
   });
 
+  it('summarize does not count bookings waiting on a wallet check as waiting for confirmation', () => {
+    const s = summarize([
+      ownerBooking({ id: 'v', status: 'pending', manualPayment: manualPayment() }),
+      ownerBooking({ id: 'p', status: 'pending' }),
+    ]);
+    expect(s.pending).toBe(1);
+  });
+
   it('summarize upcoming excludes finished and terminal bookings', () => {
     const later = [slot('2026-10-26T08:00:00.000Z', '2026-10-26T09:00:00.000Z')];
     const soon = [slot('2026-10-26T04:00:00.000Z', '2026-10-26T05:00:00.000Z')];
@@ -176,6 +184,15 @@ describe('Today page', () => {
     const dialog = await screen.findByRole('dialog', { name: en.owner.verify.title });
     await user.click(within(dialog).getByRole('button', { name: en.owner.verify.received }));
     await waitFor(() => expect(api.calls.some((c) => c.path.endsWith('/manual/verify'))).toBe(true));
+  });
+
+  it('Today attention counts a late payment on an expired booking', async () => {
+    mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'payment.verify'] }),
+      { path: '/owners/o1/bookings', body: { bookings: [ownerBooking({ id: 'x', status: 'expired', manualPayment: manualPayment() })] } },
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    expect(await screen.findByText('1 payment to verify')).toBeTruthy();
   });
 
   it('Today attention row is danger when the game starts within an hour', async () => {

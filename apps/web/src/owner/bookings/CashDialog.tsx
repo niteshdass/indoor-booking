@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { currencyExponent, parseMoney } from '@booking/shared';
+import { parseMoney } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { money } from '../../lib/format';
+import { forInput, money } from '../../lib/format';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerBooking } from '../types';
@@ -21,12 +21,6 @@ type Props = {
   /** A 409 means the booking changed under us: the page reloads it. */
   onConflict?: () => void;
 };
-
-/** The remaining amount as an input value, e.g. 600 BDT minor units -> "6.00". */
-function forInput(minor: number, currency: string): string {
-  const exponent = currencyExponent(currency);
-  return (minor / 10 ** exponent).toFixed(exponent);
-}
 
 /** Records a cash payment against a booking; defaults to the whole remaining amount. */
 export function CashDialog({ open, booking, onClose, onRecorded, onConflict }: Props) {

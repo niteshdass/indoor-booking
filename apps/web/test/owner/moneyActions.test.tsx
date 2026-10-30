@@ -152,6 +152,21 @@ describe('refund actions', () => {
     await waitFor(() => expect(api.calls.find((c) => c.path.endsWith('/mark-sent'))?.body).toEqual({ trxId: 'ZX98YW76VU' }));
   });
 
+  it('mark sent reloads the booking on a 409', async () => {
+    const wallet = refund({ id: 'rw', method: 'wallet', status: 'pending', sendTo: '+8801812345678', provider: 'bkash' });
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'payment.verify'] }),
+      { path: GET, body: dt([wallet]) },
+      { method: 'POST', path: '/owners/o1/refunds/rw/mark-sent', status: 409, body: { error: { code: 'invalid_transition', message: 'x' } } },
+    ]);
+    const { user } = renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: en.owner.refunds.markSent }));
+    const dialog = await screen.findByRole('dialog', { name: en.owner.refunds.markSentTitle });
+    await user.type(within(dialog).getByLabelText(en.owner.refunds.trxId), 'ZX98YW76VU');
+    await user.click(within(dialog).getByRole('button', { name: en.owner.refunds.markSent }));
+    await waitFor(() => expect(api.calls.filter((c) => c.method === 'GET' && c.path === GET)).toHaveLength(2));
+  });
+
   it('wallet refund has no Mark sent without payment.verify', async () => {
     const wallet = refund({ id: 'rw', method: 'wallet', status: 'pending', sendTo: '+8801812345678', provider: 'bkash' });
     mockApi([...ownerRoutes({ permissions: ['booking.view'] }), { path: GET, body: dt([wallet]) }]);

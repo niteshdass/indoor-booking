@@ -1614,7 +1614,8 @@
       "notReceived": "Not received",
       "notReceivedAsk": "Mark this payment as not received? The player will be told we couldn't find it.",
       "notReceivedConfirm": "Yes, not received",
-      "back": "Back"
+      "back": "Back",
+      "lateHint": "These times were taken, so everything received will be listed to send back."
     }
   },
   "reviews": {

@@ -74,7 +74,7 @@ function SheetBody({ booking, venue, onChanged }: { booking: OwnerBooking; venue
         <p className={styles.name}>{customerLabel(b, t)}</p>
         <div className={styles.badges}>
           <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
-          <PaymentStatusBadge status={b.paymentStatus} />
+          {!awaitsVerification(b) && <PaymentStatusBadge status={b.paymentStatus} />}
         </div>
         {b.customer?.phone && (
           <a href={`tel:${b.customer.phone}`} className={styles.link} aria-label={t('owner.today.sheet.call', { phone: b.customer.phone })}>

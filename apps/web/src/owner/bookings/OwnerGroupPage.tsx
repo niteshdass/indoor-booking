@@ -84,7 +84,7 @@ export function OwnerGroupPage() {
   };
   const stillDue = sum(bookings, due);
   const open = bookings.filter((b) => CANCELLABLE.includes(b.status));
-  const canCash = stillDue > 0 && can('payment.mark_cash');
+  const canCash = stillDue > 0 && !bookings.some(awaitsVerification) && can('payment.mark_cash');
   const canCancel = open.length > 0 && can('booking.cancel');
 
   const payAll = async () => {
@@ -171,7 +171,7 @@ export function OwnerGroupPage() {
                         <td>
                           <div className={page.badges}>
                             <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
-                            <PaymentStatusBadge status={b.paymentStatus} />
+                            {!awaitsVerification(b) && <PaymentStatusBadge status={b.paymentStatus} />}
                           </div>
                         </td>
                         <td className={page.num}>{fmt(b.total)}</td>

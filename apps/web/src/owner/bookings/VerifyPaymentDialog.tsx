@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { currencyExponent, parseMoney } from '@booking/shared';
+import { parseMoney } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { formatDateTime, money } from '../../lib/format';
+import { forInput, formatDateTime, money } from '../../lib/format';
 import { PROVIDER_NAMES, formatBdMobile } from '../../lib/wallets';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
@@ -24,11 +24,6 @@ type Props = {
   /** A 409 means the booking changed under us: the page reloads it. */
   onConflict?(): void;
 };
-
-function forInput(minor: number, currency: string): string {
-  const exponent = currencyExponent(currency);
-  return (minor / 10 ** exponent).toFixed(exponent);
-}
 
 function CopyTrx({ value }: { value: string }) {
   const { t } = useTranslation();
@@ -179,7 +174,9 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
                 value={text}
                 error={invalid ? t('owner.verify.invalid') : undefined}
                 hint={
-                  received !== null && received < due
+                  booking.status === 'expired'
+                    ? t('owner.verify.lateHint')
+                    : received !== null && received < due
                     ? t('owner.verify.shortfall', { rest: fmt(due - received) })
                     : received !== null && received > due
                       ? t('owner.verify.excess', { extra: fmt(received - due) })

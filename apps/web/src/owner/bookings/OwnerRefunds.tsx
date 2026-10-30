@@ -7,7 +7,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { TextField } from '../../components/ui/TextField';
-import { apiPost } from '../../lib/apiClient';
+import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { money } from '../../lib/format';
 import { PROVIDER_NAMES, formatBdMobile } from '../../lib/wallets';
@@ -20,7 +20,7 @@ import styles from './OwnerRefunds.module.css';
 type Kind = 'retry' | 'record-cash';
 
 /** Asks for the TrxID of the money staff sent by hand, then marks the wallet refund sent. */
-function MarkSentDialog({ refund, onClose, onSent }: { refund: RefundJson | null; onClose(): void; onSent(): void }) {
+function MarkSentDialog({ refund, onClose, onSent, onConflict }: { refund: RefundJson | null; onClose(): void; onSent(): void; onConflict(): void }) {
   const { t, i18n } = useTranslation();
   const { ownerId } = useOwner();
   const [text, setText] = useState('');
@@ -52,6 +52,7 @@ function MarkSentDialog({ refund, onClose, onSent }: { refund: RefundJson | null
       onSent();
     } catch (e) {
       setError(e);
+      if (e instanceof ApiError && e.status === 409) onConflict(); // the row moved on: show its real state
     } finally {
       busy.current = false;
       setSubmitting(false);
@@ -154,6 +155,7 @@ export function OwnerRefunds({ refunds, onChanged }: { refunds: RefundJson[]; on
       <MarkSentDialog
         refund={sending}
         onClose={() => setSending(null)}
+        onConflict={onChanged}
         onSent={() => {
           setSending(null);
           onChanged();

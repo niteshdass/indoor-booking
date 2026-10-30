@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { addDays, currencyExponent, localParts, MAX_BOOKINGS_PER_GROUP, parseMoney, type AddonLine, type AddonSelection } from '@booking/shared';
+import { addDays, localParts, MAX_BOOKINGS_PER_GROUP, parseMoney, type AddonLine, type AddonSelection } from '@booking/shared';
 import { AddonPicker } from '../../checkout/AddonPicker';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
@@ -10,7 +10,7 @@ import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiGet, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { SportCourt } from '../../landing/SportCourt';
-import { formatDate, money } from '../../lib/format';
+import { forInput, formatDate, money } from '../../lib/format';
 import type { SlotDay } from '../../lib/types';
 import { DateStrip } from '../../venue/DateStrip';
 import { SlotGrid } from '../../venue/SlotGrid';
@@ -108,12 +108,6 @@ export function WalkInPage() {
 
 function WalkInVenue({ venue }: { venue: OwnerVenue }) {
   return <ActiveTurfs venue={venue}>{(turfs) => <WalkInForm venue={venue} turfs={turfs} />}</ActiveTurfs>;
-}
-
-/** Minor units as an input value, e.g. 1000 BDT -> "10.00". */
-function forInput(minor: number, currency: string): string {
-  const exponent = currencyExponent(currency);
-  return (minor / 10 ** exponent).toFixed(exponent);
 }
 
 function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] }) {

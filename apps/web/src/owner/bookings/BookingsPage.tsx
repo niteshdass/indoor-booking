@@ -391,7 +391,7 @@ function BookingsList({ venue, filters, onClear }: { venue: OwnerVenue; filters:
                   <td className={styles.status}>
                     <span className={styles.badges}>
                       <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
-                      <PaymentStatusBadge status={b.paymentStatus} />
+                      {!awaitsVerification(b) && <PaymentStatusBadge status={b.paymentStatus} />}
                     </span>
                   </td>
                 </tr>

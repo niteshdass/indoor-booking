@@ -17,7 +17,7 @@ const RECONCILE_BATCH = 100;
 
 const cross = { crossTenant: true };
 
-export type RefundPart = { paymentId: unknown; method: 'card' | 'cash'; amount: number };
+export type RefundPart = { paymentId: unknown; method: 'card' | 'cash' | 'wallet'; amount: number };
 
 /**
  * Splits `amount` over the booking's payments: card before cash, newest first, within each payment's
@@ -53,6 +53,7 @@ const logRefund = (
 /**
  * Phase 1, inside the caller's transaction: records a pending refund per part and reserves its
  * amount on the payment (and, for a cancellation, the booking) so nothing can be refunded twice.
+ * Card parts are then dispatched; cash and wallet parts wait for staff.
  */
 export async function reserveRefunds(
   input: {
@@ -77,6 +78,10 @@ export async function reserveRefunds(
     const room = reason === 'amount_mismatch' || (payment != null && part.amount <= payment.amount - payment.refundedAmount);
     if (!payment || !room) throw new Error('Refund exceeds what was paid');
     if (part.method === 'card' && payment.method !== 'card') throw new Error('A card refund needs a card payment');
+    // Staff send a wallet refund by hand: it is never dispatched, so it needs a transfer that arrived.
+    if (part.method === 'wallet' && (payment.method !== 'wallet' || payment.status !== 'succeeded')) {
+      throw new Error('A wallet refund needs a received wallet payment');
+    }
     const reserved = await Payment.updateOne(
       { ownerId, _id: payment._id, refundedAmount: payment.refundedAmount },
       { $inc: { refundedAmount: part.amount } },

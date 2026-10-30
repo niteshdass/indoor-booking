@@ -1,5 +1,5 @@
 import type { ClientSession } from 'mongoose';
-import { normalizeTrxId, type WalletProvider } from '@booking/shared';
+import { normalizeTrxId, paymentStatusFor, type WalletProvider } from '@booking/shared';
 import { normalizeBdMobile } from '../auth/normalize';
 import { runInTransaction } from '../db';
 import { AppError } from '../errors';
@@ -8,13 +8,16 @@ import { keyHas } from '../bookings/create';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { SlotLock } from '../bookings/slotLock.model';
 import { invalidTransition, transition, type Actor } from '../bookings/transition';
+import { noticeBooking } from '../notifications/outbox';
 import type { AppServices } from '../services';
 import { logActivity, logSystemActivity } from '../tenancy/activityLog.model';
+import type { TenantContext } from '../tenancy/context';
 import { effectiveForVenue } from '../venues/effective';
 import { lockTurf } from '../venues/guards';
 import { Venue } from '../venues/venue.model';
 import { stillFree } from './apply';
 import { paymentsUnavailable } from './intent';
+import { reserveRefunds } from './refunds';
 
 /** Statuses a manual payment can be submitted for: a hold, live or lapsed, or one the sweep already expired. */
 const PAYABLE = ['awaiting_payment', 'expired'];
@@ -158,4 +161,182 @@ async function revive(t: Actor, booking: BookingDoc, payment: PaymentDoc, now: D
   if (t.userId) await logActivity({ ownerId, userId: t.userId }, entry, now, session);
   else await logSystemActivity(ownerId, entry, now, session);
   return revived;
+}
+
+const nothingToCheck = () => new AppError(409, 'invalid_transition', 'This booking has no payment waiting to be checked');
+
+type Day = { payment: PaymentDoc; booking: BookingDoc };
+
+/**
+ * The pending manual payment covering the booking: its lead row (the one with the TrxID) and every
+ * row of the same submission with its booking, in time order.
+ */
+async function pendingSubmission(ownerId: string, booking: BookingDoc, session: ClientSession): Promise<{ lead: PaymentDoc; days: Day[] }> {
+  const pending = { ownerId, kind: 'manual', status: 'pending' };
+  const own = await Payment.findOne({ ...pending, bookingId: booking._id }).session(session);
+  if (!own) throw nothingToCheck();
+  const lead = own.trxId
+    ? own
+    : own.groupId
+      ? await Payment.findOne({ ...pending, groupId: own.groupId, trxId: { $type: 'string' } }).session(session)
+      : null;
+  if (!lead) throw nothingToCheck();
+  const rows = lead.groupId ? await Payment.find({ ...pending, groupId: lead.groupId }).session(session) : [lead];
+  const bookings = await Booking.find({ ownerId, _id: { $in: rows.map((p) => p.bookingId) } })
+    .sort({ startAt: 1, _id: 1 })
+    .session(session);
+  const days = bookings.map((b) => ({ booking: b, payment: rows.find((p) => String(p.bookingId) === String(b._id))! }));
+  if (days.length !== rows.length) throw new Error('A manual payment has no booking');
+  return { lead, days };
+}
+
+const sum = (days: Day[]) => days.reduce((n, d) => n + d.payment.amount, 0);
+
+/** Every write is guarded on `pending`: of two staff checking the same payment, the second matches nothing. */
+const checkedMeanwhile = () => new AppError(409, 'invalid_transition', 'This payment was just checked; reload it');
+
+/**
+ * Staff saw the transfer arrive. Each row of the submission succeeds, and the amount received is
+ * spread over its bookings in time order, each up to what it owes: a pending booking counts its share
+ * and is confirmed; one that can no longer be played (its slots were taken) keeps it as excess and
+ * gets it all back. Whatever is left over is one overpayment refund on the lead row. Wallet refunds
+ * wait for staff to send them.
+ */
+export async function verifyManualPayment(
+  t: TenantContext,
+  booking: BookingDoc,
+  input: { amountReceived?: number },
+  now: Date,
+): Promise<BookingDoc[]> {
+  const { ownerId } = t;
+  return runInTransaction(async (session) => {
+    const { lead, days } = await pendingSubmission(ownerId, booking, session);
+    const amountDue = sum(days);
+    const amountReceived = input.amountReceived ?? amountDue;
+
+    let left = amountReceived;
+    const shares = days.map((d) => {
+      // Never past the total: cash taken while the payment waited may already cover some of it.
+      const room = d.booking.status === 'pending' ? Math.max(0, d.booking.total - d.booking.amountPaid) : d.payment.amount;
+      const share = Math.min(left, d.payment.amount, room);
+      left -= share;
+      return share;
+    });
+    const overpaid = left;
+    const isLead = (d: Day) => String(d.payment._id) === String(lead._id);
+
+    const out: BookingDoc[] = [];
+    for (const [i, d] of days.entries()) {
+      const share = shares[i]!;
+      const open = d.booking.status === 'pending';
+      const paid = await Payment.updateOne(
+        { ownerId, _id: d.payment._id, status: 'pending' },
+        {
+          $set: {
+            status: 'succeeded',
+            amount: share + (isLead(d) ? overpaid : 0),
+            excess: !open,
+            verifiedBy: t.userId,
+            verifiedAt: now,
+          },
+        },
+        { session },
+      );
+      if (paid.matchedCount !== 1) throw checkedMeanwhile();
+      if (!open) {
+        // Not counted in amountPaid, so no cancellation can offer it either.
+        if (share >= 1) {
+          await reserveRefunds(
+            {
+              booking: d.booking,
+              parts: [{ paymentId: d.payment._id, method: 'wallet', amount: share }],
+              reason: 'late_payment',
+              ruleApplied: null,
+              by: t.userId,
+              now,
+            },
+            session,
+          );
+        }
+        out.push(d.booking);
+        continue;
+      }
+      const amountPaid = d.booking.amountPaid + share;
+      const counted = await Booking.findOneAndUpdate(
+        { ownerId, _id: d.booking._id, status: 'pending', amountPaid: d.booking.amountPaid },
+        { $set: { amountPaid, paymentStatus: paymentStatusFor(amountPaid, d.booking.total) } },
+        { session, new: true },
+      );
+      if (!counted) throw checkedMeanwhile();
+      const moved = await transition(t, counted, 'confirmed', now, session, {}, { via: 'manual_payment', paymentId: String(d.payment._id) });
+      await noticeBooking('payment_received', moved, now, session);
+      out.push(moved);
+    }
+    if (overpaid >= 1) {
+      await reserveRefunds(
+        {
+          booking: days.find(isLead)!.booking,
+          parts: [{ paymentId: lead._id, method: 'wallet', amount: overpaid }],
+          reason: 'overpayment',
+          ruleApplied: null,
+          by: t.userId,
+          now,
+        },
+        session,
+      );
+    }
+    await logActivity(
+      t,
+      {
+        action: 'payment.verified',
+        entity: 'payment',
+        entityId: String(lead._id),
+        venueId: String(lead.venueId),
+        after: { trxId: lead.trxId, provider: lead.provider, amountDue, amountReceived },
+      },
+      now,
+      session,
+    );
+    return out;
+  });
+}
+
+/**
+ * Staff could not find the transfer. Each row of the submission fails, so its TrxID can be entered
+ * again, and each booking still pending is rejected, which frees its slots.
+ */
+export async function rejectManualPayment(t: TenantContext, booking: BookingDoc, now: Date): Promise<BookingDoc[]> {
+  const { ownerId } = t;
+  return runInTransaction(async (session) => {
+    const { lead, days } = await pendingSubmission(ownerId, booking, session);
+    const out: BookingDoc[] = [];
+    for (const d of days) {
+      const failed = await Payment.updateOne(
+        { ownerId, _id: d.payment._id, status: 'pending' },
+        { $set: { status: 'failed', failureCode: 'not_received', verifiedBy: t.userId, verifiedAt: now } },
+        { session },
+      );
+      if (failed.matchedCount !== 1) throw checkedMeanwhile();
+      if (d.booking.status !== 'pending') {
+        out.push(d.booking);
+        continue;
+      }
+      const moved = await transition(t, d.booking, 'rejected', now, session, { rejectReason: 'payment_not_received' });
+      await noticeBooking('payment_not_found', moved, now, session);
+      out.push(moved);
+    }
+    await logActivity(
+      t,
+      {
+        action: 'payment.not_received',
+        entity: 'payment',
+        entityId: String(lead._id),
+        venueId: String(lead.venueId),
+        after: { trxId: lead.trxId, provider: lead.provider, amountDue: sum(days) },
+      },
+      now,
+      session,
+    );
+    return out;
+  });
 }

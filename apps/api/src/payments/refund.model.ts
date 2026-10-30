@@ -3,15 +3,18 @@ import { tenantScoped } from '../tenancy/tenantScoped.plugin';
 
 const { ObjectId } = mongoose.Schema.Types;
 
-export const REFUND_REASONS = ['late_payment', 'duplicate_payment', 'amount_mismatch', 'cancellation'] as const;
+export const REFUND_REASONS = ['late_payment', 'duplicate_payment', 'amount_mismatch', 'cancellation', 'overpayment'] as const;
 export type RefundReason = (typeof REFUND_REASONS)[number];
 
-export const REFUND_METHODS = ['card', 'cash'] as const;
+export const REFUND_METHODS = ['card', 'cash', 'wallet'] as const;
 
 /** The cancellation rule tier that set the amount; minHoursBefore is null for a staff cancel. */
 export type RuleApplied = { minHoursBefore: number | null; percent: number };
 
-/** Money sent back to the player: through the gateway and account that took the payment (card), or handed over in person (cash). */
+/**
+ * Money sent back to the player: through the gateway and account that took the payment (card), handed
+ * over in person (cash), or sent by staff from the venue's wallet (wallet).
+ */
 const refundSchema = new mongoose.Schema(
   {
     ownerId: { type: ObjectId, ref: 'Owner', required: true },
@@ -23,9 +26,9 @@ const refundSchema = new mongoose.Schema(
     currency: { type: String, required: true },
     reason: { type: String, enum: REFUND_REASONS, required: true },
     method: { type: String, enum: REFUND_METHODS, required: true },
-    /** Required for card refunds; null for cash. */
+    /** Required for card refunds; null for cash and wallet. */
     gateway: { type: String, required: function (this: { method?: string }) { return this.method === 'card'; }, default: null },
-    /** Required for card refunds; null for cash. */
+    /** Required for card refunds; null for cash and wallet. */
     gatewayAccountId: { type: String, required: function (this: { method?: string }) { return this.method === 'card'; }, default: null },
     /** The payment's gateway mode; null for cash and rows from before modes. */
     gatewayMode: { type: String, enum: ['test', 'live', null], default: null },
@@ -40,6 +43,8 @@ const refundSchema = new mongoose.Schema(
     /** The failed refund this one replaces. */
     retryOf: { type: ObjectId, ref: 'Refund', default: null },
     settledAt: { type: Date, default: null },
+    /** Wallet refunds: the outgoing transaction ID staff record once they have sent it. */
+    trxId: { type: String, default: null },
     /** The staff member who issued it; null when the system did. */
     by: { type: ObjectId, ref: 'User', default: null },
   },

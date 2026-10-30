@@ -102,4 +102,25 @@ describe('notification templates', () => {
     expect(ru.text).toContain('«Great lights»');
     expect(en.subject).toBe('New review: 4 of 5 (BK7Q2M)');
   });
+
+  it('payment_received and payment_not_found render in en and ru', () => {
+    const received = { en: renderNotice('payment_received', 'en', data, appUrl), ru: renderNotice('payment_received', 'ru', data, appUrl) };
+    expect(received.en.subject).toBe('Payment received — your booking BK7Q2M is confirmed');
+    expect(received.ru.subject).toBe('Оплата получена — ваше бронирование BK7Q2M подтверждено');
+    expect(received.en.sms).toContain('Arena, Court 1, Nov 10, 2026, 11:00 PM');
+    expect(received.en.text).toContain('https://app.test/b/BK7Q2M');
+    const notFound = { en: renderNotice('payment_not_found', 'en', data, appUrl), ru: renderNotice('payment_not_found', 'ru', data, appUrl) };
+    expect(notFound.en.subject).toBe("We couldn't find your payment for BK7Q2M");
+    expect(notFound.ru.subject).toBe('Мы не нашли ваш платёж за бронирование BK7Q2M');
+    for (const out of [received.en, received.ru, notFound.en, notFound.ru]) {
+      expect(out.text).toContain('BK7Q2M');
+      expect(out.sms).toContain('BK7Q2M');
+    }
+    // Russian copy names no Latin words besides the venue, court, reference and link.
+    const ruRest = (s: string) =>
+      s.replaceAll(`${appUrl}/b/${data.reference}`, '').replaceAll(data.reference, '').replaceAll('Arena', '').replaceAll('Court 1', '');
+    for (const out of [received.ru, notFound.ru]) {
+      for (const s of [out.subject, out.text, out.sms]) expect(ruRest(s)).not.toMatch(/[A-Za-z]/);
+    }
+  });
 });

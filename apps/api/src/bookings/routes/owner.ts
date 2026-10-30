@@ -11,6 +11,7 @@ import { isoDateSchema } from '../../schedule/schemas';
 import type { AppServices } from '../../services';
 import { expireHold, paymentsUnavailable, startLink } from '../../payments/intent';
 import { loadGateway } from '../../payments/gateway.model';
+import { rejectManualPayment, verifyManualPayment } from '../../payments/manual';
 import { Refund, type RefundDoc } from '../../payments/refund.model';
 import { refundJson } from '../../payments/refunds';
 import { logActivity } from '../../tenancy/activityLog.model';
@@ -92,6 +93,7 @@ const customerQuery = z.object({ q: z.string().trim().min(2).max(80) });
 const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 const cashSchema = z.object({ amount: z.number().int().optional() }).strict();
+const verifySchema = z.object({ amountReceived: z.number().int().min(1).optional() }).strict();
 
 const invalidAmount = (max: number) =>
   new AppError(400, 'invalid_amount', `Amount must be between 1 and ${max}`);
@@ -99,6 +101,13 @@ const invalidAmount = (max: number) =>
 const daysBetween = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 86_400_000;
 
 const tooEarly = () => new AppError(409, 'too_early', 'It is too early for this action');
+
+/** Confirm and reject wait while a submitted wallet payment is unchecked: verify or reject that instead. */
+async function assertNoPaymentToVerify(booking: BookingDoc) {
+  if (await Payment.exists({ ownerId: booking.ownerId, bookingId: booking._id, kind: 'manual', status: 'pending' })) {
+    throw new AppError(409, 'payment_to_verify', 'Check the payment for this booking first');
+  }
+}
 
 /**
  * The registered player a walk-in names, or null. Only a player who has already booked within the
@@ -367,6 +376,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     await assertSeriesAnswered(booking);
     // Staff confirm only pending guest bookings; an awaiting_payment hold confirms by payment.
     if (booking.status !== 'pending') throw invalidTransition(booking.status);
+    await assertNoPaymentToVerify(booking);
     const updated = await runInTransaction(async (session) => {
       const now = services.now();
       const moved = await transition(t, booking, 'confirmed', now, session);
@@ -381,6 +391,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const { reason } = rejectSchema.parse(req.body ?? {});
     const booking = await scopedBooking(t, req.params.bookingId as string);
     await assertSeriesAnswered(booking);
+    await assertNoPaymentToVerify(booking);
     const updated = await runInTransaction(async (session) => {
       const now = services.now();
       const moved = await transition(t, booking, 'rejected', now, session, { rejectReason: reason || null });
@@ -388,6 +399,21 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       return moved;
     });
     res.json({ booking: await ownerBookingJson(updated) });
+  });
+
+  router.post('/bookings/:bookingId/payments/manual/verify', requirePermission('payment.verify'), async (req, res) => {
+    const t = tenantOf(req);
+    const input = verifySchema.parse(req.body ?? {});
+    const booking = await scopedBooking(t, req.params.bookingId as string);
+    const moved = await verifyManualPayment(t, booking, input, services.now());
+    res.json({ booking: await ownerBookingJson(moved.find((b) => String(b._id) === String(booking._id)) ?? booking) });
+  });
+
+  router.post('/bookings/:bookingId/payments/manual/reject', requirePermission('payment.verify'), async (req, res) => {
+    const t = tenantOf(req);
+    const booking = await scopedBooking(t, req.params.bookingId as string);
+    const moved = await rejectManualPayment(t, booking, services.now());
+    res.json({ booking: await ownerBookingJson(moved.find((b) => String(b._id) === String(booking._id)) ?? booking) });
   });
 
   router.post('/bookings/:bookingId/check-in', requirePermission('booking.checkin'), async (req, res) => {
@@ -493,6 +519,9 @@ function paymentJson(p: InstanceType<typeof Payment>) {
     id: String(p.id),
     method: p.method,
     gateway: p.gateway ?? null,
+    kind: p.kind ?? null,
+    provider: p.provider ?? null,
+    trxId: p.trxId ?? null,
     amount: p.amount,
     currency: p.currency,
     status: p.status,

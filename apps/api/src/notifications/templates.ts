@@ -4,6 +4,8 @@ export const NOTICE_EVENTS = [
   'booking_pending',
   'booking_confirmed',
   'booking_rejected',
+  'payment_received',
+  'payment_not_found',
   'booking_cancelled',
   'refund_issued',
   'booking_reminder',
@@ -160,6 +162,30 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
             extra: d.reason ? `Причина: ${d.reason}` : undefined,
             sms: `Площадка отклонила бронирование. ${d.reference}`,
           },
+  },
+  payment_received: {
+    en: ({ d, startsAt }) => ({
+      subject: `Payment received — your booking ${d.reference} is confirmed`,
+      lead: 'The venue received your payment. Your booking is confirmed.',
+      sms: `Payment received, booking confirmed: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
+    }),
+    ru: ({ d, startsAt }) => ({
+      subject: `Оплата получена — ваше бронирование ${d.reference} подтверждено`,
+      lead: 'Площадка получила вашу оплату. Ваше бронирование подтверждено.',
+      sms: `Оплата получена, бронирование подтверждено: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
+    }),
+  },
+  payment_not_found: {
+    en: ({ d }) => ({
+      subject: `We couldn't find your payment for ${d.reference}`,
+      lead: "The venue couldn't find your payment, so your booking request was declined. If you paid, contact the venue.",
+      sms: `Payment not found, booking declined. ${d.reference}`,
+    }),
+    ru: ({ d }) => ({
+      subject: `Мы не нашли ваш платёж за бронирование ${d.reference}`,
+      lead: 'Площадка не нашла ваш платёж, поэтому заявка на бронирование отклонена. Если оплата была, свяжитесь с площадкой.',
+      sms: `Платёж не найден, бронирование отклонено. ${d.reference}`,
+    }),
   },
   booking_cancelled: {
     en: ({ d, money }) => ({

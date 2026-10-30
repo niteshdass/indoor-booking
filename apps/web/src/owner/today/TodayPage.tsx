@@ -178,7 +178,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                           <td>
                             <BookingStatusBadge status={b.status} />
                           </td>
-                          {canConfirm && <td>{b.status === 'pending' && <PendingActions id={b.id} onDone={reload} />}</td>}
+                          {canConfirm && <td>{b.status === 'pending' && <PendingActions booking={b} onDone={reload} />}</td>}
                         </tr>
                       );
                     })}

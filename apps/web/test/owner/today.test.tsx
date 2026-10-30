@@ -145,7 +145,8 @@ describe('Today page', () => {
       { method: 'POST', path: '/owners/o1/bookings/b/reject', body: { booking: ownerBooking({ id: 'b', status: 'rejected' }) } },
     ]);
     const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
-    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.reject }));
+    await user.click(await screen.findByRole('button', { name: en.booking.moreActions }));
+    await user.click(screen.getByRole('menuitem', { name: en.owner.bookings.actions.reject }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('textbox'), 'closed');
     await user.click(within(dialog).getByRole('button', { name: en.owner.bookings.reject.confirm }));

@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { ActionMenu } from '../../components/ActionMenu';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { apiPost, ApiError } from '../../lib/apiClient';
@@ -7,7 +9,7 @@ import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerBooking, PaymentLink, RefundJson } from '../types';
-import { availableActions } from './availableActions';
+import { availableActions, type Action } from './availableActions';
 import { CashDialog } from './CashDialog';
 import { OwnerCancelDialog } from './OwnerCancelDialog';
 import { PaymentLinkDialog } from './PaymentLinkDialog';
@@ -52,8 +54,7 @@ export function useBookingAction(ownerId: string, id: string, onConflict?: () =>
   return { run, pending, error };
 }
 
-type Props = {
-  booking: OwnerBooking;
+export type ActionCallbacks = {
   onUpdated(b: OwnerBooking): void;
   /** A cash payment was recorded: the page shows the new booking and reloads the payments table. */
   onPaid(b: OwnerBooking): void;
@@ -62,11 +63,19 @@ type Props = {
   onConflict(): void;
 };
 
-/** The action buttons and their dialogs for one booking. Buttons disable together while any action is pending. */
-export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConflict }: Props) {
+/** The button label for an action. */
+export function actionLabel(a: Action, t: TFunction): string {
+  return t(`owner.bookings.actions.${a}`);
+}
+
+/**
+ * Everything one booking's actions need: which actions this member has, `trigger` to run one (a POST, or the
+ * dialog that asks first), and the dialogs to render once next to the buttons.
+ */
+export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
   const { t } = useTranslation();
   const { ownerId, can } = useOwner();
-  const { run, pending, error } = useBookingAction(ownerId, booking.id, onConflict);
+  const { run, pending, error } = useBookingAction(ownerId, booking.id, cb.onConflict);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
@@ -75,66 +84,29 @@ export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConf
   const actions = availableActions(booking, can);
   const base = ownerPath(ownerId, `/bookings/${encodeURIComponent(booking.id)}`);
 
-  const go = (action: StatusAction) => {
-    run(action).then(
-      (b) => b && onUpdated(b),
-      () => {}, // shown through `error`
-    );
+  const trigger = (a: Action) => {
+    switch (a) {
+      case 'confirm':
+      case 'checkIn':
+      case 'noShow':
+        run(a).then(
+          (b) => b && cb.onUpdated(b),
+          () => {}, // shown through `error`
+        );
+        return;
+      case 'reject':
+        return setRejectOpen(true);
+      case 'cancel':
+        return setCancelOpen(true);
+      case 'markCash':
+        return setCashOpen(true);
+      case 'paymentLink':
+        return setLinkOpen(true);
+    }
   };
 
-  return (
-    <section className={styles.actions} aria-label={t('owner.bookings.actions.title')}>
-      {error !== null && !rejectOpen && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-      <div className={styles.buttons}>
-        {actions.map((a) => {
-          switch (a) {
-            case 'confirm':
-              return (
-                <Button key={a} disabled={pending} onClick={() => go('confirm')}>
-                  {t('owner.bookings.actions.confirm')}
-                </Button>
-              );
-            case 'reject':
-              return (
-                <Button key={a} variant="danger" disabled={pending} onClick={() => setRejectOpen(true)}>
-                  {t('owner.bookings.actions.reject')}
-                </Button>
-              );
-            case 'cancel':
-              return (
-                <Button key={a} variant="secondary" disabled={pending} onClick={() => setCancelOpen(true)}>
-                  {t('owner.bookings.actions.cancel')}
-                </Button>
-              );
-            case 'checkIn':
-              return (
-                <Button key={a} disabled={pending} onClick={() => go('checkIn')}>
-                  {t('owner.bookings.actions.checkIn')}
-                </Button>
-              );
-            case 'noShow':
-              return (
-                <Button key={a} variant="secondary" disabled={pending} onClick={() => go('noShow')}>
-                  {t('owner.bookings.actions.noShow')}
-                </Button>
-              );
-            case 'markCash':
-              return (
-                <Button key={a} variant="secondary" disabled={pending} onClick={() => setCashOpen(true)}>
-                  {t('owner.bookings.actions.markCash')}
-                </Button>
-              );
-            case 'paymentLink':
-              return (
-                <Button key={a} variant="secondary" disabled={pending} onClick={() => setLinkOpen(true)}>
-                  {t('owner.bookings.actions.paymentLink')}
-                </Button>
-              );
-            default:
-              return null;
-          }
-        })}
-      </div>
+  const dialogs = (
+    <>
       <ReasonDialog
         open={rejectOpen}
         title={t('owner.bookings.reject.title')}
@@ -145,17 +117,17 @@ export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConf
           const b = await run('reject', reason ? { reason } : {});
           if (!b) return;
           setRejectOpen(false);
-          onUpdated(b);
+          cb.onUpdated(b);
         }}
       />
       <CashDialog
         open={cashOpen}
         booking={booking}
         onClose={() => setCashOpen(false)}
-        onConflict={onConflict}
+        onConflict={cb.onConflict}
         onRecorded={(b) => {
           setCashOpen(false);
-          onPaid(b);
+          cb.onPaid(b);
         }}
       />
       <PaymentLinkDialog
@@ -169,7 +141,7 @@ export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConf
             return res.payment;
           } catch (e) {
             setLink(null);
-            if (e instanceof ApiError && e.status === 409) onConflict();
+            if (e instanceof ApiError && e.status === 409) cb.onConflict();
             throw e;
           }
         }}
@@ -180,44 +152,88 @@ export function BookingActions({ booking, onUpdated, onPaid, onCancelled, onConf
         onClose={() => setCancelOpen(false)}
         onCancelled={(b, refunds) => {
           setCancelOpen(false);
-          onCancelled(b, refunds);
+          cb.onCancelled(b, refunds);
         }}
       />
+    </>
+  );
+
+  // The reject dialog shows its own error.
+  return { actions, trigger, pending, error: rejectOpen ? null : error, dialogs };
+}
+
+const DANGER: ReadonlySet<Action> = new Set(['reject', 'cancel', 'noShow']);
+const PRIMARY: ReadonlySet<Action> = new Set(['confirm', 'checkIn']);
+
+/** The action buttons and their dialogs for one booking. Buttons disable together while any action is pending. */
+export function BookingActions({ booking, ...cb }: { booking: OwnerBooking } & ActionCallbacks) {
+  const { t } = useTranslation();
+  const { actions, trigger, pending, error, dialogs } = useBookingActions(booking, cb);
+
+  return (
+    <section className={styles.actions} aria-label={t('owner.bookings.actions.title')}>
+      {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+      <div className={styles.buttons}>
+        {actions.map((a) => (
+          <Button
+            key={a}
+            variant={a === 'reject' ? 'danger' : PRIMARY.has(a) ? undefined : 'secondary'}
+            disabled={pending}
+            onClick={() => trigger(a)}
+          >
+            {actionLabel(a, t)}
+          </Button>
+        ))}
+      </div>
+      {dialogs}
     </section>
   );
 }
 
-/** Confirm and reject for one pending booking in a list row; `onDone` runs after either succeeds. */
-export function PendingActions({ id, onDone }: { id: string; onDone(): void }) {
+/**
+ * One list row's actions: `primary` as a small button, every other action this member has in a "More actions"
+ * menu. Renders nothing when the member has no action on the booking. `onDone` runs after any action succeeds.
+ */
+export function RowActions({ booking, primary, onDone }: { booking: OwnerBooking; primary: Action | null; onDone(): void }) {
   const { t } = useTranslation();
-  const { ownerId } = useOwner();
-  const { run, pending, error } = useBookingAction(ownerId, id, onDone);
-  const [rejectOpen, setRejectOpen] = useState(false);
+  const done = () => onDone();
+  const { actions, trigger, pending, error, dialogs } = useBookingActions(booking, {
+    onUpdated: done,
+    onPaid: done,
+    onCancelled: done,
+    onConflict: done,
+  });
+  if (actions.length === 0) return null;
+  const main = primary !== null && actions.includes(primary) ? primary : null;
+  const rest = actions.filter((a) => a !== main);
 
   return (
     <div className={styles.rowActions}>
       <div className={styles.buttons}>
-        <Button size="sm" disabled={pending} onClick={() => run('confirm').then((b) => b && onDone(), () => {})}>
-          {t('owner.bookings.actions.confirm')}
-        </Button>
-        <Button size="sm" variant="danger" disabled={pending} onClick={() => setRejectOpen(true)}>
-          {t('owner.bookings.actions.reject')}
-        </Button>
+        {main && (
+          <Button size="sm" disabled={pending} onClick={() => trigger(main)}>
+            {actionLabel(main, t)}
+          </Button>
+        )}
+        {rest.length > 0 && (
+          <ActionMenu
+            label={t('booking.moreActions')}
+            items={rest.map((a) => ({
+              key: a,
+              label: actionLabel(a, t),
+              tone: DANGER.has(a) ? ('danger' as const) : undefined,
+              onSelect: () => trigger(a),
+            }))}
+          />
+        )}
       </div>
-      {error !== null && !rejectOpen && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-      <ReasonDialog
-        open={rejectOpen}
-        title={t('owner.bookings.reject.title')}
-        confirmLabel={t('owner.bookings.reject.confirm')}
-        tone="danger"
-        onClose={() => setRejectOpen(false)}
-        onSubmit={async (reason) => {
-          const b = await run('reject', reason ? { reason } : {});
-          if (!b) return;
-          setRejectOpen(false);
-          onDone();
-        }}
-      />
+      {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+      {dialogs}
     </div>
   );
+}
+
+/** Confirm, with the other actions in a menu, for one pending booking in a list row. */
+export function PendingActions({ booking, onDone }: { booking: OwnerBooking; onDone(): void }) {
+  return <RowActions booking={booking} primary="confirm" onDone={onDone} />;
 }

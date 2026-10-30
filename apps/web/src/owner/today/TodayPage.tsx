@@ -17,6 +17,7 @@ import { useOwnerTitle } from '../shell/OwnerShell';
 import { useVenueParam } from '../shell/useVenueParam';
 import { VenueSelect } from '../shell/VenueSelect';
 import type { OwnerBooking, OwnerVenue } from '../types';
+import { useNewIds, usePoll } from '../usePoll';
 import { useResource } from '../useResource';
 import { summarize } from './summarize';
 import { Attention } from './Attention';
@@ -69,10 +70,13 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { ownerId, can } = useOwner();
   const canConfirm = can('booking.confirm');
   const lang = i18n.language;
-  const { state, reload } = useResource<{ bookings: OwnerBooking[] }>(
+  const { state, reload, updatedAt, refreshError } = useResource<{ bookings: OwnerBooking[] }>(
     ownerPath(ownerId, `/bookings?venueId=${encodeURIComponent(venue.id)}`),
+    { keepOnError: true },
   );
+  usePoll(reload);
   const extras = useTodayExtras(venue);
+  const fresh = useNewIds(state.status === 'ready' ? state.data.bookings.map((b) => b.id) : []);
 
   if (state.status === 'error') {
     return (
@@ -92,6 +96,19 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const hoursFmt = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
   return (
     <>
+      <p className={styles.refresh} aria-live="polite">
+        {refreshError !== null ? (
+          <>
+            <span className={styles.refreshFailed}>{t('owner.today.refreshFailed')}</span>
+            {' · '}
+            <button type="button" className={styles.retry} onClick={reload}>
+              {t('auth.retry')}
+            </button>
+          </>
+        ) : (
+          updatedAt !== null && t('owner.today.updated', { time: formatTime(new Date(updatedAt).toISOString(), venue.timezone, lang) })
+        )}
+      </p>
       <div className={styles.stats}>
         <StatCard
           label={t('owner.today.bookings')}
@@ -118,7 +135,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
           hint={pending === 0 ? t('owner.today.caughtUp') : undefined}
         />
       </div>
-      <CourtTimeline bookings={bookings} timezone={venue.timezone} courts={extras.courts} />
+      <CourtTimeline bookings={bookings} timezone={venue.timezone} courts={extras.courts} fresh={fresh} />
       <div className={styles.split}>
         <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
         <section className={styles.panel} aria-labelledby="today-upcoming">
@@ -148,7 +165,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                       const starts = b.slots.map((s) => s.startAt).sort();
                       const ends = b.slots.map((s) => s.endAt).sort();
                       return (
-                        <tr key={b.id}>
+                        <tr key={b.id} className={fresh.has(b.id) ? styles.fresh : undefined}>
                           <td className={styles.time}>
                             {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
                           </td>

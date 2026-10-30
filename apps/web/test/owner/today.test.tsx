@@ -217,6 +217,41 @@ describe('Today page', () => {
     expect(within(attention).getByText('Lights broken')).toBeTruthy();
   });
 
+  // Only today's list (no date range); the same-day-last-week call carries from/to.
+  const todayList = (body: (n: number) => unknown) => ({
+    path: '/owners/o1/bookings',
+    body: (c: { query: URLSearchParams }, n: number) => (c.query.has('from') ? { bookings: [] } : body(n)),
+  });
+  const named = (id: string, name: string) => ownerBooking({ id, status: 'confirmed', customer: { name, phone: null, email: null } });
+
+  it('Today refetches silently and shows the update time', async () => {
+    let loads = 0;
+    mockApi([
+      ...ownerRoutes(),
+      todayList(() => (loads++ === 0 ? { bookings: [named('a', 'Ann First')] } : { bookings: [named('a', 'Ann First'), named('b', 'Ben Second')] })),
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('link', { name: /Ann First/ });
+    expect(screen.getByText(/^Updated \d{2}:\d{2}$/)).toBeTruthy();
+    window.dispatchEvent(new Event('online'));
+    expect(screen.queryByLabelText(en.common.loading)).toBeNull();
+    expect(await screen.findByRole('link', { name: /Ben Second/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Ann First/ })).toBeTruthy();
+  });
+
+  it('Today keeps its data and offers retry when a refresh fails', async () => {
+    let loads = 0;
+    mockApi([...ownerRoutes(), todayList(() => (loads++ === 1 ? { status: 500, body: {} } : { bookings: [named('a', 'Ann First')] }))]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('link', { name: /Ann First/ });
+    window.dispatchEvent(new Event('online'));
+    expect(await screen.findByText(en.owner.today.refreshFailed)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Ann First/ })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: en.auth.retry }));
+    await waitFor(() => expect(screen.queryByText(en.owner.today.refreshFailed)).toBeNull());
+    expect(screen.getByText(/^Updated \d{2}:\d{2}$/)).toBeTruthy();
+  });
+
   it('Today leaves the extras out when they fail to load', async () => {
     mockApi([...ownerRoutes(), { path: '/owners/o1/bookings', body: (c: { query: URLSearchParams }) => (c.query.has('from') ? { status: 500, body: {} } : { bookings: [] }) }]);
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });

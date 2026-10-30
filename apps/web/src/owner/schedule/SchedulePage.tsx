@@ -11,6 +11,7 @@ import { errorMessage } from '../../lib/errors';
 import { DateStrip } from '../../venue/DateStrip';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
+import { usePoll } from '../usePoll';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useVenueParam } from '../shell/useVenueParam';
 import { VenueSelect } from '../shell/VenueSelect';
@@ -19,7 +20,6 @@ import { ScheduleGrid } from './ScheduleGrid';
 import { scheduleLayout } from './scheduleLayout';
 import styles from './SchedulePage.module.css';
 
-const REFRESH_MS = 60_000;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type Data = { turfs: OwnerTurf[]; days: Record<string, OwnerSlotDay>; bookings: OwnerBooking[] };
@@ -51,14 +51,10 @@ function ScheduleVenue({ venue }: { venue: OwnerVenue }) {
   const [now, setNow] = useState(() => Date.now());
 
   // Refetch every minute while the tab is visible; the same tick moves the current-time line.
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState === 'hidden') return;
-      setNow(Date.now());
-      reload();
-    }, REFRESH_MS);
-    return () => clearInterval(id);
-  }, [reload]);
+  usePoll(() => {
+    setNow(Date.now());
+    reload();
+  });
 
   const setDate = useCallback(
     (d: string) =>

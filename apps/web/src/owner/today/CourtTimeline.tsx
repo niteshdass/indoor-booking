@@ -144,11 +144,14 @@ export function CourtTimeline({
   timezone,
   courts = null,
   now = new Date(),
+  fresh,
 }: {
   bookings: OwnerBooking[];
   timezone: string;
   courts?: Courts | null;
   now?: Date;
+  /** Bookings new since the last refresh, highlighted for one cycle. */
+  fresh?: ReadonlySet<string>;
 }) {
   const { t } = useTranslation();
   const { lanes, from, to } = buildLanes(bookings, timezone, courts);
@@ -193,7 +196,7 @@ export function CourtTimeline({
                 {lane.blocks.map((b) => (
                   <span
                     key={b.id}
-                    className={`${styles.block} ${styles[b.kind]}`}
+                    className={`${styles.block} ${styles[b.kind]}${fresh?.has(b.id) ? ` ${styles.fresh}` : ''}`}
                     style={{ left: pct(b.start), width: `${((b.end - b.start) / span) * 100}%` }}
                     title={`${b.label}, ${clock(b.start)}–${clock(b.end)}, ${t(`status.${b.status}`)}, ${t(`paymentStatus.${b.paymentStatus}`)}`}
                   >

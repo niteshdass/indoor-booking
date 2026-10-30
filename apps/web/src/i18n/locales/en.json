@@ -603,7 +603,9 @@
       "open": "Open",
       "aPlayer": "A player",
       "trends": "See trends",
-      "caughtUp": "All caught up"
+      "caughtUp": "All caught up",
+      "updated": "Updated {{time}}",
+      "refreshFailed": "Couldn't refresh"
     },
     "overview": {
       "range": "Period",

@@ -289,6 +289,82 @@ describe('pay by wallet', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
+  it('hold ending keeps the wallet form and the typed TrxID, and a revived submit goes through', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const hold = new Date(Date.now() + 2000).toISOString();
+    const { calls } = api({ options: { ...both, holdExpiresAt: hold } });
+    const { user, location } = renderApp(PATH, { user: player });
+    await user.type(await trxField(), '9A1B2C3D4E');
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(screen.queryByText(en.payment.expired)).not.toBeInTheDocument();
+    expect(screen.getByText(en.payment.wallet.holdEnded)).toBeInTheDocument();
+    expect(await trxField()).toHaveValue('9A1B2C3D4E');
+    await user.type(screen.getByLabelText(en.payment.wallet.sender), '01812345678');
+    const submit = screen.getByRole('button', { name: en.payment.wallet.submit });
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    await waitFor(() => expect(location().search).toBe('?submitted=1'));
+    expect(calls.filter((c) => c.path === '/bookings/b1/payments/manual')).toHaveLength(1);
+  });
+
+  it('a submit after the hold ended whose times were taken adds late=1', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const hold = new Date(Date.now() + 2000).toISOString();
+    api({ options: { ...both, holdExpiresAt: hold }, manual: { body: { booking: booking({ status: 'expired' }), outcome: 'slots_taken' } } });
+    const { user, location } = renderApp(PATH, { user: player });
+    await trxField();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await user.type(await trxField(), '9A1B2C3D4E');
+    await user.type(screen.getByLabelText(en.payment.wallet.sender), '01812345678');
+    await user.click(screen.getByRole('button', { name: en.payment.wallet.submit }));
+    await waitFor(() => expect(location().search).toBe('?submitted=1&late=1'));
+  });
+
+  it('after the hold ended the Card tab alone shows Expired', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const hold = new Date(Date.now() + 2000).toISOString();
+    const { calls } = api({ options: { ...both, holdExpiresAt: hold } });
+    const { user } = renderApp(PATH, { user: player });
+    await trxField();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await user.click(screen.getByRole('tab', { name: en.payment.wallet.card }));
+    expect(await screen.findByText(en.payment.expired)).toBeInTheDocument();
+    expect(screen.queryByTestId('payment-element')).not.toBeInTheDocument();
+    expect(calls.some((c) => c.path === '/bookings/b1/payment')).toBe(false);
+    await user.click(screen.getByRole('tab', { name: 'bKash' }));
+    expect(await trxField()).toBeInTheDocument();
+  });
+
+  it('an expired booking with no wallet payment yet opens the wallet form', async () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    api({ booking: booking({ status: 'expired', holdExpiresAt: past, manualPayment: null }), options: { ...both, holdExpiresAt: past } });
+    const { location } = renderApp(PATH, { user: player });
+    expect(await trxField()).toBeInTheDocument();
+    expect(screen.getByText(en.payment.wallet.holdEnded)).toBeInTheDocument();
+    expect(location().pathname).toBe(PATH);
+  });
+
+  it('an expired booking at a card-only venue shows Expired', async () => {
+    const past = new Date(Date.now() - 60_000).toISOString();
+    const { calls } = api({ booking: booking({ status: 'expired', holdExpiresAt: past }), options: { holdExpiresAt: past } });
+    renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.payment.expired)).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+  });
+
+  it('an expired booking that already has a wallet payment goes back to the booking', async () => {
+    const manualPayment = { provider: 'bkash', trxId: '9A1B2C3D4E', amount: 1150, status: 'pending', submittedAt: new Date().toISOString() } as const;
+    api({ booking: booking({ status: 'expired', manualPayment }), options: both });
+    const { location } = renderApp(PATH, { user: player });
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
+  });
+
   it('ru strings exist for every new key', () => {
     const keys = (o: Record<string, unknown>, p = ''): string[] =>
       Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object' ? keys(v as Record<string, unknown>, `${p}${k}.`) : [`${p}${k}`]));

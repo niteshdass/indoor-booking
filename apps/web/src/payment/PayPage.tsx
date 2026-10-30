@@ -240,6 +240,9 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
   const navigate = useNavigate();
   const hold = options.holdExpiresAt ?? booking.holdExpiresAt;
   const { msLeft, expired } = useCountdown(hold);
+  // A wallet transfer can take longer than the hold, so its form stays after the hold ends: the API
+  // revives the booking if the times are still free, or keeps the money to send back if not.
+  const holdEnded = expired || booking.status === 'expired';
   const [confirming, setConfirming] = useState(false);
   const [lapsed, setLapsed] = useState(false);
   const onHoldExpired = useCallback(() => setLapsed(true), []);
@@ -253,7 +256,7 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
   };
 
   if (ids.length === 0) return <Alert tone="warning">{t('checkout.noMethods')}</Alert>;
-  if ((expired && !confirming) || lapsed) return <Expired slug={booking.venue?.slug ?? null} />;
+  const cardOver = (holdEnded && !confirming) || lapsed;
 
   const wallet = options.wallets.find((w) => w.provider === tab);
   const done = (outcome: ManualOutcome) =>
@@ -269,7 +272,8 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
           onChange={choose}
         />
       )}
-      {cardSeen && (
+      {tab === 'card' && cardOver && <Expired slug={booking.venue?.slug ?? null} />}
+      {cardSeen && !cardOver && (
         <div hidden={tab !== 'card'}>
           <CardPane id={id} booking={booking} msLeft={msLeft} expired={expired} onConfirming={setConfirming} onHoldExpired={onHoldExpired} />
         </div>
@@ -282,7 +286,7 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
           amount={options.amount}
           currency={options.currency}
           msLeft={msLeft}
-          expired={expired}
+          holdEnded={holdEnded || lapsed}
           onDone={done}
         />
       )}
@@ -306,12 +310,15 @@ export function PayPage() {
       let booking: BookingJson | null = null;
       try {
         booking = (await apiGet<{ booking: BookingJson }>(base)).booking;
-        if (booking.status !== 'awaiting_payment') {
+        // An expired hold with no wallet payment yet can still take a late Transaction ID.
+        const late = booking.status === 'expired' && !booking.manualPayment;
+        if (booking.status !== 'awaiting_payment' && !late) {
           if (live) setState({ status: 'redirect' });
           return;
         }
         const options = await apiGet<PaymentOptions>(`/bookings/${encodeURIComponent(id)}/payment-options`);
-        if (live) setState({ status: 'ready', booking, options });
+        if (!live) return;
+        setState(late && options.wallets.length === 0 ? { status: 'expired', booking } : { status: 'ready', booking, options });
       } catch (error) {
         if (!live) return;
         if (error instanceof ApiError && (error.code === 'already_paid' || error.code === 'invalid_transition')) setState({ status: 'redirect' });

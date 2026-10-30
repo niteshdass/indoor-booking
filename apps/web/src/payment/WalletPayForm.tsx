@@ -55,7 +55,7 @@ export function WalletPayForm({
   amount,
   currency,
   msLeft,
-  expired,
+  holdEnded,
   onDone,
 }: {
   booking: BookingJson;
@@ -64,7 +64,8 @@ export function WalletPayForm({
   amount: number;
   currency: string;
   msLeft: number;
-  expired: boolean;
+  /** The hold ran out: the form still takes a Transaction ID for money already sent. */
+  holdEnded: boolean;
   onDone(outcome: ManualOutcome): void;
 }) {
   const { t, i18n } = useTranslation();
@@ -81,7 +82,7 @@ export function WalletPayForm({
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (inflight.current || expired) return;
+    if (inflight.current) return;
     const trxId = normalizeTrxId(trx);
     const okSender = bdMobileDigits(sender) !== null;
     setError(null);
@@ -110,10 +111,11 @@ export function WalletPayForm({
       <div className={styles.head}>
         <div className={styles.headTop}>
           <p className={styles.amount}>{t('payment.wallet.send', { amount: sum })}</p>
-          <HoldPill msLeft={msLeft} />
+          {!holdEnded && <HoldPill msLeft={msLeft} />}
         </div>
         <BookingLine booking={booking} />
       </div>
+      {holdEnded && <Alert tone="info">{t('payment.wallet.holdEnded')}</Alert>}
 
       <div className={styles.numberBox}>
         <div className={styles.numberText}>
@@ -153,7 +155,7 @@ export function WalletPayForm({
         type="tel"
       />
       {error && <Alert tone="danger">{error}</Alert>}
-      <Button type="submit" size="lg" block loading={busy} disabled={busy || expired}>
+      <Button type="submit" size="lg" block loading={busy} disabled={busy}>
         {t('payment.wallet.submit')}
       </Button>
       <p className={styles.metaSmall}>{t('payment.wallet.hint')}</p>

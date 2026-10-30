@@ -474,7 +474,8 @@
       "senderHint": "The {{provider}} number you paid from.",
       "senderInvalid": "Enter a Bangladesh mobile number, like 01712345678.",
       "submit": "I have sent the money",
-      "hint": "The venue checks your payment, then confirms the booking."
+      "hint": "The venue checks your payment, then confirms the booking.",
+      "holdEnded": "Your hold has ended. If you already sent the money, enter the Transaction ID — we'll confirm if the times are still free."
     }
   },
   "receipt": {
@@ -514,7 +515,8 @@
     "groupNote_one": "{{count}} booking made in one go. Each one can be cancelled on its own.",
     "groupNote_other": "{{count}} bookings made in one go. Each one can be cancelled on its own.",
     "manualWaiting": "Waiting for the venue to check your payment ({{provider}} {{trxId}})",
-    "manualLate": "These times were taken while you paid. The venue will send your money back once they check it."
+    "manualLate": "These times were taken while you paid. The venue will send your money back once they check it.",
+    "lateEntry": "Already sent the money? Enter the Transaction ID"
   },
   "status": {
     "awaiting_payment": "Awaiting payment",

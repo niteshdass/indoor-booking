@@ -615,7 +615,12 @@
         "call": "Call {{phone}}",
         "due": "Due",
         "openBooking": "Open booking"
-      }
+      },
+      "pendingCount_one": "{{count}} waiting for confirmation",
+      "pendingCount_other": "{{count}} waiting for confirmation",
+      "pendingOldest": "Oldest: {{name}}, {{time}}",
+      "dueSoon": "{{name}} starts at {{time}} and still owes {{due}}",
+      "notCheckedIn": "{{name}} started at {{time}} and has not checked in"
     },
     "overview": {
       "range": "Period",

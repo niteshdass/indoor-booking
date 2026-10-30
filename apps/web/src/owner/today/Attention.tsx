@@ -1,32 +1,107 @@
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { OwnerReviewJson, SeriesJson } from '@booking/shared';
-import { formatDateTime, formatTime } from '../../lib/format';
+import { formatDateTime, formatTime, money } from '../../lib/format';
+import { RowActions } from '../bookings/BookingActions';
+import { availableActions, type Action } from '../bookings/availableActions';
+import { useOwner } from '../OwnerProvider';
 import { NavIcon } from '../shell/NavIcon';
 import type { OwnerBooking, OwnerVenue } from '../types';
+import { SOON_MS } from './nextStep';
 import styles from './TodayPage.module.css';
 
-type Item = { key: string; title: string; detail: string; to: string; tone: 'warning' | 'danger' | 'info'; icon: string };
+type Item = {
+  key: string;
+  title: string;
+  detail: string;
+  to: string;
+  tone: 'warning' | 'danger' | 'info';
+  icon: string;
+  /** With a booking and its primary action the row acts inline; without a permitted action it falls back to Open. */
+  booking?: OwnerBooking;
+  primary?: Action;
+};
 
-/** Things on this venue someone has to act on: weekly requests, unpaid holds and low reviews without a reply. */
+/** A confirmed game this long past its start without a check-in needs chasing. */
+const LATE_MS = 15 * 60_000;
+
+const startOf = (b: OwnerBooking) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
+const endOf = (b: OwnerBooking) => Math.max(...b.slots.map((s) => Date.parse(s.endAt)));
+
+/**
+ * Things on this venue someone has to act on: bookings waiting for confirmation, games starting soon that still owe,
+ * started games nobody checked in, weekly requests, unpaid holds and low reviews without a reply.
+ */
 export function Attention({
   venue,
   bookings,
   requests,
   lowReviews,
+  onChanged,
   now = new Date(),
 }: {
   venue: OwnerVenue;
   bookings: OwnerBooking[];
   requests: SeriesJson[] | null;
   lowReviews: OwnerReviewJson[] | null;
+  onChanged(): void;
   now?: Date;
 }) {
   const { t, i18n } = useTranslation();
+  const { can } = useOwner();
   const lang = i18n.language;
   const tz = venue.timezone;
+  const at = now.getTime();
+  const nameOf = (b: OwnerBooking) => b.customer?.name ?? b.reference;
+  const bookingTo = (b: OwnerBooking) => `bookings/${encodeURIComponent(b.id)}`;
+
+  const pending = bookings.filter((b) => b.status === 'pending');
+  const oldest = pending.reduce<OwnerBooking | null>((o, b) => (o === null || Date.parse(b.createdAt) < Date.parse(o.createdAt) ? b : o), null);
+  const confirmed = bookings.filter((b) => b.status === 'confirmed');
 
   const items: Item[] = [
+    ...(oldest
+      ? [
+          {
+            key: 'pending',
+            title: t('owner.today.pendingCount', { count: pending.length }),
+            detail: t('owner.today.pendingOldest', { name: nameOf(oldest), time: formatTime(new Date(startOf(oldest)).toISOString(), tz, lang) }),
+            to: bookingTo(oldest),
+            tone: 'warning' as const,
+            icon: 'clock',
+            booking: oldest,
+            primary: 'confirm' as const,
+          },
+        ]
+      : []),
+    ...confirmed
+      .filter((b) => b.total - b.amountPaid > 0 && startOf(b) > at && startOf(b) <= at + SOON_MS)
+      .map((b) => ({
+        key: `due${b.id}`,
+        title: t('owner.today.dueSoon', {
+          name: nameOf(b),
+          time: formatTime(new Date(startOf(b)).toISOString(), tz, lang),
+          due: money(b.total - b.amountPaid, venue.currency, lang),
+        }),
+        detail: '',
+        to: bookingTo(b),
+        tone: 'warning' as const,
+        icon: 'clock',
+        booking: b,
+        primary: 'markCash' as const,
+      })),
+    ...confirmed
+      .filter((b) => startOf(b) < at - LATE_MS && endOf(b) > at)
+      .map((b) => ({
+        key: `late${b.id}`,
+        title: t('owner.today.notCheckedIn', { name: nameOf(b), time: formatTime(new Date(startOf(b)).toISOString(), tz, lang) }),
+        detail: '',
+        to: bookingTo(b),
+        tone: 'danger' as const,
+        icon: 'clock',
+        booking: b,
+        primary: 'checkIn' as const,
+      })),
     ...(requests ?? []).map((s) => ({
       key: `s${s.id}`,
       title: t('owner.today.seriesRequest', { name: s.player?.name ?? s.guest?.name ?? t('owner.today.aPlayer') }),
@@ -74,9 +149,13 @@ export function Attention({
               <p className={styles.attentionTitle}>{it.title}</p>
               {it.detail && <p className={styles.attentionDetail}>{it.detail}</p>}
             </div>
-            <Link to={it.to} className={styles.link} aria-label={`${t('owner.today.open')}: ${it.title}`}>
-              {t('owner.today.open')}
-            </Link>
+            {it.booking && it.primary && availableActions(it.booking, can).length > 0 ? (
+              <RowActions booking={it.booking} primary={it.primary} onDone={onChanged} />
+            ) : (
+              <Link to={it.to} className={styles.link} aria-label={`${t('owner.today.open')}: ${it.title}`}>
+                {t('owner.today.open')}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

@@ -135,7 +135,8 @@ describe('Today page', () => {
       { method: 'POST', path: '/owners/o1/bookings/b/confirm', body: { booking: ownerBooking({ id: 'b', status: 'confirmed' }) } },
     ]);
     const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
-    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.confirm }));
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    await user.click(within(table).getByRole('button', { name: en.owner.bookings.actions.confirm }));
     await waitFor(() => expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull());
     expect(api.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
     expect(screen.getByRole('link', { name: /Bob Pending/ })).toBeTruthy();
@@ -147,7 +148,8 @@ describe('Today page', () => {
       { method: 'POST', path: '/owners/o1/bookings/b/reject', body: { booking: ownerBooking({ id: 'b', status: 'rejected' }) } },
     ]);
     const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
-    await user.click(await screen.findByRole('button', { name: en.booking.moreActions }));
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    await user.click(within(table).getByRole('button', { name: en.booking.moreActions }));
     await user.click(screen.getByRole('menuitem', { name: en.owner.bookings.actions.reject }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('textbox'), 'closed');
@@ -170,7 +172,8 @@ describe('Today page', () => {
       { method: 'POST', path: '/owners/o1/bookings/b/confirm', status: 409, body: { error: { code: 'invalid_transition', message: 'x' } } },
     ]);
     const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
-    await user.click(await screen.findByRole('button', { name: en.owner.bookings.actions.confirm }));
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    await user.click(within(table).getByRole('button', { name: en.owner.bookings.actions.confirm }));
     // Today's list (no date range) loads again; the same-day-last-week call carries from/to.
     const todayLoads = () => api.calls.filter((c) => c.method === 'GET' && c.path === '/owners/o1/bookings' && !c.query.has('from'));
     await waitFor(() => expect(todayLoads()).toHaveLength(2));
@@ -212,6 +215,7 @@ describe('Today page', () => {
     const attention = await screen.findByRole('region', { name: en.owner.today.attention });
     const links = within(attention).getAllByRole('link').map((a) => a.getAttribute('href'));
     expect(links).toEqual([
+      `/owner/${OWNER_ID}/bookings/a`,
       `/owner/${OWNER_ID}/series/s9`,
       `/owner/${OWNER_ID}/bookings/h`,
       `/owner/${OWNER_ID}/reviews?venue=v1&stars=1`,
@@ -361,6 +365,65 @@ describe('Today page', () => {
     const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
     expect(within(table).getByRole('columnheader', { name: en.owner.bookings.actions.title })).toBeTruthy();
     expect(within(table).getByRole('button', { name: en.owner.bookings.actions.checkIn })).toBeTruthy();
+  });
+
+  const attentionRegion = () => screen.findByRole('region', { name: en.owner.today.attention });
+
+  it('Attention shows pending count with the oldest and confirms it inline', async () => {
+    const later = [slot('2026-10-26T08:00:00.000Z', '2026-10-26T09:00:00.000Z')];
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'booking.confirm'] }),
+      todayList(() => ({
+        bookings: [
+          ownerBooking({ id: 'new', createdAt: '2026-10-25T10:00:00.000Z', customer: { name: 'Nia New', phone: null, email: null } }),
+          ownerBooking({ id: 'old', createdAt: '2026-10-25T01:00:00.000Z', slots: later, customer: { name: 'Omar Old', phone: null, email: null } }),
+        ],
+      })),
+      { method: 'POST', path: '/owners/o1/bookings/old/confirm', body: { booking: ownerBooking({ id: 'old', status: 'confirmed' }) } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const attention = await attentionRegion();
+    expect(within(attention).getByText('2 waiting for confirmation')).toBeTruthy();
+    expect(within(attention).getByText('Oldest: Omar Old, 14:00')).toBeTruthy();
+    await user.click(within(attention).getByRole('button', { name: en.owner.bookings.actions.confirm }));
+    await waitFor(() => expect(api.calls.some((c) => c.method === 'POST' && c.path === '/owners/o1/bookings/old/confirm')).toBe(true));
+  });
+
+  it('Attention flags money due on a game starting soon', async () => {
+    const soon = [slot('2026-10-26T03:20:00.000Z', '2026-10-26T04:20:00.000Z')];
+    mockApi(comingUp(ownerBooking({ status: 'confirmed', slots: soon }), ['booking.view', 'payment.mark_cash']));
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const attention = await attentionRegion();
+    // Testing Library collapses the NBSP inside the formatted amount; the matcher has to as well.
+    const owes = `Ada Player starts at 09:20 and still owes ${money(1000, 'BDT', 'en')}`.replace(/\s+/g, ' ');
+    expect(within(attention).getByText(owes)).toBeTruthy();
+    await user.click(within(attention).getByRole('button', { name: en.owner.bookings.actions.markCash }));
+    expect(await screen.findByRole('dialog', { name: en.owner.cash.title })).toBeTruthy();
+  });
+
+  it('Attention flags a started game not checked in', async () => {
+    const started = [slot('2026-10-26T02:30:00.000Z', '2026-10-26T03:30:00.000Z')];
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'booking.checkin'] }),
+      todayList((n) => ({
+        bookings: [ownerBooking({ status: n === 0 ? 'confirmed' : 'completed', amountPaid: 1000, slots: started })],
+      })),
+      { method: 'POST', path: '/owners/o1/bookings/b1/check-in', body: { booking: ownerBooking({ status: 'completed', amountPaid: 1000, slots: started }) } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const attention = await attentionRegion();
+    expect(within(attention).getByText('Ada Player started at 08:30 and has not checked in')).toBeTruthy();
+    await user.click(within(attention).getByRole('button', { name: en.owner.bookings.actions.checkIn }));
+    await waitFor(() => expect(api.calls.some((c) => c.method === 'POST' && c.path.endsWith('/check-in'))).toBe(true));
+    await waitFor(() => expect(screen.queryByRole('region', { name: en.owner.today.attention })).toBeNull());
+  });
+
+  it('Attention rows show Open instead of buttons for a view-only member', async () => {
+    mockApi(comingUp(ownerBooking({ id: 'p' }), ['booking.view']));
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const attention = await attentionRegion();
+    expect(within(attention).queryByRole('button')).toBeNull();
+    expect(within(attention).getByRole('link', { name: /^Open: 1 waiting/ }).getAttribute('href')).toBe(`/owner/${OWNER_ID}/bookings/p`);
   });
 
   it('Today leaves the extras out when they fail to load', async () => {

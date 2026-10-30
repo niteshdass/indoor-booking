@@ -641,7 +641,14 @@
         "call": "Позвонить {{phone}}",
         "due": "К оплате",
         "openBooking": "Открыть бронь"
-      }
+      },
+      "pendingCount_one": "{{count}} бронь ждёт подтверждения",
+      "pendingCount_few": "{{count}} брони ждут подтверждения",
+      "pendingCount_many": "{{count}} броней ждут подтверждения",
+      "pendingCount_other": "{{count}} брони ждут подтверждения",
+      "pendingOldest": "Самая ранняя: {{name}}, {{time}}",
+      "dueSoon": "{{name}}: начало в {{time}}, ещё не оплачено {{due}}",
+      "notCheckedIn": "{{name}}: игра началась в {{time}}, приход не отмечен"
     },
     "overview": {
       "range": "Период",

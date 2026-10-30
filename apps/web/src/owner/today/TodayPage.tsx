@@ -160,7 +160,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
         walkInHref={can('booking.create') ? walkInHref : null}
       />
       <div className={styles.split}>
-        <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
+        <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} onChanged={reload} now={now} />
         <section className={styles.panel} aria-labelledby="today-upcoming">
           <div className={styles.panelHead}>
             <h2 id="today-upcoming" className={styles.heading}>

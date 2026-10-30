@@ -10,7 +10,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../auth/useAuth';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import type { BookingJson, CancellationPreview, RefundJson } from '../lib/types';
+import type { BookingJson, CancellationPreview, PaymentOptions, RefundJson } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { SeriesBadge } from '../series/SeriesBadge';
 import { MyReview } from './MyReview';
@@ -48,7 +48,7 @@ export function BookingDetailPage() {
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const paid = params.get('paid') === '1';
-  const late = params.get('late') === '1';
+  const lateParam = params.get('late') === '1';
   // Stripe appends redirect_status to the return URL; a declined/cancelled redirect method comes back as failed.
   const redirectStatus = params.get('redirect_status');
   const redirectFailed =
@@ -98,6 +98,23 @@ export function BookingDetailPage() {
   }, [path, attempt]);
 
   const booking = state.status === 'ready' ? state.booking : null;
+  // An expired hold whose game is still ahead can take a Transaction ID for money sent too late.
+  const lastSlot = booking?.slots[booking.slots.length - 1];
+  const lateEntryCandidate =
+    booking?.status === 'expired' && !booking.manualPayment && !!lastSlot && Date.parse(lastSlot.endAt) > Date.now();
+  const [walletsOffered, setWalletsOffered] = useState(false);
+  useEffect(() => {
+    setWalletsOffered(false);
+    if (!lateEntryCandidate) return;
+    let live = true;
+    apiGet<PaymentOptions>(`/bookings/${encodeURIComponent(id)}/payment-options`).then(
+      (o) => live && setWalletsOffered(o.wallets.length > 0),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [id, lateEntryCandidate]);
   const reviewable = !!booking?.reviewableUntil;
   const polling = paid && !redirectFailed && booking?.status === 'awaiting_payment' && !slow;
 
@@ -162,6 +179,8 @@ export function BookingDetailPage() {
 
   const holdLive = !booking?.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();
   const manualPending = booking?.manualPayment?.status === 'pending';
+  // A waiting payment on an expired booking was sent after its times were taken, whatever the URL says.
+  const late = lateParam || (booking?.status === 'expired' && manualPending);
   const showPayNow =
     booking?.status === 'awaiting_payment' && holdLive && !manualPending && (!paid || redirectFailed || slow);
   const received =
@@ -295,6 +314,11 @@ export function BookingDetailPage() {
           {showPayNow && (
             <Button to={`${path}/pay`} variant="brand" size="lg" block>
               {t('booking.payNow')}
+            </Button>
+          )}
+          {lateEntryCandidate && walletsOffered && (
+            <Button to={`${path}/pay`} variant="secondary" size="lg" block>
+              {t('booking.lateEntry')}
             </Button>
           )}
           <RefundList refunds={refunds} />

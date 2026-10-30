@@ -294,6 +294,56 @@ describe('booking detail, wallet payment', () => {
     expect(screen.queryByRole('link', { name: en.booking.payNow })).not.toBeInTheDocument();
   });
 
+  it('reopening an expired booking with a waiting payment still says the times were taken', async () => {
+    api(() => booking({ status: 'expired', manualPayment: manual }));
+    renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByText(en.booking.manualLate)).toBeInTheDocument();
+    expect(screen.queryByText('Waiting for the venue to check your payment (bKash 9A1B2C3D4E)')).not.toBeInTheDocument();
+  });
+
+  /** An expired hold for a game that has not been played yet. */
+  const lapsed = (over: Partial<BookingJson> = {}) => {
+    const start = Date.now() + 86_400_000;
+    return booking({
+      status: 'expired',
+      paymentStatus: 'unpaid',
+      amountPaid: 0,
+      manualPayment: null,
+      holdExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+      slots: [{ startAt: new Date(start).toISOString(), endAt: new Date(start + 3_600_000).toISOString(), price: 1000 }],
+      ...over,
+    });
+  };
+  const withOptions = (b: BookingJson, wallets: unknown[]) =>
+    mockApi([
+      { path: '/me/bookings/b1', body: { booking: b, refunds: [] } },
+      { path: '/bookings/b1/payment-options', body: { wallets, card: true, amount: 1000, currency: 'BDT', holdExpiresAt: b.holdExpiresAt } },
+    ]);
+  const BKASH = { provider: 'bkash', number: '+8801712345678', accountType: 'personal' };
+
+  it('an expired booking with no wallet payment links to enter the Transaction ID', async () => {
+    withOptions(lapsed(), [BKASH]);
+    renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByRole('link', { name: en.booking.lateEntry })).toHaveAttribute('href', '/me/bookings/b1/pay');
+    expect(screen.queryByRole('link', { name: en.booking.payNow })).not.toBeInTheDocument();
+  });
+
+  it('no Transaction ID link when the venue takes no wallets or a payment was already sent', async () => {
+    const m = withOptions(lapsed(), []);
+    renderApp('/me/bookings/b1', { user: player });
+    await waitFor(() => expect(m.calls.some((c) => c.path === '/bookings/b1/payment-options')).toBe(true));
+    await screen.findByText('AB12CD');
+    expect(screen.queryByRole('link', { name: en.booking.lateEntry })).not.toBeInTheDocument();
+  });
+
+  it('no Transaction ID link once the game is over', async () => {
+    const m = withOptions(lapsed({ slots: [{ startAt: '2020-01-01T10:00:00.000Z', endAt: '2020-01-01T11:00:00.000Z', price: 1000 }] }), [BKASH]);
+    renderApp('/me/bookings/b1', { user: player });
+    await screen.findByText('AB12CD');
+    expect(screen.queryByRole('link', { name: en.booking.lateEntry })).not.toBeInTheDocument();
+    expect(m.calls.some((c) => c.path === '/bookings/b1/payment-options')).toBe(false);
+  });
+
   it('says the times were taken on a late submit', async () => {
     api(() => booking({ status: 'expired', manualPayment: manual }));
     renderApp('/me/bookings/b1?submitted=1&late=1', { user: player });

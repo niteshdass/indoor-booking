@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router';
 import '../src/i18n';
 import { Button } from '../src/components/ui/Button';
 import { Dialog } from '../src/components/ui/Dialog';
+import { Sheet } from '../src/components/ui/Sheet';
 import { Tabs } from '../src/components/ui/Tabs';
 import { Checkbox } from '../src/components/ui/Checkbox';
 import { StatCard } from '../src/components/ui/StatCard';
@@ -19,6 +20,22 @@ function Harness() {
       <Dialog open={open} onClose={() => setOpen(false)} title="Hello">
         <p>body</p>
       </Dialog>
+    </>
+  );
+}
+
+function NestedHarness() {
+  const [sheet, setSheet] = useState(false);
+  const [inner, setInner] = useState(false);
+  return (
+    <>
+      <button onClick={() => setSheet(true)}>opener</button>
+      <Sheet open={sheet} onClose={() => setSheet(false)} title="Outer">
+        <button onClick={() => setInner(true)}>inner opener</button>
+        <Dialog open={inner} onClose={() => setInner(false)} title="Inner">
+          <p>body</p>
+        </Dialog>
+      </Sheet>
     </>
   );
 }
@@ -67,6 +84,19 @@ describe('ui', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
+  });
+
+  it('Escape closes only the topmost of two stacked modals', async () => {
+    const user = userEvent.setup();
+    render(<NestedHarness />);
+    await user.click(screen.getByText('opener'));
+    await user.click(screen.getByText('inner opener'));
+    expect(screen.getByRole('dialog', { name: 'Inner' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Inner' })).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Outer' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Outer' })).not.toBeInTheDocument();
   });
 
   it('tabs move selection with arrow keys', async () => {

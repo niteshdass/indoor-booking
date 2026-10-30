@@ -27,15 +27,22 @@ export function usePoll(tick: () => void, ms = POLL_MS): void {
 
 const NONE: ReadonlySet<string> = new Set();
 
-/** Ids that were not in the previous list; empty for the first list. Stable until the list itself changes. */
-export function useNewIds(ids: string[]): ReadonlySet<string> {
+/**
+ * Ids that were not in the previous list, for one load: `stamp` (when the list was loaded) clears the mark on the next
+ * load even if nothing changed. `null` (loading, or a new venue) resets, so the first list marks nothing.
+ */
+export function useNewIds(ids: string[] | null, stamp: unknown = null): ReadonlySet<string> {
+  const seen = useRef<{ key: string; stamp: unknown; ids: Set<string>; fresh: ReadonlySet<string> } | null>(null);
+  if (ids === null) {
+    seen.current = null;
+    return NONE;
+  }
   const key = ids.join('\n');
-  const seen = useRef<{ key: string; ids: Set<string>; fresh: ReadonlySet<string> } | null>(null);
-  if (seen.current === null) seen.current = { key, ids: new Set(ids), fresh: NONE };
-  else if (seen.current.key !== key) {
+  if (seen.current === null) seen.current = { key, stamp, ids: new Set(ids), fresh: NONE };
+  else if (seen.current.key !== key || seen.current.stamp !== stamp) {
     const prev = seen.current.ids;
     const fresh = ids.filter((id) => !prev.has(id));
-    seen.current = { key, ids: new Set(ids), fresh: fresh.length ? new Set(fresh) : NONE };
+    seen.current = { key, stamp, ids: new Set(ids), fresh: fresh.length ? new Set(fresh) : NONE };
   }
   return seen.current.fresh;
 }

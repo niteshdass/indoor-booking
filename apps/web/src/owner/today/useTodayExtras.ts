@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { addDays, localParts, type OwnerReviewJson, type SeriesJson } from '@booking/shared';
 import { apiGet } from '../../lib/apiClient';
 import { useOwner } from '../OwnerProvider';
@@ -11,10 +11,14 @@ export type Courts = { turfs: OwnerTurf[]; days: Record<string, OwnerSlotDay> };
 const LOW_STARS = 2;
 const REVIEW_SCAN = 20;
 
-/** Active turfs with their slot day; null until loaded or when the load fails. */
-function useCourts(ownerId: string, venueId: string, date: string): Courts | null {
+/**
+ * Active turfs with their slot day; null until loaded or when the load fails. `reload()` re-reads them and keeps the
+ * current ones on screen until the new ones arrive.
+ */
+function useCourts(ownerId: string, venueId: string, date: string): { courts: Courts | null; reload(): void } {
   const key = `${ownerId}|${venueId}|${date}`;
   const [tracked, setTracked] = useState<{ key: string; courts: Courts | null }>({ key: '', courts: null });
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -33,14 +37,15 @@ function useCourts(ownerId: string, venueId: string, date: string): Courts | nul
     })().then(
       (courts) => live && setTracked({ key, courts }),
       // The court lanes and usage are extras: without them Today still shows its bookings.
-      () => live && setTracked({ key, courts: null }),
+      () => live && setTracked((cur) => (cur.key === key && cur.courts ? cur : { key, courts: null })),
     );
     return () => {
       live = false;
     };
-  }, [key, ownerId, venueId, date]);
+  }, [key, ownerId, venueId, date, nonce]);
 
-  return tracked.key === key ? tracked.courts : null;
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  return { courts: tracked.key === key ? tracked.courts : null, reload };
 }
 
 /**
@@ -53,7 +58,7 @@ export function useTodayExtras(venue: OwnerVenue) {
   const lastWeekDate = addDays(today, -7);
   const v = encodeURIComponent(venue.id);
 
-  const courts = useCourts(ownerId, venue.id, today);
+  const { courts, reload: reloadCourts } = useCourts(ownerId, venue.id, today);
   const lastWeek = useResource<{ bookings: OwnerBooking[] }>(
     ownerPath(ownerId, `/bookings?venueId=${v}&from=${lastWeekDate}&to=${lastWeekDate}`),
   );
@@ -64,6 +69,7 @@ export function useTodayExtras(venue: OwnerVenue) {
 
   return {
     courts,
+    reloadCourts,
     lastWeek: lastWeek.state.status === 'ready' ? lastWeek.state.data.bookings : null,
     requests: series.state.status === 'ready' ? series.state.data.series : null,
     lowReviews:

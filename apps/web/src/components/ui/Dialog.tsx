@@ -8,6 +8,9 @@ export type DialogProps = {
   children: ReactNode;
 };
 
+/** Open modals, newest last: only the topmost one answers Escape. */
+const stack: HTMLDialogElement[] = [];
+
 /**
  * A native modal `<dialog>` driven by `open`: opens with `showModal`, closes on Escape through `onClose`, and hands
  * focus back to whatever opened it. `Dialog` and `Sheet` share it and differ only in layout.
@@ -33,10 +36,20 @@ export function useModal(open: boolean, onClose: () => void) {
   }, [open]);
 
   useEffect(() => {
+    const el = ref.current;
+    if (!open || !el) return;
+    stack.push(el);
+    return () => {
+      stack.splice(stack.indexOf(el), 1);
+    };
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     // Fallback where native <dialog> does not emit `cancel` on Escape (e.g. jsdom); onClose is idempotent.
+    // A modal opened over this one owns Escape until it closes.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && stack.at(-1) === ref.current) onClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);

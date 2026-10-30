@@ -58,4 +58,22 @@ describe('useNewIds', () => {
     rerender({ ids: ['a', 'b'] });
     expect([...result.current]).toEqual(['b']);
   });
+
+  it('useNewIds marks nothing on the first list after loading, or after a venue switch', () => {
+    const { result, rerender } = renderHook(({ ids }: { ids: string[] | null }) => useNewIds(ids), { initialProps: { ids: null as string[] | null } });
+    expect([...result.current]).toEqual([]);
+    rerender({ ids: ['a', 'b'] });
+    expect([...result.current]).toEqual([]);
+    rerender({ ids: null });
+    rerender({ ids: ['c'] });
+    expect([...result.current]).toEqual([]);
+  });
+
+  it('useNewIds clears the mark on the next load even when nothing changed', () => {
+    const { result, rerender } = renderHook(({ ids, at }) => useNewIds(ids, at), { initialProps: { ids: ['a'], at: 1 } });
+    rerender({ ids: ['a', 'b'], at: 2 });
+    expect([...result.current]).toEqual(['b']);
+    rerender({ ids: ['a', 'b'], at: 3 });
+    expect([...result.current]).toEqual([]);
+  });
 });

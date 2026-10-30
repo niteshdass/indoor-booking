@@ -306,6 +306,39 @@ describe('Today page', () => {
     expect([q.get('venue'), q.get('turf'), q.get('date'), q.get('start')]).toEqual(['v1', 't1', '2026-10-26', '2026-10-26T06:00:00.000Z']);
   });
 
+  it('Today due chip uses the narrow currency sign so the name keeps its room', async () => {
+    mockApi(timelineRoutes());
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const block = await screen.findByRole('button', { name: /^Court A, 10:00–11:00/ });
+    expect(within(block).getByText('৳ due')).toBeTruthy();
+  });
+
+  it('Today stops offering a free gap once it has started', async () => {
+    mockApi(timelineRoutes(['booking.view', 'booking.create']));
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('link', { name: 'Court A, free 12:00–13:00, add walk-in' });
+    vi.setSystemTime(new Date('2026-10-26T06:10:00.000Z'));
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(screen.queryByRole('link', { name: /add walk-in/ })).toBeNull());
+  });
+
+  it('Today re-reads the courts on refresh and drops a gap a new booking took', async () => {
+    const taken = ownerBooking({ id: 'b2', status: 'confirmed', turf: { name: 'Court A' }, slots: [slot('2026-10-26T06:00:00.000Z', '2026-10-26T07:00:00.000Z')] });
+    const routes = timelineRoutes(['booking.view', 'booking.create']).map((r) =>
+      'path' in r && r.path === '/owners/o1/bookings'
+        ? todayList((n) => ({ bookings: [ownerBooking({ id: 'b1', status: 'confirmed', turf: { name: 'Court A' } }), ...(n === 0 ? [] : [taken])] }))
+        : r,
+    );
+    const api = mockApi(routes);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('link', { name: 'Court A, free 12:00–13:00, add walk-in' });
+    const slotReads = () => api.calls.filter((c) => c.path === '/owners/o1/venues/v1/turfs/t1/slots').length;
+    const before = slotReads();
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(screen.queryByRole('link', { name: /add walk-in/ })).toBeNull());
+    await waitFor(() => expect(slotReads()).toBeGreaterThan(before));
+  });
+
   it('Today hides free-gap links without booking.create', async () => {
     mockApi(timelineRoutes());
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
@@ -403,6 +436,27 @@ describe('Today page', () => {
     await waitFor(() => expect(api.calls.some((c) => c.method === 'POST' && c.path === '/owners/o1/bookings/old/confirm')).toBe(true));
   });
 
+  it('Attention never turns an open reject on the oldest into a reject of the next one', async () => {
+    const pendingNamed = (id: string, createdAt: string) => ownerBooking({ id, createdAt, customer: { name: `Guest ${id}`, phone: null, email: null } });
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'booking.confirm'] }),
+      todayList((n) => ({
+        bookings: n === 0 ? [pendingNamed('a', '2026-10-25T01:00:00.000Z'), pendingNamed('b', '2026-10-25T10:00:00.000Z')] : [pendingNamed('b', '2026-10-25T10:00:00.000Z')],
+      })),
+      { method: 'POST', path: '/owners/o1/bookings/b/reject', body: { booking: ownerBooking({ id: 'b', status: 'cancelled' }) } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const attention = await attentionRegion();
+    await user.click(within(attention).getByRole('button', { name: en.booking.moreActions }));
+    await user.click(screen.getByRole('menuitem', { name: en.owner.bookings.actions.reject }));
+    expect(await screen.findByRole('dialog', { name: en.owner.bookings.reject.title })).toBeTruthy();
+    window.dispatchEvent(new Event('online'));
+    expect(await within(attention).findByText('1 waiting for confirmation')).toBeTruthy();
+    const dialog = screen.queryByRole('dialog', { name: en.owner.bookings.reject.title });
+    if (dialog) await user.click(within(dialog).getByRole('button', { name: en.owner.bookings.reject.confirm }));
+    expect(api.calls.some((c) => c.method === 'POST' && c.path === '/owners/o1/bookings/b/reject')).toBe(false);
+  });
+
   it('Attention flags money due on a game starting soon', async () => {
     const soon = [slot('2026-10-26T03:20:00.000Z', '2026-10-26T04:20:00.000Z')];
     mockApi(comingUp(ownerBooking({ status: 'confirmed', slots: soon }), ['booking.view', 'payment.mark_cash']));
@@ -413,6 +467,36 @@ describe('Today page', () => {
     expect(within(attention).getByText(owes)).toBeTruthy();
     await user.click(within(attention).getByRole('button', { name: en.owner.bookings.actions.markCash }));
     expect(await screen.findByRole('dialog', { name: en.owner.cash.title })).toBeTruthy();
+  });
+
+  it('Attention keeps an open cash dialog when its row drops out on refresh', async () => {
+    const soon = [slot('2026-10-26T03:20:00.000Z', '2026-10-26T04:20:00.000Z')];
+    mockApi(comingUp(ownerBooking({ status: 'confirmed', slots: soon }), ['booking.view', 'payment.mark_cash']));
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const attention = await attentionRegion();
+    await user.click(within(attention).getByRole('button', { name: en.owner.bookings.actions.markCash }));
+    const dialog = await screen.findByRole('dialog', { name: en.owner.cash.title });
+    const amount = within(dialog).getByLabelText(en.owner.cash.amount);
+    await user.clear(amount);
+    await user.type(amount, '7');
+    vi.setSystemTime(new Date('2026-10-26T03:25:00.000Z'));
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(screen.getByText(/^Updated 09:25$/)).toBeTruthy());
+    expect(screen.getByRole('dialog', { name: en.owner.cash.title })).toBe(dialog);
+    expect((within(dialog).getByLabelText(en.owner.cash.amount) as HTMLInputElement).value).toBe('7');
+  });
+
+  it('Coming up keeps an open cash dialog when its game ends on refresh', async () => {
+    const ending = [slot('2026-10-26T02:30:00.000Z', '2026-10-26T03:30:00.000Z')];
+    mockApi(comingUp(ownerBooking({ status: 'confirmed', slots: ending }), ['booking.view', 'payment.mark_cash']));
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    await user.click(within(table).getByRole('button', { name: en.owner.bookings.actions.markCash }));
+    const dialog = await screen.findByRole('dialog', { name: en.owner.cash.title });
+    vi.setSystemTime(new Date('2026-10-26T03:40:00.000Z'));
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(screen.getByText(/^Updated 09:40$/)).toBeTruthy());
+    expect(screen.getByRole('dialog', { name: en.owner.cash.title })).toBe(dialog);
   });
 
   it('Attention flags a started game not checked in', async () => {

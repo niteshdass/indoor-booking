@@ -8,6 +8,7 @@ import { useOwner } from '../OwnerProvider';
 import { NavIcon } from '../shell/NavIcon';
 import type { OwnerBooking, OwnerVenue } from '../types';
 import { SOON_MS } from './nextStep';
+import { useKeepWhileOpen } from './useKeepWhileOpen';
 import styles from './TodayPage.module.css';
 
 type Item = {
@@ -49,6 +50,7 @@ export function Attention({
 }) {
   const { t, i18n } = useTranslation();
   const { can } = useOwner();
+  const { keep, opened } = useKeepWhileOpen<Item>((it) => it.key);
   const lang = i18n.language;
   const tz = venue.timezone;
   const at = now.getTime();
@@ -59,11 +61,11 @@ export function Attention({
   const oldest = pending.reduce<OwnerBooking | null>((o, b) => (o === null || Date.parse(b.createdAt) < Date.parse(o.createdAt) ? b : o), null);
   const confirmed = bookings.filter((b) => b.status === 'confirmed');
 
-  const items: Item[] = [
+  const items = keep([
     ...(oldest
       ? [
           {
-            key: 'pending',
+            key: `pending${oldest.id}`,
             title: t('owner.today.pendingCount', { count: pending.length }),
             detail: t('owner.today.pendingOldest', { name: nameOf(oldest), time: formatTime(new Date(startOf(oldest)).toISOString(), tz, lang) }),
             to: bookingTo(oldest),
@@ -128,7 +130,7 @@ export function Attention({
       tone: 'danger' as const,
       icon: 'owner.nav.reviews',
     })),
-  ];
+  ]);
   if (items.length === 0) return null;
 
   return (
@@ -151,7 +153,12 @@ export function Attention({
             </div>
             {it.booking && it.primary && availableActions(it.booking, can).length > 0 ? (
               <div className={styles.attentionActions}>
-                <RowActions booking={it.booking} primary={it.primary} onDone={onChanged} />
+                <RowActions
+                  booking={it.booking}
+                  primary={it.primary}
+                  onDone={onChanged}
+                  onOpenChange={(open) => opened(it.key, open)}
+                />
               </div>
             ) : (
               <Link to={it.to} className={styles.link} aria-label={`${t('owner.today.open')}: ${it.title}`}>

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { buildLanes, courtUsage, freeGaps } from '../../src/owner/today/CourtTimeline';
 import type { OwnerSlot } from '../../src/owner/types';
 import { ownerBooking, slotDay, turf } from './fixtures';
@@ -119,5 +121,15 @@ describe('freeGaps', () => {
       { start: 12, end: 13, startAt: '2026-10-26T06:00:00.000Z' },
     ]);
     expect(freeGaps(undefined)).toEqual([]);
+  });
+});
+
+describe('free gaps on touch screens', () => {
+  it('show their "+" without hover where there is no hover', () => {
+    const css = readFileSync(join(__dirname, '..', '..', 'src', 'owner', 'today', 'TodayPage.module.css'), 'utf8');
+    const touch = [...css.matchAll(/@media \(hover: none\) \{([\s\S]*?)\n\}/g)].map((m) => m[1]!).join('\n');
+    const gap = touch.match(/\.gap \{([^}]*)\}/)?.[1] ?? '';
+    expect(gap).toMatch(/color: var\(--text-muted\)/);
+    expect(gap).toMatch(/border: 1px dashed var\(--border-subtle\)/);
   });
 });

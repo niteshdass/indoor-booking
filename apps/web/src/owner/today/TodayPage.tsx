@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link } from 'react-router';
 import { localParts } from '@booking/shared';
 import { useTranslation } from 'react-i18next';
@@ -22,11 +22,12 @@ import { VenueSelect } from '../shell/VenueSelect';
 import type { OwnerBooking, OwnerVenue, Permission } from '../types';
 import { useNewIds, usePoll } from '../usePoll';
 import { useResource } from '../useResource';
-import { summarize } from './summarize';
+import { firstStart, summarize } from './summarize';
 import { Attention } from './Attention';
 import { BookingSheet } from './BookingSheet';
 import { nextStep } from './nextStep';
 import { CourtTimeline, courtUsage } from './CourtTimeline';
+import { useKeepWhileOpen } from './useKeepWhileOpen';
 import { useTodayExtras } from './useTodayExtras';
 import styles from './TodayPage.module.css';
 
@@ -81,10 +82,17 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
     ownerPath(ownerId, `/bookings?venueId=${encodeURIComponent(venue.id)}`),
     { keepOnError: true },
   );
-  usePoll(reload);
   const extras = useTodayExtras(venue);
-  const fresh = useNewIds(state.status === 'ready' ? state.data.bookings.map((b) => b.id) : []);
+  const { reloadCourts } = extras;
+  usePoll(
+    useCallback(() => {
+      reload();
+      reloadCourts();
+    }, [reload, reloadCourts]),
+  );
+  const fresh = useNewIds(state.status === 'ready' ? state.data.bookings.map((b) => b.id) : null, updatedAt);
   const [openId, setOpenId] = useState<string | null>(null);
+  const { keep, opened } = useKeepWhileOpen<OwnerBooking>((b) => b.id);
 
   if (state.status === 'error') {
     return (
@@ -100,7 +108,10 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
 
   const { bookings } = state.data;
   const now = new Date();
-  const { count, collected, pending, upcoming } = summarize(bookings, now);
+  const summary = summarize(bookings, now);
+  const { count, collected, pending } = summary;
+  // A row whose dialog is open stays (as last seen) after its game ends, in start order so it keeps its page.
+  const upcoming = keep(summary.upcoming).sort((a, b) => firstStart(a) - firstStart(b));
   const usage = courtUsage(bookings, extras.courts, venue.timezone);
   const hoursFmt = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
   const walkInHref = (turfId: string, startAt: string) => {
@@ -204,7 +215,12 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                           </td>
                           {canAct && (
                             <td className={styles.rowActions}>
-                              <RowActions booking={b} primary={nextStep(b, availableActions(b, can), now)} onDone={reload} />
+                              <RowActions
+                                booking={b}
+                                primary={nextStep(b, availableActions(b, can), now)}
+                                onDone={reload}
+                                onOpenChange={(open) => opened(b.id, open)}
+                              />
                             </td>
                           )}
                         </tr>

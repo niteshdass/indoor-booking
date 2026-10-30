@@ -65,7 +65,7 @@
   box-shadow: var(--focus-ring);
 }
 
-/* A booking that arrived with the last refresh: tinted, fading back over one slow beat. */
+/* A booking that arrived with the last refresh: tinted, fading back over one slow beat (a still tint until the next refresh under reduced motion). */
 @keyframes fresh {
   from {
     background-color: var(--primary-soft);
@@ -73,7 +73,7 @@
 }
 
 .fresh {
-  animation: fresh var(--duration-slow) ease-out 2;
+  animation: fresh var(--duration-slow) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -283,8 +283,9 @@
   top: var(--space-1);
   bottom: var(--space-1);
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
   min-width: 0;
   overflow: hidden;
   padding: 0 var(--space-2);
@@ -306,9 +307,12 @@
   box-shadow: var(--focus-ring);
 }
 
-/* Money still to collect: a small pill inside the block, independent of its status colour */
+/* Money still to collect: a small pill under the name, independent of its status colour */
 .dueChip {
   flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding: 0 var(--space-1);
   border-radius: var(--radius-full);
   background: var(--danger-soft);
@@ -338,7 +342,16 @@
   color: var(--text-muted);
 }
 
+/* No hover on touch: the "+" and a dashed outline show all the time so free time can be found */
+@media (hover: none) {
+  .gap {
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-muted);
+  }
+}
+
 .blockLabel {
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

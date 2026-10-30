@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActionMenu } from '../../components/ActionMenu';
@@ -159,7 +159,8 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
   );
 
   // The reject dialog shows its own error.
-  return { actions, trigger, pending, error: rejectOpen ? null : error, dialogs };
+  const open = rejectOpen || cancelOpen || cashOpen || linkOpen;
+  return { actions, trigger, pending, error: rejectOpen ? null : error, dialogs, open };
 }
 
 const DANGER: ReadonlySet<Action> = new Set(['reject', 'cancel', 'noShow']);
@@ -199,17 +200,35 @@ export function BookingActions({
 
 /**
  * One list row's actions: `primary` as a small button, every other action this member has in a "More actions"
- * menu. Renders nothing when the member has no action on the booking. `onDone` runs after any action succeeds.
+ * menu. Renders nothing when the member has no action on the booking. `onDone` runs after any action succeeds;
+ * `onOpenChange` reports while one of the row's dialogs is open, so the list can keep the row until it closes.
  */
-export function RowActions({ booking, primary, onDone }: { booking: OwnerBooking; primary: Action | null; onDone(): void }) {
+export function RowActions({
+  booking,
+  primary,
+  onDone,
+  onOpenChange,
+}: {
+  booking: OwnerBooking;
+  primary: Action | null;
+  onDone(): void;
+  onOpenChange?(open: boolean): void;
+}) {
   const { t } = useTranslation();
   const done = () => onDone();
-  const { actions, trigger, pending, error, dialogs } = useBookingActions(booking, {
+  const { actions, trigger, pending, error, dialogs, open } = useBookingActions(booking, {
     onUpdated: done,
     onPaid: done,
     onCancelled: done,
     onConflict: done,
   });
+  const report = useRef(onOpenChange);
+  report.current = onOpenChange;
+  useEffect(() => {
+    if (!open) return;
+    report.current?.(true);
+    return () => report.current?.(false);
+  }, [open]);
   if (actions.length === 0) return null;
   const main = primary !== null && actions.includes(primary) ? primary : null;
   const rest = actions.filter((a) => a !== main);

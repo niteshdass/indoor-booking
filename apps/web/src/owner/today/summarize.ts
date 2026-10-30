@@ -3,7 +3,7 @@ import type { OwnerBooking } from '../types';
 const DEAD = new Set(['cancelled', 'rejected', 'expired']);
 const OPEN = new Set(['pending', 'awaiting_payment', 'confirmed']);
 
-const firstStart = (b: OwnerBooking) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
+export const firstStart = (b: OwnerBooking) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
 const lastEnd = (b: OwnerBooking) => Math.max(...b.slots.map((s) => Date.parse(s.endAt)));
 
 export type TodaySummary = { count: number; collected: number; pending: number; upcoming: OwnerBooking[] };

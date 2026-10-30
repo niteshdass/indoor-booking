@@ -97,11 +97,18 @@ function kindOf(b: OwnerBooking): Kind {
 
 const dueOf = (b: OwnerBooking) => (OWES.has(b.status) ? Math.max(0, b.total - b.amountPaid) : 0);
 
-/** Runs of consecutive available slots; past, taken and blocked slots break a run. */
-export function freeGaps(day: OwnerSlotDay | undefined): Gap[] {
+/**
+ * Runs of consecutive available slots; past, taken and blocked slots break a run. `now` (ms) drops slots that have
+ * started, and `busy` drops slots a live booking holds although the slot day was read before it was made.
+ */
+export function freeGaps(day: OwnerSlotDay | undefined, now = -Infinity, busy: OwnerBooking[] = []): Gap[] {
+  const held = busy.flatMap((b) => b.slots.map((x): Span => [Date.parse(x.startAt), Date.parse(x.endAt)]));
   const out: Gap[] = [];
   for (const s of day?.slots ?? []) {
     if (s.status !== 'available') continue;
+    const at = Date.parse(s.startAt);
+    const until = Date.parse(s.endAt);
+    if (at < now || held.some(([a, b]) => a < until && b > at)) continue;
     const [start, end] = slotSpan(s);
     const last = out.at(-1);
     if (last && last.end === start) last.end = end;
@@ -118,12 +125,23 @@ export function buildLanes(
   bookings: OwnerBooking[],
   tz: string,
   courts: Courts | null = null,
+  now?: Date,
 ): { lanes: Lane[]; from: number; to: number } {
   const lanes = new Map<string, Lane>();
   let from = DEFAULT_FROM;
   let to = DEFAULT_TO;
   for (const turf of courts?.turfs ?? []) {
-    lanes.set(turf.id, { id: turf.id, name: turf.name, blocks: [], closed: [], gaps: freeGaps(courts!.days[turf.id]) });
+    lanes.set(turf.id, {
+      id: turf.id,
+      name: turf.name,
+      blocks: [],
+      closed: [],
+      gaps: freeGaps(
+        courts!.days[turf.id],
+        now?.getTime(),
+        bookings.filter((b) => b.turfId === turf.id && SHOWN.has(b.status)),
+      ),
+    });
     for (const s of courts!.days[turf.id]?.slots ?? []) {
       const [a, b] = slotSpan(s);
       from = Math.min(from, Math.floor(a));
@@ -162,7 +180,7 @@ const clock = (h: number) => {
 
 /** The currency's symbol on its own, e.g. "৳" or "$", for the compact due chip. */
 function currencySymbol(currency: string, lang: string): string {
-  const parts = new Intl.NumberFormat(lang, { style: 'currency', currency }).formatToParts(0);
+  const parts = new Intl.NumberFormat(lang, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0);
   return parts.find((p) => p.type === 'currency')?.value ?? currency;
 }
 
@@ -190,7 +208,7 @@ export function CourtTimeline({
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const scroller = useRef<HTMLDivElement>(null);
-  const { lanes, from, to } = buildLanes(bookings, timezone, courts);
+  const { lanes, from, to } = buildLanes(bookings, timezone, courts, now);
   const anyClosed = lanes.some((l) => l.closed.length > 0);
   const span = to - from;
   const nowH = hours(now.toISOString(), timezone);

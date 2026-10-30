@@ -1,3 +1,4 @@
+import { bdMobileDigits } from '../../lib/wallets';
 import { WEEKDAYS, type DayHours, type OwnerSettings, type WeeklyHours } from '@booking/shared';
 
 export type SettingsLevel = 'owner' | 'venue';
@@ -8,13 +9,6 @@ export type SettingsLevel = 'owner' | 'venue';
  */
 export type StoredSettings = Omit<Partial<OwnerSettings>, 'hours'> & { hours?: Partial<WeeklyHours> };
 export type Draft = StoredSettings;
-
-const BD_MOBILE = /^(?:\+880|0)(1[3-9]\d{8})$/;
-
-/** The 10 digits after the country code (1712345678) of a number the API accepts (+8801712345678 or 01712345678), else null. */
-export function bdMobileDigits(raw: string): string | null {
-  return BD_MOBILE.exec(raw.replace(/[\s-]/g, ''))?.[1] ?? null;
-}
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

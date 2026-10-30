@@ -7,17 +7,10 @@ import { TextField } from '../../components/ui/TextField';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useResource } from '../useResource';
-import { bdMobileDigits } from './settingsPatch';
+import { PROVIDER_NAMES, formatBdMobile } from '../../lib/wallets';
 import styles from './settings.module.css';
 
-const PROVIDER_NAMES: Record<WalletProvider, string> = { bkash: 'bKash', nagad: 'Nagad', rocket: 'Rocket' };
 const ACCOUNT_TYPES: ManualWallet['accountType'][] = ['personal', 'merchant', 'agent'];
-
-/** `+8801712345678` -> `+880 1712-345678`; anything else is shown as typed. */
-export function formatBdMobile(raw: string): string {
-  const d = bdMobileDigits(raw);
-  return d ? `+880 ${d.slice(0, 4)}-${d.slice(4)}` : raw;
-}
 
 /** Whether the owner's Stripe account can take card payments; false when it cannot be read. */
 export function useStripeReady(): { ready: boolean; canConnect: boolean } {

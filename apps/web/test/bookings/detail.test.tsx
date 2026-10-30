@@ -283,3 +283,20 @@ describe('booking detail', () => {
     expect(screen.queryByRole('button', { name: en.booking.copy })).not.toBeInTheDocument();
   });
 });
+
+describe('booking detail, wallet payment', () => {
+  const manual = { provider: 'bkash', trxId: '9A1B2C3D4E', amount: 1000, status: 'pending', submittedAt: '2026-11-01T10:00:00.000Z' } as const;
+
+  it('shows waiting for the venue while a manual payment is pending', async () => {
+    api(() => booking({ status: 'awaiting_payment', manualPayment: manual }));
+    renderApp('/me/bookings/b1?submitted=1', { user: player });
+    expect(await screen.findByText('Waiting for the venue to check your payment (bKash 9A1B2C3D4E)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: en.booking.payNow })).not.toBeInTheDocument();
+  });
+
+  it('says the times were taken on a late submit', async () => {
+    api(() => booking({ status: 'expired', manualPayment: manual }));
+    renderApp('/me/bookings/b1?submitted=1&late=1', { user: player });
+    expect(await screen.findByText(en.booking.manualLate)).toBeInTheDocument();
+  });
+});

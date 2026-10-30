@@ -186,7 +186,11 @@
     "invalid_status": "This business has already moved on to another status. Refresh the page.",
     "cannot_change_admin": "Platform admin accounts cannot be changed here.",
     "not_flagged": "This review is no longer flagged. Refresh the page.",
-    "application_pending": "Your business is already waiting for approval."
+    "application_pending": "Your business is already waiting for approval.",
+    "trx_id_used": "This Transaction ID was already used. Check it and try again.",
+    "invalid_trx_id": "That Transaction ID doesn't look right.",
+    "invalid_sender": "That sender number doesn't look right.",
+    "payment_submitted": "You already sent payment details for this booking."
   },
   "myBookings": {
     "title": "My bookings",
@@ -430,7 +434,10 @@
     "dayProblem": "{{date}}: {{reason}}",
     "removeDay": "Remove {{date}}",
     "bookingCount_one": "{{count}} booking",
-    "bookingCount_other": "{{count}} bookings"
+    "bookingCount_other": "{{count}} bookings",
+    "payBy": "Pay {{amount}} now by {{methods}} · rest at venue",
+    "card": "card",
+    "noMethods": "Online payment isn't set up at this venue yet"
   },
   "payment": {
     "redirectFailed": "The payment didn't go through. Your slots are still held, so you can try again.",
@@ -440,7 +447,34 @@
     "holdEndsIn": "Your slots are held for {{time}}",
     "expired": "Your hold has expired and the slots were released. Please pick your slots again.",
     "backToVenue": "Back to venue",
-    "loadFailed": "Couldn't load the payment form. Please try again."
+    "loadFailed": "Couldn't load the payment form. Please try again.",
+    "wallet": {
+      "tabs": "Pay with",
+      "card": "Card",
+      "send": "Send {{amount}}",
+      "sendTo": "Send to",
+      "copy": "Copy",
+      "copied": "Copied",
+      "account": {
+        "personal": "{{provider}} personal",
+        "agent": "{{provider}} agent",
+        "merchant": "{{provider}} merchant"
+      },
+      "action": {
+        "send": "Send Money",
+        "agent": "Cash Out",
+        "merchant": "Payment"
+      },
+      "steps": "Open {{provider}} → {{action}} → {{number}} → {{amount}} → copy the Transaction ID",
+      "trxId": "Transaction ID",
+      "trxHint": "It is in the {{provider}} confirmation message.",
+      "trxInvalid": "Enter the Transaction ID: 8 to 12 letters and numbers.",
+      "sender": "Sent from",
+      "senderHint": "The {{provider}} number you paid from.",
+      "senderInvalid": "Enter a Bangladesh mobile number, like 01712345678.",
+      "submit": "I have sent the money",
+      "hint": "The venue checks your payment, then confirms the booking."
+    }
   },
   "receipt": {
     "failed": "The receipt could not be made. Try again.",
@@ -477,7 +511,9 @@
     "timesUtc": "Times shown in UTC",
     "groupTitle": "Booked together",
     "groupNote_one": "{{count}} booking made in one go. Each one can be cancelled on its own.",
-    "groupNote_other": "{{count}} bookings made in one go. Each one can be cancelled on its own."
+    "groupNote_other": "{{count}} bookings made in one go. Each one can be cancelled on its own.",
+    "manualWaiting": "Waiting for the venue to check your payment ({{provider}} {{trxId}})",
+    "manualLate": "These times were taken while you paid. The venue will send your money back once they check it."
   },
   "status": {
     "awaiting_payment": "Awaiting payment",
@@ -1004,7 +1040,11 @@
         "hint": "How players pay the advance online. Wallet payments are checked by your team.",
         "number": "Number",
         "accountType": "Account type",
-        "account": { "personal": "Personal", "merchant": "Merchant", "agent": "Agent" },
+        "account": {
+          "personal": "Personal",
+          "merchant": "Merchant",
+          "agent": "Agent"
+        },
         "note": "Note for players (optional)",
         "card": "Card (Stripe)",
         "connectStripe": "Connect Stripe first"

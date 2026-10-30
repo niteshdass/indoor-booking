@@ -6,16 +6,17 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
+import { Tabs } from '../components/ui/Tabs';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import { formatDate, formatTime, money } from '../lib/format';
-import type { BookingJson, PaymentStart } from '../lib/types';
+import { money } from '../lib/format';
+import type { BookingJson, PaymentOptions, PaymentStart } from '../lib/types';
+import { PROVIDER_NAMES } from '../lib/wallets';
 import { stripeAppearance } from './stripeAppearance';
 import { useCountdown } from './useCountdown';
+import { BookingLine, HoldPill } from './BookingLine';
+import { WalletPayForm, type ManualOutcome } from './WalletPayForm';
 import styles from './PayPage.module.css';
-
-/** The hold pill turns to warning for the last minute. */
-const HOLD_WARN_MS = 60_000;
 
 const stripes = new Map<string, Promise<Stripe | null>>();
 /** One Stripe instance per publishable key (the key is per venue owner). */
@@ -34,33 +35,10 @@ function stripeFor(key: string): Promise<Stripe | null> {
 
 type State =
   | { status: 'loading' }
-  | { status: 'ready'; booking: BookingJson; start: PaymentStart }
+  | { status: 'ready'; booking: BookingJson; options: PaymentOptions }
   | { status: 'redirect' }
   | { status: 'expired'; booking: BookingJson | null }
-  | { status: 'error'; error: unknown; loadFailed?: boolean };
-
-function formatClock(ms: number): string {
-  const total = Math.ceil(Math.max(0, ms) / 1000);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-/** "Arena One · Court 1 · Tue, Oct 27 · 13:00 – 15:00"; one payment for several bookings names only the venue and court. */
-function BookingLine({ booking }: { booking: BookingJson }) {
-  const { i18n } = useTranslation();
-  const lang = i18n.language;
-  const tz = booking.venue?.timezone ?? 'UTC';
-  const first = booking.slots[0];
-  const last = booking.slots[booking.slots.length - 1];
-  const parts = [booking.venue?.name, booking.turf?.name];
-  if (!booking.groupId) {
-    parts.push(formatDate(booking.businessDate, 'UTC', lang));
-    if (first && last) parts.push(`${formatTime(first.startAt, tz, lang)} – ${formatTime(last.endAt, tz, lang)}`);
-  }
-  const text = parts.filter(Boolean).join(' · ');
-  return text ? <p className={styles.meta}>{text}</p> : null;
-}
+  | { status: 'error'; error: unknown };
 
 function PayForm({
   id,
@@ -133,9 +111,7 @@ function PayForm({
       <div className={styles.head}>
         <div className={styles.headTop}>
           <p className={styles.amount}>{t('payment.payNow', { amount: money(payment.amount, payment.currency, i18n.language) })}</p>
-          <p className={[styles.hold, msLeft < HOLD_WARN_MS ? styles.holdEnding : ''].filter(Boolean).join(' ')} aria-live="off">
-            {t('payment.holdEndsIn', { time: formatClock(msLeft) })}
-          </p>
+          <HoldPill msLeft={msLeft} />
         </div>
         <BookingLine booking={booking} />
       </div>
@@ -162,21 +138,156 @@ function Expired({ slug }: { slug: string | null }) {
   );
 }
 
-function PayElements({ id, booking, start }: { id: string; booking: BookingJson; start: PaymentStart }) {
-  const { i18n } = useTranslation();
-  const [confirming, setConfirming] = useState(false);
-  const { msLeft, expired } = useCountdown(start.holdExpiresAt);
+type CardState =
+  | { status: 'loading' }
+  | { status: 'ready'; start: PaymentStart }
+  | { status: 'redirect' }
+  | { status: 'error'; error: unknown; loadFailed?: boolean };
+
+/** Starts the Stripe intent when it first mounts, so it only runs once the Card tab is chosen. */
+function CardPane({
+  id,
+  booking,
+  msLeft,
+  expired,
+  onConfirming,
+  onHoldExpired,
+}: {
+  id: string;
+  booking: BookingJson;
+  msLeft: number;
+  expired: boolean;
+  onConfirming(v: boolean): void;
+  onHoldExpired(): void;
+}) {
+  const { t, i18n } = useTranslation();
+  const [state, setState] = useState<CardState>({ status: 'loading' });
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setState({ status: 'loading' });
+    (async () => {
+      try {
+        const start = await apiPost<PaymentStart>(`/bookings/${encodeURIComponent(id)}/payment`, {});
+        try {
+          await stripeFor(start.payment.publishableKey);
+        } catch (error) {
+          if (live) setState({ status: 'error', error, loadFailed: true });
+          return;
+        }
+        if (live) setState({ status: 'ready', start });
+      } catch (error) {
+        if (!live) return;
+        if (error instanceof ApiError && (error.code === 'already_paid' || error.code === 'invalid_transition')) setState({ status: 'redirect' });
+        else if (error instanceof ApiError && error.code === 'hold_expired') onHoldExpired();
+        else setState({ status: 'error', error });
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // onHoldExpired is a stable state setter wrapper.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, attempt]);
+
+  if (state.status === 'redirect') return <Navigate to={`/me/bookings/${encodeURIComponent(id)}`} replace />;
+  if (state.status === 'loading') return <Skeleton kind="detail" label={t('common.loading')} />;
+  if (state.status === 'error') {
+    return (
+      <Alert tone="danger" className={styles.alert}>
+        <span>{state.loadFailed ? t('payment.loadFailed') : errorMessage(state.error, t)}</span>
+        <Button size="sm" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+          {t('search.retry')}
+        </Button>
+      </Alert>
+    );
+  }
+  return <CardElements id={id} booking={booking} start={state.start} msLeft={msLeft} expired={expired} onConfirming={onConfirming} lang={i18n.resolvedLanguage} />;
+}
+
+function CardElements({
+  id,
+  booking,
+  start,
+  msLeft,
+  expired,
+  onConfirming,
+  lang,
+}: {
+  id: string;
+  booking: BookingJson;
+  start: PaymentStart;
+  msLeft: number;
+  expired: boolean;
+  onConfirming(v: boolean): void;
+  lang: string | undefined;
+}) {
   const stripe = useMemo(() => stripeFor(start.payment.publishableKey), [start.payment.publishableKey]);
   // Computed once per payment start so Elements never sees a changing clientSecret/appearance.
   const options = useMemo(
-    () => ({ clientSecret: start.payment.clientSecret, appearance: stripeAppearance(), locale: (i18n.resolvedLanguage === 'en' || i18n.resolvedLanguage === 'ru' ? i18n.resolvedLanguage : 'auto') as 'en' | 'ru' | 'auto' }),
-    [start.payment.clientSecret, i18n.resolvedLanguage],
+    () => ({ clientSecret: start.payment.clientSecret, appearance: stripeAppearance(), locale: (lang === 'en' || lang === 'ru' ? lang : 'auto') as 'en' | 'ru' | 'auto' }),
+    [start.payment.clientSecret, lang],
   );
-  if (expired && !confirming) return <Expired slug={booking.venue?.slug ?? null} />;
   return (
     <Elements stripe={stripe} options={options}>
-      <PayForm id={id} booking={booking} start={start} msLeft={msLeft} expired={expired} onConfirming={setConfirming} />
+      <PayForm id={id} booking={booking} start={start} msLeft={msLeft} expired={expired} onConfirming={onConfirming} />
     </Elements>
+  );
+}
+
+/** Tabs for each way to pay; the hold countdown is shared by all of them. */
+function PayMethods({ id, booking, options }: { id: string; booking: BookingJson; options: PaymentOptions }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const hold = options.holdExpiresAt ?? booking.holdExpiresAt;
+  const { msLeft, expired } = useCountdown(hold);
+  const [confirming, setConfirming] = useState(false);
+  const [lapsed, setLapsed] = useState(false);
+  const onHoldExpired = useCallback(() => setLapsed(true), []);
+  const ids = [...(options.card ? ['card'] : []), ...options.wallets.map((w) => w.provider)];
+  // Wallets open first when offered, so a card intent is never started unasked.
+  const [tab, setTab] = useState<string>(options.wallets[0]?.provider ?? 'card');
+  const [cardSeen, setCardSeen] = useState(tab === 'card');
+  const choose = (next: string) => {
+    setTab(next);
+    if (next === 'card') setCardSeen(true);
+  };
+
+  if (ids.length === 0) return <Alert tone="warning">{t('checkout.noMethods')}</Alert>;
+  if ((expired && !confirming) || lapsed) return <Expired slug={booking.venue?.slug ?? null} />;
+
+  const wallet = options.wallets.find((w) => w.provider === tab);
+  const done = (outcome: ManualOutcome) =>
+    navigate(`/me/bookings/${encodeURIComponent(id)}?submitted=1${outcome === 'slots_taken' ? '&late=1' : ''}`);
+
+  return (
+    <>
+      {ids.length > 1 && (
+        <Tabs
+          label={t('payment.wallet.tabs')}
+          tabs={ids.map((x) => ({ id: x, label: x === 'card' ? t('payment.wallet.card') : PROVIDER_NAMES[x as keyof typeof PROVIDER_NAMES] }))}
+          value={tab}
+          onChange={choose}
+        />
+      )}
+      {cardSeen && (
+        <div hidden={tab !== 'card'}>
+          <CardPane id={id} booking={booking} msLeft={msLeft} expired={expired} onConfirming={setConfirming} onHoldExpired={onHoldExpired} />
+        </div>
+      )}
+      {wallet && (
+        <WalletPayForm
+          key={wallet.provider}
+          booking={booking}
+          wallet={wallet}
+          amount={options.amount}
+          currency={options.currency}
+          msLeft={msLeft}
+          expired={expired}
+          onDone={done}
+        />
+      )}
+    </>
   );
 }
 
@@ -200,14 +311,8 @@ export function PayPage() {
           if (live) setState({ status: 'redirect' });
           return;
         }
-        const start = await apiPost<PaymentStart>(`/bookings/${encodeURIComponent(id)}/payment`, {});
-        try {
-          await stripeFor(start.payment.publishableKey);
-        } catch (error) {
-          if (live) setState({ status: 'error', error, loadFailed: true });
-          return;
-        }
-        if (live) setState({ status: 'ready', booking, start });
+        const options = await apiGet<PaymentOptions>(`/bookings/${encodeURIComponent(id)}/payment-options`);
+        if (live) setState({ status: 'ready', booking, options });
       } catch (error) {
         if (!live) return;
         if (error instanceof ApiError && (error.code === 'already_paid' || error.code === 'invalid_transition')) setState({ status: 'redirect' });
@@ -225,19 +330,17 @@ export function PayPage() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t('payment.title')}</h1>
-      {state.status === 'loading' && (
-        <Skeleton kind="detail" label={t('common.loading')} />
-      )}
+      {state.status === 'loading' && <Skeleton kind="detail" label={t('common.loading')} />}
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>
-          <span>{state.loadFailed ? t('payment.loadFailed') : errorMessage(state.error, t)}</span>
+          <span>{errorMessage(state.error, t)}</span>
           <Button size="sm" variant="secondary" onClick={load}>
             {t('search.retry')}
           </Button>
         </Alert>
       )}
       {state.status === 'expired' && <Expired slug={state.booking?.venue?.slug ?? null} />}
-      {state.status === 'ready' && <PayElements id={id} booking={state.booking} start={state.start} />}
+      {state.status === 'ready' && <PayMethods id={id} booking={state.booking} options={state.options} />}
     </main>
   );
 }

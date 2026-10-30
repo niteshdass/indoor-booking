@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ActionMenu } from '../components/ActionMenu';
+import { PROVIDER_NAMES } from '../lib/wallets';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
@@ -47,6 +48,7 @@ export function BookingDetailPage() {
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';
   const paid = params.get('paid') === '1';
+  const late = params.get('late') === '1';
   // Stripe appends redirect_status to the return URL; a declined/cancelled redirect method comes back as failed.
   const redirectStatus = params.get('redirect_status');
   const redirectFailed =
@@ -159,8 +161,9 @@ export function BookingDetailPage() {
   if (state.status === 'not_found') return <NotFoundPage />;
 
   const holdLive = !booking?.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();
+  const manualPending = booking?.manualPayment?.status === 'pending';
   const showPayNow =
-    booking?.status === 'awaiting_payment' && holdLive && (!paid || redirectFailed || slow);
+    booking?.status === 'awaiting_payment' && holdLive && !manualPending && (!paid || redirectFailed || slow);
   const received =
     paid &&
     !redirectFailed &&
@@ -239,6 +242,15 @@ export function BookingDetailPage() {
           {redirectFailed && booking.status === 'awaiting_payment' && (
             <Alert tone="danger" className={styles.alert}>
               <span>{t('payment.redirectFailed')}</span>
+            </Alert>
+          )}
+          {booking.manualPayment && manualPending && (
+            <Alert tone="info" className={styles.alert}>
+              <span>
+                {late
+                  ? t('booking.manualLate')
+                  : t('booking.manualWaiting', { provider: PROVIDER_NAMES[booking.manualPayment.provider], trxId: booking.manualPayment.trxId })}
+              </span>
             </Alert>
           )}
           {polling && (

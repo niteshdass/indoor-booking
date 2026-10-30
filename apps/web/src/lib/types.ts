@@ -1,4 +1,4 @@
-import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, ManualWallet, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
 
 export type { SearchResult, SearchResponse } from '@booking/shared';
 
@@ -72,6 +72,8 @@ export type QuoteResponse = {
   quote: QuoteJson;
   guestAllowed: boolean;
   guestOtpRequired: boolean;
+  /** What the venue takes online: wallet providers and card. */
+  paymentMethods?: { wallets: WalletProvider[]; card: boolean };
   /** Several bookings at once: every one (the first included) and the sums across them. */
   items?: { turfId: string; date: string; quote: QuoteJson }[];
   total?: number;
@@ -116,6 +118,25 @@ export type BookingJson = {
   reviewableUntil: string | null;
   venue: PlayerVenue | null;
   turf: { name: string } | null;
+  /** The wallet payment the player sent, if any; never the sender number. */
+  manualPayment?: ManualPaymentJson | null;
+};
+
+export type ManualPaymentJson = {
+  provider: WalletProvider;
+  trxId: string;
+  amount: number;
+  status: 'pending' | 'succeeded' | 'failed';
+  submittedAt: string;
+};
+
+/** `GET /bookings/:id/payment-options`; `amount` is the whole group's remaining advance. */
+export type PaymentOptions = {
+  wallets: ManualWallet[];
+  card: boolean;
+  amount: number;
+  currency: string;
+  holdExpiresAt: string | null;
 };
 
 export type RefundJson = {

@@ -235,6 +235,8 @@ export function CheckoutPage() {
   const q = data?.quote;
 
   const addonErr = failed && isAddonError(quote.error);
+  const pm = data?.paymentMethods;
+  const noMethods = !!pm && !pm.card && pm.wallets.length === 0;
   const submitBusy = quote.busy || submitter.pending || addonErr;
   const many = data?.items && data.items.length > 1 ? data.items : null;
   const due = many ? (data?.advanceRequired ?? 0) : (q?.advanceRequired ?? 0);
@@ -273,8 +275,8 @@ export function CheckoutPage() {
           variant="brand"
           size="lg"
           block
-          disabled={submitBusy}
-          aria-disabled={submitBusy}
+          disabled={submitBusy || (noMethods && due > 0)}
+          aria-disabled={submitBusy || (noMethods && due > 0)}
           loading={submitter.pending}
           onClick={() => void place()}
         >
@@ -350,6 +352,7 @@ export function CheckoutPage() {
               groupTotal={many ? data?.total : undefined}
               groupDue={many ? due : undefined}
               busy={quote.busy}
+              paymentMethods={pm}
             >
               {submitError != null &&
                 (itemAlert(submitError, 'danger') ?? <Alert tone="danger">{errorMessage(submitError, t)}</Alert>)}

@@ -49,8 +49,8 @@ function quote(over: Partial<QuoteJson> = {}): QuoteJson {
     ...over,
   };
 }
-function qr(q: QuoteJson, guestAllowed = true): QuoteResponse {
-  return { quote: q, guestAllowed, guestOtpRequired: false };
+function qr(q: QuoteJson, guestAllowed = true, paymentMethods?: QuoteResponse['paymentMethods']): QuoteResponse {
+  return { quote: q, guestAllowed, guestOtpRequired: false, ...(paymentMethods && { paymentMethods }) };
 }
 const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 
@@ -144,6 +144,21 @@ describe('CheckoutPage', () => {
     expect(within(summary).getByText(en.checkout.advanceDue).closest('div')).toHaveTextContent(m(1150));
     expect(within(summary).getByText(en.checkout.payLater).closest('div')).toHaveTextContent(m(1150));
     expect(within(summary).getByRole('button', { name: /^Book and pay/ })).toHaveTextContent(m(1150));
+  });
+
+  it('summary shows how to pay before Continue', async () => {
+    api(() => qr(quote({ total: 2000, advanceRequired: 50000 }), false, { wallets: ['bkash'], card: true }));
+    renderApp(PATH, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    const line = await within(summary).findByText((c) => norm(c).startsWith('Pay ') && norm(c).includes(' now by '));
+    expect(norm(line.textContent ?? '')).toBe(`Pay ${m(50000)} now by bKash or card · rest at venue`);
+  });
+
+  it('no online method disables Continue and says why', async () => {
+    api(() => qr(quote({ advanceRequired: 500 }), false, { wallets: [], card: false }));
+    renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.checkout.noMethods)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Book and pay/ })).toBeDisabled();
   });
 
   it('omits advance rows and uses the plain label when nothing is due', async () => {

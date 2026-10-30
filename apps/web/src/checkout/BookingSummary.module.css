@@ -121,3 +121,9 @@
   flex-direction: column;
   gap: var(--space-3);
 }
+
+.howToPay {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-default);
+}

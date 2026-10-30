@@ -175,3 +175,10 @@ describe('quoteBooking', () => {
     ).toThrow(AddonQuoteError);
   });
 });
+
+describe('manual wallet transitions', () => {
+  it('lets a held booking move to pending once a TrxID is submitted', () => {
+    expect(canTransition('awaiting_payment', 'pending')).toBe(true);
+    expect(canTransition('expired', 'pending')).toBe(false);
+  });
+});

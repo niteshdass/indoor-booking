@@ -1383,6 +1383,7 @@
       "booking_cancel": "Cancel bookings",
       "booking_checkin": "Check in and mark no-shows",
       "payment_mark_cash": "Record cash payments",
+      "payment_verify": "Verify wallet payments",
       "refund_issue": "Issue refunds",
       "venue_manage": "Manage venues",
       "turf_manage": "Manage turfs",

@@ -4,6 +4,7 @@ export * from './permissions';
 export * from './locales';
 export * from './venues';
 export * from './settings';
+export * from './wallets';
 export * from './time';
 export * from './pricing';
 export * from './slots';

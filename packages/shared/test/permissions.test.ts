@@ -36,3 +36,11 @@ describe('role names and locales', () => {
     expect(LOCALES).toEqual(['en', 'ru']);
   });
 });
+
+describe('payment.verify', () => {
+  it('is for manager and owner, not staff', () => {
+    expect(SYSTEM_ROLES.manager).toContain('payment.verify');
+    expect(SYSTEM_ROLES.owner).toContain('payment.verify');
+    expect(SYSTEM_ROLES.staff).not.toContain('payment.verify');
+  });
+});

@@ -9,6 +9,7 @@ export const PERMISSIONS = [
   'booking.cancel',
   'booking.checkin',
   'payment.mark_cash',
+  'payment.verify',
   'refund.issue',
   'addon.manage',
   'staff.manage',

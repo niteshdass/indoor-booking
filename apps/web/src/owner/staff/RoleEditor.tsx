@@ -23,7 +23,7 @@ const NAME_MAX = 50;
 const GROUPS: { id: 'bookings' | 'venues' | 'admin'; perms: Permission[] }[] = [
   {
     id: 'bookings',
-    perms: ['booking.view', 'booking.create', 'booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'refund.issue'],
+    perms: ['booking.view', 'booking.create', 'booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'payment.verify', 'refund.issue'],
   },
   { id: 'venues', perms: ['venue.manage', 'turf.manage', 'pricing.edit', 'slot.override', 'addon.manage'] },
   { id: 'admin', perms: ['staff.manage', 'settings.edit', 'reports.view', 'review.manage'] },

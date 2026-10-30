@@ -1,4 +1,5 @@
 import { WEEKDAYS, type Weekday } from './venues';
+import type { PaymentMethods } from './wallets';
 
 /** 'HH:MM' local venue time. close <= open means the session ends the next day; equal means 24 h. */
 export type DayHours = { open: string; close: string } | 'closed';
@@ -23,6 +24,7 @@ export type OwnerSettings = {
   refundRules: RefundRule[];
   bookingWindowDays: number;
   pendingAutoRejectHours: number;
+  paymentMethods: PaymentMethods;
 };
 
 export type VenueSettingsOverride = Partial<Omit<OwnerSettings, 'hours' | 'pendingAutoRejectHours'>> & {
@@ -41,6 +43,7 @@ export const DEFAULT_OWNER_SETTINGS: OwnerSettings = {
   refundRules: [],
   bookingWindowDays: 30,
   pendingAutoRejectHours: 2,
+  paymentMethods: { manualWallets: [], gateways: [] },
 };
 
 const clone = <T>(v: T): T => structuredClone(v);

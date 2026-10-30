@@ -5,7 +5,7 @@ import type { ComputedSlot, DaySlots } from './slots';
 import type { BookingStatus } from './statuses';
 
 export const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
-  awaiting_payment: ['confirmed', 'expired', 'cancelled'],
+  awaiting_payment: ['pending', 'confirmed', 'expired', 'cancelled'],
   pending: ['confirmed', 'rejected', 'cancelled'],
   confirmed: ['completed', 'no_show', 'cancelled'],
   rejected: [],
@@ -24,6 +24,8 @@ export const MAX_SLOTS_PER_BOOKING = 12;
 export const MAX_BOOKINGS_PER_GROUP = 14;
 /** How long an awaiting_payment booking holds its slots. */
 export const HOLD_MINUTES = 10;
+/** Longer hold for manual wallet payments: the customer pays outside the app, then submits a TrxID. */
+export const MANUAL_HOLD_MINUTES = 15;
 
 export class BookingQuoteError extends Error {
   constructor(

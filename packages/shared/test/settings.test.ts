@@ -54,3 +54,14 @@ describe('resolveSettings', () => {
     expect(() => resolveSettings(owner, venue, turf)).not.toThrow();
   });
 });
+
+describe('paymentMethods setting', () => {
+  it('defaults to nothing enabled', () => {
+    expect(withOwnerDefaults({}).paymentMethods).toEqual({ manualWallets: [], gateways: [] });
+  });
+  it('a venue value replaces the owner value whole', () => {
+    const a = { manualWallets: [{ provider: 'bkash' as const, number: '01711111111', accountType: 'personal' as const }], gateways: [] };
+    const b = { manualWallets: [], gateways: ['stripe' as const] };
+    expect(resolveSettings(withOwnerDefaults({ paymentMethods: a }), { paymentMethods: b }).paymentMethods).toEqual(b);
+  });
+});

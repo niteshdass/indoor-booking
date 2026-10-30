@@ -673,7 +673,9 @@
       "notCheckedIn": "{{name}} started at {{time}} and has not checked in",
       "paymentsToVerify_one": "{{count}} payment to verify",
       "paymentsToVerify_other": "{{count}} payments to verify",
-      "verifyOldest": "Oldest: {{name}}, sent {{time}}"
+      "verifyOldest": "Oldest: {{name}}, sent {{time}}",
+      "verifySoonest": "Next game: {{name}}, {{time}}",
+      "verifyAll": "See all"
     },
     "overview": {
       "range": "Period",

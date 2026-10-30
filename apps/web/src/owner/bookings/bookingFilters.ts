@@ -2,7 +2,8 @@ import { BOOKING_STATUSES, type BookingStatus } from '@booking/shared';
 import { PAGE_SIZE } from '../../components/ui/Pagination';
 import { ownerPath } from '../ownerApi';
 
-export const BOOKING_TABS = ['all', 'today', 'upcoming', 'past'] as const;
+/** `to_verify`: bookings of any date with a wallet payment still to check. */
+export const BOOKING_TABS = ['all', 'today', 'upcoming', 'past', 'to_verify'] as const;
 export type BookingTab = (typeof BOOKING_TABS)[number];
 
 /** Field and direction: when the booking was made, when it is played, or its reference. */
@@ -15,6 +16,7 @@ export const DEFAULT_SORT: Record<BookingTab, BookingSort> = {
   today: 'date-asc',
   upcoming: 'date-asc',
   past: 'date-desc',
+  to_verify: 'date-asc',
 };
 
 export type BookingFilters = {

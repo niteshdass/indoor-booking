@@ -703,7 +703,9 @@
       "paymentsToVerify_few": "{{count}} оплаты на проверке",
       "paymentsToVerify_many": "{{count}} оплат на проверке",
       "paymentsToVerify_other": "{{count}} оплаты на проверке",
-      "verifyOldest": "Самая ранняя: {{name}}, отправлено {{time}}"
+      "verifyOldest": "Самая ранняя: {{name}}, отправлено {{time}}",
+      "verifySoonest": "Ближайшая игра: {{name}}, {{time}}",
+      "verifyAll": "Показать все"
     },
     "overview": {
       "range": "Период",

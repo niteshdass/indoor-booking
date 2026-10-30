@@ -29,6 +29,7 @@ import {
   rangeError,
   readFilters,
   type BookingFilters,
+  type BookingTab,
 } from './bookingFilters';
 import { awaitsVerification } from './availableActions';
 import styles from './BookingsPage.module.css';
@@ -109,6 +110,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
     { value: '', label: t('owner.bookings.allTurfs') },
     ...(turfs.state.status === 'ready' ? turfs.state.data.turfs.map((x) => ({ value: x.id, label: x.name })) : []),
   ];
+  const tabLabel = (x: BookingTab) => (x === 'to_verify' ? t('status.paymentToCheck') : t(`owner.bookings.tab.${x}`));
   const sortOptions = BOOKING_SORTS.map((s) => ({ value: s, label: t(`owner.bookings.sort.${s}`) }));
   const statusOptions = [
     { value: '', label: t('owner.bookings.allStatuses') },
@@ -119,7 +121,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
     <div className={styles.page}>
       <Tabs
         label={t('owner.nav.bookings')}
-        tabs={BOOKING_TABS.map((x) => ({ id: x, label: t(`owner.bookings.tab.${x}`) }))}
+        tabs={BOOKING_TABS.map((x) => ({ id: x, label: tabLabel(x) }))}
         value={filters.tab}
         // Each tab opens in its own order: newest booked first for All, soonest first for Today and Upcoming, latest first for Past.
         onChange={(id) => {
@@ -252,7 +254,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
       ) : error ? (
         <Alert tone="danger">{t(error)}</Alert>
       ) : (
-        <div role="tabpanel" aria-label={t(`owner.bookings.tab.${filters.tab}`)}>
+        <div role="tabpanel" aria-label={tabLabel(filters.tab)}>
           <BookingsList venue={venue} filters={filters} onClear={active > 0 || filters.q ? () => update({ q: '', ...cleared }) : undefined} />
         </div>
       )}

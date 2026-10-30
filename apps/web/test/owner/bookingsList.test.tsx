@@ -6,7 +6,7 @@ import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { apiPathFor, filtersToParams, readFilters, type BookingFilters } from '../../src/owner/bookings/bookingFilters';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
-import { OWNER_ID, ownerBooking, ownerRoutes, staffUser, turf, venue } from './fixtures';
+import { OWNER_ID, manualPayment, ownerBooking, ownerRoutes, staffUser, turf, venue } from './fixtures';
 
 const NOW = '2026-10-26T04:30:00.000Z'; // 2026-10-26 in Dhaka
 
@@ -115,6 +115,27 @@ describe('Bookings page', () => {
     await screen.findByRole('link', { name: 'BK-0001' });
     expect(location().search).toBe('?tab=upcoming');
     expect(listCalls(api).at(-1)!.query.get('sort')).toBe('date-asc');
+  });
+
+  it('the Payment to check tab lists wallet payments to verify from any date, soonest first', async () => {
+    const api = mockApi(routes([ownerBooking({ manualPayment: manualPayment() })]));
+    const { user, location } = renderApp(`/owner/${OWNER_ID}/bookings`, { user: staffUser });
+    await screen.findByRole('link', { name: 'BK-0001' });
+    await user.click(screen.getByRole('tab', { name: en.status.paymentToCheck }));
+    await screen.findByRole('link', { name: 'BK-0001' });
+    expect(location().search).toBe('?tab=to_verify');
+    const last = listCalls(api).at(-1)!;
+    expect(last.query.get('scope')).toBe('to_verify');
+    expect(last.query.get('sort')).toBe('date-asc');
+    expect(screen.getByRole('tabpanel', { name: en.status.paymentToCheck })).toBeTruthy();
+  });
+
+  it('opens on the Payment to check tab from the URL', async () => {
+    const api = mockApi(routes());
+    renderApp(`/owner/${OWNER_ID}/bookings?tab=to_verify&venue=v1`, { user: staffUser });
+    await screen.findByRole('link', { name: 'BK-0001' });
+    expect(screen.getByRole('tab', { name: en.status.paymentToCheck }).getAttribute('aria-selected')).toBe('true');
+    expect(listCalls(api)[0]!.query.get('scope')).toBe('to_verify');
   });
 
   it('a search waits for a pause, stays in the tab and says when nothing matches', async () => {

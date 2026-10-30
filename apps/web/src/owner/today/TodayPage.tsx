@@ -83,12 +83,17 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
     { keepOnError: true },
   );
   const extras = useTodayExtras(venue);
-  const { reloadCourts } = extras;
+  const { reloadCourts, reloadToVerify } = extras;
+  // A change to a booking can change the payments to check on any date too.
+  const refresh = useCallback(() => {
+    reload();
+    reloadToVerify();
+  }, [reload, reloadToVerify]);
   usePoll(
     useCallback(() => {
-      reload();
+      refresh();
       reloadCourts();
-    }, [reload, reloadCourts]),
+    }, [refresh, reloadCourts]),
   );
   const fresh = useNewIds(state.status === 'ready' ? state.data.bookings.map((b) => b.id) : null, updatedAt);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -172,7 +177,15 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
         walkInHref={can('booking.create') ? walkInHref : null}
       />
       <div className={styles.split}>
-        <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} onChanged={reload} now={now} />
+        <Attention
+          venue={venue}
+          bookings={bookings}
+          toVerifyAll={extras.toVerify}
+          requests={extras.requests}
+          lowReviews={extras.lowReviews}
+          onChanged={refresh}
+          now={now}
+        />
         <section className={styles.panel} aria-labelledby="today-upcoming">
           <div className={styles.panelHead}>
             <h2 id="today-upcoming" className={styles.heading}>
@@ -218,7 +231,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                               <RowActions
                                 booking={b}
                                 primary={nextStep(b, availableActions(b, can), now)}
-                                onDone={reload}
+                                onDone={refresh}
                                 onOpenChange={(open) => opened(b.id, open)}
                               />
                             </td>
@@ -237,7 +250,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
         booking={openId === null ? null : (bookings.find((b) => b.id === openId) ?? null)}
         venue={venue}
         onClose={() => setOpenId(null)}
-        onChanged={reload}
+        onChanged={refresh}
       />
     </>
   );

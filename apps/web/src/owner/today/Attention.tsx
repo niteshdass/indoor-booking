@@ -21,6 +21,8 @@ type Item = {
   /** With a booking and its primary action the row acts inline; without a permitted action it falls back to Open. */
   booking?: OwnerBooking;
   primary?: Action;
+  /** A secondary link under the text, e.g. to every booking the row counts. */
+  more?: { to: string; label: string };
 };
 
 /** A confirmed game this long past its start without a check-in needs chasing. */
@@ -39,6 +41,7 @@ const endOf = (b: OwnerBooking) => Math.max(...b.slots.map((s) => Date.parse(s.e
 export function Attention({
   venue,
   bookings,
+  toVerifyAll = null,
   requests,
   lowReviews,
   onChanged,
@@ -46,6 +49,8 @@ export function Attention({
 }: {
   venue: OwnerVenue;
   bookings: OwnerBooking[];
+  /** Wallet payments to check on any date: how many, and the soonest game; null while loading or on failure. */
+  toVerifyAll?: { total: number; first: OwnerBooking | null } | null;
   requests: SeriesJson[] | null;
   lowReviews: OwnerReviewJson[] | null;
   onChanged(): void;
@@ -63,26 +68,35 @@ export function Attention({
   const submittedAt = (b: OwnerBooking) => Date.parse(b.manualPayment?.submittedAt ?? b.createdAt);
   const toVerify = bookings.filter(awaitsVerification);
   const oldestVerify = toVerify.reduce<OwnerBooking | null>((o, b) => (o === null || submittedAt(b) < submittedAt(o) ? b : o), null);
+  // Today's oldest stays the one to act on; with none today, the soonest game on another date.
+  const verifyCount = Math.max(toVerify.length, toVerifyAll?.total ?? 0);
+  const verifyNext = oldestVerify ?? (verifyCount > 0 ? (toVerifyAll?.first ?? null) : null);
   // Bookings in the "payments to verify" row are not also counted as waiting for confirmation.
   const pending = bookings.filter((b) => b.status === 'pending' && !awaitsVerification(b));
   const oldest = pending.reduce<OwnerBooking | null>((o, b) => (o === null || Date.parse(b.createdAt) < Date.parse(o.createdAt) ? b : o), null);
   const confirmed = bookings.filter((b) => b.status === 'confirmed');
 
   const items = keep([
-    ...(oldestVerify
+    ...(verifyNext
       ? [
           {
-            key: `verify${oldestVerify.id}`,
-            title: t('owner.today.paymentsToVerify', { count: toVerify.length }),
-            detail: t('owner.today.verifyOldest', {
-              name: nameOf(oldestVerify),
-              time: formatTime(new Date(submittedAt(oldestVerify)).toISOString(), tz, lang),
-            }),
-            to: bookingTo(oldestVerify),
-            tone: startOf(oldestVerify) <= at + VERIFY_URGENT_MS ? ('danger' as const) : ('warning' as const),
+            key: `verify${verifyNext.id}`,
+            title: t('owner.today.paymentsToVerify', { count: verifyCount }),
+            detail: oldestVerify
+              ? t('owner.today.verifyOldest', {
+                  name: nameOf(oldestVerify),
+                  time: formatTime(new Date(submittedAt(oldestVerify)).toISOString(), tz, lang),
+                })
+              : t('owner.today.verifySoonest', {
+                  name: nameOf(verifyNext),
+                  time: formatDateTime(new Date(startOf(verifyNext)).toISOString(), tz, lang),
+                }),
+            to: bookingTo(verifyNext),
+            tone: startOf(verifyNext) <= at + VERIFY_URGENT_MS ? ('danger' as const) : ('warning' as const),
             icon: 'clock',
-            booking: oldestVerify,
+            booking: verifyNext,
             primary: 'verify' as const,
+            more: { to: `bookings?tab=to_verify&venue=${encodeURIComponent(venue.id)}`, label: t('owner.today.verifyAll') },
           },
         ]
       : []),
@@ -174,6 +188,11 @@ export function Attention({
             <div className={styles.attentionText}>
               <p className={styles.attentionTitle}>{it.title}</p>
               {it.detail && <p className={styles.attentionDetail}>{it.detail}</p>}
+              {it.more && (
+                <Link to={it.more.to} className={`${styles.link} ${styles.attentionMore}`} aria-label={`${it.more.label}: ${it.title}`}>
+                  {it.more.label}
+                </Link>
+              )}
             </div>
             {it.booking && it.primary && availableActions(it.booking, can).length > 0 ? (
               <div className={styles.attentionActions}>

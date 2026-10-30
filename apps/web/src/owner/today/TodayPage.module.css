@@ -484,6 +484,10 @@
   color: var(--text-strong);
 }
 
+.attentionMore {
+  font-size: var(--text-sm);
+}
+
 .attentionDetail {
   font-size: var(--text-sm);
   color: var(--text-muted);

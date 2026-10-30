@@ -202,6 +202,80 @@ describe('Today page', () => {
     expect(row.className).toMatch(/danger/);
   });
 
+  it('Today attention counts payments to verify on other dates and links to them', async () => {
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'payment.verify'] }),
+      {
+        path: '/owners/o1/bookings',
+        body: (c: { query: URLSearchParams }) =>
+          c.query.get('scope') === 'to_verify'
+            ? {
+                bookings: [
+                  ownerBooking({
+                    id: 'b',
+                    status: 'pending',
+                    slots: [slot('2026-10-26T08:00:00.000Z', '2026-10-26T09:00:00.000Z')],
+                    customer: { name: 'Bob Pending', phone: null, email: null },
+                    manualPayment: manualPayment(),
+                  }),
+                ],
+                total: 3,
+              }
+            : {
+                bookings: [
+                  ownerBooking({
+                    id: 'b',
+                    status: 'pending',
+                    slots: [slot('2026-10-26T08:00:00.000Z', '2026-10-26T09:00:00.000Z')],
+                    customer: { name: 'Bob Pending', phone: null, email: null },
+                    manualPayment: manualPayment(),
+                  }),
+                ],
+              },
+      },
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const row = (await screen.findByText('3 payments to verify')).closest('li')!;
+    // Today's one stays actionable inline.
+    expect(within(row).getByRole('button', { name: en.owner.bookings.actions.verify })).toBeTruthy();
+    const all = within(row).getByRole('link', { name: new RegExp(en.owner.today.verifyAll) });
+    expect(all.getAttribute('href')).toBe(`/owner/${OWNER_ID}/bookings?tab=to_verify&venue=v1`);
+    const call = api.calls.find((c) => c.path === '/owners/o1/bookings' && c.query.get('scope') === 'to_verify')!;
+    expect(call.query.get('venueId')).toBe('v1');
+    expect(call.query.get('pageSize')).toBe('1');
+  });
+
+  it('Today attention shows payments to verify that are all on other dates', async () => {
+    mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'payment.verify'] }),
+      {
+        path: '/owners/o1/bookings',
+        body: (c: { query: URLSearchParams }) =>
+          c.query.get('scope') === 'to_verify'
+            ? {
+                bookings: [
+                  ownerBooking({
+                    id: 'f',
+                    status: 'pending',
+                    slots: [slot('2026-10-29T08:00:00.000Z', '2026-10-29T09:00:00.000Z')],
+                    customer: { name: 'Fay Future', phone: null, email: null },
+                    manualPayment: manualPayment(),
+                  }),
+                ],
+                total: 2,
+              }
+            : { bookings: [] },
+      },
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const row = (await screen.findByText('2 payments to verify')).closest('li')!;
+    expect(row.className).toMatch(/warning/);
+    expect(within(row).getByText(/Fay Future/)).toBeTruthy();
+    expect(within(row).getByRole('link', { name: new RegExp(en.owner.today.verifyAll) }).getAttribute('href')).toBe(
+      `/owner/${OWNER_ID}/bookings?tab=to_verify&venue=v1`,
+    );
+  });
+
   it('Coming up primary action is Verify payment for a submitted wallet payment', async () => {
     mockApi(verifyRoutes());
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
@@ -256,8 +330,9 @@ describe('Today page', () => {
     const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
     const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
     await user.click(within(table).getByRole('button', { name: en.owner.bookings.actions.confirm }));
-    // Today's list (no date range) loads again; the same-day-last-week call carries from/to.
-    const todayLoads = () => api.calls.filter((c) => c.method === 'GET' && c.path === '/owners/o1/bookings' && !c.query.has('from'));
+    // Today's list (no date range) loads again; the same-day-last-week call carries from/to, the payments to check a scope.
+    const todayLoads = () =>
+      api.calls.filter((c) => c.method === 'GET' && c.path === '/owners/o1/bookings' && !c.query.has('from') && !c.query.has('scope'));
     await waitFor(() => expect(todayLoads()).toHaveLength(2));
   });
 
@@ -309,7 +384,8 @@ describe('Today page', () => {
   // Only today's list (no date range); the same-day-last-week call carries from/to.
   const todayList = (body: (n: number) => unknown) => ({
     path: '/owners/o1/bookings',
-    body: (c: { query: URLSearchParams }, n: number) => (c.query.has('from') ? { bookings: [] } : body(n)),
+    // Last week (from/to) and the payments to check on any date (scope) are other calls.
+    body: (c: { query: URLSearchParams }, n: number) => (c.query.has('from') || c.query.has('scope') ? { bookings: [], total: 0 } : body(n)),
   });
   const named = (id: string, name: string) => ownerBooking({ id, status: 'confirmed', customer: { name, phone: null, email: null } });
 

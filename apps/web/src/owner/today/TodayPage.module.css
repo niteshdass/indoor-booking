@@ -468,3 +468,80 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Coming up below md: each booking is a ruled card (time · court and status, then customer, then its action);
+   the header stays for screen readers. Same pattern as the owner Bookings list. */
+@media (max-width: 767px) {
+  .upcomingHead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .upcoming,
+  .upcoming tbody {
+    display: block;
+  }
+
+  .upcoming tbody tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'time turf status'
+      'customer customer customer'
+      'actions actions actions';
+    gap: var(--space-2) var(--space-2);
+    align-items: center;
+    padding-block: var(--space-3);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .upcoming tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .upcoming tbody td {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+
+  .upcoming tbody .time {
+    grid-area: time;
+  }
+
+  .upcoming tbody .turf {
+    grid-area: turf;
+    overflow: hidden;
+    color: var(--text-muted);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .upcoming tbody .turf::before {
+    content: '· ';
+  }
+
+  .upcoming tbody .status {
+    grid-area: status;
+  }
+
+  .upcoming tbody .customer {
+    grid-area: customer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .upcoming tbody .rowActions {
+    grid-area: actions;
+  }
+
+  .upcoming tbody .rowActions:empty {
+    display: none;
+  }
+}

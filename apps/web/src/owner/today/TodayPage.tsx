@@ -6,7 +6,8 @@ import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { PendingActions } from '../bookings/BookingActions';
+import { RowActions } from '../bookings/BookingActions';
+import { availableActions } from '../bookings/availableActions';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StatCard } from '../../components/ui/StatCard';
 import { Paged } from '../../components/ui/Pagination';
@@ -18,15 +19,19 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useVenueParam } from '../shell/useVenueParam';
 import { VenueSelect } from '../shell/VenueSelect';
-import type { OwnerBooking, OwnerVenue } from '../types';
+import type { OwnerBooking, OwnerVenue, Permission } from '../types';
 import { useNewIds, usePoll } from '../usePoll';
 import { useResource } from '../useResource';
 import { summarize } from './summarize';
 import { Attention } from './Attention';
 import { BookingSheet } from './BookingSheet';
+import { nextStep } from './nextStep';
 import { CourtTimeline, courtUsage } from './CourtTimeline';
 import { useTodayExtras } from './useTodayExtras';
 import styles from './TodayPage.module.css';
+
+/** Any of these gives a member something to do from a Coming up row. */
+const ACT_PERMISSIONS: Permission[] = ['booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'booking.create'];
 
 /** Owner landing page: today's totals for one venue and the queue of bookings still to come. */
 export function TodayPage() {
@@ -71,7 +76,7 @@ export function TodayPage() {
 function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { t, i18n } = useTranslation();
   const { ownerId, can } = useOwner();
-  const canConfirm = can('booking.confirm');
+  const canAct = ACT_PERMISSIONS.some(can);
   const lang = i18n.language;
   const { state, reload, updatedAt, refreshError } = useResource<{ bookings: OwnerBooking[] }>(
     ownerPath(ownerId, `/bookings?venueId=${encodeURIComponent(venue.id)}`),
@@ -95,7 +100,8 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   if (state.status !== 'ready') return <Skeleton kind="dashboard" label={t('common.loading')} />;
 
   const { bookings } = state.data;
-  const { count, collected, pending, upcoming } = summarize(bookings);
+  const now = new Date();
+  const { count, collected, pending, upcoming } = summarize(bookings, now);
   const usage = courtUsage(bookings, extras.courts, venue.timezone);
   const hoursFmt = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
   const walkInHref = (turfId: string, startAt: string) => {
@@ -167,14 +173,14 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
           ) : (
             <Paged items={upcoming} pageSize={10}>
               {(rows) => (
-                <Table bare caption={t('owner.today.upcoming')}>
-                  <thead>
+                <Table bare caption={t('owner.today.upcoming')} className={styles.upcoming}>
+                  <thead className={styles.upcomingHead}>
                     <tr>
                       <th>{t('owner.today.time')}</th>
                       <th>{t('owner.today.turf')}</th>
                       <th>{t('owner.today.customer')}</th>
                       <th>{t('owner.today.status')}</th>
-                      {canConfirm && <th>{t('owner.bookings.actions.title')}</th>}
+                      {canAct && <th>{t('owner.bookings.actions.title')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -186,16 +192,20 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                           <td className={styles.time}>
                             {formatTime(starts[0]!, venue.timezone, lang)} – {formatTime(ends[ends.length - 1]!, venue.timezone, lang)}
                           </td>
-                          <td>{b.turf?.name ?? '—'}</td>
-                          <td>
+                          <td className={styles.turf}>{b.turf?.name ?? '—'}</td>
+                          <td className={styles.customer}>
                             <Link to={`bookings/${encodeURIComponent(b.id)}`} className={styles.link}>
                               {b.customer?.name ?? b.reference}
                             </Link>
                           </td>
-                          <td>
+                          <td className={styles.status}>
                             <BookingStatusBadge status={b.status} />
                           </td>
-                          {canConfirm && <td>{b.status === 'pending' && <PendingActions booking={b} onDone={reload} />}</td>}
+                          {canAct && (
+                            <td className={styles.rowActions}>
+                              <RowActions booking={b} primary={nextStep(b, availableActions(b, can), now)} onDone={reload} />
+                            </td>
+                          )}
                         </tr>
                       );
                     })}

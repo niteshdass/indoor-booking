@@ -333,6 +333,36 @@ describe('Today page', () => {
     expect(document.activeElement).toBe(block);
   });
 
+  const comingUp = (b: ReturnType<typeof ownerBooking>, permissions: Permission[]) => [
+    ...ownerRoutes({ permissions }),
+    todayList(() => ({ bookings: [b] })),
+  ];
+
+  it('Today shows Check in on a confirmed row about to start', async () => {
+    const soon = [slot('2026-10-26T03:20:00.000Z', '2026-10-26T04:20:00.000Z')];
+    mockApi(comingUp(ownerBooking({ status: 'confirmed', slots: soon }), ['booking.view', 'booking.checkin', 'payment.mark_cash']));
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    expect(within(table).getByRole('button', { name: en.owner.bookings.actions.checkIn })).toBeTruthy();
+    expect(within(table).queryByRole('button', { name: en.owner.bookings.actions.markCash })).toBeNull();
+  });
+
+  it('Today shows Collect on a confirmed row that still owes', async () => {
+    mockApi(comingUp(ownerBooking({ status: 'confirmed' }), ['booking.view', 'booking.checkin', 'payment.mark_cash']));
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    expect(within(table).getByRole('button', { name: en.owner.bookings.actions.markCash })).toBeTruthy();
+  });
+
+  it('Today shows the Actions column for a member with only booking.checkin', async () => {
+    const soon = [slot('2026-10-26T03:20:00.000Z', '2026-10-26T04:20:00.000Z')];
+    mockApi(comingUp(ownerBooking({ status: 'confirmed', slots: soon }), ['booking.view', 'booking.checkin']));
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    expect(within(table).getByRole('columnheader', { name: en.owner.bookings.actions.title })).toBeTruthy();
+    expect(within(table).getByRole('button', { name: en.owner.bookings.actions.checkIn })).toBeTruthy();
+  });
+
   it('Today leaves the extras out when they fail to load', async () => {
     mockApi([...ownerRoutes(), { path: '/owners/o1/bookings', body: (c: { query: URLSearchParams }) => (c.query.has('from') ? { status: 500, body: {} } : { bookings: [] }) }]);
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });

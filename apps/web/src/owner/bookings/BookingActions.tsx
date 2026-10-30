@@ -239,8 +239,3 @@ export function RowActions({ booking, primary, onDone }: { booking: OwnerBooking
     </div>
   );
 }
-
-/** Confirm, with the other actions in a menu, for one pending booking in a list row. */
-export function PendingActions({ booking, onDone }: { booking: OwnerBooking; onDone(): void }) {
-  return <RowActions booking={booking} primary="confirm" onDone={onDone} />;
-}

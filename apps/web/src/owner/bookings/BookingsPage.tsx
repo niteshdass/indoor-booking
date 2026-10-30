@@ -30,6 +30,7 @@ import {
   readFilters,
   type BookingFilters,
 } from './bookingFilters';
+import { awaitsVerification } from './availableActions';
 import styles from './BookingsPage.module.css';
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -389,7 +390,7 @@ function BookingsList({ venue, filters, onClear }: { venue: OwnerVenue; filters:
                   {/* Booking status and payment status side by side, so a row stays two lines tall */}
                   <td className={styles.status}>
                     <span className={styles.badges}>
-                      <BookingStatusBadge status={b.status} />
+                      <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
                       <PaymentStatusBadge status={b.paymentStatus} />
                     </span>
                   </td>

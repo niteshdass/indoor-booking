@@ -11,6 +11,7 @@ import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { BookingDetail, OwnerBooking, OwnerVenue } from '../types';
 import { useResource } from '../useResource';
+import { awaitsVerification } from '../bookings/availableActions';
 import styles from './BookingSheet.module.css';
 
 const PAYMENT_TONE = { succeeded: 'success', pending: 'warning', failed: 'danger' } as const;
@@ -72,7 +73,7 @@ function SheetBody({ booking, venue, onChanged }: { booking: OwnerBooking; venue
       <div className={styles.who}>
         <p className={styles.name}>{customerLabel(b, t)}</p>
         <div className={styles.badges}>
-          <BookingStatusBadge status={b.status} />
+          <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
           <PaymentStatusBadge status={b.paymentStatus} />
         </div>
         {b.customer?.phone && (

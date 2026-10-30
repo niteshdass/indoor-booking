@@ -21,6 +21,7 @@ import { useResource } from '../useResource';
 import { OwnerRefunds } from './OwnerRefunds';
 import { ReasonDialog } from './ReasonDialog';
 import page from './OwnerBookingPage.module.css';
+import { awaitsVerification } from './availableActions';
 import styles from './OwnerGroupPage.module.css';
 
 /** Same rules as the single booking actions. */
@@ -169,7 +170,7 @@ export function OwnerGroupPage() {
                         <td className={page.when}>{range(b)}</td>
                         <td>
                           <div className={page.badges}>
-                            <BookingStatusBadge status={b.status} />
+                            <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
                             <PaymentStatusBadge status={b.paymentStatus} />
                           </div>
                         </td>

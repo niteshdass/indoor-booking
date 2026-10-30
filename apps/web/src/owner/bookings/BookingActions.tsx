@@ -13,6 +13,7 @@ import { availableActions, type Action } from './availableActions';
 import { CashDialog } from './CashDialog';
 import { OwnerCancelDialog } from './OwnerCancelDialog';
 import { PaymentLinkDialog } from './PaymentLinkDialog';
+import { VerifyPaymentDialog } from './VerifyPaymentDialog';
 import { ReasonDialog } from './ReasonDialog';
 import styles from './BookingActions.module.css';
 
@@ -80,6 +81,7 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cashOpen, setCashOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const [link, setLink] = useState<PaymentLink | null>(null);
   const actions = availableActions(booking, can);
   const base = ownerPath(ownerId, `/bookings/${encodeURIComponent(booking.id)}`);
@@ -94,6 +96,8 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
           () => {}, // shown through `error`
         );
         return;
+      case 'verify':
+        return setVerifyOpen(true);
       case 'reject':
         return setRejectOpen(true);
       case 'cancel':
@@ -130,6 +134,16 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
           cb.onPaid(b);
         }}
       />
+      <VerifyPaymentDialog
+        open={verifyOpen}
+        booking={booking}
+        onClose={() => setVerifyOpen(false)}
+        onConflict={cb.onConflict}
+        onDone={(b) => {
+          setVerifyOpen(false);
+          cb.onUpdated(b);
+        }}
+      />
       <PaymentLinkDialog
         open={linkOpen}
         link={link}
@@ -159,12 +173,12 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
   );
 
   // The reject dialog shows its own error.
-  const open = rejectOpen || cancelOpen || cashOpen || linkOpen;
+  const open = rejectOpen || cancelOpen || cashOpen || linkOpen || verifyOpen;
   return { actions, trigger, pending, error: rejectOpen ? null : error, dialogs, open };
 }
 
 const DANGER: ReadonlySet<Action> = new Set(['reject', 'cancel', 'noShow']);
-const PRIMARY: ReadonlySet<Action> = new Set(['confirm', 'checkIn']);
+const PRIMARY: ReadonlySet<Action> = new Set(['verify', 'confirm', 'checkIn']);
 
 /** The action buttons and their dialogs for one booking. Buttons disable together while any action is pending. */
 export function BookingActions({

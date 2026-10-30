@@ -8,7 +8,7 @@ import { summarize } from '../../src/owner/today/summarize';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
 import type { Permission } from '../../src/owner/types';
-import { OWNER_ID, ownerBooking, ownerReview, ownerRoutes, seriesJson, slotDay, staffUser, turf } from './fixtures';
+import { OWNER_ID, manualPayment, ownerBooking, ownerReview, ownerRoutes, seriesJson, slotDay, staffUser, turf } from './fixtures';
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
@@ -142,6 +142,57 @@ describe('Today page', () => {
       }),
     },
   ];
+
+  const verifyRoutes = (perms: Parameters<typeof ownerRoutes>[0] = { permissions: ['booking.view', 'payment.verify'] }, startAt = '2026-10-26T08:00:00.000Z') => [
+    ...ownerRoutes(perms),
+    {
+      method: 'GET',
+      path: '/owners/o1/bookings',
+      body: {
+        bookings: [
+          ownerBooking({
+            id: 'b',
+            status: 'pending',
+            slots: [slot(startAt, '2026-10-26T09:00:00.000Z')],
+            customer: { name: 'Bob Pending', phone: null, email: null },
+            manualPayment: manualPayment(),
+          }),
+        ],
+      },
+    },
+  ];
+
+  it('Today attention lists payments to verify and verifies inline', async () => {
+    const api = mockApi([
+      ...verifyRoutes(),
+      { method: 'POST', path: '/owners/o1/bookings/b/payments/manual/verify', body: { booking: ownerBooking({ id: 'b', status: 'confirmed' }) } },
+    ]);
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const panel = (await screen.findByRole('heading', { name: en.owner.today.attention })).closest('section')!;
+    expect(within(panel).getByText('1 payment to verify')).toBeTruthy();
+    // It is not also counted as waiting for confirmation.
+    expect(within(panel).queryByText(/waiting for confirmation/)).toBeNull();
+    await user.click(within(panel).getByRole('button', { name: en.owner.bookings.actions.verify }));
+    const dialog = await screen.findByRole('dialog', { name: en.owner.verify.title });
+    await user.click(within(dialog).getByRole('button', { name: en.owner.verify.received }));
+    await waitFor(() => expect(api.calls.some((c) => c.path.endsWith('/manual/verify'))).toBe(true));
+  });
+
+  it('Today attention row is danger when the game starts within an hour', async () => {
+    mockApi(verifyRoutes(undefined, '2026-10-26T03:30:00.000Z'));
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const row = (await screen.findByText('1 payment to verify')).closest('li')!;
+    expect(row.className).toMatch(/danger/);
+  });
+
+  it('Coming up primary action is Verify payment for a submitted wallet payment', async () => {
+    mockApi(verifyRoutes());
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const table = await screen.findByRole('table', { name: en.owner.today.upcoming });
+    expect(within(table).getByRole('button', { name: en.owner.bookings.actions.verify })).toBeTruthy();
+    expect(within(table).getByText(en.status.paymentToCheck)).toBeTruthy();
+    expect(within(table).queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull();
+  });
 
   it('Today confirms a pending row and reloads', async () => {
     const api = mockApi([

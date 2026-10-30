@@ -130,6 +130,36 @@ describe('refund actions', () => {
     await waitFor(() => expect(api.calls.filter((c) => c.method === 'GET' && c.path === GET).length).toBeGreaterThanOrEqual(3));
   });
 
+  it('wallet refund shows where to send and marks it sent', async () => {
+    const wallet = refund({ id: 'rw', method: 'wallet', status: 'pending', amount: 250, reason: 'overpayment', trxId: null, provider: 'nagad', sendTo: '+8801812345678' });
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'payment.verify'] }),
+      { path: GET, body: dt([wallet]) },
+      { method: 'POST', path: '/owners/o1/refunds/rw/mark-sent', body: { refund: { ...wallet, status: 'succeeded', trxId: 'ZX98YW76VU' } } },
+    ]);
+    const { user } = renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText(/Send .*2\.50.* back to \+880 1812-345678 by Nagad/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: en.owner.refunds.markSent }));
+    const dialog = await screen.findByRole('dialog', { name: en.owner.refunds.markSentTitle });
+    await user.type(within(dialog).getByLabelText(en.owner.refunds.trxId), 'bad');
+    await user.click(within(dialog).getByRole('button', { name: en.owner.refunds.markSent }));
+    expect(within(dialog).getByText(en.owner.refunds.trxInvalid)).toBeTruthy();
+    expect(api.calls.some((c) => c.path.endsWith('/mark-sent'))).toBe(false);
+    const field = within(dialog).getByLabelText(en.owner.refunds.trxId);
+    await user.clear(field);
+    await user.type(field, ' zx98yw76vu ');
+    await user.click(within(dialog).getByRole('button', { name: en.owner.refunds.markSent }));
+    await waitFor(() => expect(api.calls.find((c) => c.path.endsWith('/mark-sent'))?.body).toEqual({ trxId: 'ZX98YW76VU' }));
+  });
+
+  it('wallet refund has no Mark sent without payment.verify', async () => {
+    const wallet = refund({ id: 'rw', method: 'wallet', status: 'pending', sendTo: '+8801812345678', provider: 'bkash' });
+    mockApi([...ownerRoutes({ permissions: ['booking.view'] }), { path: GET, body: dt([wallet]) }]);
+    renderApp(URL_, { user: staffUser });
+    await screen.findByText('BK-0001');
+    expect(screen.queryByRole('button', { name: en.owner.refunds.markSent })).toBeNull();
+  });
+
   it('refund actions are hidden without refund.issue', async () => {
     mockApi([...ownerRoutes({ permissions: ['booking.view'] }), { path: GET, body: dt([refund({ id: 'r1' }), refund({ id: 'r2', method: 'cash', status: 'pending' })]) }]);
     renderApp(URL_, { user: staffUser });

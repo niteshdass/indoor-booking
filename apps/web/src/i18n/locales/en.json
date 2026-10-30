@@ -190,7 +190,8 @@
     "trx_id_used": "This Transaction ID was already used. Check it and try again.",
     "invalid_trx_id": "That Transaction ID doesn't look right.",
     "invalid_sender": "That sender number doesn't look right.",
-    "payment_submitted": "You already sent payment details for this booking."
+    "payment_submitted": "You already sent payment details for this booking.",
+    "payment_to_verify": "Check the wallet payment for this booking first."
   },
   "myBookings": {
     "title": "My bookings",
@@ -523,7 +524,8 @@
     "cancelled": "Cancelled",
     "expired": "Expired",
     "completed": "Completed",
-    "no_show": "No-show"
+    "no_show": "No-show",
+    "paymentToCheck": "Payment to check"
   },
   "paymentStatus": {
     "unpaid": "Unpaid",
@@ -548,14 +550,23 @@
     "refundsTitle": "Refunds",
     "method": {
       "card": "Card",
-      "cash": "Cash"
+      "cash": "Cash",
+      "wallet": "Wallet"
     },
     "refundStatus": {
       "pending": "Pending",
       "succeeded": "Refunded",
       "failed": "Failed"
     },
-    "nothingPaid": "Nothing has been paid yet, so there is nothing to refund."
+    "nothingPaid": "Nothing has been paid yet, so there is nothing to refund.",
+    "toWallet": "{{amount}} will be sent back to your bKash, Nagad or Rocket by the venue.",
+    "refundReason": {
+      "cancellation": "Cancellation",
+      "late_payment": "Late payment",
+      "duplicate_payment": "Duplicate payment",
+      "amount_mismatch": "Amount mismatch",
+      "overpayment": "Overpayment"
+    }
   },
   "lookup": {
     "title": "Find my booking",
@@ -657,7 +668,10 @@
       "pendingCount_other": "{{count}} waiting for confirmation",
       "pendingOldest": "Oldest: {{name}}, {{time}}",
       "dueSoon": "{{name}} starts at {{time}} and still owes {{due}}",
-      "notCheckedIn": "{{name}} started at {{time}} and has not checked in"
+      "notCheckedIn": "{{name}} started at {{time}} and has not checked in",
+      "paymentsToVerify_one": "{{count}} payment to verify",
+      "paymentsToVerify_other": "{{count}} payments to verify",
+      "verifyOldest": "Oldest: {{name}}, sent {{time}}"
     },
     "overview": {
       "range": "Period",
@@ -846,7 +860,8 @@
         "checkIn": "Check in",
         "noShow": "Mark no-show",
         "markCash": "Mark cash paid",
-        "paymentLink": "Show payment link"
+        "paymentLink": "Show payment link",
+        "verify": "Verify payment"
       },
       "reject": {
         "title": "Reject this booking?",
@@ -862,7 +877,8 @@
     "cancel": {
       "refund": "Customer refund ({{percent}}%)",
       "toCard": "{{amount}} goes back to the customer's card.",
-      "cashHandBack": "Hand back {{amount}} in cash (recorded as a pending cash refund)."
+      "cashHandBack": "Hand back {{amount}} in cash (recorded as a pending cash refund).",
+      "toWallet": "Send {{amount}} back to the customer's wallet (it will be listed under refunds to send)."
     },
     "cash": {
       "title": "Record a cash payment",
@@ -884,7 +900,15 @@
       "retry": "Retry refund",
       "recordCash": "Record as cash",
       "recordPaidOut": "Record cash paid out",
-      "title": "Settle refunds"
+      "title": "Settle refunds",
+      "walletTitle": "Wallet refunds to send",
+      "sendBack": "Send {{amount}} back to {{number}} by {{provider}}",
+      "markSent": "Mark sent",
+      "markSentTitle": "Mark refund as sent",
+      "trxId": "Transaction ID of the refund",
+      "trxHint": "It is in the confirmation message from your wallet app.",
+      "trxInvalid": "Enter the Transaction ID: 8 to 12 letters and numbers.",
+      "back": "Back"
     },
     "walkIn": {
       "turf": "Turf",
@@ -1533,7 +1557,9 @@
         "series_accept": "Series accepted",
         "series_decline": "Series declined",
         "series_withdraw": "Series withdrawn",
-        "series_cancel": "Series cancelled"
+        "series_cancel": "Series cancelled",
+        "payment_verified": "Wallet payment verified",
+        "payment_not_received": "Wallet payment marked not received"
       }
     },
     "reviews": {
@@ -1570,7 +1596,26 @@
     },
     "noTeamsHint": "Run a club or arena? Apply to list it and take bookings here.",
     "pendingNote": "Your application is waiting for a platform admin. We will let you in as soon as it is approved.",
-    "suspendedNote": "This business is suspended. Contact support to find out more."
+    "suspendedNote": "This business is suspended. Contact support to find out more.",
+    "verify": {
+      "title": "Verify wallet payment",
+      "copy": "Copy",
+      "copied": "Copied",
+      "provider": "Wallet",
+      "trxId": "Transaction ID",
+      "sentFrom": "Sent from",
+      "due": "Amount due",
+      "submitted": "Submitted",
+      "amountReceived": "Amount received",
+      "invalid": "Enter an amount above zero.",
+      "shortfall": "{{rest}} stays due at the venue",
+      "excess": "{{extra}} will be listed to send back",
+      "received": "Received · confirm",
+      "notReceived": "Not received",
+      "notReceivedAsk": "Mark this payment as not received? The player will be told we couldn't find it.",
+      "notReceivedConfirm": "Yes, not received",
+      "back": "Back"
+    }
   },
   "reviews": {
     "starsLabel": "{{value}} out of 5",
@@ -1996,5 +2041,9 @@
     "submit": "Send application",
     "review": "We usually review applications within a day.",
     "seeStatus": "See its status"
+  },
+  "notificationEvent": {
+    "payment_received": "Payment received",
+    "payment_not_found": "Payment not found"
   }
 }

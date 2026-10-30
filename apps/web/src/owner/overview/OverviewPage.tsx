@@ -23,6 +23,7 @@ import type { OwnerVenue } from '../types';
 import { useResource } from '../useResource';
 import { Donut, Sparkline, TrendChart, type TrendSeries } from './charts';
 import { OVERVIEW_DAYS, type Kpi, type Overview, type OverviewDays } from './types';
+import { awaitsVerification } from '../bookings/availableActions';
 import styles from './overview.module.css';
 
 /** Order of the outcome rows: played first, then the ones that fell through, then the ones still open. */
@@ -633,7 +634,7 @@ function RecentCard({ o, f, venue }: CardProps & { venue: OwnerVenue }) {
                   <td className={styles.strong}>{customerLabel(b, t)}</td>
                   <td className={styles.num}>{f.money(b.total)}</td>
                   <td>
-                    <BookingStatusBadge status={b.status} />
+                    <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
                   </td>
                 </tr>
               );

@@ -21,8 +21,13 @@ const PAYMENT_TONE: Record<PaymentStatus, Tone> = {
   unpaid: 'neutral',
 };
 
-export function BookingStatusBadge({ status }: { status: BookingStatus }) {
+/**
+ * `toVerify`: the player submitted a wallet payment staff have not checked yet. It reads "Payment to check" and never
+ * "Paid", whatever the booking's own status.
+ */
+export function BookingStatusBadge({ status, toVerify = false }: { status: BookingStatus; toVerify?: boolean }) {
   const { t } = useTranslation();
+  if (toVerify && status === 'pending') return <Badge tone="warning">{t('status.paymentToCheck')}</Badge>;
   return <Badge tone={BOOKING_TONE[status]}>{t(`status.${status}`)}</Badge>;
 }
 

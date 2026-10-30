@@ -23,6 +23,7 @@ import type { BookingDetail, PaymentJson, RefundJson } from '../types';
 import { useResource } from '../useResource';
 import { BookingActions } from './BookingActions';
 import { OwnerRefunds } from './OwnerRefunds';
+import { awaitsVerification } from './availableActions';
 import styles from './OwnerBookingPage.module.css';
 
 function addonLabel(a: AddonLine, t: TFunction): string {
@@ -111,7 +112,7 @@ export function OwnerBookingPage() {
       <header className={styles.head}>
         <h1 className={styles.reference}>{b.reference}</h1>
         <div className={styles.badges}>
-          <BookingStatusBadge status={b.status} />
+          <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
           <PaymentStatusBadge status={b.paymentStatus} />
           {b.seriesId && <SeriesBadge href={`/owner/${encodeURIComponent(ownerId)}/series/${encodeURIComponent(b.seriesId)}`} />}
         </div>

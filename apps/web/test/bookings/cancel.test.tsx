@@ -111,6 +111,13 @@ describe('cancel dialog', () => {
     expect(within(dialog).getByText(sp(i18n.t('cancel.toCard', { amount: sp(money(275, 'BDT', 'en')) })))).toBeInTheDocument();
   });
 
+  it('wallet part explained', async () => {
+    setup({ preview: { preview: preview({ card: 0, wallet: 575 }) } });
+    const { dialog } = await openDialog();
+    expect(await within(dialog).findByText(sp(i18n.t('cancel.toWallet', { amount: sp(money(575, 'BDT', 'en')) })))).toBeInTheDocument();
+    expect(within(dialog).queryByText(sp(i18n.t('cancel.toCard', { amount: sp(money(575, 'BDT', 'en')) })))).not.toBeInTheDocument();
+  });
+
   it('zero refund says no refund', async () => {
     setup({ preview: { preview: preview({ percent: 0, amount: 0, rule: null, card: 0, cash: 0 }) } });
     const { dialog } = await openDialog();

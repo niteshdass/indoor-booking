@@ -158,6 +158,7 @@ function PreviewBody({ preview, lang, audience }: { preview: CancellationPreview
       ) : (
         <>
           {preview.card > 0 && <p className={styles.note}>{t(staff ? 'owner.cancel.toCard' : 'cancel.toCard', { amount: fmt(preview.card) })}</p>}
+          {preview.wallet > 0 && <p className={styles.note}>{t(staff ? 'owner.cancel.toWallet' : 'cancel.toWallet', { amount: fmt(preview.wallet) })}</p>}
           {preview.cash > 0 && <p className={styles.note}>{t(staff ? 'owner.cancel.cashHandBack' : 'cancel.cashAtVenue', { amount: fmt(preview.cash) })}</p>}
         </>
       )}

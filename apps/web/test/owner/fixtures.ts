@@ -146,8 +146,13 @@ export function ownerBooking(over: Partial<OwnerBooking> = {}): OwnerBooking {
     createdAt: '2026-10-25T00:00:00.000Z',
     customer: { name: 'Ada Player', phone: '+8801712345678', email: 'ada@example.com' },
     turf: { name: 'Pitch A' },
+    manualPayment: null,
     ...over,
   };
+}
+
+export function manualPayment(over: Partial<NonNullable<OwnerBooking['manualPayment']>> = {}): NonNullable<OwnerBooking['manualPayment']> {
+  return { id: 'mp1', provider: 'bkash', trxId: 'AB12CD34EF', amount: 1000, senderNumber: '+8801812345678', status: 'pending', submittedAt: '2026-10-25T23:00:00.000Z', ...over };
 }
 
 export function member(over: Partial<Member> = {}): Member {

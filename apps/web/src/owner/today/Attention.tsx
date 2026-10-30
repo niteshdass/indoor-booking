@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { OwnerReviewJson, SeriesJson } from '@booking/shared';
 import { formatDateTime, formatTime, money } from '../../lib/format';
 import { RowActions } from '../bookings/BookingActions';
-import { availableActions, type Action } from '../bookings/availableActions';
+import { availableActions, awaitsVerification, type Action } from '../bookings/availableActions';
 import { useOwner } from '../OwnerProvider';
 import { NavIcon } from '../shell/NavIcon';
 import type { OwnerBooking, OwnerVenue } from '../types';
@@ -25,6 +25,9 @@ type Item = {
 
 /** A confirmed game this long past its start without a check-in needs chasing. */
 const LATE_MS = 15 * 60_000;
+
+/** A game this close to starting makes an unchecked payment urgent. */
+const VERIFY_URGENT_MS = 60 * 60_000;
 
 const startOf = (b: OwnerBooking) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
 const endOf = (b: OwnerBooking) => Math.max(...b.slots.map((s) => Date.parse(s.endAt)));
@@ -57,11 +60,32 @@ export function Attention({
   const nameOf = (b: OwnerBooking) => b.customer?.name ?? b.reference;
   const bookingTo = (b: OwnerBooking) => `bookings/${encodeURIComponent(b.id)}`;
 
-  const pending = bookings.filter((b) => b.status === 'pending');
+  const submittedAt = (b: OwnerBooking) => Date.parse(b.manualPayment?.submittedAt ?? b.createdAt);
+  const toVerify = bookings.filter((b) => b.status === 'pending' && awaitsVerification(b));
+  const oldestVerify = toVerify.reduce<OwnerBooking | null>((o, b) => (o === null || submittedAt(b) < submittedAt(o) ? b : o), null);
+  // Bookings in the "payments to verify" row are not also counted as waiting for confirmation.
+  const pending = bookings.filter((b) => b.status === 'pending' && !awaitsVerification(b));
   const oldest = pending.reduce<OwnerBooking | null>((o, b) => (o === null || Date.parse(b.createdAt) < Date.parse(o.createdAt) ? b : o), null);
   const confirmed = bookings.filter((b) => b.status === 'confirmed');
 
   const items = keep([
+    ...(oldestVerify
+      ? [
+          {
+            key: `verify${oldestVerify.id}`,
+            title: t('owner.today.paymentsToVerify', { count: toVerify.length }),
+            detail: t('owner.today.verifyOldest', {
+              name: nameOf(oldestVerify),
+              time: formatTime(new Date(submittedAt(oldestVerify)).toISOString(), tz, lang),
+            }),
+            to: bookingTo(oldestVerify),
+            tone: startOf(oldestVerify) <= at + VERIFY_URGENT_MS ? ('danger' as const) : ('warning' as const),
+            icon: 'clock',
+            booking: oldestVerify,
+            primary: 'verify' as const,
+          },
+        ]
+      : []),
     ...(oldest
       ? [
           {

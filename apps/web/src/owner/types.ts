@@ -10,6 +10,7 @@ import type {
   Sport,
   TurfPricing,
   VenueSettingsOverride,
+  WalletProvider,
   WeeklyHours,
 } from '@booking/shared';
 import type { BookingJson, RefundJson } from '../lib/types';
@@ -152,11 +153,23 @@ export type WalkInAddon = {
 export type OwnerBooking = Omit<BookingJson, 'venue' | 'turf' | 'completedAt' | 'review' | 'reviewableUntil'> & {
   customer: { name: string; phone: string | null; email: string | null } | null;
   turf: { name: string } | null;
+  /** The wallet payment the player submitted, if any. `amount` is the whole submission (a group's total). */
+  manualPayment: ManualPaymentJson | null;
+};
+
+export type ManualPaymentJson = {
+  id: string;
+  provider: WalletProvider;
+  trxId: string;
+  amount: number;
+  senderNumber: string | null;
+  status: 'pending' | 'succeeded' | 'failed';
+  submittedAt: string;
 };
 
 export type PaymentJson = {
   id: string;
-  method: 'card' | 'cash';
+  method: 'card' | 'cash' | 'wallet';
   gateway: string | null;
   amount: number;
   currency: string;

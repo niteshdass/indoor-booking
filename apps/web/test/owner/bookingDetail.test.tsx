@@ -8,7 +8,7 @@ import { availableActions } from '../../src/owner/bookings/availableActions';
 import type { BookingDetail, Permission } from '../../src/owner/types';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
-import { OWNER_ID, ownerBooking, ownerRoutes, staffUser } from './fixtures';
+import { OWNER_ID, manualPayment, ownerBooking, ownerRoutes, staffUser } from './fixtures';
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
@@ -39,6 +39,15 @@ describe('availableActions', () => {
     expect(availableActions(b({ status: 'completed', amountPaid: 400 }), owner)).toEqual(['markCash']);
     expect(availableActions(b({ status: 'completed', amountPaid: 1000 }), owner)).toEqual([]);
     expect(availableActions(b({ status: 'cancelled' }), owner)).toEqual([]);
+  });
+
+  it('availableActions offers verify instead of confirm when a manual payment is pending', () => {
+    const b = ownerBooking({ status: 'pending', manualPayment: manualPayment() });
+    expect(availableActions(b, can([...OWNER_PERMS, 'payment.verify']))).toEqual(['verify', 'cancel']);
+    expect(availableActions(b, can(['booking.view', 'booking.confirm']))).toEqual([]);
+    // Once checked, the payment no longer blocks the usual actions.
+    const done = ownerBooking({ status: 'pending', manualPayment: manualPayment({ status: 'failed' }) });
+    expect(availableActions(done, can(OWNER_PERMS))).toContain('confirm');
   });
 });
 
@@ -122,6 +131,18 @@ describe('owner booking detail', () => {
     for (const k of ['confirm', 'reject', 'cancel', 'checkIn', 'noShow'] as const) {
       expect(screen.queryByRole('button', { name: en.owner.bookings.actions[k] })).toBeNull();
     }
+  });
+
+  it('a submitted wallet payment shows Payment to check and a Verify payment button, never Paid', async () => {
+    mockApi([
+      ...ownerRoutes({ permissions: [...OWNER_PERMS, 'payment.verify'] }),
+      { path: GET, body: detail({ booking: ownerBooking({ manualPayment: manualPayment() }) }) },
+    ]);
+    renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText(en.status.paymentToCheck)).toBeTruthy();
+    expect(screen.getByRole('button', { name: en.owner.bookings.actions.verify })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: en.owner.bookings.actions.confirm })).toBeNull();
+    expect(screen.queryByText(en.paymentStatus.paid, { selector: 'span' })).toBeNull();
   });
 
   it('confirm posts once even when double-clicked and updates the status', async () => {

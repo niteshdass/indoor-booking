@@ -10,7 +10,7 @@ import { OwnerProvider } from '../../src/owner/OwnerProvider';
 import type { Action } from '../../src/owner/bookings/availableActions';
 import type { OwnerBooking, Permission } from '../../src/owner/types';
 import { mockApi } from '../helpers/api';
-import { OWNER_ID, ownerBooking, ownerRoutes } from './fixtures';
+import { OWNER_ID, manualPayment, ownerBooking, ownerRoutes } from './fixtures';
 
 const ALL: Permission[] = ['booking.view', 'booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'booking.create'];
 
@@ -54,6 +54,14 @@ describe('RowActions', () => {
     await user.click(within(row).getByRole('button', { name: en.booking.moreActions }));
     const items = within(screen.getByRole('menu')).getAllByRole('menuitem').map((el) => el.textContent);
     expect(items).toEqual([A.reject, A.cancel, A.markCash]);
+  });
+
+  it('RowActions leads with Verify payment and leaves confirm out while a wallet payment is pending', async () => {
+    const { user } = renderRow(ownerBooking({ status: 'pending', manualPayment: manualPayment() }), 'verify', [...ALL, 'payment.verify']);
+    const row = await screen.findByTestId('row');
+    await user.click(await within(row).findByRole('button', { name: A.verify }));
+    expect(await screen.findByRole('dialog', { name: en.owner.verify.title })).toBeTruthy();
+    expect(within(row).queryByRole('button', { name: A.confirm })).toBeNull();
   });
 
   it('RowActions opens the cash dialog from the menu', async () => {

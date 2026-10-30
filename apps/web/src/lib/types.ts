@@ -142,15 +142,19 @@ export type PaymentOptions = {
 export type RefundJson = {
   id: string;
   paymentId: string;
-  method: 'card' | 'cash';
+  method: 'card' | 'cash' | 'wallet';
   amount: number;
   currency: string;
-  reason: 'late_payment' | 'duplicate_payment' | 'amount_mismatch' | 'cancellation';
+  reason: 'late_payment' | 'duplicate_payment' | 'amount_mismatch' | 'cancellation' | 'overpayment';
   ruleApplied: { minHoursBefore: number | null; percent: number } | null;
   status: 'pending' | 'succeeded' | 'failed';
   failureCode: string | null;
   retryOf: string | null;
   createdAt: string;
+  /** Wallet refunds only (owner responses): what staff send and where; null otherwise. */
+  trxId?: string | null;
+  provider?: WalletProvider | null;
+  sendTo?: string | null;
 };
 
 export type CancellationPreview = {

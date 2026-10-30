@@ -7,7 +7,7 @@ import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { RowActions } from '../bookings/BookingActions';
-import { availableActions } from '../bookings/availableActions';
+import { availableActions, awaitsVerification } from '../bookings/availableActions';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { StatCard } from '../../components/ui/StatCard';
 import { Paged } from '../../components/ui/Pagination';
@@ -32,7 +32,7 @@ import { useTodayExtras } from './useTodayExtras';
 import styles from './TodayPage.module.css';
 
 /** Any of these gives a member something to do from a Coming up row. */
-const ACT_PERMISSIONS: Permission[] = ['booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'booking.create'];
+const ACT_PERMISSIONS: Permission[] = ['booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'payment.verify', 'booking.create'];
 
 /** Owner landing page: today's totals for one venue and the queue of bookings still to come. */
 export function TodayPage() {
@@ -211,7 +211,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                             </Link>
                           </td>
                           <td className={styles.status}>
-                            <BookingStatusBadge status={b.status} />
+                            <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
                           </td>
                           {canAct && (
                             <td className={styles.rowActions}>

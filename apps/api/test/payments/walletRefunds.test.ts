@@ -91,6 +91,13 @@ describe('wallet refunds', () => {
     expect(await Booking.findById(booking._id).setOptions(cross).lean()).toMatchObject({ amountRefunded: 3000 });
   });
 
+  it('the cancellation preview counts the wallet part', async () => {
+    const { booking } = await walletBooking();
+    const res = await request(ctx.app).get(`/api/v1/owners/${owner.ownerId}/bookings/${booking._id}/cancellation`).set(...bearer(owner.token));
+    expect(res.status).toBe(200);
+    expect(res.body.preview).toMatchObject({ amount: 3000, card: 0, wallet: 3000, cash: 0 });
+  });
+
   it('a wallet refund is never dispatched or reconciled', async () => {
     const { refund } = await cancelled();
     expect(await dispatchRefund(String(refund._id), owner.ownerId, { config: ctx.config, services: ctx.services })).toBe(false);

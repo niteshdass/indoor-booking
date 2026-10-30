@@ -140,6 +140,7 @@ export type CancellationPreview = {
   amountRefunded: number;
   currency: string;
   card: number;
+  wallet: number;
   cash: number;
 };
 

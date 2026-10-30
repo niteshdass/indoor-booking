@@ -26,6 +26,7 @@ export type CancellationPreview = {
   amountRefunded: number;
   currency: string;
   card: number;
+  wallet: number;
   cash: number;
 };
 
@@ -63,14 +64,14 @@ function refundFor(booking: BookingDoc, kind: Canceller['kind'], now: Date) {
 const actorOf = (by: Canceller): Actor =>
   by.kind === 'staff' ? by.t : { ownerId: by.ownerId, userId: by.kind === 'player' ? by.userId : null };
 
-/** What cancelling now would refund, and how it splits between card and cash. Throws what cancelBooking would. */
+/** What cancelling now would refund, and how it splits between card, wallet and cash. Throws what cancelBooking would. */
 export async function previewCancellation(booking: BookingDoc, by: Canceller['kind'], now: Date): Promise<CancellationPreview> {
   await assertSeriesAnswered(booking);
   assertCancellable(booking, by, now);
   const { percent, amount, rule } = refundFor(booking, by, now);
   const payments: PaymentDoc[] = await Payment.find({ ownerId: booking.ownerId, bookingId: booking._id });
   const parts = allocateRefund(payments, amount);
-  const sum = (method: 'card' | 'cash') => parts.filter((p) => p.method === method).reduce((n, p) => n + p.amount, 0);
+  const sum = (method: 'card' | 'wallet' | 'cash') => parts.filter((p) => p.method === method).reduce((n, p) => n + p.amount, 0);
   return {
     percent,
     amount,
@@ -79,6 +80,7 @@ export async function previewCancellation(booking: BookingDoc, by: Canceller['ki
     amountRefunded: booking.amountRefunded,
     currency: booking.currency,
     card: sum('card'),
+    wallet: sum('wallet'),
     cash: sum('cash'),
   };
 }

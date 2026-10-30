@@ -47,6 +47,7 @@ const preview = (over: Partial<CancellationPreview> = {}): CancellationPreview =
   amountRefunded: 0,
   currency: 'BDT',
   card: 575,
+  wallet: 0,
   cash: 0,
   ...over,
 });

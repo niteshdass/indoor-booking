@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { localParts } from '@booking/shared';
 import { useTranslation } from 'react-i18next';
@@ -22,6 +23,7 @@ import { useNewIds, usePoll } from '../usePoll';
 import { useResource } from '../useResource';
 import { summarize } from './summarize';
 import { Attention } from './Attention';
+import { BookingSheet } from './BookingSheet';
 import { CourtTimeline, courtUsage } from './CourtTimeline';
 import { useTodayExtras } from './useTodayExtras';
 import styles from './TodayPage.module.css';
@@ -78,6 +80,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   usePoll(reload);
   const extras = useTodayExtras(venue);
   const fresh = useNewIds(state.status === 'ready' ? state.data.bookings.map((b) => b.id) : []);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   if (state.status === 'error') {
     return (
@@ -147,7 +150,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
         currency={venue.currency}
         courts={extras.courts}
         fresh={fresh}
-        onOpen={() => {}}
+        onOpen={(b) => setOpenId(b.id)}
         walkInHref={can('booking.create') ? walkInHref : null}
       />
       <div className={styles.split}>
@@ -203,6 +206,12 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
           )}
         </section>
       </div>
+      <BookingSheet
+        booking={openId === null ? null : (bookings.find((b) => b.id === openId) ?? null)}
+        venue={venue}
+        onClose={() => setOpenId(null)}
+        onChanged={reload}
+      />
     </>
   );
 }

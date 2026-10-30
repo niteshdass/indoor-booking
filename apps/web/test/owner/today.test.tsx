@@ -303,6 +303,36 @@ describe('Today page', () => {
     expect(within(legend).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Confirmed', 'Waiting', 'Walk-in', 'Payment due', 'Closed']);
   });
 
+  const sheetRoutes = () => {
+    const b = ownerBooking({ id: 'b1', status: 'confirmed', turf: { name: 'Court A' }, customer: { name: 'Ann First', phone: null, email: null } });
+    return [
+      ...timelineRoutes(),
+      { path: '/owners/o1/bookings/b1', body: { booking: b, payments: [], refunds: [] } },
+    ];
+  };
+
+  it('Today keeps the sheet open across a refresh', async () => {
+    mockApi(sheetRoutes());
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: /^Court A, 10:00–11:00/ }));
+    const sheet = await screen.findByRole('dialog', { name: en.owner.today.sheet.title });
+    window.dispatchEvent(new Event('online'));
+    await waitFor(() => expect(screen.getByText(/^Updated/)).toBeTruthy());
+    expect(screen.getByRole('dialog', { name: en.owner.today.sheet.title })).toBe(sheet);
+    expect(within(sheet).getByText('Ann First')).toBeTruthy();
+  });
+
+  it('Closing the sheet returns focus to the block', async () => {
+    mockApi(sheetRoutes());
+    const { user } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const block = await screen.findByRole('button', { name: /^Court A, 10:00–11:00/ });
+    await user.click(block);
+    const sheet = await screen.findByRole('dialog', { name: en.owner.today.sheet.title });
+    await user.click(within(sheet).getByRole('button', { name: en.common.close }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: en.owner.today.sheet.title })).toBeNull());
+    expect(document.activeElement).toBe(block);
+  });
+
   it('Today leaves the extras out when they fail to load', async () => {
     mockApi([...ownerRoutes(), { path: '/owners/o1/bookings', body: (c: { query: URLSearchParams }) => (c.query.has('from') ? { status: 500, body: {} } : { bookings: [] }) }]);
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });

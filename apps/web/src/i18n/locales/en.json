@@ -609,7 +609,13 @@
       "dueChip": "{{symbol}} due",
       "blockLabel": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}",
       "blockLabelDue": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}, {{due}} due",
-      "gapLabel": "{{court}}, free {{from}}–{{to}}, add walk-in"
+      "gapLabel": "{{court}}, free {{from}}–{{to}}, add walk-in",
+      "sheet": {
+        "title": "Booking",
+        "call": "Call {{phone}}",
+        "due": "Due",
+        "openBooking": "Open booking"
+      }
     },
     "overview": {
       "range": "Period",

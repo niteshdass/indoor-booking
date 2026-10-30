@@ -47,6 +47,7 @@
   --table-row: 3.25rem;
   --table-row-compact: 2.5rem; /* dense table row (series games) */
   --sidebar-width: 15rem;
+  --sheet-width: 26rem; /* side sheet from tablet up (Today booking sheet) */
   --topbar-height: 3.5rem;
   --header-height: 4rem;
   --container: 76rem;

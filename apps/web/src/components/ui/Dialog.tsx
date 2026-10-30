@@ -8,10 +8,13 @@ export type DialogProps = {
   children: ReactNode;
 };
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+/**
+ * A native modal `<dialog>` driven by `open`: opens with `showModal`, closes on Escape through `onClose`, and hands
+ * focus back to whatever opened it. `Dialog` and `Sheet` share it and differ only in layout.
+ */
+export function useModal(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
-  const titleId = useId();
 
   useEffect(() => {
     const el = ref.current;
@@ -39,13 +42,20 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  const handleCancel = (e: SyntheticEvent) => {
+  const onCancel = (e: SyntheticEvent) => {
     e.preventDefault(); // parent owns `open`; it closes via onClose
     onClose();
   };
 
+  return { ref, onCancel };
+}
+
+export function Dialog({ open, onClose, title, children }: DialogProps) {
+  const { ref, onCancel } = useModal(open, onClose);
+  const titleId = useId();
+
   return (
-    <dialog ref={ref} className={styles.dialog} aria-labelledby={titleId} onCancel={handleCancel}>
+    <dialog ref={ref} className={styles.dialog} aria-labelledby={titleId} onCancel={onCancel}>
       <h2 id={titleId} className={styles.title}>
         {title}
       </h2>

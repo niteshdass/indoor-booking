@@ -635,7 +635,13 @@
       "dueChip": "{{symbol}} к оплате",
       "blockLabel": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}",
       "blockLabelDue": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}, к оплате {{due}}",
-      "gapLabel": "{{court}}, свободно {{from}}–{{to}}, добавить бронь на месте"
+      "gapLabel": "{{court}}, свободно {{from}}–{{to}}, добавить бронь на месте",
+      "sheet": {
+        "title": "Бронь",
+        "call": "Позвонить {{phone}}",
+        "due": "К оплате",
+        "openBooking": "Открыть бронь"
+      }
     },
     "overview": {
       "range": "Период",

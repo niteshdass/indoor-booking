@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ActionMenu } from '../../components/ActionMenu';
 import { Alert } from '../../components/ui/Alert';
-import { Button } from '../../components/ui/Button';
+import { Button, type ButtonProps } from '../../components/ui/Button';
 import { apiPost, ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
@@ -166,7 +166,12 @@ const DANGER: ReadonlySet<Action> = new Set(['reject', 'cancel', 'noShow']);
 const PRIMARY: ReadonlySet<Action> = new Set(['confirm', 'checkIn']);
 
 /** The action buttons and their dialogs for one booking. Buttons disable together while any action is pending. */
-export function BookingActions({ booking, ...cb }: { booking: OwnerBooking } & ActionCallbacks) {
+export function BookingActions({
+  booking,
+  size,
+  block,
+  ...cb
+}: { booking: OwnerBooking; size?: ButtonProps['size']; block?: boolean } & ActionCallbacks) {
   const { t } = useTranslation();
   const { actions, trigger, pending, error, dialogs } = useBookingActions(booking, cb);
 
@@ -177,6 +182,8 @@ export function BookingActions({ booking, ...cb }: { booking: OwnerBooking } & A
         {actions.map((a) => (
           <Button
             key={a}
+            size={size}
+            block={block}
             variant={a === 'reject' ? 'danger' : PRIMARY.has(a) ? undefined : 'secondary'}
             disabled={pending}
             onClick={() => trigger(a)}

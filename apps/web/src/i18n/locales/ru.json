@@ -611,7 +611,7 @@
       "noVenues": "Создайте площадку, чтобы принимать брони.",
       "createVenue": "Создать площадку",
       "courts": "Корты сегодня",
-      "legendPaid": "Оплачено",
+      "legendConfirmed": "Подтверждено",
       "legendDue": "Ждёт оплаты",
       "legendWaiting": "Ожидает",
       "legendWalkIn": "Без записи",
@@ -631,7 +631,11 @@
       "trends": "Смотреть динамику",
       "caughtUp": "Всё подтверждено",
       "updated": "Обновлено в {{time}}",
-      "refreshFailed": "Не удалось обновить"
+      "refreshFailed": "Не удалось обновить",
+      "dueChip": "{{symbol}} к оплате",
+      "blockLabel": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}",
+      "blockLabelDue": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}, к оплате {{due}}",
+      "gapLabel": "{{court}}, свободно {{from}}–{{to}}, добавить бронь на месте"
     },
     "overview": {
       "range": "Период",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildLanes, courtUsage } from '../../src/owner/today/CourtTimeline';
+import { buildLanes, courtUsage, freeGaps } from '../../src/owner/today/CourtTimeline';
 import type { OwnerSlot } from '../../src/owner/types';
 import { ownerBooking, slotDay, turf } from './fixtures';
 
@@ -24,17 +24,19 @@ describe('buildLanes', () => {
     expect([from, to]).toEqual([8, 23]);
   });
 
-  it('marks a going-ahead booking with money still to collect as due, never as paid', () => {
+  it('colours by status and carries money due separately', () => {
     const { lanes } = buildLanes(
       [
         ownerBooking({ id: 'online', status: 'confirmed', paymentStatus: 'unpaid' }),
-        ownerBooking({ id: 'walk', status: 'confirmed', source: 'walkin', paymentStatus: 'partially_paid' }),
+        ownerBooking({ id: 'walk', status: 'confirmed', source: 'walkin', paymentStatus: 'partially_paid', amountPaid: 400 }),
         ownerBooking({ id: 'done', status: 'completed', paymentStatus: 'unpaid' }),
         ownerBooking({ id: 'free', status: 'confirmed', paymentStatus: 'unpaid', total: 0 }),
       ],
       TZ,
     );
-    expect(lanes[0]!.blocks.map((b) => `${b.id}:${b.kind}`)).toEqual(['online:due', 'walk:due', 'done:due', 'free:ok']);
+    const blocks = lanes[0]!.blocks;
+    expect(blocks.map((b) => `${b.id}:${b.kind}`)).toEqual(['online:ok', 'walk:walk', 'done:ok', 'free:ok']);
+    expect(blocks.map((b) => b.due)).toEqual([1000, 600, 1000, 0]);
   });
 
   it('widens the axis for early bookings and reads a midnight end as 24', () => {
@@ -52,7 +54,7 @@ describe('buildLanes', () => {
 });
 
 /** One-hour slots in venue time, e.g. hourSlots(9, 12) -> 09:00, 10:00, 11:00. */
-const hourSlots = (from: number, to: number, blocked: number[] = []): OwnerSlot[] =>
+const hourSlots = (from: number, to: number, blocked: number[] = [], status: Record<number, OwnerSlot['status']> = {}): OwnerSlot[] =>
   Array.from({ length: to - from }, (_, i) => {
     const h = from + i;
     const hm = (x: number) => `${String(x % 24).padStart(2, '0')}:00`;
@@ -62,7 +64,7 @@ const hourSlots = (from: number, to: number, blocked: number[] = []): OwnerSlot[
       localStart: hm(h),
       localEnd: hm(h + 1),
       price: 1000,
-      status: blocked.includes(h) ? 'blocked' : 'available',
+      status: status[h] ?? (blocked.includes(h) ? 'blocked' : 'available'),
       source: 'hours',
     };
   });
@@ -106,5 +108,16 @@ describe('buildLanes with court data', () => {
     );
     expect(usage).toEqual({ booked: 2, open: 12 + 16 });
     expect(courtUsage([], null, TZ)).toBeNull();
+  });
+});
+
+describe('freeGaps', () => {
+  it('freeGaps merges consecutive available slots and stops at taken or past ones', () => {
+    const day = slotDay({ slots: hourSlots(8, 13, [], { 8: 'past', 11: 'booked' }) });
+    expect(freeGaps(day)).toEqual([
+      { start: 9, end: 11, startAt: '2026-10-26T03:00:00.000Z' },
+      { start: 12, end: 13, startAt: '2026-10-26T06:00:00.000Z' },
+    ]);
+    expect(freeGaps(undefined)).toEqual([]);
   });
 });

@@ -55,7 +55,7 @@
   --schedule-col-min: 9rem;
   --schedule-time-col: 3.5rem;
   --timeline-label: 7rem;
-  --timeline-lane: 3rem;
+  --timeline-lane: 3.25rem; /* blocks inside keep a 44px tap height */
   --timeline-min: 56rem;
   --status-bar: 3px;
   --schedule-now-line: 2px;

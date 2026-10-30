@@ -1,5 +1,8 @@
+import { useEffect, useRef } from 'react';
+import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
+import { money } from '../../lib/format';
 import type { OwnerBooking, OwnerSlotDay } from '../types';
 import type { Courts } from './useTodayExtras';
 import styles from './TodayPage.module.css';
@@ -8,7 +11,7 @@ const SHOWN = new Set(['pending', 'awaiting_payment', 'confirmed', 'completed'])
 const DEFAULT_FROM = 8;
 const DEFAULT_TO = 23;
 
-type Kind = 'ok' | 'wait' | 'walk' | 'due';
+type Kind = 'ok' | 'wait' | 'walk';
 type Block = {
   id: string;
   start: number;
@@ -16,10 +19,14 @@ type Block = {
   kind: Kind;
   label: string;
   status: OwnerBooking['status'];
-  paymentStatus: OwnerBooking['paymentStatus'];
+  /** Money still to collect (minor units); 0 when nothing is owed or the booking is not going ahead. */
+  due: number;
+  booking: OwnerBooking;
 };
 type Span = [start: number, end: number];
-type Lane = { id: string; name: string; blocks: Block[]; closed: Span[] };
+/** A run of bookable time on one court; `startAt` is its first slot's instant. */
+export type Gap = { start: number; end: number; startAt: string };
+type Lane = { id: string; name: string; blocks: Block[]; closed: Span[]; gaps: Gap[] };
 
 /** Wall-clock hours since midnight in the venue's timezone, e.g. 18.5 for 18:30. */
 function hours(iso: string, tz: string): number {
@@ -80,14 +87,27 @@ export function courtUsage(bookings: OwnerBooking[], courts: Courts | null, tz: 
   return { booked: Math.min(booked, open), open };
 }
 
-/** Money still to collect on a booking that is going ahead. */
-const DUE = new Set<OwnerBooking['paymentStatus']>(['unpaid', 'partially_paid']);
+/** Statuses where unpaid money is still to collect: going ahead, or played (completed) and not settled. */
+const OWES = new Set<OwnerBooking['status']>(['pending', 'confirmed', 'completed']);
 
 function kindOf(b: OwnerBooking): Kind {
   if (b.status === 'pending' || b.status === 'awaiting_payment') return 'wait';
-  // Before walk-in: an unpaid walk-in is exactly the one staff must not forget to collect.
-  if (DUE.has(b.paymentStatus) && b.total > 0) return 'due';
   return b.source === 'walkin' ? 'walk' : 'ok';
+}
+
+const dueOf = (b: OwnerBooking) => (OWES.has(b.status) ? Math.max(0, b.total - b.amountPaid) : 0);
+
+/** Runs of consecutive available slots; past, taken and blocked slots break a run. */
+export function freeGaps(day: OwnerSlotDay | undefined): Gap[] {
+  const out: Gap[] = [];
+  for (const s of day?.slots ?? []) {
+    if (s.status !== 'available') continue;
+    const [start, end] = slotSpan(s);
+    const last = out.at(-1);
+    if (last && last.end === start) last.end = end;
+    else out.push({ start, end, startAt: s.startAt });
+  }
+  return out;
 }
 
 /**
@@ -103,7 +123,7 @@ export function buildLanes(
   let from = DEFAULT_FROM;
   let to = DEFAULT_TO;
   for (const turf of courts?.turfs ?? []) {
-    lanes.set(turf.id, { id: turf.id, name: turf.name, blocks: [], closed: [] });
+    lanes.set(turf.id, { id: turf.id, name: turf.name, blocks: [], closed: [], gaps: freeGaps(courts!.days[turf.id]) });
     for (const s of courts!.days[turf.id]?.slots ?? []) {
       const [a, b] = slotSpan(s);
       from = Math.min(from, Math.floor(a));
@@ -117,7 +137,7 @@ export function buildLanes(
     const end = lastEnd <= start ? 24 : lastEnd; // a slot ending at midnight reads as 00:00
     from = Math.min(from, Math.floor(start));
     to = Math.max(to, Math.ceil(end));
-    const lane = lanes.get(b.turfId) ?? { id: b.turfId, name: b.turf?.name ?? '—', blocks: [], closed: [] };
+    const lane = lanes.get(b.turfId) ?? { id: b.turfId, name: b.turf?.name ?? '—', blocks: [], closed: [], gaps: [] };
     lane.blocks.push({
       id: b.id,
       start,
@@ -125,7 +145,8 @@ export function buildLanes(
       kind: kindOf(b),
       label: b.customer?.name ?? b.reference,
       status: b.status,
-      paymentStatus: b.paymentStatus,
+      due: dueOf(b),
+      booking: b,
     });
     lanes.set(b.turfId, lane);
   }
@@ -139,29 +160,58 @@ const clock = (h: number) => {
   return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
 
+/** The currency's symbol on its own, e.g. "৳" or "$", for the compact due chip. */
+function currencySymbol(currency: string, lang: string): string {
+  const parts = new Intl.NumberFormat(lang, { style: 'currency', currency }).formatToParts(0);
+  return parts.find((p) => p.type === 'currency')?.value ?? currency;
+}
+
 export function CourtTimeline({
   bookings,
   timezone,
+  currency,
   courts = null,
   now = new Date(),
   fresh,
+  onOpen,
+  walkInHref,
 }: {
   bookings: OwnerBooking[];
   timezone: string;
+  currency: string;
   courts?: Courts | null;
   now?: Date;
   /** Bookings new since the last refresh, highlighted for one cycle. */
   fresh?: ReadonlySet<string>;
+  onOpen(b: OwnerBooking): void;
+  /** Where a free gap leads to add a walk-in; null hides the gaps. */
+  walkInHref: ((turfId: string, startAt: string) => string) | null;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.language;
+  const scroller = useRef<HTMLDivElement>(null);
   const { lanes, from, to } = buildLanes(bookings, timezone, courts);
   const anyClosed = lanes.some((l) => l.closed.length > 0);
-  if (lanes.length === 0) return null;
   const span = to - from;
-  const pct = (h: number) => `${((h - from) / span) * 100}%`;
   const nowH = hours(now.toISOString(), timezone);
-  const showNow = nowH >= from && nowH <= to;
+  const showNow = lanes.length > 0 && nowH >= from && nowH <= to;
+  const nowFrac = (nowH - from) / span;
+
+  // On a narrow screen the day overflows: start with the now line a third of the way in. Once only, so a refresh
+  // never yanks the view away from where staff scrolled.
+  const scrolled = useRef(false);
+  useEffect(() => {
+    const el = scroller.current;
+    if (scrolled.current || !el || !showNow) return;
+    scrolled.current = true;
+    if (el.scrollWidth > el.clientWidth) el.scrollLeft = Math.max(0, nowFrac * el.scrollWidth - el.clientWidth / 3);
+  }, [showNow, nowFrac]);
+
+  if (lanes.length === 0) return null;
+  const pct = (h: number) => `${((h - from) / span) * 100}%`;
+  const width = (a: number, b: number) => `${((b - a) / span) * 100}%`;
   const ticks = Array.from({ length: span + 1 }, (_, i) => from + i);
+  const symbol = currencySymbol(currency, lang);
 
   return (
     <section className={styles.panel} aria-labelledby="today-courts">
@@ -169,15 +219,15 @@ export function CourtTimeline({
         <h2 id="today-courts" className={styles.heading}>
           {t('owner.today.courts')}
         </h2>
-        <ul className={styles.legend}>
-          <li className={styles.ok}>{t('owner.today.legendPaid')}</li>
-          <li className={styles.due}>{t('owner.today.legendDue')}</li>
+        <ul className={styles.legend} aria-label={t('slots.legend')}>
+          <li className={styles.ok}>{t('owner.today.legendConfirmed')}</li>
           <li className={styles.wait}>{t('owner.today.legendWaiting')}</li>
           <li className={styles.walk}>{t('owner.today.legendWalkIn')}</li>
+          <li className={styles.dueKey}>{t('owner.today.legendDue')}</li>
           {anyClosed && <li className={styles.closedKey}>{t('owner.today.legendClosed')}</li>}
         </ul>
       </div>
-      <div className={styles.timelineScroll}>
+      <div ref={scroller} className={styles.timelineScroll}>
         <div className={styles.timeline}>
           <div className={styles.axis} aria-hidden="true">
             {ticks.map((h) => (
@@ -191,18 +241,50 @@ export function CourtTimeline({
               <span className={styles.laneName}>{lane.name}</span>
               <div className={styles.track} style={{ ['--hours' as string]: span }}>
                 {lane.closed.map(([a, b]) => (
-                  <span key={`c${a}`} className={styles.closed} style={{ left: pct(a), width: `${((b - a) / span) * 100}%` }} aria-hidden="true" />
+                  <span key={`c${a}`} className={styles.closed} style={{ left: pct(a), width: width(a, b) }} aria-hidden="true" />
                 ))}
-                {lane.blocks.map((b) => (
-                  <span
-                    key={b.id}
-                    className={`${styles.block} ${styles[b.kind]}${fresh?.has(b.id) ? ` ${styles.fresh}` : ''}`}
-                    style={{ left: pct(b.start), width: `${((b.end - b.start) / span) * 100}%` }}
-                    title={`${b.label}, ${clock(b.start)}–${clock(b.end)}, ${t(`status.${b.status}`)}, ${t(`paymentStatus.${b.paymentStatus}`)}`}
-                  >
-                    <span className={styles.blockLabel}>{b.label}</span>
-                  </span>
-                ))}
+                {walkInHref &&
+                  lane.gaps.map((g) => (
+                    <Link
+                      key={`g${g.start}`}
+                      to={walkInHref(lane.id, g.startAt)}
+                      className={styles.gap}
+                      style={{ left: pct(g.start), width: width(g.start, g.end) }}
+                      aria-label={t('owner.today.gapLabel', { court: lane.name, from: clock(g.start), to: clock(g.end) })}
+                    >
+                      <span aria-hidden="true">+</span>
+                    </Link>
+                  ))}
+                {lane.blocks.map((b) => {
+                  const label = {
+                    court: lane.name,
+                    from: clock(b.start),
+                    to: clock(b.end),
+                    name: b.label,
+                    status: t(`status.${b.status}`),
+                  };
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      className={`${styles.block} ${styles[b.kind]}${fresh?.has(b.id) ? ` ${styles.fresh}` : ''}`}
+                      style={{ left: pct(b.start), width: width(b.start, b.end) }}
+                      aria-label={
+                        b.due > 0
+                          ? t('owner.today.blockLabelDue', { ...label, due: money(b.due, currency, lang) })
+                          : t('owner.today.blockLabel', label)
+                      }
+                      onClick={() => onOpen(b.booking)}
+                    >
+                      <span className={styles.blockLabel}>{b.label}</span>
+                      {b.due > 0 && (
+                        <span className={styles.dueChip} aria-hidden="true">
+                          {t('owner.today.dueChip', { symbol })}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
                 {showNow && <span className={styles.now} style={{ left: pct(nowH) }} aria-hidden="true" />}
               </div>
             </div>

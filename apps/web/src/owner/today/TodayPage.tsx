@@ -1,4 +1,5 @@
 import { Link } from 'react-router';
+import { localParts } from '@booking/shared';
 import { useTranslation } from 'react-i18next';
 import { BookingStatusBadge } from '../../bookings/BookingStatusBadge';
 import { Alert } from '../../components/ui/Alert';
@@ -94,6 +95,11 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { count, collected, pending, upcoming } = summarize(bookings);
   const usage = courtUsage(bookings, extras.courts, venue.timezone);
   const hoursFmt = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
+  const walkInHref = (turfId: string, startAt: string) => {
+    const date = localParts(new Date(startAt), venue.timezone).date;
+    const q = new URLSearchParams({ venue: venue.id, turf: turfId, date, start: startAt });
+    return `/owner/${encodeURIComponent(ownerId)}/walk-in?${q.toString()}`;
+  };
   return (
     <>
       <p className={styles.refresh} aria-live="polite">
@@ -135,7 +141,15 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
           hint={pending === 0 ? t('owner.today.caughtUp') : undefined}
         />
       </div>
-      <CourtTimeline bookings={bookings} timezone={venue.timezone} courts={extras.courts} fresh={fresh} />
+      <CourtTimeline
+        bookings={bookings}
+        timezone={venue.timezone}
+        currency={venue.currency}
+        courts={extras.courts}
+        fresh={fresh}
+        onOpen={() => {}}
+        walkInHref={can('booking.create') ? walkInHref : null}
+      />
       <div className={styles.split}>
         <Attention venue={venue} bookings={bookings} requests={extras.requests} lowReviews={extras.lowReviews} />
         <section className={styles.panel} aria-labelledby="today-upcoming">

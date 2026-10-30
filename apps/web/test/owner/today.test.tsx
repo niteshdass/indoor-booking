@@ -3,9 +3,11 @@ import { screen, waitFor, within } from '@testing-library/react';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
+import { money } from '../../src/lib/format';
 import { summarize } from '../../src/owner/today/summarize';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
+import type { Permission } from '../../src/owner/types';
 import { OWNER_ID, ownerBooking, ownerReview, ownerRoutes, seriesJson, slotDay, staffUser, turf } from './fixtures';
 
 beforeEach(async () => {
@@ -251,6 +253,54 @@ describe('Today page', () => {
     await user.click(screen.getByRole('button', { name: en.auth.retry }));
     await waitFor(() => expect(screen.queryByText(en.owner.today.refreshFailed)).toBeNull());
     expect(screen.getByText(/^Updated \d{2}:\d{2}$/)).toBeTruthy();
+  });
+
+  const timelineRoutes = (permissions: Permission[] = ['booking.view']) => [
+    ...ownerRoutes({ permissions }),
+    todayList(() => ({ bookings: [ownerBooking({ id: 'b1', status: 'confirmed', turf: { name: 'Court A' }, customer: { name: 'Ann First', phone: null, email: null } })] })),
+    { path: '/owners/o1/venues/v1/turfs', body: { turfs: [turf({ name: 'Court A' })] } },
+    {
+      path: '/owners/o1/venues/v1/turfs/t1/slots',
+      body: {
+        day: slotDay({
+          slots: [
+            { startAt: '2026-10-26T04:00:00.000Z', endAt: '2026-10-26T05:00:00.000Z', localStart: '10:00', localEnd: '11:00', price: 1000, status: 'booked', source: 'hours' },
+            { startAt: '2026-10-26T05:00:00.000Z', endAt: '2026-10-26T06:00:00.000Z', localStart: '11:00', localEnd: '12:00', price: 1000, status: 'booked', source: 'hours' },
+            { startAt: '2026-10-26T06:00:00.000Z', endAt: '2026-10-26T07:00:00.000Z', localStart: '12:00', localEnd: '13:00', price: 1000, status: 'available', source: 'hours' },
+          ],
+        }),
+      },
+    },
+  ];
+
+  it('Today renders each booking block as a labelled button', async () => {
+    mockApi(timelineRoutes());
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    expect(await screen.findByRole('button', { name: `Court A, 10:00–11:00, Ann First, Confirmed, ${money(1000, 'BDT', 'en')} due` })).toBeTruthy();
+  });
+
+  it('Today links a free gap to a prefilled walk-in', async () => {
+    mockApi(timelineRoutes(['booking.view', 'booking.create']));
+    const { user, location } = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await user.click(await screen.findByRole('link', { name: 'Court A, free 12:00–13:00, add walk-in' }));
+    expect(location().pathname).toBe(`/owner/${OWNER_ID}/walk-in`);
+    const q = new URLSearchParams(location().search);
+    expect([q.get('venue'), q.get('turf'), q.get('date'), q.get('start')]).toEqual(['v1', 't1', '2026-10-26', '2026-10-26T06:00:00.000Z']);
+  });
+
+  it('Today hides free-gap links without booking.create', async () => {
+    mockApi(timelineRoutes());
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('button', { name: /^Court A, 10:00–11:00/ });
+    expect(screen.queryByRole('link', { name: /add walk-in/ })).toBeNull();
+  });
+
+  it('Today timeline legend names confirmed, waiting, walk-in and payment due', async () => {
+    mockApi(timelineRoutes());
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByRole('button', { name: /^Court A, 10:00–11:00/ });
+    const legend = screen.getByRole('list', { name: en.slots.legend });
+    expect(within(legend).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Confirmed', 'Waiting', 'Walk-in', 'Payment due', 'Closed']);
   });
 
   it('Today leaves the extras out when they fail to load', async () => {

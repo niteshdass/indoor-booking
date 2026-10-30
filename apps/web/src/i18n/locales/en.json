@@ -585,7 +585,7 @@
       "noVenues": "Create a venue to start taking bookings.",
       "createVenue": "Create a venue",
       "courts": "Courts today",
-      "legendPaid": "Paid",
+      "legendConfirmed": "Confirmed",
       "legendDue": "Payment due",
       "legendWaiting": "Waiting",
       "legendWalkIn": "Walk-in",
@@ -605,7 +605,11 @@
       "trends": "See trends",
       "caughtUp": "All caught up",
       "updated": "Updated {{time}}",
-      "refreshFailed": "Couldn't refresh"
+      "refreshFailed": "Couldn't refresh",
+      "dueChip": "{{symbol}} due",
+      "blockLabel": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}",
+      "blockLabelDue": "{{court}}, {{from}}–{{to}}, {{name}}, {{status}}, {{due}} due",
+      "gapLabel": "{{court}}, free {{from}}–{{to}}, add walk-in"
     },
     "overview": {
       "range": "Period",

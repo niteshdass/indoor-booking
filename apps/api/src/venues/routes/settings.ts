@@ -5,7 +5,7 @@ import type { AppServices } from '../../services';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { Owner } from '../../tenancy/owner.model';
-import { applyPatch, ownerSettingsPatchSchema } from '../settingsSchema';
+import { applyPatch, assertCanPay, ownerSettingsPatchSchema } from '../settingsSchema';
 
 /** Owner-wide settings; mounted on ownerRouter. Stores only the keys the owner set. */
 export function settingsRouter(services: AppServices): Router {
@@ -22,6 +22,7 @@ export function settingsRouter(services: AppServices): Router {
     const owner = (await Owner.findById(t.ownerId))!;
     const before = (owner.settings ?? {}) as Partial<OwnerSettings>;
     const after = applyPatch(before, patch);
+    if (patch.paymentPolicy !== undefined || patch.paymentMethods !== undefined) assertCanPay(withOwnerDefaults(after));
     owner.set('settings', after);
     owner.markModified('settings');
     await runInTransaction(async (session) => {

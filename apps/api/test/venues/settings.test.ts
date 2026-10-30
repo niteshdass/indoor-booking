@@ -120,3 +120,52 @@ describe('owner settings', () => {
     expect(res.body.venue.effectiveSettings.hours.mon).toEqual({ open: '08:00', close: '22:00' });
   });
 });
+
+describe('payment methods', () => {
+  const wallet = (over: object = {}) => ({ provider: 'bkash', number: '01712345678', accountType: 'personal', ...over });
+  const methods = (manualWallets: object[], gateways: string[] = []) => ({ manualWallets, gateways });
+
+  it('PATCH owner settings stores paymentMethods with the wallet number normalised', async () => {
+    const res = await patch({ paymentMethods: methods([wallet()]) });
+    expect(res.status).toBe(200);
+    expect(res.body.settings.paymentMethods.manualWallets[0].number).toBe('+8801712345678');
+    const owner = await Owner.findById(a.ownerId).lean();
+    expect((owner!.settings as any).paymentMethods.manualWallets[0].number).toBe('+8801712345678');
+  });
+
+  it('rejects a wallet number that is not a BD mobile', async () => {
+    expect((await patch({ paymentMethods: methods([wallet({ number: '+8802123456' })]) })).status).toBe(400);
+  });
+
+  it('rejects two wallets for the same provider', async () => {
+    const res = await patch({ paymentMethods: methods([wallet(), wallet({ number: '01812345678' })]) });
+    expect(res.status).toBe(400);
+  });
+
+  it('refuses an advance with no way to pay', async () => {
+    const res = await patch({ paymentPolicy: { type: 'full' } });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('no_payment_method');
+  });
+
+  it('accepts an advance once a wallet is set', async () => {
+    expect((await patch({ paymentPolicy: { type: 'full' }, paymentMethods: methods([wallet()]) })).status).toBe(200);
+  });
+
+  it('still saves hours for an owner whose advance has no methods', async () => {
+    await Owner.updateOne({ _id: a.ownerId }, { $set: { settings: { paymentPolicy: { type: 'full' } } } });
+    const res = await patch({ hours: { mon: 'closed' } });
+    expect(res.status).toBe(200);
+  });
+
+  it("venue paymentMethods replaces the owner's", async () => {
+    const venue = await seedVenue(a.ownerId);
+    const res = await request(ctx.app)
+      .patch(`/api/v1/owners/${a.ownerId}/venues/${venue.id}`)
+      .set(...bearer(a.token))
+      .send({ settings: { paymentMethods: methods([wallet({ provider: 'nagad' })]) } });
+    expect(res.status).toBe(200);
+    expect(res.body.venue.effectiveSettings.paymentMethods).toEqual(res.body.venue.settings.paymentMethods);
+    expect(res.body.venue.effectiveSettings.paymentMethods.manualWallets[0]).toMatchObject({ provider: 'nagad', number: '+8801712345678' });
+  });
+});

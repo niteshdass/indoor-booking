@@ -229,3 +229,15 @@ describe('gateway modes', () => {
     expect(calls[0]!.secretKey).toMatch(/^sk_test_/);
   });
 });
+
+describe('payment methods', () => {
+  it('payment-methods migration seeds stripe for owners with an enabled account', async () => {
+    const other = await seedOwner(ctx.services);
+    await connectStripe(ctx.app, other, { enabled: false });
+    expect(await runMigrations(ctx.services.now())).toContain('2026-10-30-payment-methods');
+    const stored = async (id: string) => ((await Owner.findById(id).lean())!.settings as any).paymentMethods;
+    expect(await stored(owner.ownerId)).toEqual({ manualWallets: [], gateways: ['stripe'] });
+    expect(await stored(other.ownerId)).toBeUndefined();
+    expect(await MIGRATIONS.find((m) => m.id === '2026-10-30-payment-methods')!.run(ctx.services.now())).toBe(0);
+  });
+});

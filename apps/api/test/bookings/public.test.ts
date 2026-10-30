@@ -104,6 +104,18 @@ describe('quote', () => {
     expect(res.body.guestOtpRequired).toBe(true);
   });
 
+  it('quote lists offered methods without numbers', async () => {
+    const wallets = ['bkash', 'nagad'].map((provider) => ({ provider, number: '+8801712345678', accountType: 'personal' }));
+    await Venue.updateOne(
+      { ownerId, slug },
+      { $set: { 'settings.paymentMethods': { manualWallets: wallets, gateways: ['stripe'] } } },
+    );
+    const res = await post(`${base()}/quote`, { date: D, startAts: [at('18:00')] });
+    expect(res.status).toBe(200);
+    expect(res.body.paymentMethods).toEqual({ wallets: ['bkash', 'nagad'], card: false });
+    expect(JSON.stringify(res.body)).not.toContain('+8801');
+  });
+
   it('404s for unknown slug, unpublished venue, inactive turf', async () => {
     const body = { date: D, startAts: [at('18:00')] };
     expect((await post(`/api/v1/venues/nope/turfs/${turfId}/quote`, body)).status).toBe(404);

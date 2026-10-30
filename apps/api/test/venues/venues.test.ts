@@ -116,11 +116,12 @@ describe('venues API', () => {
     await api().patch(`/api/v1/owners/${a.ownerId}/settings`).set(...bearer(a.token))
       .send({ guestBooking: { allowed: true, requireOtp: false } });
     const { id } = (await create(valid())).body.venue;
-    const fixed = await patch(id, { settings: { paymentPolicy: { type: 'partial_fixed', amount: 50000 } } });
+    const paymentMethods = { manualWallets: [{ provider: 'bkash', number: '01712345678', accountType: 'personal' }], gateways: [] };
+    const fixed = await patch(id, { settings: { paymentPolicy: { type: 'partial_fixed', amount: 50000 }, paymentMethods } });
     expect(fixed.status).toBe(200);
     expect(fixed.body.venue.effectiveSettings.paymentPolicy).toEqual({ type: 'partial_fixed', amount: 50000 });
     expect(fixed.body.venue.effectiveSettings.guestBooking.allowed).toBe(false);
-    const reset = await patch(id, { settings: { paymentPolicy: null } });
+    const reset = await patch(id, { settings: { paymentPolicy: null, paymentMethods: null } });
     expect(reset.body.venue.settings).toEqual({});
     expect(reset.body.venue.effectiveSettings.paymentPolicy).toEqual({ type: 'none' });
     expect(reset.body.venue.effectiveSettings.guestBooking.allowed).toBe(true);

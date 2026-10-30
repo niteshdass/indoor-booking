@@ -1,5 +1,6 @@
 import { Booking } from '../bookings/booking.model';
 import { Payment } from '../bookings/payment.model';
+import { Owner } from '../tenancy/owner.model';
 import { Image } from '../images/image.model';
 import { PaymentGatewayAccount } from '../payments/gateway.model';
 import { Refund } from '../payments/refund.model';
@@ -80,6 +81,19 @@ export const MIGRATIONS: MigrationStep[] = [
         changed += res.modifiedCount;
       }
       return changed;
+    },
+  },
+  {
+    // Owners already taking cards keep offering them once the choice of methods exists.
+    id: '2026-10-30-payment-methods',
+    async run() {
+      const ownerIds = await PaymentGatewayAccount.distinct('ownerId', { gateway: 'stripe', enabled: true }).setOptions(cross);
+      const res = await Owner.updateMany(
+        { _id: { $in: ownerIds }, 'settings.paymentMethods': { $exists: false } },
+        { $set: { 'settings.paymentMethods': { manualWallets: [], gateways: ['stripe'] } } },
+        { timestamps: false },
+      );
+      return res.modifiedCount;
     },
   },
 ];

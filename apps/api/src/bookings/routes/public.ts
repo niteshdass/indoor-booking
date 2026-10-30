@@ -20,6 +20,7 @@ import { Booking, type BookingDoc } from '../booking.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
 import { startIntent } from '../../payments/intent';
+import { offeredMethods } from '../../payments/methods';
 import { invalidTransition } from '../transition';
 import { cancelBooking, previewCancellation } from '../cancel';
 import { Refund } from '../../payments/refund.model';
@@ -181,6 +182,9 @@ const quoteJson = (q: BookingQuote, currency: string) => ({
   advanceRequired: q.advanceRequired,
 });
 
+/** Provider names only; the numbers are shown once the player has a booking to pay for. */
+const methodsJson = (m: Awaited<ReturnType<typeof offeredMethods>>) => ({ wallets: m.wallets.map((w) => w.provider), card: m.card });
+
 /** Player-facing booking routes. The app rate-limits the code-sending and lookup routes. */
 export function publicBookingsRouter(config: Config, services: AppServices): Router {
   const router = Router();
@@ -189,7 +193,8 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     const input = quoteSchema.parse(req.body);
     const { venue, turf } = await publicTurf(req.params.slug, req.params.turfId);
     if (input.more.length > 0) {
-      const { items } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now() });
+      const { items, settings } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now() });
+      const methods = await offeredMethods(String(venue.ownerId), venue, settings, { config, services });
       const sum = (key: 'total' | 'advanceRequired') => items.reduce((n, d) => n + d.quote[key], 0);
       res.json({
         quote: quoteJson(items[0]!.quote, venue.currency),
@@ -199,6 +204,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
         // Several bookings at once are for signed-in players only.
         guestAllowed: false,
         guestOtpRequired: false,
+        paymentMethods: methodsJson(methods),
       });
       return;
     }
@@ -211,10 +217,12 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       source: 'online',
       now: services.now(),
     });
+    const methods = await offeredMethods(String(venue.ownerId), venue, settings, { config, services });
     res.json({
       quote: quoteJson(quote, venue.currency),
       guestAllowed: guestsAllowed(settings) && quote.advanceRequired === 0,
       guestOtpRequired: settings.guestBooking.requireOtp,
+      paymentMethods: methodsJson(methods),
     });
   });
 

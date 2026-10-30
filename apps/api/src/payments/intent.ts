@@ -9,6 +9,7 @@ import type { AppServices } from '../services';
 import { Venue } from '../venues/venue.model';
 import { GatewayError } from './gateway';
 import { loadGateway, type GatewayMode } from './gateway.model';
+import { gatewayUsable } from './methods';
 
 export const paymentsUnavailable = () =>
   new AppError(409, 'payments_unavailable', 'Online payment is not available for this booking');
@@ -82,7 +83,7 @@ export async function startIntent(
 
   const loaded = await loadGateway(ownerId, 'stripe', config, services);
   const venue = await Venue.findOne({ ownerId, _id: booking.venueId });
-  if (!loaded || !loaded.row.enabled || !venue || !loaded.gateway.supports(venue.country, booking.currency)) {
+  if (!venue || !gatewayUsable(loaded, venue.country, booking.currency)) {
     throw paymentsUnavailable();
   }
   const { creds, gateway } = loaded;

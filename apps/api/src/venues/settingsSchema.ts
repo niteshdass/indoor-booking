@@ -1,5 +1,7 @@
 import { z } from 'zod';
-import { WEEKDAYS, assertMinor } from '@booking/shared';
+import { WALLET_PROVIDERS, WEEKDAYS, assertMinor, type EffectiveSettings } from '@booking/shared';
+import { normalizePhone } from '../auth/normalize';
+import { AppError } from '../errors';
 
 /** HH:MM, 24-hour. */
 export const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM (24-hour)');
@@ -60,7 +62,47 @@ export const weekendDaysSchema = z
 
 const guestBookingSchema = z.object({ allowed: z.boolean(), requireOtp: z.boolean() }).strict();
 
+const walletSchema = z
+  .object({
+    provider: z.enum(WALLET_PROVIDERS),
+    number: z.string().transform((raw, ctx) => {
+      try {
+        // A local number (01712345678) is read as Bangladeshi.
+        const n = normalizePhone(/^01/.test(raw.trim()) ? `+880${raw.trim().slice(1)}` : raw);
+        if (/^\+8801[3-9]\d{8}$/.test(n)) return n;
+      } catch {
+        // falls through to the issue below
+      }
+      ctx.addIssue({ code: 'custom', message: 'Use a Bangladesh mobile number, e.g. 01712345678' });
+      return z.NEVER;
+    }),
+    accountType: z.enum(['personal', 'merchant', 'agent']),
+    note: z.string().trim().max(140).optional(),
+  })
+  .strict();
+
+export const paymentMethodsSchema = z
+  .object({
+    manualWallets: z
+      .array(walletSchema)
+      .max(3)
+      .refine((w) => new Set(w.map((x) => x.provider)).size === w.length, 'One number per provider'),
+    gateways: z
+      .array(z.enum(['stripe', 'sslcommerz']))
+      .refine((g) => new Set(g).size === g.length, 'Gateways must be unique'),
+  })
+  .strict();
+
+/** An advance needs a way to pay it; checked only when a patch touches the policy or the methods. */
+export function assertCanPay(settings: Pick<EffectiveSettings, 'paymentPolicy' | 'paymentMethods'>): void {
+  const { manualWallets, gateways } = settings.paymentMethods;
+  if (settings.paymentPolicy.type !== 'none' && manualWallets.length === 0 && gateways.length === 0) {
+    throw new AppError(400, 'no_payment_method', 'Turn on at least one way to pay online, or set the advance to none');
+  }
+}
+
 const venueFields = {
+  paymentMethods: paymentMethodsSchema.nullable().optional(),
   hours: hoursPatchSchema.nullable().optional(),
   weekendDays: weekendDaysSchema.nullable().optional(),
   guestBooking: guestBookingSchema.nullable().optional(),

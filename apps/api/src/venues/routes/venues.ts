@@ -22,7 +22,7 @@ import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf, type TenantContext } from '../../tenancy/context';
 import { Owner } from '../../tenancy/owner.model';
 import { tenantRepo } from '../../tenancy/repo';
-import { applyPatch, venueSettingsPatchSchema } from '../settingsSchema';
+import { applyPatch, assertCanPay, venueSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForVenue, ownerSettings } from '../effective';
 import { Venue, type VenueDoc } from '../venue.model';
 import { Turf } from '../turf.model';
@@ -266,7 +266,11 @@ export function venuesRouter(config: Config, services: AppServices): Router {
     for (const [k, v] of Object.entries(plain)) if (v !== undefined) venue.set(k, v);
     if (location) venue.set('location', { type: 'Point', coordinates: [location.lng, location.lat] });
     if (settings) {
-      venue.set('settings', applyPatch(venue.settings ?? {}, settings));
+      const next = applyPatch(venue.settings ?? {}, settings);
+      if (settings.paymentPolicy !== undefined || settings.paymentMethods !== undefined) {
+        assertCanPay(resolveSettings(await ownerSettings(t.ownerId), next as VenueSettingsOverride));
+      }
+      venue.set('settings', next);
       venue.markModified('settings');
     }
     const { before, after } = changedFields(beforeAll, snapshotOf(venue, keys));

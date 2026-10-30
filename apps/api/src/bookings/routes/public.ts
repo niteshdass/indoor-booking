@@ -25,6 +25,7 @@ import { turfNotFound } from '../../venues/guards';
 import { Turf, type TurfDoc } from '../../venues/turf.model';
 import { Venue, type VenueDoc } from '../../venues/venue.model';
 import { Booking, type BookingDoc } from '../booking.model';
+import { Payment } from '../payment.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
 import { startIntent } from '../../payments/intent';
@@ -112,11 +113,20 @@ export const MAX_GUEST_PENDING = 3;
 const tooManyHolds = () =>
   new AppError(409, 'too_many_holds', 'You have too many unpaid or unconfirmed bookings; finish or cancel one first');
 
-/** Refuses `adding` more bookings while a player's live unpaid holds would pass MAX_OPEN_HOLDS, so one player cannot hold every slot. */
+/**
+ * Refuses `adding` more bookings while a player's open bookings would pass MAX_OPEN_HOLDS, so one player
+ * cannot hold every slot. Open means a live unpaid hold, or an upcoming pending booking whose wallet
+ * payment staff have not checked yet: auto-reject skips those, so made-up TrxIDs would otherwise hold
+ * slots without limit. With nothing open a player may still book one whole group.
+ */
 async function assertHoldRoom(playerId: string, adding: number, now: Date) {
-  const open = await Booking.countDocuments({ playerId, status: 'awaiting_payment', holdExpiresAt: { $gt: now } }).setOptions({
-    crossTenant: true,
-  });
+  const cross = { crossTenant: true };
+  const holds = await Booking.countDocuments({ playerId, status: 'awaiting_payment', holdExpiresAt: { $gt: now } }).setOptions(cross);
+  const waiting = await Booking.find({ playerId, status: 'pending', endAt: { $gt: now } }).setOptions(cross).select('_id').lean();
+  const unchecked = waiting.length
+    ? (await Payment.distinct('bookingId', { bookingId: { $in: waiting.map((b) => b._id) }, kind: 'manual', status: 'pending' }).setOptions(cross)).length
+    : 0;
+  const open = holds + unchecked;
   if (open > 0 && open + adding > MAX_OPEN_HOLDS) throw tooManyHolds();
 }
 

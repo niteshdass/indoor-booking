@@ -20,6 +20,7 @@ import { Refund } from '../../src/payments/refund.model';
 import { Notification } from '../../src/notifications/notification.model';
 import { PaymentGatewayAccount } from '../../src/payments/gateway.model';
 import { expireHolds } from '../../src/jobs/sweeps';
+import { MAX_OPEN_HOLDS } from '../../src/bookings/routes/public';
 
 beforeAll(async () => {
   await startTestDb();
@@ -266,6 +267,30 @@ describe('POST /bookings/:id/payments/manual/verify', () => {
       .send({});
     expect(res.status).toBe(404);
     expect((await bookingOf(bookingId)).status).toBe('pending');
+  });
+});
+
+describe('hold caps with submitted wallet payments', () => {
+  it('a player with MAX_OPEN_HOLDS unchecked wallet payments cannot book again until one is verified', async () => {
+    const player = await newPlayer();
+    const hours = Array.from({ length: MAX_OPEN_HOLDS }, (_, i) => `${String(8 + i).padStart(2, '0')}:00`);
+    const ids: string[] = [];
+    for (const [i, hm] of hours.entries()) {
+      const { booking } = await book(player, hm);
+      const res = await submit(player, booking.id, { ...SUBMIT, trxId: `TRX${String(i).padStart(7, '0')}` });
+      expect(res.status).toBe(201);
+      ids.push(booking.id);
+    }
+
+    const refused = await request(ctx.app)
+      .post(`/api/v1/venues/${slug}/turfs/${turfId}/bookings`)
+      .set(...bearer(player.token))
+      .send({ date: D, startAts: [at('22:00')] });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.code).toBe('too_many_holds');
+
+    expect((await verify(ids[0]!)).status).toBe(200);
+    await book(player, '22:00');
   });
 });
 

@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  DEFAULT_OWNER_SETTINGS,
   WEEKDAYS,
   currencyExponent,
   parseMoney,
@@ -34,6 +35,7 @@ type Props = {
   disabled?: boolean;
   /** The owner's Stripe account is connected and on; the card switch stays off until then. */
   stripeReady?: boolean;
+  canConnectStripe?: boolean;
 };
 
 const MAX_RULES = 10;
@@ -76,7 +78,7 @@ function Section({
 }
 
 /** Owner- or venue-level settings editor; Task 13 mounts it with `level="venue"`. */
-export function SettingsForm({ level, stored, effective, inherited, currency, onSave, disabled, stripeReady = false }: Props) {
+export function SettingsForm({ level, stored, effective, inherited, currency, onSave, disabled, stripeReady = false, canConnectStripe = true }: Props) {
   const { t, i18n } = useTranslation();
   const venue = level === 'venue';
   const [base, setBase] = useState<StoredSettings>(() => clone(venue ? stored : effective));
@@ -149,7 +151,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
   };
   const dup = (i: number) => rules.some((r, j) => j !== i && r.minHoursBefore === rules[i]!.minHoursBefore);
 
-  const methods = value('paymentMethods');
+  const methods = value('paymentMethods') ?? DEFAULT_OWNER_SETTINGS.paymentMethods;
   const noMethod = error instanceof ApiError && error.code === 'no_payment_method';
   const walletsBad = submitted && errors.has('wallet');
 
@@ -320,6 +322,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
             value={methods}
             disabled={locked('paymentMethods')}
             stripeReady={stripeReady}
+            canConnectStripe={canConnectStripe}
             onChange={(v) => edit({ ...draft, paymentMethods: v })}
           />
           {walletsBad && <p className={styles.error}>{t('owner.settings.errors.wallet')}</p>}

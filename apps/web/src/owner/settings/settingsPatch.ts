@@ -9,7 +9,12 @@ export type SettingsLevel = 'owner' | 'venue';
 export type StoredSettings = Omit<Partial<OwnerSettings>, 'hours'> & { hours?: Partial<WeeklyHours> };
 export type Draft = StoredSettings;
 
-const BD_MOBILE = /^(?:\+?880|0)?1[3-9]\d{8}$/;
+const BD_MOBILE = /^(?:\+880|0)(1[3-9]\d{8})$/;
+
+/** The 10 digits after the country code (1712345678) of a number the API accepts (+8801712345678 or 01712345678), else null. */
+export function bdMobileDigits(raw: string): string | null {
+  return BD_MOBILE.exec(raw.replace(/[\s-]/g, ''))?.[1] ?? null;
+}
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -82,7 +87,7 @@ export function settingsErrors(draft: Draft): Set<SettingsError> {
   }
   if (draft.bookingWindowDays !== undefined && !inRange(draft.bookingWindowDays, 1, 365)) e.add('window');
   if (draft.pendingAutoRejectHours !== undefined && !inRange(draft.pendingAutoRejectHours, 0, 72)) e.add('autoReject');
-  if (draft.paymentMethods?.manualWallets.some((w) => !BD_MOBILE.test(w.number.replace(/[\s-]/g, '')))) e.add('wallet');
+  if (draft.paymentMethods?.manualWallets.some((w) => bdMobileDigits(w.number) === null)) e.add('wallet');
   const times = Object.values(draft.hours ?? {});
   if (times.some((h) => h !== 'closed' && (!h.open || !h.close))) e.add('hours');
   return e;

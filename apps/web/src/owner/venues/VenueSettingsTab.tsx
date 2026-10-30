@@ -18,7 +18,7 @@ type Props = {
 export function VenueSettingsTab({ venue, ownerSettings, onSaved }: Props) {
   const { ownerId, can, reloadVenues } = useOwner();
 
-  const stripeReady = useStripeReady();
+  const stripe = useStripeReady();
 
   const save = async (patch: Record<string, unknown>) => {
     const res = await apiPatch<{ venue: OwnerVenue }>(ownerPath(ownerId, `/venues/${encodeURIComponent(venue.id)}`), { settings: patch });
@@ -36,7 +36,8 @@ export function VenueSettingsTab({ venue, ownerSettings, onSaved }: Props) {
         currency={venue.currency}
         onSave={save}
         disabled={!can('venue.manage')}
-        stripeReady={stripeReady}
+        stripeReady={stripe.ready}
+        canConnectStripe={stripe.canConnect}
       />
     </div>
   );

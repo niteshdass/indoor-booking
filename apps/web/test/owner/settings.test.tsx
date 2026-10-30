@@ -211,6 +211,33 @@ describe('payment methods', () => {
     expect(await within(card).findByText(en.errors.no_payment_method)).toBeTruthy();
   });
 
+  it.each(['8801712345678', '1712345678', '+88017123'])('rejects %s client-side with one wallet error', async (num) => {
+    const user = userEvent.setup();
+    const onSave = renderForm('owner');
+    await user.click(screen.getByLabelText('Nagad'));
+    await user.type(screen.getByLabelText(PM.number), num);
+    await user.click(screen.getByRole('button', { name: S.save }));
+    expect(await screen.findAllByText(S.errors.wallet)).toHaveLength(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('accepts +880 and local forms', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('owner');
+    await user.click(screen.getByLabelText('Nagad'));
+    await user.type(screen.getByLabelText(PM.number), '+880 1712-345678');
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+  });
+
+  it('shows the connect hint only when it can help', () => {
+    renderForm('owner', { canConnectStripe: false });
+    expect(screen.queryByText(PM.connectStripe)).toBeNull();
+    cleanup();
+    renderForm('owner', { effective: { ...DEFAULTS, paymentMethods: { manualWallets: [], gateways: ['stripe'] } } });
+    expect(screen.queryByText(PM.connectStripe)).toBeNull();
+  });
+
   it('card is disabled until Stripe is connected', async () => {
     const user = userEvent.setup();
     renderForm('owner');

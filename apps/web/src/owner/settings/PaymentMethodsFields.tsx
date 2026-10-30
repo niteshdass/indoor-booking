@@ -7,32 +7,26 @@ import { TextField } from '../../components/ui/TextField';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useResource } from '../useResource';
+import { bdMobileDigits } from './settingsPatch';
 import styles from './settings.module.css';
 
 const PROVIDER_NAMES: Record<WalletProvider, string> = { bkash: 'bKash', nagad: 'Nagad', rocket: 'Rocket' };
 const ACCOUNT_TYPES: ManualWallet['accountType'][] = ['personal', 'merchant', 'agent'];
 
-const BD_MOBILE = /^(?:\+?880|0)?(1[3-9]\d{8})$/;
-const strip = (s: string) => s.replace(/[\s-]/g, '');
-
-/** True when the text is a Bangladesh mobile number the API will accept. */
-export function isBdMobile(raw: string): boolean {
-  return BD_MOBILE.test(strip(raw));
-}
-
 /** `+8801712345678` -> `+880 1712-345678`; anything else is shown as typed. */
 export function formatBdMobile(raw: string): string {
-  const m = BD_MOBILE.exec(strip(raw));
-  return m ? `+880 ${m[1]!.slice(0, 4)}-${m[1]!.slice(4)}` : raw;
+  const d = bdMobileDigits(raw);
+  return d ? `+880 ${d.slice(0, 4)}-${d.slice(4)}` : raw;
 }
 
 /** Whether the owner's Stripe account can take card payments; false when it cannot be read. */
-export function useStripeReady(): boolean {
+export function useStripeReady(): { ready: boolean; canConnect: boolean } {
   const { ownerId, can } = useOwner();
   const res = useResource<Array<{ gateway: string; connected: boolean; enabled: boolean }>>(
     can('settings.edit') ? ownerPath(ownerId, '/payment-gateways') : null,
   );
-  return res.state.status === 'ready' && res.state.data.some((g) => g.gateway === 'stripe' && g.connected && g.enabled);
+  const ready = res.state.status === 'ready' && res.state.data.some((g) => g.gateway === 'stripe' && g.connected && g.enabled);
+  return { ready, canConnect: can('settings.edit') };
 }
 
 type Props = {
@@ -40,17 +34,20 @@ type Props = {
   onChange(v: PaymentMethods): void;
   disabled: boolean;
   stripeReady: boolean;
+  /** Whether this user can connect Stripe, so the "connect first" hint is useful. */
+  canConnectStripe?: boolean;
 };
 
 /** One row per wallet provider (number, account type, note) plus the card switch. */
-export function PaymentMethodsFields({ value, onChange, disabled, stripeReady }: Props) {
+export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, canConnectStripe = true }: Props) {
   const { t } = useTranslation();
   const [editing, setEditing] = useState<WalletProvider | null>(null);
-  const wallets = value.manualWallets;
+  const wallets = value.manualWallets ?? [];
   const setWallets = (next: ManualWallet[]) => onChange({ ...value, manualWallets: next });
   const patchWallet = (provider: WalletProvider, patch: Partial<ManualWallet>) =>
     setWallets(wallets.map((w) => (w.provider === provider ? { ...w, ...patch } : w)));
-  const card = value.gateways.includes('stripe');
+  const gateways = value.gateways ?? [];
+  const card = gateways.includes('stripe');
 
   return (
     <div className={styles.methods}>
@@ -78,7 +75,6 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady }:
                   autoComplete="off"
                   value={editing === provider ? wallet.number : formatBdMobile(wallet.number)}
                   disabled={disabled}
-                  error={wallet.number !== '' && !isBdMobile(wallet.number) && editing !== provider ? t('owner.settings.errors.wallet') : undefined}
                   onFocus={() => setEditing(provider)}
                   onBlur={() => setEditing(null)}
                   onChange={(e) => patchWallet(provider, { number: e.target.value })}
@@ -112,8 +108,8 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady }:
         label={t('owner.settings.methods.card')}
         checked={card}
         disabled={disabled || (!stripeReady && !card)}
-        hint={stripeReady ? undefined : t('owner.settings.methods.connectStripe')}
-        onChange={(on) => onChange({ ...value, gateways: on ? [...value.gateways, 'stripe'] : value.gateways.filter((g) => g !== 'stripe') })}
+        hint={stripeReady || card || !canConnectStripe ? undefined : t('owner.settings.methods.connectStripe')}
+        onChange={(on) => onChange({ ...value, gateways: on ? [...gateways, 'stripe'] : gateways.filter((g) => g !== 'stripe') })}
       />
     </div>
   );

@@ -19,7 +19,7 @@ export function SettingsPage() {
   const { ownerId, owner, can } = useOwner();
   useOwnerTitle(t('owner.nav.settings'));
   const path = ownerPath(ownerId, '/settings');
-  const stripeReady = useStripeReady();
+  const stripe = useStripeReady();
   const res = useResource<{ settings: OwnerSettings }>(path);
 
   if (res.state.status === 'error') return <Alert tone="danger">{errorMessage(res.state.error, t)}</Alert>;
@@ -41,7 +41,8 @@ export function SettingsPage() {
         currency={owner.defaultCurrency}
         onSave={save}
         disabled={!can('settings.edit')}
-        stripeReady={stripeReady}
+        stripeReady={stripe.ready}
+        canConnectStripe={stripe.canConnect}
       />
       {can('settings.edit') && <StripeGatewayCard />}
     </div>

@@ -490,7 +490,7 @@
         "agent": "Снять наличные",
         "merchant": "Платёж"
       },
-      "steps": "Откройте {{provider}} → {{action}} → {{number}} → {{amount}} → скопируйте ID транзакции",
+      "steps": "Откройте {{provider}} → {{action}} → <num>{{number}}</num> → {{amount}} → скопируйте ID транзакции",
       "trxId": "ID транзакции",
       "trxHint": "Он указан в сообщении {{provider}} о переводе.",
       "trxInvalid": "Введите ID транзакции: от 8 до 12 букв и цифр.",

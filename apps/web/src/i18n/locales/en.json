@@ -466,7 +466,7 @@
         "agent": "Cash Out",
         "merchant": "Payment"
       },
-      "steps": "Open {{provider}} → {{action}} → {{number}} → {{amount}} → copy the Transaction ID",
+      "steps": "Open {{provider}} → {{action}} → <num>{{number}}</num> → {{amount}} → copy the Transaction ID",
       "trxId": "Transaction ID",
       "trxHint": "It is in the {{provider}} confirmation message.",
       "trxInvalid": "Enter the Transaction ID: 8 to 12 letters and numbers.",

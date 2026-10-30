@@ -218,7 +218,7 @@ describe('pay by wallet', () => {
     await trxField();
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === i18n.t('payment.wallet.send', { amount: money(1150, 'BDT', 'en') }))).toBeInTheDocument();
-    expect(screen.getByText('+880 1712-345678', { selector: 'span' })).toBeInTheDocument();
+    expect(screen.getAllByText('+880 1712-345678', { selector: 'span' })[0]).toBeInTheDocument();
     expect(screen.getByText('Pay before 9pm')).toBeInTheDocument();
     expect(screen.getByText(/Open bKash → Send Money → .* → copy the Transaction ID/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: en.payment.wallet.copy }));
@@ -231,6 +231,15 @@ describe('pay by wallet', () => {
     expect(location().search).toBe('?submitted=1');
     const post = calls.find((c) => c.path === '/bookings/b1/payments/manual')!;
     expect(post.body).toEqual({ provider: 'bkash', trxId: '9A1B2C3D4E', senderNumber: '01812345678' });
+  });
+
+  it('the number in the steps is its own span so it never breaks across lines', async () => {
+    api({ options: both });
+    renderApp(PATH, { user: player });
+    await trxField();
+    const spans = screen.getAllByText('+880 1712-345678', { selector: 'span' });
+    expect(spans).toHaveLength(2);
+    expect(spans[1]!.closest('p')!.textContent).toMatch(/Open bKash → Send Money → \+880 1712-345678 → .* → copy the Transaction ID/);
   });
 
   it('agent and merchant numbers change the step wording', async () => {

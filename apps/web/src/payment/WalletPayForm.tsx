@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { normalizeTrxId, type ManualWallet } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
@@ -130,7 +130,12 @@ export function WalletPayForm({
       </div>
 
       <p className={styles.steps}>
-        {t('payment.wallet.steps', { provider, action: t(`payment.wallet.action.${ACTION_KEY[wallet.accountType]}`), number, amount: sum, interpolation: { escapeValue: false } })}
+        <Trans
+          i18nKey="payment.wallet.steps"
+          values={{ provider, action: t(`payment.wallet.action.${ACTION_KEY[wallet.accountType]}`), number, amount: sum }}
+          components={{ num: <span className={styles.nowrap} /> }}
+          shouldUnescape
+        />
       </p>
 
       <TextField

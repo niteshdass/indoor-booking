@@ -111,13 +111,19 @@ export async function expireHolds(now: Date): Promise<number> {
 
 /**
  * Rejects pending bookings the venue did not confirm by the owner's pendingAutoRejectHours before start.
- * Only those that have not started yet are told.
+ * Only those that have not started yet are told. One with a wallet payment waiting to be checked is
+ * left for staff: rejecting it would drop money the player already sent.
  */
 export async function autoRejectPending(now: Date): Promise<number> {
   const hoursOf = new Map<string, number>();
   const due = async (page: BookingDoc[]) => {
+    const manual = await Payment.find({ bookingId: { $in: page.map((b) => b._id) }, kind: 'manual', status: 'pending' })
+      .setOptions(cross)
+      .select('bookingId');
+    const submitted = new Set(manual.map((p) => String(p.bookingId)));
     const out: BookingDoc[] = [];
     for (const b of page) {
+      if (submitted.has(String(b._id))) continue;
       const ownerId = String(b.ownerId);
       if (!hoursOf.has(ownerId)) hoursOf.set(ownerId, (await ownerSettings(ownerId)).pendingAutoRejectHours);
       if (b.startAt.getTime() - hoursOf.get(ownerId)! * HOUR <= now.getTime()) out.push(b);

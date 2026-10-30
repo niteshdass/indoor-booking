@@ -1,7 +1,15 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
-import { MAX_BOOKINGS_PER_GROUP, MAX_SLOTS_PER_BOOKING, type BookingQuote, type EffectiveSettings } from '@booking/shared';
+import {
+  HOLD_MINUTES,
+  MANUAL_HOLD_MINUTES,
+  MAX_BOOKINGS_PER_GROUP,
+  MAX_SLOTS_PER_BOOKING,
+  WALLET_PROVIDERS,
+  type BookingQuote,
+  type EffectiveSettings,
+} from '@booking/shared';
 import { optionalAuth, requireAuth } from '../../auth/requireAuth';
 import { normalizePhone } from '../../auth/normalize';
 import { requestOtp, verifyOtp } from '../../auth/otp';
@@ -15,12 +23,13 @@ import { effectiveForVenue } from '../../venues/effective';
 import { publicTurf, publicVenueBySlug } from '../../venues/routes/public';
 import { turfNotFound } from '../../venues/guards';
 import { Turf, type TurfDoc } from '../../venues/turf.model';
-import type { VenueDoc } from '../../venues/venue.model';
+import { Venue, type VenueDoc } from '../../venues/venue.model';
 import { Booking, type BookingDoc } from '../booking.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
 import { startIntent } from '../../payments/intent';
 import { offeredMethods } from '../../payments/methods';
+import { payableGroup, submitManualPayment } from '../../payments/manual';
 import { invalidTransition } from '../transition';
 import { cancelBooking, previewCancellation } from '../cancel';
 import { Refund } from '../../payments/refund.model';
@@ -145,6 +154,11 @@ const guestDisabled = () =>
   new AppError(403, 'guest_booking_disabled', 'Guest booking is not available at this venue');
 const bookingNotFound = () => new AppError(404, 'not_found', 'Booking not found');
 
+/** Free-form strings: submitManualPayment answers a bad TrxID or number with its own codes. */
+const manualSchema = z
+  .object({ provider: z.enum(WALLET_PROVIDERS), trxId: z.string().max(64), senderNumber: z.string().max(32) })
+  .strict();
+
 const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 const guestCancelSchema = z
   .object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32), otpCode: otpCodeSchema, reason: z.string().trim().max(300).optional() })
@@ -235,6 +249,13 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     res.json(await requestOtp(normalizePhone(phone), 'guest_booking', services));
   });
 
+  /** A venue that takes wallets but no cards holds longer: the player pays outside the app, then types the TrxID. */
+  async function holdMinutesAt(venue: VenueDoc): Promise<number> {
+    const ownerId = String(venue.ownerId);
+    const methods = await offeredMethods(ownerId, venue, await effectiveForVenue(ownerId, venue), { config, services });
+    return methods.wallets.length > 0 && !methods.card ? MANUAL_HOLD_MINUTES : HOLD_MINUTES;
+  }
+
   router.post(
     '/venues/:slug/turfs/:turfId/bookings',
     optionalAuth(config, services),
@@ -281,10 +302,22 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
         if (input.more.length > 0) {
           if (!userId) throw new AppError(401, 'unauthenticated', 'Sign in to book several times at once');
           const items = await groupItems(venue, turf, input);
-          return createBookingGroup({ venue, items, selection: input.addons, now, requestKey, who: { playerId: userId, guest: null, createdBy: userId } });
+          const holdMinutes = await holdMinutesAt(venue);
+          return createBookingGroup({
+            venue,
+            items,
+            selection: input.addons,
+            now,
+            requestKey,
+            holdMinutes,
+            who: { playerId: userId, guest: null, createdBy: userId },
+          });
         }
 
-        if (userId) return [await createBooking({ ...base, requestKey, who: { playerId: userId, guest: null, createdBy: userId } })];
+        if (userId) {
+          const holdMinutes = await holdMinutesAt(venue);
+          return [await createBooking({ ...base, requestKey, holdMinutes, who: { playerId: userId, guest: null, createdBy: userId } })];
+        }
 
         const g = input.guest!;
         const phone = guestPhone!;
@@ -390,6 +423,31 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     const by = { kind: 'player' as const, ownerId: String(booking.ownerId), userId };
     const out = await cancelBooking(booking, by, { reason: reason || undefined }, { config, services });
     res.json({ booking: await playerBookingJson(out.booking, services.now()), refunds: out.refunds.map(refundJson) });
+  });
+
+  // The venue's wallet numbers go to the booking's own player only.
+  router.get('/bookings/:bookingId/payment-options', requireAuth(config, services), async (req, res) => {
+    const booking = await playerBooking(req.params.bookingId as string, req.auth!.userId);
+    const ownerId = String(booking.ownerId);
+    const venue = await Venue.findOne({ ownerId, _id: booking.venueId });
+    if (!venue) throw bookingNotFound();
+    const methods = await offeredMethods(ownerId, venue, await effectiveForVenue(ownerId, venue), { config, services });
+    const amount = (await payableGroup(booking)).reduce((n, b) => n + Math.max(0, b.advanceRequired - b.amountPaid), 0);
+    res.json({
+      wallets: methods.wallets,
+      card: methods.card,
+      amount,
+      currency: booking.currency,
+      holdExpiresAt: booking.holdExpiresAt ? booking.holdExpiresAt.toISOString() : null,
+    });
+  });
+
+  router.post('/bookings/:bookingId/payments/manual', requireAuth(config, services), async (req, res) => {
+    const input = manualSchema.parse(req.body);
+    const booking = await playerBooking(req.params.bookingId as string, req.auth!.userId);
+    const out = await submitManualPayment(booking, input, { services });
+    const self = out.bookings.find((b) => String(b._id) === String(booking._id)) ?? booking;
+    res.status(201).json({ booking: await playerBookingJson(self, services.now()), outcome: out.outcome });
   });
 
   router.post('/bookings/:bookingId/payment', requireAuth(config, services), async (req, res) => {

@@ -120,7 +120,7 @@ async function releaseAccount(ownerId: string, old: LoadedGateway, now: Date): P
   for (const p of pending) {
     try {
       if (!p.gatewayRef || !cancelled.has(p.gatewayRef)) await old.gateway.cancelPayment(old.creds, {
-        kind: p.kind ?? 'intent',
+        kind: (p.kind as 'intent' | 'link' | null) ?? 'intent',
         gatewayRef: p.gatewayRef ?? null,
         linkRef: p.linkRef ?? null,
       });

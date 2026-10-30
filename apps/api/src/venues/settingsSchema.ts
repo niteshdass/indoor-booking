@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { WALLET_PROVIDERS, WEEKDAYS, assertMinor, type EffectiveSettings } from '@booking/shared';
-import { normalizePhone } from '../auth/normalize';
+import { normalizeBdMobile } from '../auth/normalize';
 import { AppError } from '../errors';
 
 /** HH:MM, 24-hour. */
@@ -66,13 +66,8 @@ const walletSchema = z
   .object({
     provider: z.enum(WALLET_PROVIDERS),
     number: z.string().transform((raw, ctx) => {
-      try {
-        // A local number (01712345678) is read as Bangladeshi.
-        const n = normalizePhone(/^01/.test(raw.trim()) ? `+880${raw.trim().slice(1)}` : raw);
-        if (/^\+8801[3-9]\d{8}$/.test(n)) return n;
-      } catch {
-        // falls through to the issue below
-      }
+      const n = normalizeBdMobile(raw);
+      if (n) return n;
       ctx.addIssue({ code: 'custom', message: 'Use a Bangladesh mobile number, e.g. 01712345678' });
       return z.NEVER;
     }),

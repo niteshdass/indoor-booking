@@ -26,3 +26,14 @@ export function normalizePhone(input: string): string {
     throw invalid;
   }
 }
+
+/** A Bangladesh mobile number in E.164, or null. A local number (01712345678) is read as Bangladeshi. */
+export function normalizeBdMobile(input: string): string | null {
+  const raw = input.trim();
+  try {
+    const n = normalizePhone(/^01/.test(raw) ? `+880${raw.slice(1)}` : raw);
+    return /^\+8801[3-9]\d{8}$/.test(n) ? n : null;
+  } catch {
+    return null;
+  }
+}

@@ -198,7 +198,7 @@ async function refundUpdated(
 const pendingOf = (s: Pick<Succeeded, 'ownerId' | 'payment'>) => ({ ownerId: s.ownerId, _id: s.payment._id, status: 'pending' });
 
 /** Whether an expired or lapsed booking can have its slots and stock-limited add-ons back. */
-async function stillFree(ownerId: string, booking: BookingDoc, now: Date, session: ClientSession): Promise<boolean> {
+export async function stillFree(ownerId: string, booking: BookingDoc, now: Date, session: ClientSession): Promise<boolean> {
   if (booking.endAt <= now) return false;
   // A lapsed hold of someone else's still owns its locks; free them as createBooking would.
   await expireStaleHolds(ownerId, booking.turfId, booking, now, session, booking._id);

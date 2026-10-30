@@ -51,6 +51,8 @@ export type CreateBookingInput = QuoteInput & {
   card?: { amount?: number; gateway: string; gatewayAccountId: string; gatewayMode: 'test' | 'live' };
   /** Stored on the booking; a second booking with the same key fails on the unique index (keyHas 'requestKey'). */
   requestKey?: string;
+  /** How long a hold without a card link lasts; HOLD_MINUTES when omitted (MANUAL_HOLD_MINUTES where only wallets are taken). */
+  holdMinutes?: number;
   /** Runs inside the creating transaction after the inserts, e.g. to log activity atomically. */
   afterInsert?: (session: ClientSession, booking: BookingDoc, payment: PaymentDoc | null) => Promise<void>;
 };
@@ -179,7 +181,7 @@ export async function quoteFor(
  * sees the winner. Does not log activity; staff routes do that.
  */
 export async function createBooking(input: CreateBookingInput): Promise<BookingDoc> {
-  const { venue, turf, selection, source, now, who, cash, card, requestKey, afterInsert } = input;
+  const { venue, turf, selection, source, now, who, cash, card, requestKey, holdMinutes, afterInsert } = input;
   let prepared: Awaited<ReturnType<typeof prepare>>;
   try {
     prepared = await prepare(input);
@@ -224,7 +226,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
       };
       const amountPaid = takeCash ? amountOf(cash) : 0;
       const linkAmount = card ? amountOf(card) : 0;
-      const holdMinutes = card ? LINK_HOLD_MINUTES : HOLD_MINUTES;
+      const holdFor = card ? LINK_HOLD_MINUTES : (holdMinutes ?? HOLD_MINUTES);
 
       const [booking] = await Booking.create(
         [
@@ -246,7 +248,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             amountPaid,
             status,
             paymentStatus: paymentStatusFor(amountPaid, quote.total),
-            holdExpiresAt: status === 'awaiting_payment' ? new Date(now.getTime() + holdMinutes * 60_000) : null,
+            holdExpiresAt: status === 'awaiting_payment' ? new Date(now.getTime() + holdFor * 60_000) : null,
             source,
             playerId: who.playerId,
             guest: who.guest,
@@ -372,6 +374,7 @@ export type CreateGroupInput = GroupInput & {
   card?: Omit<NonNullable<CreateBookingInput['card']>, 'amount'>;
   /** Stored on the first booking only (see CreateBookingInput). */
   requestKey?: string;
+  holdMinutes?: CreateBookingInput['holdMinutes'];
   /** Runs inside the creating transaction after each booking's inserts. */
   afterInsert?: CreateBookingInput['afterInsert'];
 };
@@ -383,7 +386,7 @@ export type CreateGroupInput = GroupInput & {
  * staff book walk-ins, optionally taking cash or handing over one payment link.
  */
 export async function createBookingGroup(input: CreateGroupInput): Promise<BookingDoc[]> {
-  const { venue, now, who, cash, card, requestKey, afterInsert } = input;
+  const { venue, now, who, cash, card, requestKey, holdMinutes, afterInsert } = input;
   const source = input.source ?? 'online';
   const days = await prepareGroup(input);
   const { ownerId } = days[0]!;
@@ -406,7 +409,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
       const stocked = [...new Set(days.flatMap((d) => limited(d.offered, d.selection)))].sort();
       for (const addonId of stocked) await lockAddon(lockOwner, addonId, now, session);
       const groupId = new mongoose.Types.ObjectId();
-      const holdExpiresAt = new Date(now.getTime() + (card ? LINK_HOLD_MINUTES : HOLD_MINUTES) * 60_000);
+      const holdExpiresAt = new Date(now.getTime() + (card ? LINK_HOLD_MINUTES : (holdMinutes ?? HOLD_MINUTES)) * 60_000);
       const bookings: BookingDoc[] = [];
       for (const d of days) {
         const range = rangeOf(d.picked);

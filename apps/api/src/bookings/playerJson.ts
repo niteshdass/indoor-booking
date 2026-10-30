@@ -1,10 +1,11 @@
-import { REVIEW_WINDOW_DAYS, type OwnReviewJson } from '@booking/shared';
+import { REVIEW_WINDOW_DAYS, type OwnReviewJson, type WalletProvider } from '@booking/shared';
 import { User } from '../auth/user.model';
 import { ownReviewJson } from '../reviews/json';
 import { Review } from '../reviews/review.model';
 import { Venue } from '../venues/venue.model';
 import { Turf } from '../venues/turf.model';
 import { bookingJson, type BookingDoc } from './booking.model';
+import { Payment, type PaymentDoc } from './payment.model';
 
 export type PlayerPlace = {
   venue: { slug: string; name: string; address: string; city: string; timezone: string };
@@ -18,7 +19,25 @@ export type PlayerBooking = ReturnType<typeof bookingJson> & {
   review: OwnReviewJson | null;
   /** Last moment a review can be posted; null when it cannot (any more). */
   reviewableUntil: string | null;
+  /** The latest wallet payment the player submitted for this booking (a group's, on its lead); never the sender number. */
+  manualPayment: PlayerManualPayment | null;
 };
+
+export type PlayerManualPayment = {
+  provider: WalletProvider;
+  trxId: string;
+  amount: number;
+  status: 'pending' | 'succeeded' | 'failed';
+  submittedAt: string;
+};
+
+const manualPaymentJson = (p: PaymentDoc): PlayerManualPayment => ({
+  provider: p.provider as WalletProvider,
+  trxId: p.trxId!,
+  amount: p.amount,
+  status: p.status as PlayerManualPayment['status'],
+  submittedAt: p.createdAt.toISOString(),
+});
 
 const DAY_MS = 86_400_000;
 
@@ -35,10 +54,20 @@ function reviewableUntil(b: BookingDoc, now: Date): string | null {
 export async function playerBookingsJson(bookings: BookingDoc[], now: Date): Promise<PlayerBooking[]> {
   if (bookings.length === 0) return [];
   const ids = (key: 'venueId' | 'turfId') => [...new Set(bookings.map((b) => String(b[key])))];
-  const [venues, turfs, reviews] = await Promise.all([
+  const groupIds = [...new Set(bookings.filter((b) => b.groupId).map((b) => String(b.groupId)))];
+  const [venues, turfs, reviews, manual] = await Promise.all([
     Venue.find({ _id: { $in: ids('venueId') } }).setOptions({ crossTenant: true }),
     Turf.find({ _id: { $in: ids('turfId') } }).setOptions({ crossTenant: true }),
     Review.find({ bookingId: { $in: bookings.map((b) => b._id) } }).setOptions({ crossTenant: true }),
+    // Only a lead row carries the TrxID; the rest of its group share its groupId.
+    Payment.find({
+      ownerId: { $in: [...new Set(bookings.map((b) => String(b.ownerId)))] },
+      kind: 'manual',
+      trxId: { $type: 'string' },
+      $or: [{ bookingId: { $in: bookings.map((b) => b._id) } }, ...(groupIds.length ? [{ groupId: { $in: groupIds } }] : [])],
+    })
+      .setOptions({ crossTenant: true })
+      .sort({ _id: -1 }),
   ]);
   const authors = reviews.length
     ? await User.find({ _id: { $in: [...new Set(reviews.map((r) => String(r.playerId)))] } }).select('name')
@@ -51,12 +80,14 @@ export async function playerBookingsJson(bookings: BookingDoc[], now: Date): Pro
     const v = venueById.get(String(b.venueId));
     const t = turfById.get(String(b.turfId));
     const r = reviewByBooking.get(String(b._id));
+    const m = manual.find((p) => String(p.bookingId) === String(b._id) || (b.groupId && String(p.groupId) === String(b.groupId)));
     return {
       ...bookingJson(b),
       venue: v ? { slug: v.slug, name: v.name, address: v.address, city: v.city, timezone: v.timezone } : null,
       turf: t ? { name: t.name } : null,
       review: r ? ownReviewJson(r, nameById.get(String(r.playerId)), now) : null,
       reviewableUntil: reviewableUntil(b, now),
+      manualPayment: m ? manualPaymentJson(m) : null,
     };
   });
 }

@@ -285,6 +285,34 @@ describe('autoRejectPending', () => {
     }
   });
 
+  it('autoRejectPending skips a booking with a submitted manual payment', async () => {
+    await setup({
+      paymentPolicy: { type: 'partial_percent', percent: 60 },
+      paymentMethods: { manualWallets: [{ provider: 'bkash', number: '+8801712345678', accountType: 'personal' }], gateways: [] },
+    });
+    const player = await newPlayer();
+    const submit = async (hm: string, trxId: string) => {
+      const held = await bookAs(player.token, hm);
+      const submitted = await request(ctx.app)
+        .post(`/api/v1/bookings/${held.id}/payments/manual`)
+        .set(...bearer(player.token))
+        .send({ provider: 'bkash', trxId, senderNumber: '01812345678' });
+      expect(submitted.status).toBe(201);
+      expect((await bookingOf(held.id)).status).toBe('pending');
+      return held.id;
+    };
+    const waiting = await submit('18:00', '9A1B2C3D4E');
+    // Its payment was marked not received, so nothing holds it back.
+    const unpaid = await submit('20:00', '8A1B2C3D4E');
+    await Payment.updateOne({ bookingId: unpaid }, { $set: { status: 'failed' } }).setOptions(cross);
+
+    // Both are past the threshold.
+    advanceTo(new Date((await startOf(unpaid)).getTime() - MIN));
+    expect(await autoRejectPending(now())).toBe(1);
+    expect((await bookingOf(waiting)).status).toBe('pending');
+    expect((await bookingOf(unpaid)).status).toBe('rejected');
+  });
+
   it('a booking confirmed after the sweep selected it is skipped quietly', async () => {
     await setup({});
     const booking = await bookAs(null, '18:00');

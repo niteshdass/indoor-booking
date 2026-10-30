@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { WALLET_PROVIDERS } from '@booking/shared';
 import { tenantScoped } from '../tenancy/tenantScoped.plugin';
 
 const { ObjectId } = mongoose.Schema.Types;
@@ -18,8 +19,11 @@ const paymentSchema = new mongoose.Schema(
     currency: { type: String, required: true },
     status: { type: String, enum: ['succeeded', 'pending', 'failed'], required: true },
     gatewayRef: { type: String, default: null },
-    /** How a card payment is collected: an in-app intent or a Checkout link; null for cash. */
-    kind: { type: String, enum: ['intent', 'link', null], default: null },
+    /**
+     * How the payment is collected: a card's in-app intent or Checkout link, or a wallet transfer the
+     * customer made outside the app and staff check by hand (`manual`); null for cash.
+     */
+    kind: { type: String, enum: ['intent', 'link', 'manual', null], default: null },
     /** Checkout Session id for link payments. */
     linkRef: { type: String, default: null },
     failureCode: { type: String, default: null },
@@ -33,6 +37,15 @@ const paymentSchema = new mongoose.Schema(
      * whose metadata names the first of them; they succeed or fail together.
      */
     groupId: { type: ObjectId, default: null },
+    /** The wallet a manual payment was sent with. */
+    provider: { type: String, enum: [...WALLET_PROVIDERS, null], default: null },
+    /** The wallet's transaction id, normalized; on a group's lead row only, the others share its groupId. */
+    trxId: { type: String, default: null },
+    /** The number the customer sent from (E.164). Staff only: never in a URL, a log or a player response. */
+    senderNumber: { type: String, default: null },
+    /** The member who checked a manual payment, and when. */
+    verifiedBy: { type: ObjectId, ref: 'User', default: null },
+    verifiedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -42,6 +55,14 @@ paymentSchema.index({ ownerId: 1, groupId: 1, status: 1 }, { partialFilterExpres
 paymentSchema.index(
   { bookingId: 1 },
   { unique: true, partialFilterExpression: { method: 'card', status: 'pending' } },
+);
+// A TrxID counts once per owner and wallet while its payment is pending or succeeded; a failed one
+// ("not received") can be entered again. The plan read partial filters as unable to take $in and
+// called for one index per status, but two indexes would let a pending row repeat a succeeded one's
+// TrxID; MongoDB 6.0+ accepts $in here, so this is one index.
+paymentSchema.index(
+  { ownerId: 1, provider: 1, trxId: 1 },
+  { unique: true, partialFilterExpression: { trxId: { $type: 'string' }, status: { $in: ['pending', 'succeeded'] } } },
 );
 paymentSchema.plugin(tenantScoped);
 

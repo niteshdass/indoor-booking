@@ -187,7 +187,6 @@ function CardPane({
       live = false;
     };
     // onHoldExpired is a stable state setter wrapper.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, attempt]);
 
   if (state.status === 'redirect') return <Navigate to={`/me/bookings/${encodeURIComponent(id)}`} replace />;

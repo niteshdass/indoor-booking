@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
-import { DEFAULT_OWNER_SETTINGS } from '@booking/shared';
+import { DEFAULT_OWNER_SETTINGS, type OwnerSettings } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { addMember, bearer, seedOwner } from '../helpers/tenancy';
@@ -130,7 +130,7 @@ describe('payment methods', () => {
     expect(res.status).toBe(200);
     expect(res.body.settings.paymentMethods.manualWallets[0].number).toBe('+8801712345678');
     const owner = await Owner.findById(a.ownerId).lean();
-    expect((owner!.settings as any).paymentMethods.manualWallets[0].number).toBe('+8801712345678');
+    expect((owner!.settings as Partial<OwnerSettings>).paymentMethods!.manualWallets[0]!.number).toBe('+8801712345678');
   });
 
   it('rejects a wallet number that is not a BD mobile', async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
-import { hmToMin, localToUtc } from '@booking/shared';
+import { hmToMin, localToUtc, type OwnerSettings } from '@booking/shared';
 import { startTestDb, stopTestDb } from './helpers/testDb';
 import { buildTestApp } from './helpers/testApp';
 import { seedOwner } from './helpers/tenancy';
@@ -235,7 +235,7 @@ describe('payment methods', () => {
     const other = await seedOwner(ctx.services);
     await connectStripe(ctx.app, other, { enabled: false });
     expect(await runMigrations(ctx.services.now())).toContain('2026-10-30-payment-methods');
-    const stored = async (id: string) => ((await Owner.findById(id).lean())!.settings as any).paymentMethods;
+    const stored = async (id: string) => ((await Owner.findById(id).lean())!.settings as Partial<OwnerSettings> | undefined)?.paymentMethods;
     expect(await stored(owner.ownerId)).toEqual({ manualWallets: [], gateways: ['stripe'] });
     expect(await stored(other.ownerId)).toBeUndefined();
     expect(await MIGRATIONS.find((m) => m.id === '2026-10-30-payment-methods')!.run(ctx.services.now())).toBe(0);

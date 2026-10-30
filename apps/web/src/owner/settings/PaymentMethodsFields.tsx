@@ -87,8 +87,8 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, c
                   value={wallet.note ?? ''}
                   disabled={disabled}
                   onChange={(e) => {
-                    const { note: _drop, ...rest } = wallet;
-                    const next: ManualWallet = e.target.value === '' ? rest : { ...rest, note: e.target.value };
+                    const next: ManualWallet = { ...wallet, note: e.target.value };
+                    if (e.target.value === '') delete next.note;
                     setWallets(wallets.map((w) => (w.provider === provider ? next : w)));
                   }}
                 />

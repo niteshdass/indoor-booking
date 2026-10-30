@@ -68,7 +68,7 @@ describe('summarize', () => {
 describe('Today page', () => {
   it('Today shows stat cards in venue currency for the selected venue', async () => {
     const api = mockApi([
-      ...ownerRoutes(),
+      ...ownerRoutes({ permissions: ['booking.view', 'booking.confirm'] }),
       {
         path: '/owners/o1/bookings',
         body: {
@@ -102,6 +102,20 @@ describe('Today page', () => {
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
     const link = await screen.findByRole('link', { name: new RegExp(en.owner.today.trends) });
     expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/overview?venue=v1`);
+  });
+
+  it('Today trends link has no arrow', async () => {
+    mockApi([...ownerRoutes({ permissions: ['booking.view', 'reports.view'] }), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const link = await screen.findByRole('link', { name: new RegExp(en.owner.today.trends) });
+    expect(link.textContent).toBe(en.owner.today.trends);
+  });
+
+  it('Today hides the waiting tile without booking.confirm', async () => {
+    mockApi([...ownerRoutes(), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    await screen.findByText(en.owner.today.none);
+    expect(screen.queryByText(en.owner.today.pending)).toBeNull();
   });
 
   it('Today hides the trends link without reports.view', async () => {

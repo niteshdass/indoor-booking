@@ -150,7 +150,9 @@ export function Attention({
               {it.detail && <p className={styles.attentionDetail}>{it.detail}</p>}
             </div>
             {it.booking && it.primary && availableActions(it.booking, can).length > 0 ? (
-              <RowActions booking={it.booking} primary={it.primary} onDone={onChanged} />
+              <div className={styles.attentionActions}>
+                <RowActions booking={it.booking} primary={it.primary} onDone={onChanged} />
+              </div>
             ) : (
               <Link to={it.to} className={styles.link} aria-label={`${t('owner.today.open')}: ${it.title}`}>
                 {t('owner.today.open')}

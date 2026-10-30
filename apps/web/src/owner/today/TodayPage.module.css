@@ -451,6 +451,16 @@
   min-width: 0;
 }
 
+/* Inline actions take their own line under the text, lined up with it, so the text never gets squeezed */
+.attentionItem:has(> .attentionActions) {
+  flex-wrap: wrap;
+}
+
+.attentionActions {
+  flex-basis: 100%;
+  padding-inline-start: calc(var(--control-md) + var(--space-3));
+}
+
 .attentionTitle,
 .attentionDetail {
   margin: 0;

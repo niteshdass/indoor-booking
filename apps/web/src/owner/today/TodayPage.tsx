@@ -64,7 +64,6 @@ export function TodayPage() {
         {can('reports.view') && (
           <Link to={`overview?venue=${encodeURIComponent(venue.id)}`} className={styles.trends}>
             {t('owner.today.trends')}
-            <span aria-hidden="true">→</span>
           </Link>
         )}
       </div>
@@ -143,12 +142,14 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
             hint={t('owner.today.courtsUsedHint', { booked: hoursFmt.format(usage.booked), open: hoursFmt.format(usage.open) })}
           />
         )}
-        <StatCard
-          label={t('owner.today.pending')}
-          value={String(pending)}
-          tone={pending > 0 ? 'warning' : undefined}
-          hint={pending === 0 ? t('owner.today.caughtUp') : undefined}
-        />
+        {can('booking.confirm') && (
+          <StatCard
+            label={t('owner.today.pending')}
+            value={String(pending)}
+            tone={pending > 0 ? 'warning' : undefined}
+            hint={pending === 0 ? t('owner.today.caughtUp') : undefined}
+          />
+        )}
       </div>
       <CourtTimeline
         bookings={bookings}

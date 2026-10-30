@@ -13,7 +13,7 @@ import { expireHold, paymentsUnavailable, startLink } from '../../payments/inten
 import { loadGateway } from '../../payments/gateway.model';
 import { rejectManualPayment, verifyManualPayment } from '../../payments/manual';
 import { Refund, type RefundDoc } from '../../payments/refund.model';
-import { refundJson } from '../../payments/refunds';
+import { ownerRefundsJson } from '../../payments/refunds';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { permissionsCover, requirePermission, tenantOf, type TenantContext } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
@@ -203,7 +203,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     res.json({
       booking: await ownerBookingJson(booking),
       payments: payments.map(paymentJson),
-      refunds: refunds.map(refundJson),
+      refunds: await ownerRefundsJson(refunds),
       group: await ownerBookingsJson(group),
     });
   });
@@ -218,14 +218,14 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const { reason } = cancelSchema.parse(req.body ?? {});
     const booking = await scopedBooking(t, req.params.bookingId as string);
     const out = await cancelBooking(booking, { kind: 'staff', t }, { reason: reason || undefined }, { config, services });
-    res.json({ booking: await ownerBookingJson(out.booking), refunds: out.refunds.map(refundJson) });
+    res.json({ booking: await ownerBookingJson(out.booking), refunds: await ownerRefundsJson(out.refunds) });
   });
 
   router.get('/booking-groups/:groupId', requirePermission('booking.view'), async (req, res) => {
     const t = tenantOf(req);
     const bookings = await groupOf(t, req.params.groupId as string);
     const refunds = await Refund.find({ ownerId: t.ownerId, bookingId: { $in: bookings.map((b) => b._id) } }).sort({ _id: 1 });
-    res.json({ bookings: await ownerBookingsJson(bookings), refunds: refunds.map(refundJson) });
+    res.json({ bookings: await ownerBookingsJson(bookings), refunds: await ownerRefundsJson(refunds) });
   });
 
   // Takes the rest of every booking's total in one go; bookings already paid or past taking cash are skipped.
@@ -255,7 +255,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     }
     res.json({
       bookings: await ownerBookingsJson(await groupOf(t, req.params.groupId as string)),
-      refunds: refunds.map(refundJson),
+      refunds: await ownerRefundsJson(refunds),
     });
   });
 

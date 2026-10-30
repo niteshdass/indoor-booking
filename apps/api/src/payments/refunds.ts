@@ -19,20 +19,26 @@ const cross = { crossTenant: true };
 
 export type RefundPart = { paymentId: unknown; method: 'card' | 'cash' | 'wallet'; amount: number };
 
+const METHOD_ORDER = ['card', 'wallet', 'cash'] as const;
+
 /**
- * Splits `amount` over the booking's payments: card before cash, newest first, within each payment's
- * unrefunded room. Excess payments are not part of amountPaid, so they are never offered.
+ * Splits `amount` over the booking's payments: card, then wallet, then cash, newest first within each,
+ * within each payment's unrefunded room. Excess payments are not part of amountPaid, so they are never offered.
  */
 export function allocateRefund(payments: PaymentDoc[], amount: number): RefundPart[] {
   const usable = payments
-    .filter((p) => p.status === 'succeeded' && !p.excess && (p.method === 'card' || p.method === 'cash') && p.amount - p.refundedAmount > 0)
-    .sort((a, b) => Number(b.method === 'card') - Number(a.method === 'card') || (String(a._id) < String(b._id) ? 1 : -1));
+    .filter((p) => p.status === 'succeeded' && !p.excess && (p.method === 'card' || p.method === 'wallet' || p.method === 'cash') && p.amount - p.refundedAmount > 0)
+    .sort(
+      (a, b) =>
+        METHOD_ORDER.indexOf(a.method as (typeof METHOD_ORDER)[number]) - METHOD_ORDER.indexOf(b.method as (typeof METHOD_ORDER)[number]) ||
+        (String(a._id) < String(b._id) ? 1 : -1),
+    );
   const parts: RefundPart[] = [];
   let left = amount;
   for (const p of usable) {
     if (left <= 0) break;
     const take = Math.min(left, p.amount - p.refundedAmount);
-    parts.push({ paymentId: p._id, method: p.method as 'card' | 'cash', amount: take });
+    parts.push({ paymentId: p._id, method: p.method as RefundPart['method'], amount: take });
     left -= take;
   }
   if (left > 0) throw new Error('Refund exceeds what was paid');
@@ -344,4 +350,21 @@ export function refundJson(r: RefundDoc) {
     retryOf: r.retryOf ? String(r.retryOf) : null,
     createdAt: r.createdAt.toISOString(),
   };
+}
+
+/**
+ * refundJson for staff: a wallet refund also says where to send the money (the payer's number and
+ * provider) and, once sent, its transaction ID. The number never goes to players, so only owner routes use this.
+ */
+export async function ownerRefundsJson(refunds: RefundDoc[]) {
+  const wallet = refunds.filter((r) => r.method === 'wallet');
+  const payments = wallet.length
+    ? await Payment.find({ ownerId: wallet[0]!.ownerId, _id: { $in: wallet.map((r) => r.paymentId) } })
+    : [];
+  const byId = new Map(payments.map((p) => [String(p._id), p]));
+  return refunds.map((r) => {
+    if (r.method !== 'wallet') return refundJson(r);
+    const payment = byId.get(String(r.paymentId));
+    return { ...refundJson(r), trxId: r.trxId ?? null, provider: payment?.provider ?? null, sendTo: payment?.senderNumber ?? null };
+  });
 }

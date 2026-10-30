@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { bookingPaymentStatus } from '@booking/shared';
+import { z } from 'zod';
+import { bookingPaymentStatus, normalizeTrxId } from '@booking/shared';
 import type { Config } from '../../config';
 import { Booking } from '../../bookings/booking.model';
 import { Payment } from '../../bookings/payment.model';
@@ -11,8 +12,9 @@ import { tenantRepo } from '../../tenancy/repo';
 import { gatewayFor } from '../gateway';
 import { loadGateway, type GatewayMode } from '../gateway.model';
 import { Refund, type RefundDoc } from '../refund.model';
-import { dispatchRefund, refundJson, reserveRefunds, settleRefund } from '../refunds';
+import { dispatchRefund, ownerRefundsJson, reserveRefunds, settleRefund } from '../refunds';
 
+const markSentSchema = z.object({ trxId: z.string() });
 const invalid = () => new AppError(409, 'invalid_transition', 'This refund cannot be changed that way');
 
 /** Mounted on ownerRouter. */
@@ -91,7 +93,7 @@ export function refundsRouter(config: Config, services: AppServices): Router {
     } catch (err) {
       console.error(`[refunds] dispatch of ${String(row._id)} failed`, err);
     }
-    res.status(201).json({ refund: refundJson((await Refund.findOne({ ownerId: t.ownerId, _id: row._id }))!) });
+    res.status(201).json({ refund: (await ownerRefundsJson([(await Refund.findOne({ ownerId: t.ownerId, _id: row._id }))!]))[0] });
   });
 
   router.post('/refunds/:refundId/record-cash', requirePermission('refund.issue'), async (req, res) => {
@@ -107,7 +109,7 @@ export function refundsRouter(config: Config, services: AppServices): Router {
         return ok;
       });
       if (!done) throw invalid();
-      res.json({ refund: refundJson((await Refund.findOne({ ownerId: t.ownerId, _id: old._id }))!) });
+      res.json({ refund: (await ownerRefundsJson([(await Refund.findOne({ ownerId: t.ownerId, _id: old._id }))!]))[0] });
       return;
     }
     if (old.method !== 'card' || old.status !== 'failed') throw invalid();
@@ -117,7 +119,25 @@ export function refundsRouter(config: Config, services: AppServices): Router {
       await settleRefund(t.ownerId, created._id, { status: 'succeeded' }, now, session, actor);
       return created;
     });
-    res.status(201).json({ refund: refundJson((await Refund.findOne({ ownerId: t.ownerId, _id: row._id }))!) });
+    res.status(201).json({ refund: (await ownerRefundsJson([(await Refund.findOne({ ownerId: t.ownerId, _id: row._id }))!]))[0] });
+  });
+
+  // Staff sent the money back by hand from their own wallet app; the transaction ID is their record of it.
+  router.post('/refunds/:refundId/mark-sent', requirePermission('payment.verify'), async (req, res) => {
+    const t = tenantOf(req);
+    const refund = await scopedRefund(req);
+    if (refund.method !== 'wallet' || refund.status !== 'pending') throw invalid();
+    const parsed = markSentSchema.safeParse(req.body ?? {});
+    const trxId = parsed.success ? normalizeTrxId(parsed.data.trxId) : null;
+    if (!trxId) throw new AppError(400, 'invalid_trx_id', 'Enter the Transaction ID of the transfer you sent');
+    const now = services.now();
+    const done = await runInTransaction(async (session) => {
+      const ok = await settleRefund(t.ownerId, refund._id, { status: 'succeeded' }, now, session, { ownerId: t.ownerId, userId: t.userId });
+      if (ok) await Refund.updateOne({ ownerId: t.ownerId, _id: refund._id }, { $set: { trxId, by: t.userId } }, { session, timestamps: false });
+      return ok;
+    });
+    if (!done) throw invalid();
+    res.json({ refund: (await ownerRefundsJson([(await Refund.findOne({ ownerId: t.ownerId, _id: refund._id }))!]))[0] });
   });
 
   return router;

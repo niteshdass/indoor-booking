@@ -16,6 +16,10 @@ const listQuery = z
   .strict();
 const rejectSchema = z.object({ reason: z.string().trim().min(1).max(SUSPEND_REASON_MAX) });
 
+/** Payouts an admin checks by hand; Stripe payouts are settled by the webhook only. */
+const MANUAL_METHODS = ['bkash', 'nagad'];
+
+const notManual = () => new AppError(409, 'payout_not_manual', 'Card payouts are confirmed by Stripe');
 const notPending = () => new AppError(409, 'payout_not_pending', 'This payout was already reviewed');
 
 async function withOwnerNames(rows: PlatformPayoutDoc[]) {
@@ -34,7 +38,7 @@ export function adminPayoutsRouter(services: AppServices): Router {
     // The pending queue is worked oldest first; history (all) reads newest first. `before` is the cursor
     // either way: the last id of the previous page.
     const pending = (q.status ?? 'pending') === 'pending';
-    const filter: Record<string, unknown> = pending ? { status: 'pending' } : {};
+    const filter: Record<string, unknown> = pending ? { status: 'pending', method: { $in: MANUAL_METHODS } } : {};
     if (q.before) filter._id = { [pending ? '$gt' : '$lt']: new mongoose.Types.ObjectId(q.before) };
     // Cross-owner by design: the queue spans every owner.
     const rows = await PlatformPayout.find(filter)
@@ -60,6 +64,7 @@ export function adminPayoutsRouter(services: AppServices): Router {
       const payout = await runInTransaction(async (session) => {
         const found = await PlatformPayout.findById(id).setOptions({ crossTenant: true }).session(session);
         if (!found) throw new AppError(404, 'not_found', 'Payout not found');
+        if (!MANUAL_METHODS.includes(found.method)) throw notManual();
         if (found.status !== 'pending') throw notPending();
         const ownerId = String(found.ownerId);
         const set =
@@ -68,7 +73,7 @@ export function adminPayoutsRouter(services: AppServices): Router {
             : // The TrxID moves aside so the unique index stops covering it and it can be sent again.
               { status: 'rejected', rejectReason: reason, rejectedTrxId: found.trxId, trxId: null, reviewedAt: now, reviewedBy: actorId };
         // Conditional on still pending, so two admins cannot both review it.
-        const updated = await PlatformPayout.findOneAndUpdate({ _id: found._id, ownerId, status: 'pending' }, { $set: set }, { new: true, session });
+        const updated = await PlatformPayout.findOneAndUpdate({ _id: found._id, ownerId, status: 'pending', method: { $in: MANUAL_METHODS } }, { $set: set }, { new: true, session });
         if (!updated) throw notPending();
         await logPlatform(
           actorId,

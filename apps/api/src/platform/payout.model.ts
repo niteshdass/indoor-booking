@@ -6,7 +6,8 @@ const { ObjectId } = mongoose.Schema.Types;
 
 /**
  * Money an owner sent the platform against the fees its bookings owe. Manual (bKash, Nagad) payouts wait
- * as `pending` until an admin confirms or rejects them; only confirmed ones count as paid.
+ * as `pending` until an admin confirms or rejects them; Stripe payouts are settled by the admin account's
+ * webhook only. Only confirmed ones count as paid.
  */
 const payoutSchema = new mongoose.Schema(
   {
@@ -19,6 +20,8 @@ const payoutSchema = new mongoose.Schema(
     trxId: { type: String, default: null },
     rejectedTrxId: { type: String, default: null },
     senderNumber: { type: String, default: null },
+    /** Stripe payouts: the PaymentIntent on the admin's account, set once Stripe has created it. */
+    stripePaymentIntentId: { type: String, default: null },
     status: { type: String, enum: PAYOUT_STATUSES, required: true },
     /** The owner member who submitted it. */
     by: { type: ObjectId, ref: 'User', default: null },

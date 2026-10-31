@@ -157,6 +157,19 @@ export type GeneralSettings = {
   payout: { bkash: ManualWallet | null; nagad: ManualWallet | null; stripe: PayoutStripe | null };
 };
 
+/**
+ * Every saved mode's payout Stripe credentials, enabled or not, for verifying the platform webhook: test and
+ * live deliveries share the URL, and a payout started before Stripe was switched off can still settle.
+ */
+export async function payoutStripeWebhookCreds(config: Config): Promise<GatewayCredentials[]> {
+  const keys = (await loadSettings())?.general?.payout?.stripe?.keys;
+  const key = config.paymentsKey;
+  if (!keys || !key) return [];
+  return [keys.test, keys.live]
+    .filter((set) => !!set)
+    .map((set) => JSON.parse(open(set.credentialsEncrypted, key, secretAad('payout.stripe'))) as GatewayCredentials);
+}
+
 /** Approval mode, platform fee and where owners pay it; defaults when nothing is saved. */
 export async function resolveGeneral(config: Config): Promise<GeneralSettings> {
   const g = (await loadSettings())?.general;

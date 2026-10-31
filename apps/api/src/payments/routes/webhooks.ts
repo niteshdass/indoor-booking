@@ -1,14 +1,17 @@
 import { Router } from 'express';
-import mongoose from 'mongoose';
+import mongoose, { type ClientSession } from 'mongoose';
+import { payoutStripeWebhookCreds } from '../../admin/settings';
 import type { Config } from '../../config';
 import { isDuplicateKeyError, runInTransaction } from '../../db';
 import { AppError } from '../../errors';
 import type { AppServices } from '../../services';
 import { applyEvent } from '../apply';
-import { GatewayError, gatewayFor, type GatewayEvent } from '../gateway';
+import { PlatformPayout } from '../../platform/payout.model';
+import { PlatformWebhookEvent } from '../../platform/webhookEvent.model';
+import { GatewayError, gatewayFor, type GatewayCredentials, type GatewayEvent, type PaymentGateway } from '../gateway';
 import { GATEWAY_MODES, PaymentGatewayAccount, unsealMode } from '../gateway.model';
 import { dispatchRefund } from '../refunds';
-import { WebhookEvent } from '../webhookEvent.model';
+import { WebhookEvent, type WebhookOutcome } from '../webhookEvent.model';
 
 /** Only a repeat of this event; any other unique violation is a failed effect that Stripe must retry. */
 const isDuplicateEvent = (err: unknown) =>
@@ -16,9 +19,76 @@ const isDuplicateEvent = (err: unknown) =>
 
 const endpointNotFound = () => new AppError(404, 'not_found', 'Webhook endpoint not found');
 
-/** `/webhooks/:gateway/:ownerId`; needs the raw body, so it is mounted before `express.json()`. */
+/** Test and live deliveries share a URL; each is signed with its own mode's secret. */
+function verifyEvent(gateway: PaymentGateway, creds: GatewayCredentials[], rawBody: Buffer, signature: string | undefined): GatewayEvent {
+  let lastError: unknown;
+  for (const c of creds) {
+    try {
+      return gateway.handleWebhook(c, rawBody, signature);
+    } catch (err) {
+      if (!(err instanceof GatewayError && err.code === 'invalid_signature')) throw err;
+      lastError = err;
+    }
+  }
+  throw lastError;
+}
+
+const rawBodyOf = (body: unknown) => (Buffer.isBuffer(body) ? body : Buffer.alloc(0));
+
+/**
+ * Settles an owner's Stripe payout to the platform. Platform work, so no tenant: reads and writes are
+ * cross-tenant, and each change is conditional on the status it moves from, so a repeat cannot apply twice.
+ */
+async function applyPayoutEvent(event: GatewayEvent, now: Date, session: ClientSession): Promise<WebhookOutcome> {
+  if (event.kind !== 'succeeded' && event.kind !== 'closed' && event.kind !== 'attempt_failed') return 'ignored';
+  if (!event.paymentId || !mongoose.isValidObjectId(event.paymentId)) return 'unmatched';
+  const payout = await PlatformPayout.findOne({ _id: event.paymentId, method: 'stripe' }).setOptions({ crossTenant: true }).session(session);
+  if (!payout) return 'unmatched';
+  const at = { _id: payout._id, ownerId: payout.ownerId };
+  if (event.kind === 'succeeded') {
+    if (event.amount !== payout.amount || event.currency !== payout.currency) return 'mismatch';
+    // The money arrived, so it counts even when the hold expired or a failed attempt rejected it first.
+    const done = await PlatformPayout.updateOne(
+      { ...at, status: { $in: ['pending', 'rejected'] } },
+      { $set: { status: 'confirmed', rejectReason: null, reviewedAt: now, stripePaymentIntentId: event.gatewayRef } },
+      { session },
+    );
+    return done.modifiedCount === 1 ? 'applied' : 'ignored';
+  }
+  const done = await PlatformPayout.updateOne(
+    { ...at, status: 'pending' },
+    { $set: { status: 'rejected', rejectReason: 'stripe_failed', reviewedAt: now } },
+    { session },
+  );
+  return done.modifiedCount === 1 ? 'applied' : 'ignored';
+}
+
+/**
+ * `/webhooks/stripe/platform` (the admin's own account, for owner payouts) and `/webhooks/:gateway/:ownerId`;
+ * both need the raw body, so the router is mounted before `express.json()`.
+ */
 export function webhooksRouter(config: Config, services: AppServices): Router {
   const router = Router();
+
+  // Before '/:gateway/:ownerId', which would read 'platform' as an owner id.
+  router.post('/stripe/platform', async (req, res) => {
+    const gateway = gatewayFor(services, 'stripe');
+    const creds = gateway ? await payoutStripeWebhookCreds(config) : [];
+    if (!gateway || creds.length === 0) throw endpointNotFound();
+    const event = verifyEvent(gateway, creds, rawBodyOf(req.body), req.get('stripe-signature'));
+    const now = services.now();
+    try {
+      await runInTransaction(async (session) => {
+        const [row] = await PlatformWebhookEvent.create([{ gateway: gateway.key, eventId: event.id, type: event.type, at: now }], { session });
+        const outcome = await applyPayoutEvent(event, now, session);
+        await PlatformWebhookEvent.updateOne({ _id: row!._id }, { $set: { outcome } }, { session });
+      });
+    } catch (err) {
+      // Already processed: the first delivery's transaction committed the event row.
+      if (!isDuplicateEvent(err)) throw err;
+    }
+    res.json({ received: true });
+  });
 
   router.post('/:gateway/:ownerId', async (req, res) => {
     const { gateway: key, ownerId } = req.params;
@@ -28,21 +98,12 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
     const modes = row && gateway ? GATEWAY_MODES.map((m) => unsealMode(row, m, config, gateway)).filter((m) => m !== null) : [];
     if (!gateway || modes.length === 0) throw endpointNotFound();
 
-    // Test and live deliveries share the URL; each is signed with its own mode's secret.
-    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-    const signature = req.get('stripe-signature');
-    let event: GatewayEvent | null = null;
-    let lastError: unknown;
-    for (const m of modes) {
-      try {
-        event = gateway.handleWebhook(m.creds, rawBody, signature);
-        break;
-      } catch (err) {
-        if (!(err instanceof GatewayError && err.code === 'invalid_signature')) throw err;
-        lastError = err;
-      }
-    }
-    if (!event) throw lastError;
+    const event = verifyEvent(
+      gateway,
+      modes.map((m) => m.creds),
+      rawBodyOf(req.body),
+      req.get('stripe-signature'),
+    );
 
     const now = services.now();
     let refundIds: string[] = [];

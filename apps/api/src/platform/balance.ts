@@ -3,13 +3,19 @@ import { FEE_OWING_STATUSES, type CurrencyAmount, type PlatformBalanceJson } fro
 import { Booking } from '../bookings/booking.model';
 import { PlatformPayout } from './payout.model';
 
+/** A pending Stripe payout stops holding back the payable amount after this long (the card was never paid). */
+export const STRIPE_PAYOUT_HOLD_MS = 60 * 60 * 1000;
+
 const oids = (ids: readonly string[]) => ids.map((id) => new mongoose.Types.ObjectId(id));
 
 type Key = { ownerId: unknown; currency: string };
 const keyOf = (k: Key) => `${String(k.ownerId)}:${k.currency}`;
 
-/** Fees owed per owner and currency, and payouts per owner, currency and status. */
-async function totals(ownerIds: readonly string[], statuses: readonly string[], session?: ClientSession) {
+/**
+ * Fees owed per owner and currency, and payouts per owner, currency and status. Pending Stripe payouts
+ * created before `staleBefore` are left out.
+ */
+async function totals(ownerIds: readonly string[], statuses: readonly string[], staleBefore: Date | null, session?: ClientSession) {
   const ownerId = { $in: oids(ownerIds) };
   // One after the other: operations in a transaction must not run in parallel on its session.
   const owed = await Booking.aggregate<{ _id: Key; amount: number }>([
@@ -17,7 +23,13 @@ async function totals(ownerIds: readonly string[], statuses: readonly string[], 
     { $group: { _id: { ownerId: '$ownerId', currency: '$currency' }, amount: { $sum: '$platformFee.amount' } } },
   ]).session(session ?? null);
   const payouts = await PlatformPayout.aggregate<{ _id: Key & { status: string }; amount: number }>([
-    { $match: { ownerId, status: { $in: [...statuses] } } },
+    {
+      $match: {
+        ownerId,
+        status: { $in: [...statuses] },
+        ...(staleBefore ? { $nor: [{ method: 'stripe', status: 'pending', createdAt: { $lt: staleBefore } }] } : {}),
+      },
+    },
     { $group: { _id: { ownerId: '$ownerId', currency: '$currency', status: '$status' }, amount: { $sum: '$amount' } } },
   ]).session(session ?? null);
   return { owed, payouts };
@@ -25,10 +37,12 @@ async function totals(ownerIds: readonly string[], statuses: readonly string[], 
 
 /**
  * The owner's platform-fee balance per currency that has any fee or payout, largest balance first.
- * Pending payouts leave the balance alone but hold back what can still be paid.
+ * Pending payouts leave the balance alone but hold back what can still be paid; a pending Stripe payout
+ * only until STRIPE_PAYOUT_HOLD_MS after it was created.
  */
-export async function platformBalances(ownerId: string, session?: ClientSession): Promise<PlatformBalanceJson[]> {
-  const { owed, payouts } = await totals([ownerId], ['pending', 'confirmed'], session);
+export async function platformBalances(ownerId: string, now: Date, session?: ClientSession): Promise<PlatformBalanceJson[]> {
+  const staleBefore = new Date(now.getTime() - STRIPE_PAYOUT_HOLD_MS);
+  const { owed, payouts } = await totals([ownerId], ['pending', 'confirmed'], staleBefore, session);
   const rows = new Map<string, PlatformBalanceJson>();
   const row = (currency: string) => {
     let r = rows.get(currency);
@@ -50,7 +64,7 @@ export async function platformBalances(ownerId: string, session?: ClientSession)
 export async function balancesByOwner(ownerIds: string[]): Promise<Map<string, CurrencyAmount[]>> {
   const out = new Map<string, CurrencyAmount[]>();
   if (ownerIds.length === 0) return out;
-  const { owed, payouts } = await totals(ownerIds, ['confirmed']);
+  const { owed, payouts } = await totals(ownerIds, ['confirmed'], null);
   const sums = new Map<string, Key & { amount: number }>();
   const add = (k: Key, amount: number) => {
     const s = sums.get(keyOf(k)) ?? { ownerId: k.ownerId, currency: k.currency, amount: 0 };

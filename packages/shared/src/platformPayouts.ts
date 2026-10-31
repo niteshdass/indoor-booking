@@ -40,4 +40,7 @@ export type OwnerPlatformFeeJson = {
   methods: { bkash: ManualWallet | null; nagad: ManualWallet | null; stripe: { publishableKey: string } | null };
 };
 
+/** `POST /owners/:ownerId/platform-payouts/stripe`: the pending payout and what Stripe.js needs to pay it. */
+export type OwnerStripePayoutJson = { payout: PlatformPayoutJson; clientSecret: string; publishableKey: string };
+
 export type AdminPayoutsJson = { payouts: PlatformPayoutJson[]; nextBefore: string | null };

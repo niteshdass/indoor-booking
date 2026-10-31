@@ -63,8 +63,9 @@ function supportsCurrency(currency: string): boolean {
   }
 }
 
+/** A booking payment's id, or on the admin's account an owner payout's (`payoutId`). */
 function paymentIdOf(obj: { metadata?: Record<string, string> | null }): string | null {
-  return obj.metadata?.paymentId ?? null;
+  return obj.metadata?.paymentId ?? obj.metadata?.payoutId ?? null;
 }
 
 function toGatewayRefund(r: { id: string; status: string | null; failure_reason?: string | null }): GatewayRefund {

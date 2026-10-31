@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
-import type { AuthProvidersJson } from '@booking/shared';
-import { apiGet, apiPost } from '../lib/apiClient';
+import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse } from '../lib/types';
+import { authProviders, resetAuthProviders } from './providers';
 import styles from './auth.module.css';
 
 const SRC = 'https://accounts.google.com/gsi/client';
@@ -32,24 +32,11 @@ function loadGoogle(): Promise<void> {
   return loading;
 }
 
-let providers: Promise<string | null> | null = null;
-
-/** The Google client ID set in the admin dashboard (or the server env), fetched once per page; null hides the button. */
-function googleClientId(): Promise<string | null> {
-  providers ??= apiGet<AuthProvidersJson>('/auth/providers').then(
-    (p) => p.googleClientId,
-    () => {
-      providers = null; // try again on the next mount
-      return null;
-    },
-  );
-  return providers;
-}
+/** The Google client ID set in the admin dashboard (or the server env); null hides the button. */
+const googleClientId = (): Promise<string | null> => authProviders().then((p) => p.googleClientId);
 
 /** Tests: forget the cached client ID. */
-export function resetGoogleClientId(): void {
-  providers = null;
-}
+export const resetGoogleClientId = resetAuthProviders;
 
 /**
  * Google's own button with an "or" rule under it; renders nothing when Google is not configured or fails to load.

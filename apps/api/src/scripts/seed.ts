@@ -11,6 +11,7 @@ import {
   type TurfPricing,
 } from '@booking/shared';
 import { loadConfig, type Config } from '../config';
+import { SEED_EMAIL_DOMAIN, SEED_PASSWORD } from '../demo/accounts';
 import { connectDb, disconnectDb, runInTransaction } from '../db';
 import { hashPassword } from '../auth/crypto';
 import { User } from '../auth/user.model';
@@ -34,8 +35,8 @@ import { loadDay } from '../schedule/load';
 const USAGE = 'Usage: pnpm --filter api seed [--reset] [--owners 40] [--days-back 21] [--days-ahead 14]';
 
 /** Every seeded account signs in with this password. */
-const PASSWORD = 'password123';
-const EMAIL_DOMAIN = 'seed.local';
+const PASSWORD = SEED_PASSWORD;
+const EMAIL_DOMAIN = SEED_EMAIL_DOMAIN;
 /** Venues whose bookings are generated at once; each venue's turfs are independent of the others. */
 const PARALLEL_VENUES = 6;
 

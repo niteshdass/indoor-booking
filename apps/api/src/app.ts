@@ -26,6 +26,8 @@ import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
+import { demoGuard } from './demo/guard';
+import { demoAuthRouter } from './demo/routes';
 
 export type AppDeps = {
   config: Config;
@@ -77,6 +79,7 @@ export function createApp(deps: AppDeps): express.Express {
 
   const api = express.Router();
   api.use(healthRouter(deps.dbState));
+  if (deps.config.demoMode) api.use(demoGuard);
 
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();
@@ -95,6 +98,7 @@ export function createApp(deps: AppDeps): express.Express {
   auth.use(emailAuthRouter(authDeps));
   auth.use(phoneAuthRouter(authDeps));
   auth.use(googleAuthRouter(authDeps));
+  if (deps.config.demoMode) auth.use(demoAuthRouter(authDeps));
   api.use('/auth', auth);
   api.use(meRouter(authDeps));
   api.use(myMembershipsRouter(authDeps));

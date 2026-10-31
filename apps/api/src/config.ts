@@ -22,6 +22,8 @@ export type Config = {
   email?: { smtpUrl: string; from: string };
   /** Twilio delivery from the env; the admin dashboard's setting wins. Unset everywhere: console in dev, refused in production. */
   sms?: { accountSid: string; authToken: string; from: string };
+  /** Public demo deploy: one-click sign-in as the seeded accounts, and settings that would leak or break it are locked. */
+  demoMode?: boolean;
 };
 
 export class ConfigError extends Error {
@@ -49,6 +51,7 @@ const envSchema = z
       .optional(),
     TRUST_PROXY: z.string().min(1).optional(),
     JOBS_ENABLED: z.enum(['true', 'false']).default('true'),
+    DEMO_MODE: z.enum(['true', 'false']).default('false'),
     SMTP_URL: z.string().min(1).optional(),
     EMAIL_FROM: z.string().min(1).optional(),
     TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
@@ -121,5 +124,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     };
   }
   if (e.TRUST_PROXY) config.trustProxy = parseTrustProxy(e.TRUST_PROXY);
+  if (e.DEMO_MODE === 'true') config.demoMode = true;
   return config;
 }

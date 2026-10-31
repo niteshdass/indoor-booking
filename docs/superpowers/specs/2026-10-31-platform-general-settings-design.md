@@ -154,7 +154,13 @@ paid = Σ confirmed payouts
 balance = owed − paid
 ```
 
-Pending payouts are shown separately as "awaiting check" and do not reduce the balance yet. The amount a new payout can cover is `balance − pending`.
+Pending payouts are shown separately as "awaiting check" and do not reduce the balance yet. The amount a new payout can cover is `max(0, balance − pending)`.
+
+**Negative balance is a credit (user decided).** When a booking whose fee the owner already paid later becomes non-owing (cancelled, rejected), `owed` drops below `paid` and the balance goes negative. That credit stays and later fees use it up automatically, since the balance formula is cumulative. No refunds to owners. The owner page shows a "Credit ৳X" state with no Pay now, and the admin Owes column shows credit as a negative amount labelled as credit.
+
+### Reports (user decided: net)
+
+Owner reports (`apps/api/src/reports/overview.ts` and the CSV export) and admin stats (`apps/api/src/admin/stats.ts`) count venue revenue **net of the platform fee**: what the booking earned minus `platformFee.amount` for owing bookings, in either payer mode. The fee appears as its own line or column ("Platform fee"), so gross = net + fee is visible. Admin stats also show total platform fees owed and collected.
 
 - **Manual (bKash/Nagad):** the owner sees the admin's number. They submit an amount, a TrxID (validated with `normalizeTrxId`) and a sender number, which creates a `pending` payout. The admin confirms or rejects it in the admin queue.
 - **Stripe:** the server creates a PaymentIntent with the admin's keys for the chosen amount. The owner pays with the existing Payment Element. A webhook on a new platform endpoint marks the payout `confirmed`. The webhook is idempotent through the existing `webhookEvent` model.

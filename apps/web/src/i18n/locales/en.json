@@ -16,6 +16,19 @@
     "findCourt": "Find a court"
   },
   "auth": {
+    "art": {
+      "court": "Padel · Court 2",
+      "time": "Today · 19:00–20:30",
+      "booked": "Booked",
+      "login": {
+        "title": "Welcome back",
+        "sub": "Your bookings and favourite courts are one tap away."
+      },
+      "register": {
+        "title": "Your next game starts here",
+        "sub": "Find a court, pick a time and pay in a minute."
+      }
+    },
     "offline": "We can't reach the server to check your session. Check your connection.",
     "retry": "Try again",
     "email": "Email address",

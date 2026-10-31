@@ -9,6 +9,7 @@ import { TextField } from '../components/ui/TextField';
 import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse, OtpSent } from '../lib/types';
+import { AuthLayout } from './AuthLayout';
 import { GoogleButton } from './GoogleButton';
 import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
@@ -89,7 +90,7 @@ export function RegisterPage() {
 
   if (!withPhone) {
     return (
-      <main className={styles.page}>
+      <AuthLayout variant="register">
         <div className={styles.card}>
           <h1 className={styles.title}>{t('auth.register.title')}</h1>
           <GoogleButton
@@ -108,12 +109,12 @@ export function RegisterPage() {
             <Link to={loginHref}>{t('auth.register.haveAccount')}</Link>
           </div>
         </div>
-      </main>
+      </AuthLayout>
     );
   }
 
   return (
-    <main className={styles.page}>
+    <AuthLayout variant="register">
       <div className={styles.card}>
         <Button variant="ghost" size="sm" icon="arrowLeft" to={registerHref(false)} className={styles.back}>
           {t('auth.register.otherOptions')}
@@ -197,6 +198,6 @@ export function RegisterPage() {
           <Link to={loginHref}>{t('auth.register.haveAccount')}</Link>
         </div>
       </div>
-    </main>
+    </AuthLayout>
   );
 }

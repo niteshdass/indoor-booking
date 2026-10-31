@@ -115,6 +115,9 @@
   --hours-day: 7rem; /* weekday name column in the opening hours editor */
   --hours-mode-min: 7rem; /* narrowest the Open/Closed select gets there */
   --hero-panel-max: 40rem;
+  --auth-split-min: 36rem; /* sign-in / sign-up: lowest the court panel + card row gets from lg */
+  --auth-scene-min: 18rem; /* court drawing on the sign-in panel from lg */
+  --auth-ball: 1.25rem; /* ball on the sign-in court panel */
   --meter-height: 6px;
   --chart-height: 15rem; /* plot area of a dashboard trend chart */
   --chart-axis: 3rem; /* value labels left of a chart */
@@ -164,6 +167,7 @@
   --wood: #c98a44; /* basketball parquet, hero back court */
   --on-night-line: rgba(245, 247, 244, 0.28);
   --on-night-hover: rgba(245, 247, 244, 0.08);
+  --on-night-muted: rgba(245, 247, 244, 0.82); /* secondary text on night, graphite and surround panels */
   --shadow-ball: 0 6px 14px rgba(0, 0, 0, 0.3);
   --shadow-night: 0 30px 80px rgba(0, 0, 0, 0.45);
 

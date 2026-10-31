@@ -1,0 +1,203 @@
+/* Sign-in / sign-up: court panel + form card (design-system.md "Auth pages") */
+.page {
+  padding: var(--space-4) var(--space-4) var(--space-6);
+}
+
+.split {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: var(--container-checkout);
+  margin: 0 auto;
+}
+
+/* Below lg: a short court band above the card, no headline */
+.art {
+  width: 100%;
+  max-width: var(--container-narrow);
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--radius-xl);
+  background: var(--surround);
+  color: var(--chalk);
+}
+
+.scene {
+  position: relative;
+  aspect-ratio: 16 / 7;
+}
+
+.court,
+.lines {
+  position: absolute;
+  top: 12%;
+  left: 7%;
+  width: 86%;
+  height: 76%;
+}
+
+.court {
+  border-radius: var(--radius-sm);
+  background: var(--graphite);
+}
+
+.lines {
+  overflow: visible;
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
+  vector-effect: non-scaling-stroke;
+}
+
+.lines > * {
+  vector-effect: non-scaling-stroke;
+}
+
+.ball {
+  position: absolute;
+  top: 22%;
+  left: 24%;
+  width: var(--auth-ball);
+  height: var(--auth-ball);
+  border-radius: var(--radius-full);
+  background: var(--ball);
+  box-shadow: var(--shadow-ball);
+}
+
+/* Booked-slot ticket over the court: the product in one line */
+.ticket {
+  position: absolute;
+  right: 4%;
+  bottom: 6%;
+  display: none;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 88%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-raised);
+  color: var(--text-default);
+  box-shadow: var(--shadow-lg);
+}
+
+.ticketIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--text-strong);
+}
+
+.ticketText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ticketCourt {
+  overflow: hidden;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ticketTime {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.copy {
+  display: none;
+}
+
+.formSide {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .ticket {
+    display: flex;
+  }
+}
+
+/* lg: panel on the start side with the headline, card centred on the end side */
+@media (min-width: 1024px) {
+  .page {
+    padding: var(--space-8) var(--space-6);
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-8);
+    min-height: var(--auth-split-min);
+  }
+
+  .art {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--space-6);
+    max-width: none;
+    padding: var(--space-8);
+  }
+
+  /* The court takes whatever height the headline leaves */
+  .scene {
+    flex: 1;
+    aspect-ratio: auto;
+    min-height: var(--auth-scene-min);
+  }
+
+  .court,
+  .lines {
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 86%;
+  }
+
+  .ticket {
+    right: 0;
+    bottom: 0;
+  }
+
+  .copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .headline {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: var(--weight-semibold);
+    line-height: var(--leading-heading);
+    letter-spacing: var(--tracking-display);
+    text-wrap: balance;
+  }
+
+  .sub {
+    max-width: 36ch;
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--on-night-muted);
+  }
+
+  .formSide {
+    align-items: center;
+  }
+}

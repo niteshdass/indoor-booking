@@ -9,6 +9,7 @@ import { TextField } from '../components/ui/TextField';
 import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse, OtpSent } from '../lib/types';
+import { AuthLayout } from './AuthLayout';
 import { GoogleButton } from './GoogleButton';
 import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
@@ -95,7 +96,7 @@ export function LoginPage() {
 
   if (!method) {
     return (
-      <main className={styles.page}>
+      <AuthLayout variant="login">
         <div className={styles.card}>
           <h1 className={styles.title}>{t('auth.login.title')}</h1>
           <GoogleButton text="signin_with" onSignedIn={finish} />
@@ -111,12 +112,12 @@ export function LoginPage() {
             <Link to={registerHref}>{t('auth.login.toRegister')}</Link>
           </div>
         </div>
-      </main>
+      </AuthLayout>
     );
   }
 
   return (
-    <main className={styles.page}>
+    <AuthLayout variant="login">
       <div className={styles.card}>
         <Button variant="ghost" size="sm" icon="arrowLeft" to={loginHref(null)} className={styles.back}>
           {t('auth.login.otherOptions')}
@@ -196,6 +197,6 @@ export function LoginPage() {
           <Link to={registerHref}>{t('auth.login.toRegister')}</Link>
         </div>
       </div>
-    </main>
+    </AuthLayout>
   );
 }

@@ -1,5 +1,6 @@
 import { quoteAddons, type AddonLine, type AddonSelection, type OfferedAddon } from './addons';
 import { assertMinor, percentOf } from './money';
+import { platformFeeFor, type PlatformFeeSettings, type PlatformFeeSnapshot } from './platformFee';
 import type { PaymentPolicy } from './settings';
 import type { ComputedSlot, DaySlots } from './slots';
 import type { BookingStatus } from './statuses';
@@ -111,6 +112,7 @@ export type BookingQuote = {
   addonsTotal: number;
   total: number;
   advanceRequired: number;
+  platformFee: PlatformFeeSnapshot | null;
 };
 
 /** `paymentPolicy: null` is a walk-in: nothing is due up front. */
@@ -121,6 +123,8 @@ export function quoteBooking(input: {
   selection: AddonSelection[];
   inUse?: Record<string, number>;
   paymentPolicy: PaymentPolicy | null;
+  /** Omitted or null: no platform fee (e.g. walk-ins). */
+  fee?: { settings: PlatformFeeSettings; currency: string } | null;
 }): BookingQuote {
   const slots = input.slots.map((s) => {
     if (s.price === null) throw new BookingQuoteError('slot_unavailable', s.startAt.toISOString());
@@ -134,14 +138,20 @@ export function quoteBooking(input: {
     selection: input.selection,
     inUse: input.inUse,
   });
-  const total = subtotal + addonsTotal;
+  const base = subtotal + addonsTotal;
+  assertMinor(base);
+  const platformFee = input.fee ? platformFeeFor(input.fee.settings, base, input.fee.currency) : null;
+  const playerFee = platformFee?.payer === 'player' ? platformFee.amount : 0;
+  const total = base + playerFee;
   assertMinor(total);
+  const baseAdvance = input.paymentPolicy ? advanceFor(input.paymentPolicy, base) : 0;
   return {
     slots,
     addons: lines,
     subtotal,
     addonsTotal,
     total,
-    advanceRequired: input.paymentPolicy ? advanceFor(input.paymentPolicy, total) : 0,
+    advanceRequired: baseAdvance > 0 ? Math.min(total, baseAdvance + playerFee) : 0,
+    platformFee,
   };
 }

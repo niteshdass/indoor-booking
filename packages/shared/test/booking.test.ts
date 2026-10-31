@@ -10,6 +10,7 @@ import {
   quoteBooking,
   MAX_SLOTS_PER_BOOKING,
 } from '../src/booking';
+import { DEFAULT_PLATFORM_FEE } from '../src/platformFee';
 import { AddonQuoteError, type OfferedAddon } from '../src/addons';
 import { BOOKING_STATUSES, SLOT_FREEING_STATUSES, SLOT_HOLDING_STATUSES } from '../src/statuses';
 import type { ComputedSlot, DaySlots } from '../src/slots';
@@ -173,6 +174,36 @@ describe('quoteBooking', () => {
     expect(() =>
       quoteBooking({ ...base, selection: [{ addonId: 'nope' }], paymentPolicy: null }),
     ).toThrow(AddonQuoteError);
+  });
+
+  describe('platform fee', () => {
+    const plain = { slots: [slotAt(18, { price: 100000 })], offered: [], indoor: true, selection: [] };
+    const fee = (payer: 'owner' | 'player') => ({
+      settings: { ...DEFAULT_PLATFORM_FEE, mode: 'fixed' as const, fixed: 50, payer },
+      currency: 'BDT',
+    });
+    it('player-paid fee joins total and advance', () => {
+      const q = quoteBooking({
+        ...plain, paymentPolicy: { type: 'partial_percent', percent: 20 }, fee: fee('player'),
+      });
+      expect(q).toMatchObject({ total: 105000, advanceRequired: 25000 });
+      expect(q.platformFee?.amount).toBe(5000);
+    });
+    it('player-paid fee with no advance', () => {
+      const q = quoteBooking({ ...plain, paymentPolicy: { type: 'none' }, fee: fee('player') });
+      expect(q).toMatchObject({ total: 105000, advanceRequired: 0 });
+    });
+    it('owner-paid fee leaves total alone', () => {
+      const q = quoteBooking({
+        ...plain, paymentPolicy: { type: 'partial_percent', percent: 20 }, fee: fee('owner'),
+      });
+      expect(q).toMatchObject({ total: 100000, advanceRequired: 20000 });
+      expect(q.platformFee?.payer).toBe('owner');
+    });
+    it('no fee input means no fee', () => {
+      const q = quoteBooking({ ...plain, paymentPolicy: { type: 'partial_percent', percent: 20 } });
+      expect(q).toMatchObject({ total: 100000, advanceRequired: 20000, platformFee: null });
+    });
   });
 });
 

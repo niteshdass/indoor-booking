@@ -1,92 +1,21 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import type { AdminSettingsJson, SettingSource } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
-import { Badge, type Tone } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Tabs } from '../components/ui/Tabs';
 import { TextField } from '../components/ui/TextField';
-import { ApiError, apiDelete, apiGet, apiPost, apiPut } from '../lib/apiClient';
+import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
 import { useAdminTitle } from './AdminShell';
 import { dayTime } from './parts';
 import { GeneralTab } from './settings/GeneralTab';
+import { Card, failureText, useSection, type SettingsTab, type Store } from './settings/shared';
 import styles from '../owner/settings/settings.module.css';
-
-type Tab = 'general' | 'google' | 'email' | 'sms';
-/** Each PUT/DELETE path under /admin/settings. */
-export type Section = Tab | 'payout-stripe';
-export type Store = (next: AdminSettingsJson) => void;
-
-const SOURCE_TONE: Record<SettingSource, Tone> = { admin: 'success', server: 'info', none: 'warning' };
-
-/** Provider errors (a refused test message) carry their own reason; everything else uses the shared messages. */
-export function failureText(err: unknown, t: ReturnType<typeof useTranslation>['t']): string {
-  if (err instanceof ApiError && err.code === 'delivery_failed') return t('admin.settings.testFailed', { reason: err.message });
-  return errorMessage(err, t);
-}
-
-/** Save / remove / busy / error handling shared by the cards. `save` and `remove` resolve to whether they worked. */
-export function useSection(section: Section, store: Store) {
-  const { t } = useTranslation();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
-  const [saved, setSaved] = useState(false);
-  const run = async (fn: () => Promise<AdminSettingsJson>): Promise<boolean> => {
-    if (busy) return false;
-    setBusy(true);
-    setError(null);
-    setSaved(false);
-    try {
-      store(await fn());
-      setSaved(true);
-      setBusy(false);
-      return true;
-    } catch (err) {
-      setError(err);
-      setBusy(false);
-      return false;
-    }
-  };
-  return {
-    busy,
-    /** The raw failure, for callers that map it onto fields. */
-    failure: error,
-    error: error !== null ? failureText(error, t) : null,
-    saved,
-    save: (body: object) => run(() => apiPut<AdminSettingsJson>(`/admin/settings/${section}`, body)),
-    // DELETE answers with the updated settings, but apiDelete drops the body, so read them back.
-    remove: () => run(async () => (await apiDelete(`/admin/settings/${section}`), apiGet<AdminSettingsJson>('/admin/settings'))),
-  };
-}
-
-export function Card({ title, intro, source, guide, children }: { title: string; intro: ReactNode; source?: SettingSource; guide?: string; children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <section className={styles.card} aria-label={title}>
-      <div className={styles.statusRow}>
-        <h2 className={styles.heading}>{title}</h2>
-        {source && <Badge tone={SOURCE_TONE[source]}>{t(`admin.settings.source.${source}`)}</Badge>}
-      </div>
-      <p className={styles.muted}>
-        {intro}
-        {guide && (
-          <>
-            {' '}
-            <a className={styles.link} href={`/admin/docs/${guide}`} target="_blank" rel="noopener">
-              {t('admin.docs.guide')}
-            </a>
-          </>
-        )}
-      </p>
-      {children}
-    </section>
-  );
-}
 
 function Footer({ s, source, label }: { s: ReturnType<typeof useSection>; source: SettingSource; label: string }) {
   const { t } = useTranslation();
@@ -277,7 +206,7 @@ function GoogleSteps() {
   );
 }
 
-const SECTIONS: Tab[] = ['general', 'google', 'email', 'sms'];
+const SECTIONS: SettingsTab[] = ['general', 'google', 'email', 'sms'];
 
 /** Platform settings, one tab each: General (signup, fee, payouts), then the sign-in and delivery providers. Saved values win over the server env and apply without a restart. */
 export function AdminSettingsPage() {

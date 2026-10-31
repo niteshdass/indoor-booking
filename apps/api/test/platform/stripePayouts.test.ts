@@ -5,6 +5,7 @@ import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { bearer, seedOwner, seedUser } from '../helpers/tenancy';
 import { signedEvent } from '../helpers/stripe';
+import { PAYOUT_WEBHOOK_EVENTS } from '@booking/shared';
 import { signAccessToken } from '../../src/auth/jwt';
 import { User } from '../../src/auth/user.model';
 import { Owner } from '../../src/tenancy/owner.model';
@@ -287,6 +288,16 @@ describe('POST /webhooks/stripe/platform', () => {
     expect((await postPlatform(payoutEvent('payment_intent.canceled', two))).status).toBe(200);
     for (const p of [one, two]) expect(await payoutOf(p.id)).toMatchObject({ status: 'rejected', rejectReason: 'stripe_failed' });
     expect(await bdt()).toMatchObject({ pending: 0, payable: 10000 });
+  });
+
+  it('settles a payout on every event the payout endpoint subscribes to', async () => {
+    for (const type of PAYOUT_WEBHOOK_EVENTS) {
+      const payout = await started({ amount: 1000 });
+      expect((await postPlatform(payoutEvent(type, payout))).status).toBe(200);
+      expect((await payoutOf(payout.id)).status).not.toBe('pending');
+    }
+    const outcomes = (await PlatformWebhookEvent.find({}).sort({ _id: 1 }).lean()).map((e) => [e.type, e.outcome]);
+    expect(outcomes).toEqual(PAYOUT_WEBHOOK_EVENTS.map((type) => [type, 'applied']));
   });
 
   it('a late success still confirms an expired payout', async () => {

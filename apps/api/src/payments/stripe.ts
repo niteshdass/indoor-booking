@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { currencyExponent } from '@booking/shared';
+import { PAYOUT_WEBHOOK_EVENTS, currencyExponent } from '@booking/shared';
 import { GatewayError, type GatewayEvent, type GatewayRefund, type PaymentGateway } from './gateway';
 
 /** The slice of the Stripe SDK we use, so tests can inject a fake. */
@@ -42,9 +42,8 @@ export const realStripe: StripeFactory = (secretKey) => {
 
 /** The event types the owner subscribes their webhook endpoint to. */
 export const STRIPE_WEBHOOK_EVENTS = [
-  'payment_intent.succeeded',
-  'payment_intent.payment_failed',
-  'payment_intent.canceled',
+  // The same payment intent events the admin's payout endpoint takes.
+  ...PAYOUT_WEBHOOK_EVENTS,
   'checkout.session.expired',
   'refund.updated',
   'refund.failed',

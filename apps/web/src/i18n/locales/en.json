@@ -2166,8 +2166,8 @@
           "ownerHint": "The player's price stays the same.",
           "playerHint": "Added to the player's total at checkout."
         },
-        "exampleOwner": "Field {{base}} → player pays {{base}}, owner owes you {{fee}}",
-        "examplePlayer": "Field {{base}} → player pays {{total}}, owner owes you {{fee}}",
+        "exampleOwner": "Court {{base}} → player pays {{base}}, owner owes you {{fee}}",
+        "examplePlayer": "Court {{base}} → player pays {{total}}, owner owes you {{fee}}",
         "exampleLabel": "Example",
         "errors": {
           "fixed": "Enter an amount above 0 and up to 1,000,000, with at most 2 decimals.",
@@ -2197,6 +2197,7 @@
           "removeHint": "Owners can no longer pay by card.",
           "noKey": "Locked: this server has no encryption key, so Stripe keys cannot be saved.",
           "webhookHint": "In Stripe, add an endpoint with this URL and subscribe it to these events, once in test mode and once in live mode.",
+          "webhookSecretHint": "From the Webhook endpoint in this mode. Stored encrypted. It is never shown again.",
           "modeNotConnected": "Add the keys for this mode first."
         }
       }

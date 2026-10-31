@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
-import type { AdminSettingsJson } from '@booking/shared';
+import { PAYOUT_WEBHOOK_EVENTS, type AdminSettingsJson } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
@@ -169,9 +169,9 @@ describe('admin settings: General', () => {
     const fee = await card(g.fee.title);
     await h.user.click(within(fee).getByRole('radio', { name: g.mode.percent }));
     await h.user.type(within(fee).getByLabelText(g.fee.percent), '5');
-    expect(within(fee).getByText(/player pays .*1,000\.00, owner owes you .*50\.00/)).toBeInTheDocument();
+    expect(within(fee).getByText(/^Court .*1,000\.00 → player pays .*1,000\.00, owner owes you .*50\.00$/)).toBeInTheDocument();
     await h.user.click(within(fee).getByRole('radio', { name: g.payer.player }));
-    expect(within(fee).getByText(/player pays .*1,050\.00/)).toBeInTheDocument();
+    expect(within(fee).getByText(/^Court .*1,000\.00 → player pays .*1,050\.00/)).toBeInTheDocument();
   });
 
   it('saves general', async () => {
@@ -234,6 +234,9 @@ describe('admin settings: General', () => {
     expect(await within(payout).findByText(g.errors.number)).toBeInTheDocument();
     expect(within(payout).getByLabelText(g.payout.number.bkash)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText(en.errors.validation_error)).toBeInTheDocument();
+    await h.user.type(within(payout).getByLabelText(g.payout.number.bkash), '6');
+    expect(within(payout).queryByText(g.errors.number)).not.toBeInTheDocument();
+    expect(within(payout).getByLabelText(g.payout.number.bkash)).not.toHaveAttribute('aria-invalid', 'true');
   });
 
   it('saves payout Stripe keys on their own', async () => {
@@ -267,5 +270,14 @@ describe('admin settings: General', () => {
     expect(within(payout).getByLabelText(en.owner.gateway.secretKey)).toBeDisabled();
     expect(within(payout).getByRole('button', { name: en.owner.gateway.save.test })).toBeDisabled();
     expect(within(payout).getByText(g.stripe.noKey)).toBeInTheDocument();
+  });
+
+  it('shows the payout webhook events and a hint that does not depend on layout', async () => {
+    mockApi(routes([]));
+    renderApp('/admin/settings', { user: admin });
+    const payout = await card(g.payout.title);
+    for (const ev of PAYOUT_WEBHOOK_EVENTS) expect(within(payout).getByText(ev)).toBeInTheDocument();
+    expect(within(payout).getByText(g.stripe.webhookSecretHint)).toBeInTheDocument();
+    expect(within(payout).queryByText(en.owner.gateway.webhookSecretHint)).not.toBeInTheDocument();
   });
 });

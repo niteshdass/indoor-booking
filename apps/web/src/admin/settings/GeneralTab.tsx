@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   FEE_PAYERS,
   PLATFORM_FEE_MAX_PERCENT,
+  PAYOUT_WEBHOOK_EVENTS,
   PLATFORM_FEE_MODES,
   formatMoney,
   platformFeeFor,
@@ -22,7 +23,7 @@ import { TextField } from '../../components/ui/TextField';
 import { ApiError } from '../../lib/apiClient';
 import { PROVIDER_NAMES, formatBdMobile } from '../../lib/wallets';
 import { CopyField } from '../../owner/settings/StripeGatewayCard';
-import { Card, useSection, type Store } from '../AdminSettingsPage';
+import { Card, useSection, type Store } from './shared';
 import settings from '../../owner/settings/settings.module.css';
 import styles from './GeneralTab.module.css';
 
@@ -40,8 +41,6 @@ const FIXED_MAX = 1_000_000;
 /** The example's court price: ৳1,000 in minor units. */
 const EXAMPLE_BASE = 100_000;
 const EXAMPLE_CURRENCY = 'BDT';
-/** What the platform webhook acts on (`applyPayoutEvent`). */
-const PAYOUT_WEBHOOK_EVENTS = ['payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.canceled'];
 
 // Same patterns as the API's Stripe key fields.
 const SECRET_RE = /^(sk|rk)_(test|live)_\S+$/;
@@ -57,8 +56,10 @@ function parseAmount(text: string, max: number): number | null {
 }
 
 /** Which field each validation issue from the server belongs to (zod `path` joined with dots). */
-function serverFields(err: unknown): Set<string> {
-  const out = new Set<string>();
+type ServerField = 'fixed' | 'percent' | Provider;
+
+function serverFields(err: unknown): Set<ServerField> {
+  const out = new Set<ServerField>();
   if (!(err instanceof ApiError) || err.code !== 'validation_error' || !Array.isArray(err.details)) return out;
   for (const issue of err.details as Array<{ path?: unknown }>) {
     if (!Array.isArray(issue.path)) continue;
@@ -202,7 +203,7 @@ function PayoutKeys({ mode, stripe, secrets, store }: { mode: Mode; stripe: Payo
       <TextField
         icon="key"
         label={t('owner.gateway.webhookSecret')}
-        hint={t('owner.gateway.webhookSecretHint')}
+        hint={t('admin.settings.general.stripe.webhookSecretHint')}
         type="password"
         autoComplete="off"
         placeholder="whsec_…"
@@ -300,12 +301,15 @@ export function GeneralTab({ data, store }: { data: AdminSettingsJson; store: St
   const [wallets, setWallets] = useState<Record<Provider, ManualWallet | null>>({ bkash: general.payout.bkash, nagad: general.payout.nagad });
   const [editing, setEditing] = useState<Provider | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  /** Fields edited since the last save; their server errors no longer apply. */
+  const [touched, setTouched] = useState<ReadonlySet<ServerField>>(new Set());
 
   const fixedValue = parseAmount(fixed, FIXED_MAX);
   const percentValue = parseAmount(percent, PLATFORM_FEE_MAX_PERCENT);
   const badFixed = mode === 'fixed' && fixedValue === null;
   const badPercent = mode === 'percent' && percentValue === null;
-  const fromServer = serverFields(s.failure);
+  const fromServer = new Set([...serverFields(s.failure)].filter((f) => !touched.has(f)));
+  const touch = (f: ServerField) => !touched.has(f) && setTouched(new Set([...touched, f]));
   const g = (key: string, opts?: Record<string, unknown>) => t(`admin.settings.general.${key}`, opts);
 
   const fee = { mode, fixed: mode === 'fixed' ? fixedValue : null, percent: mode === 'percent' ? percentValue : null, payer };
@@ -315,6 +319,7 @@ export function GeneralTab({ data, store }: { data: AdminSettingsJson; store: St
   const save = () => {
     setSubmitted(true);
     if (badFixed || badPercent) return;
+    setTouched(new Set());
     const payout = Object.fromEntries(
       PROVIDERS.map((p) => {
         const w = wallets[p];
@@ -353,7 +358,10 @@ export function GeneralTab({ data, store }: { data: AdminSettingsJson; store: St
             autoComplete="off"
             placeholder="50"
             value={fixed}
-            onChange={(e) => setFixed(e.target.value)}
+            onChange={(e) => {
+              setFixed(e.target.value);
+              touch('fixed');
+            }}
             error={(submitted && badFixed) || fromServer.has('fixed') ? g('errors.fixed') : undefined}
           />
         )}
@@ -366,7 +374,10 @@ export function GeneralTab({ data, store }: { data: AdminSettingsJson; store: St
             autoComplete="off"
             placeholder="5"
             value={percent}
-            onChange={(e) => setPercent(e.target.value)}
+            onChange={(e) => {
+              setPercent(e.target.value);
+              touch('percent');
+            }}
             error={(submitted && badPercent) || fromServer.has('percent') ? g('errors.percent') : undefined}
           />
         )}
@@ -413,7 +424,10 @@ export function GeneralTab({ data, store }: { data: AdminSettingsJson; store: St
                         value={editing === p ? w.number : formatBdMobile(w.number)}
                         onFocus={() => setEditing(p)}
                         onBlur={() => setEditing(null)}
-                        onChange={(e) => setWallet(p, { ...w, number: e.target.value })}
+                        onChange={(e) => {
+                          setWallet(p, { ...w, number: e.target.value });
+                          touch(p);
+                        }}
                         error={bad ? g('errors.number') : undefined}
                       />
                       <Select

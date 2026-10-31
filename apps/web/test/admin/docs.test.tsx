@@ -44,6 +44,13 @@ describe('admin docs', () => {
     expect(screen.queryByRole('navigation', { name: en.admin.nav.label })).not.toBeInTheDocument();
   });
 
+  it('links the Google topic to the Google tab, not the default General tab', async () => {
+    mockApi([{ path: '/admin/me', body: ME }]);
+    renderApp('/admin/docs/google', { user: admin });
+    expect(await screen.findByRole('heading', { level: 1, name: topic('google').title })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: d.openSettings })).toHaveAttribute('href', '/admin/settings?section=google');
+  });
+
   it('renders a topic with its sections, settings link, links and next topic', async () => {
     mockApi([{ path: '/admin/me', body: ME }]);
     const h = renderApp('/admin/docs/email', { user: admin });

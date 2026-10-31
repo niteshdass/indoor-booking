@@ -195,7 +195,7 @@ export function AdminDocsPage() {
           <h1 className={styles.title}>{topic.title}</h1>
           <p className={styles.summary}>{topic.summary}</p>
           {topic.settings && (
-            <Button variant="secondary" size="sm" icon="sliders" to={`/admin/settings${topic.settings === 'google' ? '' : `?section=${topic.settings}`}`}>
+            <Button variant="secondary" size="sm" icon="sliders" to={`/admin/settings?section=${topic.settings}`}>
               {t('admin.docs.openSettings')}
             </Button>
           )}

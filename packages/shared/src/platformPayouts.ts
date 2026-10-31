@@ -44,3 +44,6 @@ export type OwnerPlatformFeeJson = {
 export type OwnerStripePayoutJson = { payout: PlatformPayoutJson; clientSecret: string; publishableKey: string };
 
 export type AdminPayoutsJson = { payouts: PlatformPayoutJson[]; nextBefore: string | null };
+
+/** Stripe events the admin's payout webhook endpoint subscribes to; the API settles owner payouts on these. */
+export const PAYOUT_WEBHOOK_EVENTS = ['payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.canceled'] as const;

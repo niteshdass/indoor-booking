@@ -29,7 +29,7 @@ describe('summarizeDay', () => {
     const both = summarizeDay([turf('A', [slot('18:00', 1500, 'booked'), slot('19:00', 1000)])], none);
     expect(both.fromPrice).toBe(1000);
     const bookedOnly = summarizeDay([turf('A', [slot('18:00', 1500, 'booked')])], none);
-    expect(bookedOnly).toEqual({ matched: 1, fromPrice: 1500, nextFreeSlot: null });
+    expect(bookedOnly).toEqual({ matched: 1, fromPrice: 1500, nextFreeSlot: null, freeTimes: [], freeTimeCount: 0 });
   });
 
   it('nextFreeSlot is the earliest available slot across turfs, ties to turf name', () => {
@@ -50,14 +50,31 @@ describe('summarizeDay', () => {
     expect(s.matched).toBe(3);
   });
 
+  it('freeTimes lists the earliest free start times once each, on the court that sorts first', () => {
+    const s = summarizeDay(
+      [
+        turf('B', [slot('18:00', 1200), slot('21:00', 1200), slot('22:00', 1200)]),
+        turf('A', [slot('19:00', 900, 'booked'), slot('20:00', 900), slot('18:00', 1100)]),
+      ],
+      none,
+    );
+    expect(s.freeTimes.map((f) => [f.localStart, f.turfName])).toEqual([
+      ['18:00', 'A'],
+      ['20:00', 'A'],
+      ['21:00', 'B'],
+    ]);
+    expect(s.freeTimeCount).toBe(4);
+    expect(s.nextFreeSlot).toEqual(s.freeTimes[0]);
+  });
+
   it('past, blocked and unpriced slots never match', () => {
     const s = summarizeDay([turf('A', [slot('09:00', 1000, 'past'), slot('10:00', 1000, 'blocked'), slot('11:00', null)])], none);
-    expect(s).toEqual({ matched: 0, fromPrice: null, nextFreeSlot: null });
+    expect(s).toEqual({ matched: 0, fromPrice: null, nextFreeSlot: null, freeTimes: [], freeTimeCount: 0 });
   });
 
   it('a turf that is not open contributes nothing', () => {
     const s = summarizeDay([turf('A', [slot('18:00', 1000)], false)], none);
-    expect(s).toEqual({ matched: 0, fromPrice: null, nextFreeSlot: null });
+    expect(s).toEqual({ matched: 0, fromPrice: null, nextFreeSlot: null, freeTimes: [], freeTimeCount: 0 });
   });
 
   it('time range keeps slots starting inside it, end exclusive', () => {

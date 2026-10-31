@@ -97,6 +97,8 @@ function resultJson(c: Candidate, date: string, s: DaySummary): SearchResult {
     date,
     fromPrice: s.fromPrice,
     nextFreeSlot: s.nextFreeSlot,
+    freeTimes: s.freeTimes,
+    freeTimeCount: s.freeTimeCount,
     rating: ratingJson(venue.rating),
   };
 }

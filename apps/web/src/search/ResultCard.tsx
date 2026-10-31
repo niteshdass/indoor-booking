@@ -1,9 +1,9 @@
 import { useId } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import type { SearchResult } from '@booking/shared';
+import { localParts, type SearchResult } from '@booking/shared';
 import { SportCourt } from '../landing/SportCourt';
-import { formatDistance, formatRating, moneyShort } from '../lib/format';
+import { formatDate, formatDistance, formatRating, moneyShort } from '../lib/format';
 import styles from './ResultCard.module.css';
 
 export type ResultLayout = 'rows' | 'grid';
@@ -33,15 +33,15 @@ export type ResultCardProps = {
 export function ResultCard({ r, layout = 'rows', active = false, onActive }: ResultCardProps) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
-  const slot = r.nextFreeSlot;
   const id = useId();
   const place = r.address && r.address !== r.city ? `${r.address}, ${r.city}` : r.city;
+  const href = `/venues/${r.slug}?date=${r.date}`;
+  const more = r.freeTimeCount - r.freeTimes.length;
+  const today = r.date === localParts(new Date(), r.timezone).date;
+  // The card is one target through the name link stretched over it; the free times are links of their own above it.
   return (
-    <Link
-      to={`/venues/${r.slug}?date=${r.date}`}
+    <article
       className={[styles.card, styles[layout], active && styles.active].filter(Boolean).join(' ')}
-      aria-labelledby={`${id}-name`}
-      aria-describedby={`${id}-meta ${r.rating ? `${id}-rating ` : ''}${id}-price ${id}-slot`}
       onMouseEnter={() => onActive?.(r.slug)}
       onMouseLeave={() => onActive?.(null)}
       onFocus={() => onActive?.(r.slug)}
@@ -61,9 +61,14 @@ export function ResultCard({ r, layout = 'rows', active = false, onActive }: Res
       </span>
       <span className={styles.body}>
         <span className={styles.head}>
-          <span id={`${id}-name`} className={styles.name}>
+          <Link
+            to={href}
+            id={`${id}-name`}
+            className={styles.name}
+            aria-describedby={`${id}-meta ${r.rating ? `${id}-rating ` : ''}${id}-price ${id}-slot`}
+          >
             {r.name}
-          </span>
+          </Link>
           {r.rating && (
             <span
               id={`${id}-rating`}
@@ -96,21 +101,36 @@ export function ResultCard({ r, layout = 'rows', active = false, onActive }: Res
           </span>
         )}
         <span className={styles.foot}>
-          <span
-            id={`${id}-slot`}
-            className={[styles.slot, slot && styles.free].filter(Boolean).join(' ')}
-          >
-            <Icon d={ICONS.clock} />
-            <span>
-              {slot
-                ? t('search.nextFree', {
-                    start: slot.localStart,
-                    end: slot.localEnd,
-                    turf: slot.turfName,
-                  })
-                : t('search.noFreeSlot')}
+          {r.freeTimes.length > 0 ? (
+            <span className={styles.free} role="group" aria-labelledby={`${id}-slot`}>
+              <span id={`${id}-slot`} className={styles.freeLabel}>
+                {today ? t('search.freeToday') : t('search.freeOn', { date: formatDate(r.date, r.timezone, lang) })}
+              </span>
+              <span className={styles.times}>
+                {r.freeTimes.map((f) => (
+                  <Link
+                    key={f.startAt}
+                    to={`${href}&turf=${encodeURIComponent(f.turfId)}&slot=${encodeURIComponent(f.startAt)}`}
+                    className={styles.time}
+                    aria-label={t('search.bookTime', { time: f.localStart, turf: f.turfName })}
+                    title={f.turfName}
+                  >
+                    {f.localStart}
+                  </Link>
+                ))}
+                {more > 0 && (
+                  <Link to={href} className={[styles.time, styles.more].join(' ')}>
+                    {t('search.moreTimes', { count: more })}
+                  </Link>
+                )}
+              </span>
             </span>
-          </span>
+          ) : (
+            <span id={`${id}-slot`} className={styles.none}>
+              <Icon d={ICONS.clock} />
+              <span>{t('search.noFreeSlot')}</span>
+            </span>
+          )}
           <span id={`${id}-price`} className={styles.price}>
             {r.fromPrice !== null
               ? t('search.fromPrice', { price: moneyShort(r.fromPrice, r.currency, lang) })
@@ -118,6 +138,6 @@ export function ResultCard({ r, layout = 'rows', active = false, onActive }: Res
           </span>
         </span>
       </span>
-    </Link>
+    </article>
   );
 }

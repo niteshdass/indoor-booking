@@ -121,6 +121,13 @@ export function VenuePage() {
     },
     [params, setParams],
   );
+  // `slot` is a one-shot pick from a search card; dropped once handled so a reload does not pick it again.
+  const preselect = params.get('slot');
+  const onPreselected = useCallback(() => {
+    const next = new URLSearchParams(params);
+    next.delete('slot');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   if (state.status === 'not_found') return <NotFoundPage />;
   if (state.status === 'loading') {
@@ -267,6 +274,8 @@ export function VenuePage() {
               tabId={`turf-tab-${turf.id}`}
               onOpen={(id, d) => update({ turf: id, date: d })}
               onPicked={setPicked}
+              preselect={preselect}
+              onPreselected={onPreselected}
             />
           </>
         ) : (

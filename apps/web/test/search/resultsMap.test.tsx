@@ -19,6 +19,8 @@ const r: SearchResult = {
   rating: null,
   fromPrice: 1000,
   nextFreeSlot: null,
+  freeTimes: [],
+  freeTimeCount: 0,
 };
 
 describe('pinLabel', () => {

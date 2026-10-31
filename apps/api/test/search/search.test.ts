@@ -76,7 +76,7 @@ describe('GET /api/v1/search', () => {
     expect(Object.keys(r ?? {}).sort()).toEqual(
       [
         'slug', 'name', 'address', 'city', 'country', 'currency', 'timezone', 'location', 'photo',
-        'sports', 'distanceMeters', 'date', 'fromPrice', 'nextFreeSlot', 'rating',
+        'sports', 'distanceMeters', 'date', 'fromPrice', 'nextFreeSlot', 'freeTimes', 'freeTimeCount', 'rating',
       ].sort(),
     );
     expect(r).toMatchObject({
@@ -89,6 +89,8 @@ describe('GET /api/v1/search', () => {
       fromPrice: 1000,
     });
     expect(r?.nextFreeSlot?.localStart).toBe('08:00');
+    expect(r?.freeTimes.map((f) => f.localStart)).toEqual(['08:00', '09:00', '10:00']);
+    expect(r?.freeTimeCount).toBeGreaterThan(3);
     expect(res.body.nextCursor).toBeNull();
   });
 

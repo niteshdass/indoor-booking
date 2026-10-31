@@ -22,6 +22,16 @@ vi.mock('../../src/search/ResultsMap', () => ({
   ),
 }));
 
+const free = (localStart: string, startAt: string, turfName = 'Court A') => ({
+  turfId: 't1',
+  turfName,
+  startAt,
+  endAt: startAt,
+  localStart,
+  localEnd: localStart,
+  price: 1000,
+});
+
 const venue: SearchResult = {
   slug: 'arena-one',
   name: 'Arena One',
@@ -46,6 +56,8 @@ const venue: SearchResult = {
     localEnd: '09:00',
     price: 1000,
   },
+  freeTimes: [free('08:00', '2026-10-25T02:00:00.000Z'), free('09:00', '2026-10-25T03:00:00.000Z', 'Court B')],
+  freeTimeCount: 2,
 };
 
 beforeEach(() => i18n.changeLanguage('en'));
@@ -61,8 +73,22 @@ describe('SearchPage', () => {
     expect(await screen.findByText('Arena One')).toBeInTheDocument();
     expect(api.calls[0]!.query.get('sport')).toBe('futsal');
     expect(screen.getByText((_, el) => el?.textContent === `from ${moneyShort(1000, 'BDT', 'en')}` && el.children.length === 0)).toBeInTheDocument();
-    expect(screen.getByText(/08:00/)).toBeInTheDocument();
-    expect(screen.getByText(/Court A/)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /^Free .*Oct 25/ })).toBeInTheDocument();
+    const first = screen.getByRole('link', { name: 'Book 08:00, Court A' });
+    const href = new URL(first.getAttribute('href')!, 'http://x');
+    expect(href.pathname).toBe('/venues/arena-one');
+    expect(href.searchParams.get('date')).toBe('2026-10-25');
+    expect(href.searchParams.get('turf')).toBe('t1');
+    expect(href.searchParams.get('slot')).toBe('2026-10-25T02:00:00.000Z');
+    expect(screen.getByRole('link', { name: 'Book 09:00, Court B' })).toBeInTheDocument();
+    expect(screen.queryByText(/more/)).toBeNull();
+  });
+
+  it('card lists at most the shown times with a "more" link to the venue', async () => {
+    mockApi([{ path: '/search', body: { results: [{ ...venue, freeTimeCount: 6 }], nextCursor: null } }]);
+    renderApp('/search');
+    const more = await screen.findByRole('link', { name: '+4 more' });
+    expect(more).toHaveAttribute('href', '/venues/arena-one?date=2026-10-25');
   });
 
   it('result card shows rating only when rated', async () => {
@@ -131,7 +157,7 @@ describe('SearchPage', () => {
   });
 
   it('card shows the no-price and no-free-slot strings', async () => {
-    mockApi([{ path: '/search', body: { results: [{ ...venue, fromPrice: null, nextFreeSlot: null }], nextCursor: null } }]);
+    mockApi([{ path: '/search', body: { results: [{ ...venue, fromPrice: null, nextFreeSlot: null, freeTimes: [], freeTimeCount: 0 }], nextCursor: null } }]);
     renderApp('/search');
     expect(await screen.findByText(en.search.noPrice)).toBeInTheDocument();
     expect(screen.getByText(en.search.noFreeSlot)).toBeInTheDocument();

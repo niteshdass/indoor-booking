@@ -25,6 +25,8 @@ function venue(slug: string): SearchResult {
     rating: null,
     fromPrice: 1000,
     nextFreeSlot: null,
+    freeTimes: [],
+    freeTimeCount: 0,
   };
 }
 /** Holds the fetch calls (by call index) until the returned release() is called; they then go through to the mock. */

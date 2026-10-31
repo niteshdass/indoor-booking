@@ -148,6 +148,28 @@ describe('VenuePage slots', () => {
     expect(calls.some((c) => c.path.endsWith('/turfs/t1/slots') && c.query.get('date') === '2026-10-25')).toBe(true);
   });
 
+  it('slot param from a search card picks that slot once, then leaves the URL', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
+    mockApi(routes());
+    const { location } = renderApp(`/venues/arena-one?date=2026-10-25&turf=t1&slot=${encodeURIComponent(slot(1).startAt)}`);
+    const picked = await screen.findByRole('button', { name: /11:00/ });
+    await waitFor(() => expect(picked).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: /10:00/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(screen.getByRole('complementary', { name: en.slots.summary })).getByText('1 slot')).toBeInTheDocument();
+    await waitFor(() => expect(location().search).not.toContain('slot='));
+    expect(location().search).toContain('turf=t1');
+    expect(location().navType).toBe('REPLACE');
+  });
+
+  it('slot param for a slot no longer free picks nothing', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
+    mockApi(routes());
+    const { location } = renderApp(`/venues/arena-one?date=2026-10-25&slot=${encodeURIComponent(slot(2).startAt)}`);
+    await screen.findByRole('button', { name: /10:00/ });
+    await waitFor(() => expect(location().search).not.toContain('slot='));
+    expect(screen.getAllByRole('button', { pressed: true }).filter((b) => /\d\d:00/.test(b.textContent ?? ''))).toEqual([]);
+  });
+
   it('copy times to other days: busy days disabled, copied days add to total and the link', async () => {
     vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     mockApi([

@@ -93,6 +93,7 @@
   --result-media: 13rem; /* photo column of a search result card (rows) */
   --result-min: 10rem; /* shortest search result card (rows) */
   --result-grid-min: 16rem; /* narrowest search result card column (grid) */
+  --result-time-hover: inset 0 0 0 1px currentColor; /* hover ring of a free-time chip on a search result card */
   --icon-sm: 1rem; /* inline icon next to small text */
   --icon-md: 1.125rem; /* glyph in an icon-only button */
   --empty-court: 7.5rem; /* court drawing in an empty table or list (EmptyState) */

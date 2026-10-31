@@ -5,7 +5,10 @@ import type { Sport } from './venues';
 export const SEARCH_RADII_KM = [10, 20, 30] as const;
 export const MAX_SEARCH_RADIUS_KM = 500;
 
-/** The earliest free slot of a search result's day. */
+/** How many free start times a search result lists. */
+export const FREE_TIMES_SHOWN = 3;
+
+/** A free slot of a search result's day. */
 export type NextFreeSlot = {
   turfId: string;
   turfName: string;
@@ -35,6 +38,10 @@ export type SearchResult = {
   /** Lowest matching slot price in minor units of `currency`. */
   fromPrice: number | null;
   nextFreeSlot: NextFreeSlot | null;
+  /** The earliest free slots, one per start time (up to `FREE_TIMES_SHOWN`); the first is `nextFreeSlot`. */
+  freeTimes: NextFreeSlot[];
+  /** How many distinct start times are free that day, listed or not. */
+  freeTimeCount: number;
   /** Null when the venue has no reviews. */
   rating: RatingSummary | null;
 };

@@ -38,7 +38,7 @@ const exceeds = () => new AppError(400, 'amount_exceeds_balance', 'The amount is
 /** Writes a pending payout if it fits in what the owner can pay now; throws amount_exceeds_balance otherwise. */
 async function createPending(
   t: Pick<TenantContext, 'ownerId' | 'userId'>,
-  fields: { currency: string; amount: number; method: PayoutMethod; trxId?: string; senderNumber?: string },
+  fields: { currency: string; amount: number; method: PayoutMethod; trxId?: string; senderNumber?: string; stripeMode?: 'test' | 'live' },
   now: Date,
 ): Promise<PlatformPayoutDoc> {
   return runInTransaction(async (session) => {
@@ -111,7 +111,7 @@ export function ownerPayoutsRouter(config: Config, services: AppServices): Route
     if (!stripe || !gateway || !owner || !gateway.supports(owner.country, body.currency)) throw unavailable();
     if (body.amount < 1) throw exceeds();
     const now = services.now();
-    const created = await createPending(t, { currency: body.currency, amount: body.amount, method: 'stripe' }, now);
+    const created = await createPending(t, { currency: body.currency, amount: body.amount, method: 'stripe', stripeMode: stripe.mode }, now);
     const payoutId = String(created._id);
 
     let intent: { gatewayRef: string; clientSecret: string };
@@ -127,11 +127,16 @@ export function ownerPayoutsRouter(config: Config, services: AppServices): Route
       if (!made.gatewayRef || !made.clientSecret) throw new GatewayError('gateway_error');
       intent = { gatewayRef: made.gatewayRef, clientSecret: made.clientSecret };
     } catch (err) {
-      // Nothing to pay: free the amount it holds back.
-      await PlatformPayout.updateOne(
-        { _id: created._id, ownerId: t.ownerId, status: 'pending' },
-        { $set: { status: 'rejected', rejectReason: 'stripe_failed' } },
-      );
+      // Nothing to pay: free the amount it holds back. The caller gets Stripe's error either way; if this
+      // write fails too, the payout stops holding the amount after the Stripe hold anyway.
+      try {
+        await PlatformPayout.updateOne(
+          { _id: created._id, ownerId: t.ownerId, status: 'pending' },
+          { $set: { status: 'rejected', rejectReason: 'stripe_failed', reviewedAt: services.now() } },
+        );
+      } catch (updateErr) {
+        console.error(`[platform-payouts] could not reject payout ${payoutId} after a Stripe failure`, updateErr);
+      }
       throw err;
     }
     const payout = await PlatformPayout.findOneAndUpdate(

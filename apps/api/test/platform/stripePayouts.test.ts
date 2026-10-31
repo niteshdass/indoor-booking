@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -31,7 +31,7 @@ const oid = () => new mongoose.Types.ObjectId();
 const cross = { crossTenant: true };
 const HOUR = 3_600_000;
 const TEST_KEYS = { mode: 'test', secretKey: 'sk_test_payout1', publishableKey: 'pk_test_payout1', webhookSecret: 'whsec_payout1', enabled: true };
-const LIVE_KEYS = { mode: 'test', secretKey: 'sk_live_payout2', publishableKey: 'pk_live_payout2', webhookSecret: 'whsec_payout2', enabled: true };
+const LIVE_KEYS = { mode: 'live', secretKey: 'sk_live_payout2', publishableKey: 'pk_live_payout2', webhookSecret: 'whsec_payout2', enabled: true };
 
 let ctx: ReturnType<typeof buildTestApp>;
 let admin: Awaited<ReturnType<typeof seedUser>>;
@@ -51,6 +51,13 @@ async function advance(ms: number) {
   a = { ...a, token: await signAccessToken(a.userId, ctx.config.jwtSecret, ctx.services.now()) };
 }
 const payoutOf = async (id: string) => (await PlatformPayout.findById(id).setOptions(cross).lean())!;
+/** Starts a payout; returns it with the PaymentIntent id stored for it. */
+async function started(body: object = {}): Promise<PayoutLike> {
+  const res = await start(body);
+  expect(res.status).toBe(201);
+  const { payout } = res.body;
+  return { ...payout, pi: (await payoutOf(payout.id)).stripePaymentIntentId };
+}
 
 async function setGeneral() {
   await PlatformSettings.updateOne(
@@ -91,16 +98,21 @@ async function owing() {
 }
 
 let eventSeq = 0;
-type PayoutLike = { id: string; amount: number; currency: string };
-function payoutEvent(type: string, p: PayoutLike, o: { id?: string; amount?: number; currency?: string } = {}) {
+type PayoutLike = { id: string; amount: number; currency: string; pi?: string | null };
+function payoutEvent(
+  type: string,
+  p: PayoutLike,
+  o: { id?: string; amount?: number; currency?: string; pi?: string; livemode?: boolean } = {},
+) {
   eventSeq += 1;
   return {
     id: o.id ?? `evt_payout_${eventSeq}`,
     object: 'event',
     type,
+    livemode: o.livemode ?? false,
     data: {
       object: {
-        id: `pi_for_${p.id}`,
+        id: o.pi ?? p.pi ?? `pi_for_${p.id}`,
         object: 'payment_intent',
         amount: p.amount,
         amount_received: type === 'payment_intent.succeeded' ? (o.amount ?? p.amount) : 0,
@@ -188,6 +200,41 @@ describe('start a Stripe payout', () => {
     expect(await bdt()).toMatchObject({ pending: 0, payable: 10000 });
   });
 
+  it('a Stripe failure stamps reviewedAt on the rejected payout', async () => {
+    ctx.services.stripe.fail('paymentIntents.create', 'api');
+    expect((await start()).status).toBe(502);
+    const [row] = await PlatformPayout.find({ ownerId: a.ownerId }).lean();
+    expect(row!.reviewedAt).toEqual(ctx.services.now());
+  });
+
+  it('an intent without a client secret rejects the payout', async () => {
+    const real = ctx.services.stripe;
+    ctx.services.stripe = Object.assign((key: string) => {
+      const api = real(key);
+      return { ...api, paymentIntents: { ...api.paymentIntents, create: async () => ({ id: 'pi_no_secret', client_secret: null }) } };
+    }, real);
+    const res = await start();
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe('gateway_error');
+    const [row] = await PlatformPayout.find({ ownerId: a.ownerId }).lean();
+    expect(row).toMatchObject({ status: 'rejected', rejectReason: 'stripe_failed', stripePaymentIntentId: null });
+    expect(await bdt()).toMatchObject({ pending: 0, payable: 10000 });
+  });
+
+  it('keeps the gateway error when marking the payout rejected fails too', async () => {
+    ctx.services.stripe.fail('paymentIntents.create', 'api');
+    const spy = vi.spyOn(PlatformPayout, 'updateOne').mockRejectedValueOnce(new Error('db down'));
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const res = await start();
+      expect(res.status).toBe(502);
+      expect(res.body.error.code).toBe('gateway_error');
+    } finally {
+      spy.mockRestore();
+      quiet.mockRestore();
+    }
+  });
+
   it('a pending Stripe payout stops holding the amount after an hour', async () => {
     await start();
     await advance(HOUR - 1000);
@@ -199,7 +246,7 @@ describe('start a Stripe payout', () => {
 
 describe('POST /webhooks/stripe/platform', () => {
   it('webhook confirms the payout', async () => {
-    const { payout } = (await start()).body;
+    const payout = await started();
     const event = payoutEvent('payment_intent.succeeded', payout);
     const res = await postPlatform(event);
     expect(res.status).toBe(200);
@@ -212,7 +259,7 @@ describe('POST /webhooks/stripe/platform', () => {
   });
 
   it('duplicate webhook is ignored', async () => {
-    const { payout } = (await start()).body;
+    const payout = await started();
     const event = payoutEvent('payment_intent.succeeded', payout);
     expect((await postPlatform(event)).status).toBe(200);
     expect((await postPlatform(event)).status).toBe(200);
@@ -224,7 +271,7 @@ describe('POST /webhooks/stripe/platform', () => {
   });
 
   it('amount mismatch leaves it pending', async () => {
-    const { payout } = (await start()).body;
+    const payout = await started();
     expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout, { amount: 5999 }))).status).toBe(200);
     expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout, { currency: 'USD' }))).status).toBe(200);
     expect((await payoutOf(payout.id)).status).toBe('pending');
@@ -234,8 +281,8 @@ describe('POST /webhooks/stripe/platform', () => {
   });
 
   it('a failed or canceled intent rejects the payout', async () => {
-    const one = (await start({ amount: 3000 })).body.payout;
-    const two = (await start({ amount: 3000 })).body.payout;
+    const one = await started({ amount: 3000 });
+    const two = await started({ amount: 3000 });
     expect((await postPlatform(payoutEvent('payment_intent.payment_failed', one))).status).toBe(200);
     expect((await postPlatform(payoutEvent('payment_intent.canceled', two))).status).toBe(200);
     for (const p of [one, two]) expect(await payoutOf(p.id)).toMatchObject({ status: 'rejected', rejectReason: 'stripe_failed' });
@@ -243,7 +290,7 @@ describe('POST /webhooks/stripe/platform', () => {
   });
 
   it('a late success still confirms an expired payout', async () => {
-    const { payout } = (await start()).body;
+    const payout = await started();
     await advance(2 * HOUR);
     expect(await bdt()).toMatchObject({ pending: 0, payable: 10000 });
     expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout))).status).toBe(200);
@@ -251,11 +298,75 @@ describe('POST /webhooks/stripe/platform', () => {
     expect(await bdt()).toMatchObject({ paid: 6000, balance: 4000 });
   });
 
-  it('verifies with the live secret too, and refuses a bad signature', async () => {
+  it('verifies with each saved secret; a live payout takes live events only', async () => {
+    // Both key sets saved, live active: the live payout is made with the live key.
     await connectAdminStripe(LIVE_KEYS);
-    const { payout } = (await start()).body;
-    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout), 'whsec_wrong')).status).toBe(400);
-    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout), LIVE_KEYS.webhookSecret)).status).toBe(200);
+    const payout = await started();
+    const call = ctx.services.stripe.calls.filter((c) => c.method === 'paymentIntents.create').at(-1)!;
+    expect(call.secretKey).toBe(LIVE_KEYS.secretKey);
+    expect((await payoutOf(payout.id)).stripeMode).toBe('live');
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout, { livemode: true }), 'whsec_wrong')).status).toBe(400);
+    // Signed with the test secret (first in the loop) and test mode: verified, but it cannot settle a live payout.
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout), TEST_KEYS.webhookSecret)).status).toBe(200);
+    expect((await payoutOf(payout.id)).status).toBe('pending');
+    // Signed with the live secret (second in the loop) and live mode: confirms.
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout, { livemode: true }), LIVE_KEYS.webhookSecret)).status).toBe(200);
+    expect((await payoutOf(payout.id)).status).toBe('confirmed');
+    const outcomes = (await PlatformWebhookEvent.find({}).sort({ _id: 1 }).lean()).map((e) => e.outcome);
+    expect(outcomes).toEqual(['unmatched', 'applied']);
+  });
+
+  it('a test-mode event cannot confirm or reject a live payout', async () => {
+    await connectAdminStripe(LIVE_KEYS);
+    const payout = await started();
+    for (const type of ['payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.canceled']) {
+      expect((await postPlatform(payoutEvent(type, payout, { livemode: false }), LIVE_KEYS.webhookSecret)).status).toBe(200);
+    }
+    expect(await payoutOf(payout.id)).toMatchObject({ status: 'pending', stripePaymentIntentId: payout.pi, reviewedAt: null });
+  });
+
+  it('a live-mode event cannot settle a test payout', async () => {
+    const payout = await started();
+    expect((await payoutOf(payout.id)).stripeMode).toBe('test');
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout, { livemode: true }))).status).toBe(200);
+    expect((await payoutOf(payout.id)).status).toBe('pending');
+  });
+
+  it('an event for another PaymentIntent is ignored and does not overwrite the stored one', async () => {
+    const payout = await started();
+    for (const type of ['payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.canceled']) {
+      expect((await postPlatform(payoutEvent(type, payout, { pi: 'pi_someone_else' }))).status).toBe(200);
+    }
+    expect(await payoutOf(payout.id)).toMatchObject({ status: 'pending', stripePaymentIntentId: payout.pi });
+    expect((await PlatformWebhookEvent.find({}).lean()).map((e) => e.outcome)).toEqual(['unmatched', 'unmatched', 'unmatched']);
+    expect(await bdt()).toMatchObject({ paid: 0, pending: 6000 });
+  });
+
+  it('a payout whose intent was never stored is not settled by any event', async () => {
+    ctx.services.stripe.fail('paymentIntents.create', 'api');
+    expect((await start()).status).toBe(502);
+    const [row] = await PlatformPayout.find({ ownerId: a.ownerId }).lean();
+    expect(row!.stripePaymentIntentId).toBeNull();
+    const p = { id: String(row!._id), amount: row!.amount, currency: row!.currency };
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', p))).status).toBe(200);
+    expect((await payoutOf(p.id)).status).toBe('rejected');
+    expect(await bdt()).toMatchObject({ paid: 0, payable: 10000 });
+  });
+
+  it('a success after a failed attempt confirms the payout', async () => {
+    const payout = await started();
+    expect((await postPlatform(payoutEvent('payment_intent.payment_failed', payout))).status).toBe(200);
+    expect(await payoutOf(payout.id)).toMatchObject({ status: 'rejected', rejectReason: 'stripe_failed' });
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout))).status).toBe(200);
+    expect(await payoutOf(payout.id)).toMatchObject({ status: 'confirmed', rejectReason: null });
+    expect(await bdt()).toMatchObject({ paid: 6000, pending: 0, balance: 4000 });
+  });
+
+  it('confirms while the admin has switched Stripe off', async () => {
+    const payout = await started();
+    await connectAdminStripe({ ...TEST_KEYS, enabled: false });
+    expect((await start()).body.error.code).toBe('method_unavailable');
+    expect((await postPlatform(payoutEvent('payment_intent.succeeded', payout))).status).toBe(200);
     expect((await payoutOf(payout.id)).status).toBe('confirmed');
   });
 
@@ -275,7 +386,7 @@ describe('POST /webhooks/stripe/platform', () => {
 
 describe('admin queue and Stripe payouts', () => {
   it('lists manual payouts only, and refuses manual review of a Stripe payout', async () => {
-    const { payout } = (await start()).body;
+    const payout = await started();
     expect((await get('/admin/payouts', admin.token)).body.payouts).toHaveLength(0);
     const all = await get('/admin/payouts?status=all', admin.token);
     expect(all.body.payouts.map((p: { id: string }) => p.id)).toEqual([payout.id]);

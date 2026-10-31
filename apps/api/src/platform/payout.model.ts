@@ -22,6 +22,8 @@ const payoutSchema = new mongoose.Schema(
     senderNumber: { type: String, default: null },
     /** Stripe payouts: the PaymentIntent on the admin's account, set once Stripe has created it. */
     stripePaymentIntentId: { type: String, default: null },
+    /** Stripe payouts: the admin's key mode it was made in; only events from that mode can settle it. */
+    stripeMode: { type: String, enum: ['test', 'live'], default: null },
     status: { type: String, enum: PAYOUT_STATUSES, required: true },
     /** The owner member who submitted it. */
     by: { type: ObjectId, ref: 'User', default: null },

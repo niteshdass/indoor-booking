@@ -135,7 +135,7 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
       } catch {
         throw new GatewayError('invalid_signature');
       }
-      const base = { id: event.id, type: event.type };
+      const base = { id: event.id, type: event.type, livemode: event.livemode === true };
       switch (event.type) {
         case 'payment_intent.succeeded': {
           const pi = event.data.object;
@@ -150,12 +150,12 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
         }
         case 'payment_intent.payment_failed': {
           const pi = event.data.object;
-          return { ...base, kind: 'attempt_failed', paymentId: paymentIdOf(pi), failureCode: pi.last_payment_error?.code ?? null };
+          return { ...base, kind: 'attempt_failed', paymentId: paymentIdOf(pi), gatewayRef: pi.id, failureCode: pi.last_payment_error?.code ?? null };
         }
         case 'payment_intent.canceled':
-          return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object) };
+          return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object), gatewayRef: event.data.object.id };
         case 'checkout.session.expired':
-          return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object) };
+          return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object), gatewayRef: null };
         case 'refund.updated':
         case 'refund.failed': {
           const r = toGatewayRefund(event.data.object);

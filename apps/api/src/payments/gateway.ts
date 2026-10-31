@@ -7,10 +7,16 @@ export type GatewayCredentials = { secretKey: string; webhookSecret: string };
 export type GatewayRefund = { refundRef: string | null; status: 'pending' | 'succeeded' | 'failed'; failureCode: string | null };
 
 /** A gateway webhook reduced to what the booking flow cares about. */
-export type GatewayEvent = { id: string; type: string } & (
+export type GatewayEvent = {
+  id: string;
+  type: string;
+  /** Whether the gateway sent it from live mode (false for test mode). */
+  livemode: boolean;
+} & (
   | { kind: 'succeeded'; paymentId: string | null; gatewayRef: string; amount: number; currency: string }
-  | { kind: 'attempt_failed'; paymentId: string | null; failureCode: string | null }
-  | { kind: 'closed'; paymentId: string | null }
+  /** `gatewayRef`: the PaymentIntent, when the event is about one. */
+  | { kind: 'attempt_failed'; paymentId: string | null; gatewayRef: string | null; failureCode: string | null }
+  | { kind: 'closed'; paymentId: string | null; gatewayRef: string | null }
   | { kind: 'refund_updated'; refundRef: string; status: GatewayRefund['status']; failureCode: string | null }
   | { kind: 'ignored' }
 );

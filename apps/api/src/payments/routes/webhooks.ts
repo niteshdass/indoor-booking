@@ -43,14 +43,17 @@ async function applyPayoutEvent(event: GatewayEvent, now: Date, session: ClientS
   if (event.kind !== 'succeeded' && event.kind !== 'closed' && event.kind !== 'attempt_failed') return 'ignored';
   if (!event.paymentId || !mongoose.isValidObjectId(event.paymentId)) return 'unmatched';
   const payout = await PlatformPayout.findOne({ _id: event.paymentId, method: 'stripe' }).setOptions({ crossTenant: true }).session(session);
-  if (!payout) return 'unmatched';
-  const at = { _id: payout._id, ownerId: payout.ownerId };
+  // Bound to the intent made for it, in the mode it was made in: metadata alone could come from any intent,
+  // and a test-mode one must not settle a live payout. No stored intent: nothing was ever payable.
+  if (!payout || !payout.stripePaymentIntentId || payout.stripePaymentIntentId !== event.gatewayRef) return 'unmatched';
+  if (payout.stripeMode !== (event.livemode ? 'live' : 'test')) return 'unmatched';
+  const at = { _id: payout._id, ownerId: payout.ownerId, stripePaymentIntentId: payout.stripePaymentIntentId };
   if (event.kind === 'succeeded') {
     if (event.amount !== payout.amount || event.currency !== payout.currency) return 'mismatch';
     // The money arrived, so it counts even when the hold expired or a failed attempt rejected it first.
     const done = await PlatformPayout.updateOne(
       { ...at, status: { $in: ['pending', 'rejected'] } },
-      { $set: { status: 'confirmed', rejectReason: null, reviewedAt: now, stripePaymentIntentId: event.gatewayRef } },
+      { $set: { status: 'confirmed', rejectReason: null, reviewedAt: now } },
       { session },
     );
     return done.modifiedCount === 1 ? 'applied' : 'ignored';

@@ -26,6 +26,7 @@ const payoutSchema = z
   })
   .strict();
 
+const duplicate = () => new AppError(409, 'duplicate_trx', 'This Transaction ID was already used');
 const exceeds = () => new AppError(400, 'amount_exceeds_balance', 'The amount is more than you can pay now');
 
 /** What the owner owes the platform and how to pay it; mounted on ownerRouter. */
@@ -63,6 +64,8 @@ export function ownerPayoutsRouter(config: Config, services: AppServices): Route
     if (body.method === 'stripe' || !payout[body.method]) {
       throw new AppError(400, 'method_unavailable', 'This payment method is not available');
     }
+    // Checked first so a reused TrxID reports as such; the unique index still guards the race.
+    if (await PlatformPayout.exists({ method: body.method, trxId }).setOptions({ crossTenant: true })) throw duplicate();
     if (body.amount < 1) throw exceeds();
     const now = services.now();
 
@@ -92,7 +95,7 @@ export function ownerPayoutsRouter(config: Config, services: AppServices): Route
       });
       res.status(201).json(payoutJson(created));
     } catch (err) {
-      if (keyHas(err, 'trxId')) throw new AppError(409, 'duplicate_trx', 'This Transaction ID was already used');
+      if (keyHas(err, 'trxId')) throw duplicate();
       throw err;
     }
   });

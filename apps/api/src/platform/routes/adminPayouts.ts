@@ -31,11 +31,14 @@ export function adminPayoutsRouter(services: AppServices): Router {
 
   router.get('/payouts', async (req, res) => {
     const q = listQuery.parse(req.query);
-    const filter: Record<string, unknown> = (q.status ?? 'pending') === 'pending' ? { status: 'pending' } : {};
-    if (q.before) filter._id = { $lt: new mongoose.Types.ObjectId(q.before) };
+    // The pending queue is worked oldest first; history (all) reads newest first. `before` is the cursor
+    // either way: the last id of the previous page.
+    const pending = (q.status ?? 'pending') === 'pending';
+    const filter: Record<string, unknown> = pending ? { status: 'pending' } : {};
+    if (q.before) filter._id = { [pending ? '$gt' : '$lt']: new mongoose.Types.ObjectId(q.before) };
     // Cross-owner by design: the queue spans every owner.
     const rows = await PlatformPayout.find(filter)
-      .sort({ _id: -1 })
+      .sort({ _id: pending ? 1 : -1 })
       .limit(ADMIN_PAGE_SIZE + 1)
       .setOptions({ crossTenant: true });
     const page = rows.slice(0, ADMIN_PAGE_SIZE);
@@ -62,7 +65,8 @@ export function adminPayoutsRouter(services: AppServices): Router {
         const set =
           path === 'confirm'
             ? { status: 'confirmed', reviewedAt: now, reviewedBy: actorId }
-            : { status: 'rejected', rejectReason: reason, reviewedAt: now, reviewedBy: actorId };
+            : // The TrxID moves aside so the unique index stops covering it and it can be sent again.
+              { status: 'rejected', rejectReason: reason, rejectedTrxId: found.trxId, trxId: null, reviewedAt: now, reviewedBy: actorId };
         // Conditional on still pending, so two admins cannot both review it.
         const updated = await PlatformPayout.findOneAndUpdate({ _id: found._id, ownerId, status: 'pending' }, { $set: set }, { new: true, session });
         if (!updated) throw notPending();

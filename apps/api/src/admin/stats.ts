@@ -88,8 +88,8 @@ export async function ownerContacts(ownerIds: readonly string[]): Promise<Map<st
 
 type OwnerLean = { _id: unknown; name: string; country: string; defaultCurrency: string; status: string; createdAt: Date };
 
-/** List rows for `owners`, in the given order. */
-export async function ownerRows(owners: OwnerLean[], now: Date): Promise<AdminOwnerRowJson[]> {
+/** List rows for `owners`, in the given order; `owes` (platform.owners only) adds each platform-fee balance. */
+export async function ownerRows(owners: OwnerLean[], now: Date, opts: { owes?: boolean } = {}): Promise<AdminOwnerRowJson[]> {
   if (owners.length === 0) return [];
   const ids = owners.map((o) => String(o._id));
   const [venueRows, bookings, contacts, owes] = await Promise.all([
@@ -99,7 +99,7 @@ export async function ownerRows(owners: OwnerLean[], now: Date): Promise<AdminOw
     ]),
     bookingCounts(periodStart(now), now, ids),
     ownerContacts(ids),
-    balancesByOwner(ids),
+    opts.owes ? balancesByOwner(ids) : null,
   ]);
   const venues = new Map(venueRows.map((r) => [String(r._id), r]));
   return owners.map((o) => {
@@ -115,7 +115,7 @@ export async function ownerRows(owners: OwnerLean[], now: Date): Promise<AdminOw
       venues: venues.get(id)?.total ?? 0,
       publishedVenues: venues.get(id)?.published ?? 0,
       recentBookings: bookings.get(id) ?? 0,
-      owes: owes.get(id) ?? [],
+      ...(owes ? { owes: owes.get(id) ?? [] } : {}),
     };
   });
 }

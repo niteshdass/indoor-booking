@@ -98,12 +98,15 @@ async function owing() {
 describe('owner platform balance', () => {
   it('balance counts owing bookings only', async () => {
     await owing();
+    await booking('completed');
+    await booking('no_show');
+    for (const s of ['rejected', 'expired']) await booking(s);
     await booking('completed', { platformFee: null });
     const res = await fee();
     expect(res.status).toBe(200);
     expect(res.body.feeActive).toBe(true);
     expect(res.body.payer).toBe('owner');
-    expect(res.body.balances).toEqual([{ currency: 'BDT', owed: 10000, paid: 0, pending: 0, balance: 10000, payable: 10000 }]);
+    expect(res.body.balances).toEqual([{ currency: 'BDT', owed: 20000, paid: 0, pending: 0, balance: 20000, payable: 20000 }]);
     expect(res.body.methods).toEqual({ bkash, nagad: null, stripe: null });
   });
 
@@ -157,6 +160,11 @@ describe('manual payouts', () => {
     const log = await PlatformLog.findOne({ action: 'payout.rejected' }).lean();
     expect(log!.reason).toBe('No such transfer');
     expect((await post(`/admin/payouts/${res.body.id}/confirm`, {}, admin.token)).body.error.code).toBe('payout_not_pending');
+    // History still shows the TrxID, and it can be sent again.
+    expect((await fee()).body.payouts[0]).toMatchObject({ status: 'rejected', trxId: 'ABC12345XY' });
+    const again = await pay();
+    expect(again.status).toBe(201);
+    expect(again.body.trxId).toBe('ABC12345XY');
   });
 
   it('rejects a second payout that would exceed what is owed', async () => {
@@ -176,9 +184,13 @@ describe('manual payouts', () => {
     }
     expect((await pay({ currency: 'USD', amount: 100 })).body.error.code).toBe('amount_exceeds_balance');
     expect((await pay({ trxId: 'no' })).body.error.code).toBe('invalid_trx_id');
-    expect((await pay({ method: 'stripe' })).status).toBe(400);
+    const stripe = await pay({ method: 'stripe' });
+    expect(stripe.status).toBe(400);
+    expect(stripe.body.error.code).toBe('method_unavailable');
+    expect((await pay({ senderNumber: '12345' })).body.error.code).toBe('invalid_sender');
     expect((await pay({ trxId: 'abc 12345 xy', amount: 1000 })).status).toBe(201);
-    const dup = await pay({ amount: 1000 });
+    // Reported as a duplicate even when the amount would also be refused.
+    const dup = await pay({ amount: 100000 });
     expect(dup.status).toBe(409);
     expect(dup.body.error.code).toBe('duplicate_trx');
   });
@@ -210,13 +222,31 @@ describe('manual payouts', () => {
     for (let i = 0; i < 26; i++) {
       await PlatformPayout.create({ ownerId: a.ownerId, currency: 'BDT', amount: 1, method: 'bkash', trxId: `PAGE${String(i).padStart(5, '0')}`, status: 'pending', createdAt: ctx.services.now() });
     }
+    const trx = (body: { payouts: { trxId: string }[] }) => body.payouts.map((p) => p.trxId);
+    const all = Array.from({ length: 26 }, (_, i) => `PAGE${String(i).padStart(5, '0')}`);
+    // Pending: oldest first.
     const one = await get('/admin/payouts', admin.token);
-    expect(one.body.payouts).toHaveLength(25);
+    expect(trx(one.body)).toEqual(all.slice(0, 25));
     const two = await get(`/admin/payouts?before=${one.body.nextBefore}`, admin.token);
-    expect(two.body.payouts).toHaveLength(1);
+    expect(trx(two.body)).toEqual(all.slice(25));
     expect(two.body.nextBefore).toBeNull();
+    // History: newest first.
+    const h1 = await get('/admin/payouts?status=all', admin.token);
+    expect(trx(h1.body)).toEqual([...all].reverse().slice(0, 25));
+    const h2 = await get(`/admin/payouts?status=all&before=${h1.body.nextBefore}`, admin.token);
+    expect(trx(h2.body)).toEqual([all[0]]);
+    expect(h2.body.nextBefore).toBeNull();
   });
 });
+
+/** A platform user whose role has platform.view only. */
+async function viewOnly() {
+  seq += 1;
+  const role = await Role.create({ ownerId: null, scope: 'platform', name: `Viewer ${seq}`, permissions: ['platform.view'] });
+  const user = await seedUser(ctx.services, { name: 'View only' });
+  await User.updateOne({ _id: user.userId }, { $set: { platformRoleId: role._id } });
+  return user;
+}
 
 describe('permissions', () => {
   it('staff without settings.edit and platform users without platform.owners are refused', async () => {
@@ -224,11 +254,22 @@ describe('permissions', () => {
     expect((await get(`/owners/${a.ownerId}/platform-fee`, staff.token)).status).toBe(403);
     expect((await pay({}, staff.token)).status).toBe(403);
 
-    const viewer = await Role.create({ ownerId: null, scope: 'platform', name: 'Viewer', permissions: ['platform.view'] });
-    const user = await seedUser(ctx.services, { name: 'View only' });
-    await User.updateOne({ _id: user.userId }, { $set: { platformRoleId: viewer._id } });
+    const user = await viewOnly();
     expect((await get('/admin/payouts', user.token)).status).toBe(403);
     expect((await post(`/admin/payouts/${oid()}/confirm`, {}, user.token)).status).toBe(403);
     expect((await get('/admin/payouts', a.token)).status).toBe(403);
+  });
+
+  it('owes appears on the owners list only, never on the overview', async () => {
+    await owing();
+    const user = await viewOnly();
+    const overview = await get('/admin/overview', user.token);
+    expect(overview.status).toBe(200);
+    const rows = [...overview.body.pendingOwners, ...overview.body.newestOwners];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).not.toHaveProperty('owes');
+    expect((await get('/admin/owners', user.token)).status).toBe(403);
+    const list = await get('/admin/owners', admin.token);
+    expect(list.body.owners.find((o: { id: string }) => o.id === a.ownerId).owes).toEqual([{ currency: 'BDT', amount: 10000 }]);
   });
 });

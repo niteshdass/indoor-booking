@@ -110,7 +110,7 @@ export function adminOwnersRouter(services: AppServices): Router {
       statusCounts(search),
     ]);
     const body: AdminOwnersJson = {
-      owners: await ownerRows(rows, services.now()),
+      owners: await ownerRows(rows, services.now(), { owes: true }),
       total,
       counts: { ...counts, all: sum(new Map(Object.entries(counts))) },
     };

@@ -50,8 +50,11 @@ export type AdminOwnerRowJson = {
   publishedVenues: number;
   /** Bookings made in the last ADMIN_PERIOD_DAYS days. */
   recentBookings: number;
-  /** Platform-fee balance per currency; negative is a credit. Only non-zero currencies. */
-  owes: CurrencyAmount[];
+  /**
+   * Platform-fee balance per currency; negative is a credit. Only non-zero currencies. Only on the
+   * owners list (platform.owners), never on the overview.
+   */
+  owes?: CurrencyAmount[];
 };
 
 export type AdminOverviewJson = {

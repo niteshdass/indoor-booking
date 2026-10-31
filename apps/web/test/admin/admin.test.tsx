@@ -41,7 +41,6 @@ function ownerRow(over: Partial<AdminOwnerRowJson> = {}): AdminOwnerRowJson {
     venues: 2,
     publishedVenues: 1,
     recentBookings: 5,
-    owes: [],
     ...over,
   };
 }

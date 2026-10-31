@@ -51,7 +51,7 @@ function checkKeys(k: Keys, mode: Mode): KeyErrors {
   return out;
 }
 
-function CopyField({ label, value }: { label: string; value: string }) {
+export function CopyField({ label, value }: { label: string; value: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const copy = async () => {

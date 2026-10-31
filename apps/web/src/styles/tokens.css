@@ -82,6 +82,7 @@
   --date-field-min: 8.5rem; /* narrowest a date field gets before a From/To pair stacks */
   --fact-min: 8.5rem; /* narrowest column in a label-over-value fact grid */
   --field-min: 10rem;
+  --choice-min: 8rem; /* narrowest option in a segmented choice (admin General settings) */
   --map-height: 32rem;
   --demo-dot: 1.5rem; /* landing demo stepper dot */
   --demo-rule: 2px; /* landing demo stepper connector */

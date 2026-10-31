@@ -14,40 +14,48 @@ import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
 import { useAdminTitle } from './AdminShell';
 import { dayTime } from './parts';
+import { GeneralTab } from './settings/GeneralTab';
 import styles from '../owner/settings/settings.module.css';
 
-type Section = 'google' | 'email' | 'sms';
-type Store = (next: AdminSettingsJson) => void;
+type Tab = 'general' | 'google' | 'email' | 'sms';
+/** Each PUT/DELETE path under /admin/settings. */
+export type Section = Tab | 'payout-stripe';
+export type Store = (next: AdminSettingsJson) => void;
 
 const SOURCE_TONE: Record<SettingSource, Tone> = { admin: 'success', server: 'info', none: 'warning' };
 
 /** Provider errors (a refused test message) carry their own reason; everything else uses the shared messages. */
-function failureText(err: unknown, t: ReturnType<typeof useTranslation>['t']): string {
+export function failureText(err: unknown, t: ReturnType<typeof useTranslation>['t']): string {
   if (err instanceof ApiError && err.code === 'delivery_failed') return t('admin.settings.testFailed', { reason: err.message });
   return errorMessage(err, t);
 }
 
-/** Save / remove / busy / error handling shared by the three cards. */
-function useSection(section: Section, store: Store) {
+/** Save / remove / busy / error handling shared by the cards. `save` and `remove` resolve to whether they worked. */
+export function useSection(section: Section, store: Store) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
-  const run = async (fn: () => Promise<AdminSettingsJson>) => {
-    if (busy) return;
+  const run = async (fn: () => Promise<AdminSettingsJson>): Promise<boolean> => {
+    if (busy) return false;
     setBusy(true);
     setError(null);
     setSaved(false);
     try {
       store(await fn());
       setSaved(true);
+      setBusy(false);
+      return true;
     } catch (err) {
       setError(err);
+      setBusy(false);
+      return false;
     }
-    setBusy(false);
   };
   return {
     busy,
+    /** The raw failure, for callers that map it onto fields. */
+    failure: error,
     error: error !== null ? failureText(error, t) : null,
     saved,
     save: (body: object) => run(() => apiPut<AdminSettingsJson>(`/admin/settings/${section}`, body)),
@@ -56,7 +64,7 @@ function useSection(section: Section, store: Store) {
   };
 }
 
-function Card({ title, intro, source, guide, children }: { title: string; intro: ReactNode; source?: SettingSource; guide?: string; children: ReactNode }) {
+export function Card({ title, intro, source, guide, children }: { title: string; intro: ReactNode; source?: SettingSource; guide?: string; children: ReactNode }) {
   const { t } = useTranslation();
   return (
     <section className={styles.card} aria-label={title}>
@@ -269,20 +277,20 @@ function GoogleSteps() {
   );
 }
 
-const SECTIONS: Section[] = ['google', 'email', 'sms'];
+const SECTIONS: Tab[] = ['general', 'google', 'email', 'sms'];
 
-/** Platform sign-in and delivery providers, one tab each. Values saved here win over the server env and apply without a restart. */
+/** Platform settings, one tab each: General (signup, fee, payouts), then the sign-in and delivery providers. Saved values win over the server env and apply without a restart. */
 export function AdminSettingsPage() {
   const { t, i18n } = useTranslation();
   useAdminTitle(t('admin.nav.settings'));
   const res = useResource<AdminSettingsJson>('/admin/settings');
   const [params, setParams] = useSearchParams();
-  const tab = SECTIONS.find((x) => x === params.get('section')) ?? 'google';
+  const tab = SECTIONS.find((x) => x === params.get('section')) ?? 'general';
   const setTab = (id: string) =>
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        if (id === 'google') next.delete('section');
+        if (id === 'general') next.delete('section');
         else next.set('section', id);
         return next;
       },
@@ -313,6 +321,7 @@ export function AdminSettingsPage() {
       {!data.secretsAvailable && <Alert tone="warning">{t('admin.settings.noKey')}</Alert>}
       <Tabs label={t('admin.settings.tabs')} tabs={SECTIONS.map((id) => ({ id, label: t(`admin.settings.tab.${id}`) }))} value={tab} onChange={setTab} />
       <div className={styles.layout} role="tabpanel" aria-label={t(`admin.settings.tab.${tab}`)}>
+        {tab === 'general' && <GeneralTab data={data} store={res.set} />}
         {tab === 'google' && (
           <>
             <GoogleCard data={data.google} store={res.set} />

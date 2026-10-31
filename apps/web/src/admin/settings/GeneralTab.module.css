@@ -1,0 +1,133 @@
+/* Admin > Settings > General. Cards and fields come from the owner settings.module.css; this adds the segmented choice. */
+
+/* Spans both columns of the settings layout (the payouts card and the Save row). */
+.wide {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* Segmented choice: a radio group of bordered options, chosen = primary-soft fill and primary border. */
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-default);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--choice-min), 1fr));
+  gap: var(--space-2);
+}
+
+.option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: var(--control-lg);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-default);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--bg-hover);
+}
+
+.option:has(.radio:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.option:has(.radio:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+/* The radio stays focusable and announced; the option box shows its state. */
+.radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.optionLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.optionHint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+  color: var(--text-muted);
+}
+
+/* Live fee example: a subtle inset, numbers tabular. */
+.example {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: var(--text-sm);
+  color: var(--text-default);
+  font-variant-numeric: tabular-nums;
+}
+
+.exampleLabel {
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+/* bKash and Nagad side by side from xl, where each still fits its two fields. */
+.wallets {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 1280px) {
+  .wallets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.rule {
+  width: 100%;
+  margin: var(--space-2) 0;
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.removeRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.savedNote {
+  align-self: center;
+}

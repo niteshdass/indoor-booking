@@ -2065,7 +2065,7 @@
       }
     },
     "settings": {
-      "intro": "Sign-in and message delivery for the whole platform. Values saved here replace the server configuration and take effect within seconds, no restart needed.",
+      "intro": "Venue signup, the platform fee, sign-in and message delivery for the whole platform. Values saved here replace the server configuration and take effect within seconds, no restart needed.",
       "lastChange": "Last changed by {{who}} on {{when}}",
       "noKey": "This server has no encryption key (PAYMENTS_ENCRYPTION_KEY), so passwords and tokens cannot be saved here.",
       "source": {
@@ -2120,6 +2120,7 @@
       },
       "tabs": "Settings sections",
       "tab": {
+        "general": "General",
         "google": "Google sign-in",
         "email": "Email",
         "sms": "SMS"
@@ -2127,6 +2128,77 @@
       "testIntro": {
         "email": "Sends a short email with the settings in use right now.",
         "sms": "Sends a short text with the settings in use right now."
+      },
+      "general": {
+        "save": "Save settings",
+        "signup": {
+          "title": "Venue signup",
+          "intro": "What happens when a new business signs up to list its venues."
+        },
+        "approval": {
+          "label": "New businesses",
+          "manual": "Manual",
+          "manualHint": "Each new business waits in Businesses until you approve it.",
+          "automatic": "Automatic",
+          "automaticHint": "New businesses are approved at once. Ones already waiting stay in the queue for you."
+        },
+        "fee": {
+          "title": "Platform fee",
+          "intro": "What you charge for each online booking. Walk-ins and bookings already made are never charged.",
+          "mode": "Fee",
+          "fixed": "Amount per booking",
+          "percent": "Percent of the booking",
+          "fixedHint": "Charged in each owner's own currency: 50 means ৳50 on a BDT venue and $50 on a USD one.",
+          "percentHint": "Of court time plus extras, up to 50%.",
+          "payer": "Who pays"
+        },
+        "mode": {
+          "free": "Free",
+          "fixed": "Fixed",
+          "percent": "Percent",
+          "freeHint": "No fee.",
+          "fixedHint": "Same amount on every booking.",
+          "percentHint": "A share of each booking."
+        },
+        "payer": {
+          "owner": "Owner",
+          "player": "Player",
+          "ownerHint": "The player's price stays the same.",
+          "playerHint": "Added to the player's total at checkout."
+        },
+        "exampleOwner": "Field {{base}} → player pays {{base}}, owner owes you {{fee}}",
+        "examplePlayer": "Field {{base}} → player pays {{total}}, owner owes you {{fee}}",
+        "exampleLabel": "Example",
+        "errors": {
+          "fixed": "Enter an amount above 0 and up to 1,000,000, with at most 2 decimals.",
+          "percent": "Enter a percent above 0 and up to 50, with at most 2 decimals.",
+          "number": "Use a Bangladesh mobile number, e.g. 01712345678."
+        },
+        "payout": {
+          "title": "Where owners pay you",
+          "intro": "The ways owners can pay what they owe. Only the ones set up here are offered to them.",
+          "wallets": "Mobile wallets",
+          "number": {
+            "bkash": "bKash number",
+            "nagad": "Nagad number"
+          },
+          "accountType": "Account type"
+        },
+        "stripe": {
+          "title": "Card (Stripe)",
+          "intro": "Your own Stripe account. Owners pay by card and the money goes to you.",
+          "separate": "Stripe keys save on their own, with the button under them, not with Save settings.",
+          "enabled": "Owners can pay by card",
+          "on": "Card payments on",
+          "off": "Card payments off",
+          "needKeys": "To switch the mode or turn card payments on or off, enter that mode's keys again with Replace keys.",
+          "makeActive": "Take payments in this mode",
+          "remove": "Remove Stripe",
+          "removeHint": "Owners can no longer pay by card.",
+          "noKey": "Locked: this server has no encryption key, so Stripe keys cannot be saved.",
+          "webhookHint": "In Stripe, add an endpoint with this URL and subscribe it to these events, once in test mode and once in live mode.",
+          "modeNotConnected": "Add the keys for this mode first."
+        }
       }
     },
     "docs": {

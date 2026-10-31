@@ -81,7 +81,7 @@ describe('platform guard', () => {
     const res = await get('/admin/me');
     expect(res.status).toBe(200);
     expect(res.body.role).toEqual({ key: 'super_admin', name: 'Super admin' });
-    expect(res.body.permissions).toEqual(['platform.owners', 'platform.reviews', 'platform.users', 'platform.view']);
+    expect(res.body.permissions).toEqual(['platform.owners', 'platform.reviews', 'platform.settings', 'platform.users', 'platform.view']);
   });
 
   it('flags platform admins on /me', async () => {

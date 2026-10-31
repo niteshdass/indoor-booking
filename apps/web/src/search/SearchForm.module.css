@@ -18,7 +18,7 @@
   display: grid;
   align-content: center;
   min-width: 0;
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-lg);
   transition: background-color var(--duration-fast);
 }
@@ -49,7 +49,7 @@
   background: transparent;
   color: var(--text-strong);
   font: inherit;
-  font-size: var(--text-md);
+  font-size: var(--text-base);
   line-height: var(--leading-body);
   font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
@@ -128,8 +128,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--control-lg);
-  padding-inline: var(--space-4);
+  min-height: var(--control-md);
+  padding-inline: var(--space-3);
   border: 1px solid transparent;
   border-radius: var(--radius-full);
   background: var(--control-fill);
@@ -162,9 +162,9 @@
 .chipClear {
   display: grid;
   place-items: center;
-  width: var(--control-md);
-  height: var(--control-md);
-  margin-inline: calc(-1 * var(--space-2)) calc(-1 * var(--space-3));
+  width: var(--control-sm);
+  height: var(--control-sm);
+  margin-inline: calc(-1 * var(--space-1)) calc(-1 * var(--space-2));
   padding: 0;
   border: 0;
   border-radius: var(--radius-full);
@@ -184,8 +184,8 @@
 
 /* Chip selects: the pill wraps a muted label and a borderless select ("Sort  Recommended") */
 .chipSelect {
-  min-height: var(--control-lg);
-  padding-inline: var(--space-4) var(--space-3);
+  min-height: var(--control-md);
+  padding-inline: var(--space-3);
   border: 1px solid transparent;
   border-radius: var(--radius-full);
   background: var(--control-fill);
@@ -223,7 +223,7 @@
 
 .chipSelect select {
   field-sizing: content;
-  min-height: var(--control-md);
+  min-height: var(--control-sm);
   padding-inline: 0 var(--space-6);
   border: 0;
   background: transparent;
@@ -258,17 +258,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-.hint,
 .error {
   margin: 0;
   font-size: var(--text-sm);
-}
-
-.hint {
-  color: var(--text-muted);
-}
-
-.error {
   color: var(--danger);
 }
 
@@ -276,11 +268,14 @@
   max-width: var(--container-narrow);
 }
 
-/* More filters panel */
+/* More filters panel: one flat grid (indoor · from · to · currency · min · max), the checkbox on its own row.
+   Phones pair From|To and Min|Max, with the two selects across the row. */
 .panel {
   display: grid;
-  gap: var(--space-6);
-  padding: var(--space-6);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
   box-shadow: var(--shadow-xs);
   border-radius: var(--radius-lg);
   background: var(--bg-surface);
@@ -290,21 +285,12 @@
   display: none;
 }
 
+.wide {
+  grid-column: 1 / -1;
+}
+
 .wide select {
   width: 100%;
-}
-
-.group {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.pair,
-.priceRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr));
-  gap: var(--space-3);
-  align-items: start;
 }
 
 .check {
@@ -312,27 +298,15 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: var(--control-lg);
-  font-size: var(--text-base);
+  min-height: var(--control-md);
+  font-size: var(--text-sm);
   color: var(--text-strong);
   cursor: pointer;
 }
 
+/* The price fields join the panel grid; the legend stays for screen readers */
 .prices {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-width: 0;
-}
-
-.legend {
-  padding: 0;
-  margin-bottom: var(--space-2);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--text-strong);
+  display: contents;
 }
 
 .form input[type='time'] {
@@ -367,18 +341,10 @@
   .submit {
     padding-inline: var(--space-6);
   }
-}
-
-@media (min-width: 1024px) {
   .panel {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-    column-gap: var(--space-8);
+    grid-template-columns: repeat(auto-fill, minmax(var(--field-min), 1fr));
   }
-  .prices {
-    grid-column: 1 / -1;
-  }
-  .check {
-    padding-top: var(--space-5);
-    border-top: 1px solid var(--border-subtle);
+  .wide {
+    grid-column: auto;
   }
 }

@@ -9,6 +9,7 @@ import { platformLogJson } from '../logJson';
 import { PlatformLog } from '../platformLog.model';
 import { adminOwnersRouter } from './owners';
 import { adminReviewsRouter } from './reviews';
+import { adminSettingsRouter } from './settings';
 import { adminUsersRouter } from './users';
 
 const activityQuery = z
@@ -45,6 +46,7 @@ export function adminRouter({ config, services }: AuthDeps): Router {
   router.use(adminOwnersRouter(services));
   router.use(adminUsersRouter(services));
   router.use(adminReviewsRouter(services));
+  router.use(adminSettingsRouter(config, services));
 
   return router;
 }

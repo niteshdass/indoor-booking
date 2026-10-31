@@ -17,6 +17,13 @@ export function moneyShort(minor: number, currency: string, lang: string): strin
   return new Intl.NumberFormat(lang, { style: 'currency', currency, maximumFractionDigits: 0 }).format(minor / unit);
 }
 
+/** Like `moneyShort`, but a million and up is abbreviated (BDT 33.8M, 33,8 млн BDT), so a KPI number fits its card. */
+export function moneyCompact(minor: number, currency: string, lang: string): string {
+  const major = minor / 10 ** currencyExponent(currency);
+  if (Math.abs(major) < 1_000_000) return moneyShort(minor, currency, lang);
+  return new Intl.NumberFormat(lang, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(major);
+}
+
 /** Wall-clock time of an instant in the venue's zone, 24-hour. */
 export function formatTime(iso: string, timeZone: string, lang: string): string {
   return new Intl.DateTimeFormat(lang, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(new Date(iso));

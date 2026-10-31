@@ -9,7 +9,7 @@ import { healthRouter } from './routes/health';
 import { sessionRouter } from './auth/routes/session';
 import { emailAuthRouter } from './auth/routes/emailAuth';
 import { phoneAuthRouter } from './auth/routes/phoneAuth';
-import { googleAuthRouter } from './auth/routes/googleAuth';
+import { authProvidersRouter, googleAuthRouter } from './auth/routes/googleAuth';
 import { meRouter } from './auth/routes/me';
 import { ownerRouter } from './tenancy/routes/owner';
 import { myMembershipsRouter } from './tenancy/routes/myMemberships';
@@ -90,6 +90,7 @@ export function createApp(deps: AppDeps): express.Express {
   // Refresh runs on every page load and token expiry, so it gets its own, looser bucket.
   if (limited) auth.use('/refresh', limiter('refresh', 120));
   auth.use(sessionRouter(authDeps));
+  auth.use(authProvidersRouter(authDeps));
   if (limited) auth.use(limiter('auth', 20));
   auth.use(emailAuthRouter(authDeps));
   auth.use(phoneAuthRouter(authDeps));

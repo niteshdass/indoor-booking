@@ -97,15 +97,15 @@ describe('loadConfig', () => {
     it('rejects a partial sms group naming the missing keys', () => {
       expect(() => loadConfig({ ...base, TWILIO_ACCOUNT_SID: 'AC1' })).toThrow(/TWILIO_AUTH_TOKEN/);
     });
-    it('requires both groups in production', () => {
+    it('leaves both groups optional in production (the admin dashboard can set them)', () => {
       const prod = {
         ...base,
         NODE_ENV: 'production',
         PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
         APP_URL: 'https://app.example',
       };
-      expect(() => loadConfig({ ...prod, ...email })).toThrow(/TWILIO_ACCOUNT_SID/);
-      expect(() => loadConfig({ ...prod, ...sms })).toThrow(/SMTP_URL/);
+      expect(loadConfig(prod).email).toBeUndefined();
+      expect(loadConfig({ ...prod, ...email }).sms).toBeUndefined();
       expect(loadConfig({ ...prod, ...email, ...sms }).nodeEnv).toBe('production');
     });
     it('parses both groups when set', () => {

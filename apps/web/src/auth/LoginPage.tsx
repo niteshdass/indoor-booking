@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
@@ -15,9 +15,10 @@ import { useAuth } from './useAuth';
 import { useCooldown } from './useCooldown';
 import styles from './auth.module.css';
 
-type Tab = 'phone' | 'email';
-const TABS: Tab[] = ['phone', 'email'];
+type Method = 'phone' | 'email';
+const asMethod = (v: string | null): Method | null => (v === 'phone' || v === 'email' ? v : null);
 
+/** Two steps: pick a way in (Google, phone or email), then the chosen form. `?method=` keeps the step so Back works. */
 export function LoginPage() {
   const { t } = useTranslation();
   const { status, signIn } = useAuth();
@@ -25,11 +26,16 @@ export function LoginPage() {
   const [params] = useSearchParams();
   const rawNext = params.get('next');
   const next = safeNext(rawNext);
+  const method = asMethod(params.get('method'));
 
-  const [tab, setTab] = useState<Tab>('phone');
-  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ phone: null, email: null });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Errors belong to the step they came from.
+  const [errorStep, setErrorStep] = useState(method);
+  if (errorStep !== method) {
+    setErrorStep(method);
+    setError(null);
+  }
 
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -78,122 +84,115 @@ export function LoginPage() {
     return run(async () => finish(await apiPost<AuthResponse>('/auth/login', { email, password })));
   };
 
-  const selectTab = (next: Tab) => {
-    setTab(next);
-    setError(null);
+  const loginHref = (m: Method | null) => {
+    const q = new URLSearchParams();
+    if (m) q.set('method', m);
+    if (rawNext) q.set('next', rawNext);
+    const s = q.toString();
+    return '/login' + (s ? `?${s}` : '');
   };
-
-  const onTabKey = (e: KeyboardEvent<HTMLButtonElement>) => {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    e.preventDefault();
-    const other = tab === 'phone' ? 'email' : 'phone';
-    selectTab(other);
-    tabRefs.current[other]?.focus();
-  };
-
   const registerHref = '/register' + (rawNext ? `?next=${encodeURIComponent(rawNext)}` : '');
+
+  if (!method) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>{t('auth.login.title')}</h1>
+          <GoogleButton text="signin_with" onSignedIn={finish} />
+          <div className={styles.choices}>
+            <Button variant="secondary" size="lg" icon="phone" block to={loginHref('phone')}>
+              {t('auth.login.withPhone')}
+            </Button>
+            <Button variant="secondary" size="lg" icon="mail" block to={loginHref('email')}>
+              {t('auth.login.withEmail')}
+            </Button>
+          </div>
+          <div className={styles.links}>
+            <Link to={registerHref}>{t('auth.login.toRegister')}</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <h1 className={styles.title}>{t('auth.login.title')}</h1>
-
-        <div role="tablist" aria-label={t('auth.tabs.label')} className={styles.tabs}>
-          {TABS.map((id) => (
-            <button
-              key={id}
-              ref={(el) => {
-                tabRefs.current[id] = el;
-              }}
-              type="button"
-              role="tab"
-              id={`login-tab-${id}`}
-              aria-selected={tab === id}
-              aria-controls={`login-panel-${id}`}
-              tabIndex={tab === id ? 0 : -1}
-              className={styles.tab}
-              onClick={() => selectTab(id)}
-              onKeyDown={onTabKey}
-            >
-              {t(`auth.tabs.${id}`)}
-            </button>
-          ))}
-        </div>
+        <Button variant="ghost" size="sm" icon="arrowLeft" to={loginHref(null)} className={styles.back}>
+          {t('auth.login.otherOptions')}
+        </Button>
+        <h1 className={styles.title}>{t(method === 'phone' ? 'auth.login.titlePhone' : 'auth.login.titleEmail')}</h1>
 
         {error && <Alert tone="danger">{error}</Alert>}
 
-        <div role="tabpanel" id={`login-panel-${tab}`} aria-labelledby={`login-tab-${tab}`} className={styles.panel}>
-          {tab === 'phone' && !codeSent && (
-            <form className={styles.form} onSubmit={requestCode}>
-              <PhoneInput label={t('auth.phone.label')} value={phone} onChange={setPhone} />
-              <Button type="submit" variant="brand" size="lg" icon="send" block loading={busy} disabled={!phone}>
-                {t('auth.phone.sendCode')}
-              </Button>
-            </form>
-          )}
+        {method === 'phone' && !codeSent && (
+          <form className={styles.form} onSubmit={requestCode}>
+            <PhoneInput label={t('auth.phone.label')} value={phone} onChange={setPhone} />
+            <Button type="submit" variant="brand" size="lg" icon="send" block loading={busy} disabled={!phone}>
+              {t('auth.phone.sendCode')}
+            </Button>
+          </form>
+        )}
 
-          {tab === 'phone' && codeSent && (
-            <form className={styles.form} onSubmit={verify}>
-              <p className={styles.sent}>{t('auth.phone.sentTo', { phone })}</p>
-              <OtpInput label={t('auth.phone.code')} value={code} onChange={setCode} />
-              <Button type="submit" variant="brand" size="lg" icon="check" block loading={busy} disabled={code.length !== 6}>
-                {t('auth.phone.verify')}
+        {method === 'phone' && codeSent && (
+          <form className={styles.form} onSubmit={verify}>
+            <p className={styles.sent}>{t('auth.phone.sentTo', { phone })}</p>
+            <OtpInput label={t('auth.phone.code')} value={code} onChange={setCode} />
+            <Button type="submit" variant="brand" size="lg" icon="check" block loading={busy} disabled={code.length !== 6}>
+              {t('auth.phone.verify')}
+            </Button>
+            <div className={styles.row}>
+              <Button variant="secondary" size="lg" icon="send" disabled={cooldown.left > 0 || busy} onClick={() => void requestCode()}>
+                {cooldown.left > 0 ? (
+                  <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span>
+                ) : (
+                  t('auth.phone.resend')
+                )}
               </Button>
-              <div className={styles.row}>
-                <Button variant="secondary" size="lg" icon="send" disabled={cooldown.left > 0 || busy} onClick={() => void requestCode()}>
-                  {cooldown.left > 0 ? (
-                    <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span>
-                  ) : (
-                    t('auth.phone.resend')
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  icon="edit"
-                  onClick={() => {
-                    setCodeSent(false);
-                    setCode('');
-                    setError(null);
-                  }}
-                >
-                  {t('auth.phone.change')}
-                </Button>
-              </div>
-            </form>
-          )}
-
-          {tab === 'email' && (
-            <form className={styles.form} onSubmit={emailLogin}>
-              <TextField
-                icon="mail"
-                label={t('auth.email')}
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <TextField
-                icon="lock"
-                label={t('auth.password')}
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <Button type="submit" variant="brand" size="lg" icon="login" block loading={busy}>
-                {t('auth.login.submit')}
+              <Button
+                variant="ghost"
+                size="lg"
+                icon="edit"
+                onClick={() => {
+                  setCodeSent(false);
+                  setCode('');
+                  setError(null);
+                }}
+              >
+                {t('auth.phone.change')}
               </Button>
-            </form>
-          )}
-        </div>
+            </div>
+          </form>
+        )}
 
-        <GoogleButton onSignedIn={finish} />
+        {method === 'email' && (
+          <form className={styles.form} onSubmit={emailLogin}>
+            <TextField
+              icon="mail"
+              label={t('auth.email')}
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextField
+              icon="lock"
+              label={t('auth.password')}
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <Button type="submit" variant="brand" size="lg" icon="login" block loading={busy}>
+              {t('auth.login.submit')}
+            </Button>
+          </form>
+        )}
 
         <div className={styles.links}>
-          <Link to="/forgot-password">{t('auth.login.forgot')}</Link>
+          {method === 'email' && <Link to="/forgot-password">{t('auth.login.forgot')}</Link>}
           <Link to={registerHref}>{t('auth.login.toRegister')}</Link>
         </div>
       </div>

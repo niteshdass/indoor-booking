@@ -109,13 +109,24 @@ export function AdminShell() {
         </div>
         <nav aria-label={t('admin.nav.label')} className={styles.nav}>
           <div className={styles.group}>
-            {ADMIN_NAV.map((n) => (
-              <NavLink key={n.key} to={n.to} end={n.to === ''} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
+            {ADMIN_NAV.map((n) =>
+              'external' in n ? (
+                <a key={n.key} href={`/admin/${n.to}`} target="_blank" rel="noopener" className={styles.link}>
+                  <NavIcon navKey={n.icon} />
+                  {t(n.key)}
+                  <svg className={styles.linkTrail} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M7 17 17 7M8 7h9v9" />
+                  </svg>
+                  <span className={styles.srOnly}>, {t('admin.docs.newTab')}</span>
+                </a>
+              ) : (
+              <NavLink key={n.key} to={n.to ? `/admin/${n.to}` : '/admin'} end={n.to === ''} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
                 <NavIcon navKey={n.icon} />
                 {t(n.key)}
                 {pill(n.to)}
               </NavLink>
-            ))}
+              ),
+            )}
           </div>
         </nav>
         <div className={styles.footer}>

@@ -42,7 +42,7 @@ export function isPermission(value: string): value is Permission {
 }
 
 /** Platform (Super Admin) permissions; never part of an owner role. */
-export const PLATFORM_PERMISSIONS = ['platform.view', 'platform.owners', 'platform.users', 'platform.reviews'] as const;
+export const PLATFORM_PERMISSIONS = ['platform.view', 'platform.owners', 'platform.users', 'platform.reviews', 'platform.settings'] as const;
 export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number];
 
 export const PLATFORM_ROLES: Record<'super_admin', readonly PlatformPermission[]> = {

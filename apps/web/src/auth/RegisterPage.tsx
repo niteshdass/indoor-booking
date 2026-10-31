@@ -21,7 +21,10 @@ type InUse = 'email' | 'phone' | null;
 const inUseOf = (err: unknown): InUse =>
   err instanceof ApiError ? (err.code === 'email_in_use' ? 'email' : err.code === 'phone_in_use' ? 'phone' : null) : null;
 
-/** Phone first: the number is verified with an SMS code, then the account details are filled in. */
+/**
+ * Same two steps as sign-in: pick Google or phone, then the phone form. `?method=phone` keeps the step so Back works.
+ * The number is verified with an SMS code, then the account details are filled in.
+ */
 export function RegisterPage() {
   const { t } = useTranslation();
   const { status, signIn } = useAuth();
@@ -29,6 +32,7 @@ export function RegisterPage() {
   const [params] = useSearchParams();
   const rawNext = params.get('next');
   const next = safeNext(rawNext);
+  const withPhone = params.get('method') === 'phone';
 
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -75,11 +79,46 @@ export function RegisterPage() {
   };
 
   const loginHref = '/login' + (rawNext ? `?next=${encodeURIComponent(rawNext)}` : '');
+  const registerHref = (phoneStep: boolean) => {
+    const q = new URLSearchParams();
+    if (phoneStep) q.set('method', 'phone');
+    if (rawNext) q.set('next', rawNext);
+    const str = q.toString();
+    return '/register' + (str ? `?${str}` : '');
+  };
+
+  if (!withPhone) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.card}>
+          <h1 className={styles.title}>{t('auth.register.title')}</h1>
+          <GoogleButton
+            text="signup_with"
+            onSignedIn={(res) => {
+              signIn(res);
+              navigate(next, { replace: true });
+            }}
+          />
+          <div className={styles.choices}>
+            <Button variant="secondary" size="lg" icon="phone" block to={registerHref(true)}>
+              {t('auth.login.withPhone')}
+            </Button>
+          </div>
+          <div className={styles.links}>
+            <Link to={loginHref}>{t('auth.register.haveAccount')}</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <h1 className={styles.title}>{t('auth.register.title')}</h1>
+        <Button variant="ghost" size="sm" icon="arrowLeft" to={registerHref(false)} className={styles.back}>
+          {t('auth.register.otherOptions')}
+        </Button>
+        <h1 className={styles.title}>{t('auth.register.titlePhone')}</h1>
         {error && (
           <Alert tone="danger">
             {error.message}
@@ -154,14 +193,6 @@ export function RegisterPage() {
           </form>
         )}
 
-        {!codeSent && (
-          <GoogleButton
-            onSignedIn={(res) => {
-              signIn(res);
-              navigate(next, { replace: true });
-            }}
-          />
-        )}
         <div className={styles.links}>
           <Link to={loginHref}>{t('auth.register.haveAccount')}</Link>
         </div>

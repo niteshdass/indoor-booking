@@ -129,3 +129,23 @@ export type AdminReviewJson = {
 export type AdminReviewsJson = { reviews: AdminReviewJson[]; nextBefore: string | null };
 
 export type PlatformLogPageJson = { entries: PlatformLogJson[]; nextBefore: string | null };
+
+/** Where a delivery or sign-in setting comes from: saved by an admin, the server's environment, or nowhere. */
+export type SettingSource = 'admin' | 'server' | 'none';
+
+/** Platform settings as admins see them. Secrets never come back, only whether one is saved. */
+export type AdminSettingsJson = {
+  google: { source: SettingSource; clientId: string | null };
+  email: {
+    source: SettingSource;
+    smtp: { host: string; port: number; secure: boolean; user: string | null; from: string; passwordSet: boolean } | null;
+  };
+  sms: { source: SettingSource; twilio: { accountSid: string; from: string; authTokenSet: boolean } | null };
+  /** False when the server has no encryption key, so passwords and tokens cannot be saved. */
+  secretsAvailable: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+};
+
+/** Public sign-in options for the login page. */
+export type AuthProvidersJson = { googleClientId: string | null };

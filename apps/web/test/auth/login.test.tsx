@@ -42,7 +42,7 @@ describe('LoginPage', () => {
       { method: 'POST', path: '/auth/otp/request', status: 202, body: otpSent },
       { method: 'POST', path: '/auth/otp/verify', body: authRes },
     ]);
-    const h = renderApp('/login?next=%2Fme%2Fbookings');
+    const h = renderApp('/login?method=phone&next=%2Fme%2Fbookings');
     await requestCode(h);
     expect(api.calls.find((c) => c.path === '/auth/otp/request')?.body).toEqual({ phone: '+8801712345678' });
     await h.user.click(screen.getAllByRole('textbox')[0]!);
@@ -56,7 +56,7 @@ describe('LoginPage', () => {
   it('resend disabled during cooldown', async () => {
     mockApi([{ method: 'POST', path: '/auth/otp/request', status: 202, body: otpSent }]);
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const h = renderApp('/login');
+    const h = renderApp('/login?method=phone');
     await requestCode(h);
     const resend = screen.getByRole('button', { name: /Resend/ });
     expect(resend).toBeDisabled();
@@ -72,7 +72,7 @@ describe('LoginPage', () => {
       { method: 'POST', path: '/auth/otp/request', status: 202, body: otpSent },
       { method: 'POST', path: '/auth/otp/verify', status: 400, body: { error: { code: 'otp_invalid', message: 'x' } } },
     ]);
-    const h = renderApp('/login');
+    const h = renderApp('/login?method=phone');
     await requestCode(h);
     await h.user.click(screen.getAllByRole('textbox')[0]!);
     await h.user.keyboard('123456');
@@ -83,8 +83,8 @@ describe('LoginPage', () => {
   it('email login', async () => {
     const api = mockApi([{ method: 'POST', path: '/auth/login', body: authRes }]);
     const h = renderApp('/login');
-    await h.user.click(screen.getByRole('tab', { name: en.auth.tabs.email }));
-    expect(screen.getByRole('tabpanel')).toBeInTheDocument();
+    await h.user.click(screen.getByRole('link', { name: en.auth.login.withEmail }));
+    expect(screen.getByRole('heading', { name: en.auth.login.titleEmail })).toBeInTheDocument();
     await h.user.type(screen.getByLabelText(en.auth.email), 'ada@example.com');
     await h.user.type(screen.getByLabelText(en.auth.password), 'secret123');
     await h.user.click(screen.getByRole('button', { name: en.auth.login.submit }));
@@ -94,19 +94,31 @@ describe('LoginPage', () => {
 
   it('invalid credentials message', async () => {
     mockApi([{ method: 'POST', path: '/auth/login', status: 401, body: { error: { code: 'invalid_credentials', message: 'x' } } }]);
-    const h = renderApp('/login');
-    await h.user.click(screen.getByRole('tab', { name: en.auth.tabs.email }));
+    const h = renderApp('/login?method=email');
     await h.user.type(screen.getByLabelText(en.auth.email), 'ada@example.com');
     await h.user.type(screen.getByLabelText(en.auth.password), 'bad');
     await h.user.click(screen.getByRole('button', { name: en.auth.login.submit }));
     expect(await screen.findByText(en.errors.invalid_credentials)).toBeInTheDocument();
   });
 
-  it('links to register with next and forgot-password', () => {
+  it('starts with the sign-in choices, keeping next on each', () => {
     mockApi([]);
     renderApp('/login?next=%2Fme%2Fbookings');
+    expect(screen.getByRole('link', { name: en.auth.login.withPhone })).toHaveAttribute('href', '/login?method=phone&next=%2Fme%2Fbookings');
+    expect(screen.getByRole('link', { name: en.auth.login.withEmail })).toHaveAttribute('href', '/login?method=email&next=%2Fme%2Fbookings');
     expect(screen.getByRole('link', { name: en.auth.login.toRegister })).toHaveAttribute('href', '/register?next=%2Fme%2Fbookings');
+    expect(screen.queryByLabelText(en.auth.email)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(en.auth.phone.number)).not.toBeInTheDocument();
+  });
+
+  it('a chosen method links back to the choices, and email offers forgot-password', async () => {
+    mockApi([]);
+    const h = renderApp('/login?method=email&next=%2Fme%2Fbookings');
     expect(screen.getByRole('link', { name: en.auth.login.forgot })).toHaveAttribute('href', '/forgot-password');
+    expect(screen.getByRole('link', { name: en.auth.login.toRegister })).toHaveAttribute('href', '/register?next=%2Fme%2Fbookings');
+    await h.user.click(screen.getByRole('link', { name: en.auth.login.otherOptions }));
+    expect(h.location().search).toBe('?next=%2Fme%2Fbookings');
+    expect(screen.getByRole('link', { name: en.auth.login.withPhone })).toBeInTheDocument();
   });
 
   it('signed-in user visiting /login is redirected', () => {
@@ -131,9 +143,19 @@ describe('RegisterPage', () => {
     await h.user.click(screen.getByRole('button', { name: en.auth.register.submit }));
   }
 
+  it('starts like sign-in: a phone choice that opens the phone step', async () => {
+    mockApi([]);
+    const h = renderApp('/register?next=%2Fme%2Fbookings');
+    expect(screen.queryByLabelText(en.auth.phone.number)).not.toBeInTheDocument();
+    await h.user.click(screen.getByRole('link', { name: en.auth.login.withPhone }));
+    expect(h.location().search).toBe('?method=phone&next=%2Fme%2Fbookings');
+    expect(screen.getByRole('heading', { name: en.auth.register.titlePhone })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.auth.register.otherOptions })).toHaveAttribute('href', '/register?next=%2Fme%2Fbookings');
+  });
+
   it('asks for the phone first, without the account fields', () => {
     mockApi([]);
-    renderApp('/register');
+    renderApp('/register?method=phone');
     expect(screen.getByText(en.auth.register.phoneFirst)).toBeInTheDocument();
     expect(screen.getByLabelText(en.auth.phone.number)).toBeInTheDocument();
     expect(screen.queryByLabelText(en.auth.email)).not.toBeInTheDocument();
@@ -142,7 +164,7 @@ describe('RegisterPage', () => {
 
   it('verifies the phone, registers, then signed in', async () => {
     const api = mockApi([sendRoute, { method: 'POST', path: '/auth/register', status: 201, body: authRes }]);
-    const h = renderApp('/register?next=%2Fme%2Fbookings');
+    const h = renderApp('/register?method=phone&next=%2Fme%2Fbookings');
     await fill(h);
     await waitFor(() => expect(h.location().pathname).toBe('/me/bookings'));
     expect(api.calls.find((c) => c.path === '/auth/register/otp/request')?.body).toEqual({ phone: '+8801712345678' });
@@ -157,7 +179,7 @@ describe('RegisterPage', () => {
 
   it('a number with an account shows phone_in_use and a sign-in link', async () => {
     mockApi([{ method: 'POST', path: '/auth/register/otp/request', status: 409, body: { error: { code: 'phone_in_use', message: 'x' } } }]);
-    const h = renderApp('/register?next=%2Fme%2Fbookings');
+    const h = renderApp('/register?method=phone&next=%2Fme%2Fbookings');
     await h.user.type(screen.getByLabelText(en.auth.phone.number), '1712345678');
     await h.user.click(screen.getByRole('button', { name: en.auth.phone.sendCode }));
     expect(await screen.findByText(en.errors.phone_in_use)).toBeInTheDocument();
@@ -166,7 +188,7 @@ describe('RegisterPage', () => {
 
   it('register email_in_use shows login link and keeps the code step', async () => {
     mockApi([sendRoute, { method: 'POST', path: '/auth/register', status: 409, body: { error: { code: 'email_in_use', message: 'x' } } }]);
-    const h = renderApp('/register?next=%2Fme%2Fbookings');
+    const h = renderApp('/register?method=phone&next=%2Fme%2Fbookings');
     await fill(h);
     expect(await screen.findByText(en.errors.email_in_use)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: en.auth.register.toLogin })).toHaveAttribute('href', '/login?next=%2Fme%2Fbookings');

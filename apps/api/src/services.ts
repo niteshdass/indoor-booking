@@ -1,5 +1,7 @@
 import type { Config } from './config';
+import { resolveEmail, resolveGoogleClientId, resolveSms } from './admin/settings';
 import { createGoogleVerifier } from './auth/google';
+import { AppError } from './errors';
 import { smtpEmailSender, twilioSmsSender } from './notifications/senders';
 import { realStripe, type StripeFactory } from './payments/stripe';
 
@@ -30,25 +32,36 @@ export type AppServices = {
   stripe: StripeFactory;
 };
 
-/** Real SMTP/Twilio senders when configured; console senders otherwise (dev and tests). */
+/**
+ * Senders and the Google check read the platform settings at call time, so a change in the admin dashboard
+ * applies without a restart (admin values first, then the server env). With nothing configured, development
+ * prints messages to the console and production refuses to send.
+ */
 export function defaultServices(config: Config): AppServices {
+  const unconfigured = (channel: 'email' | 'sms') => {
+    if (config.nodeEnv === 'production') {
+      throw new AppError(503, 'delivery_unconfigured', `${channel === 'email' ? 'Email' : 'SMS'} delivery is not configured`);
+    }
+  };
   return {
     now: () => new Date(),
-    sms: config.sms
-      ? twilioSmsSender(config.sms)
-      : {
-          async send(to, text) {
-            console.log(`[sms] to=${to}: ${text}`);
-          },
-        },
-    email: config.email
-      ? smtpEmailSender({ url: config.email.smtpUrl, from: config.email.from })
-      : {
-          async send(msg) {
-            console.log(`[email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
-          },
-        },
-    google: createGoogleVerifier(config.googleClientId),
+    sms: {
+      async send(to, text) {
+        const sms = await resolveSms(config);
+        if (sms) return twilioSmsSender(sms).send(to, text);
+        unconfigured('sms');
+        console.log(`[sms] to=${to}: ${text}`);
+      },
+    },
+    email: {
+      async send(msg) {
+        const email = await resolveEmail(config);
+        if (email) return smtpEmailSender(email).send(msg);
+        unconfigured('email');
+        console.log(`[email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
+      },
+    },
+    google: createGoogleVerifier(() => resolveGoogleClientId(config)),
     stripe: realStripe,
   };
 }

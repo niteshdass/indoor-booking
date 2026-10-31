@@ -22,6 +22,11 @@ describe('format', () => {
     expect(f.moneyShort(200_050, 'BDT', 'en')).toBe('BDT\u00a02,000.50');
     expect(f.moneyShort(1500, 'KWD', 'en')).toBe('KWD\u00a01.500');
   });
+  it('moneyCompact abbreviates from a million so a KPI fits its card', () => {
+    expect(f.moneyCompact(200_000, 'BDT', 'en')).toBe('BDT 2,000');
+    expect(f.moneyCompact(3_381_905_000, 'BDT', 'en')).toBe('BDT 33.8M');
+    expect(f.moneyCompact(3_381_905_000, 'BDT', 'ru')).toMatch(/^33,8\s*млн/);
+  });
   it('formatDistance', () => {
     expect(f.formatDistance(850, 'en')).toBe('850 m');
     expect(f.formatDistance(12_345, 'en')).toBe('12.3 km');

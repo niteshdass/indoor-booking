@@ -2,16 +2,18 @@ import { OAuth2Client } from 'google-auth-library';
 import { AppError } from '../errors';
 import type { GoogleVerifier } from '../services';
 
-export function createGoogleVerifier(clientId: string | undefined): GoogleVerifier {
+/** `clientId` is read on every check, so a new one saved by an admin applies at once. */
+export function createGoogleVerifier(clientId: () => Promise<string | undefined>): GoogleVerifier {
   const client = new OAuth2Client();
   return {
     async verify(idToken) {
-      if (!clientId) {
+      const audience = await clientId();
+      if (!audience) {
         throw new AppError(503, 'google_not_configured', 'Google sign-in is not configured');
       }
       let payload;
       try {
-        const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+        const ticket = await client.verifyIdToken({ idToken, audience });
         payload = ticket.getPayload();
       } catch {
         throw new AppError(401, 'invalid_google_token', 'Invalid Google token');

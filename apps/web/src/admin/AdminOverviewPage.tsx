@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { StatCard } from '../components/ui/StatCard';
+import { moneyCompact, moneyShort } from '../lib/format';
 import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
 import { useAdminTitle } from './AdminShell';
@@ -14,6 +15,15 @@ import { day, earnedText, OwnerStatusBadge } from './parts';
 import styles from './admin.module.css';
 
 /** "+12% vs previous 30 days", or nothing when there is no previous period to compare with. */
+/** Under the Earned KPI: the exact amount when the value is abbreviated, then the other currencies. */
+function earnedHint(earned: AdminOverviewJson['earned'], lang: string): string | undefined {
+  const [first, ...rest] = earned;
+  if (!first) return undefined;
+  const exact = moneyShort(first.amount, first.currency, lang);
+  const parts = [...(moneyCompact(first.amount, first.currency, lang) === exact ? [] : [exact]), ...(rest.length ? [earnedText(rest, lang)] : [])];
+  return parts.length ? parts.join(' · ') : undefined;
+}
+
 function trend(recent: number, previous: number, t: TFunction): string | undefined {
   if (previous === 0) return undefined;
   const pct = Math.round(((recent - previous) / previous) * 100);
@@ -91,8 +101,8 @@ export function AdminOverviewPage() {
         />
         <StatCard
           label={t('admin.overview.earned', { days: ADMIN_PERIOD_DAYS })}
-          value={first ? earnedText([first], i18n.language) : '—'}
-          hint={o.earned.length > 1 ? earnedText(o.earned.slice(1), i18n.language) : undefined}
+          value={first ? moneyCompact(first.amount, first.currency, i18n.language) : '—'}
+          hint={earnedHint(o.earned, i18n.language)}
         />
         <StatCard
           label={t('admin.overview.flags')}

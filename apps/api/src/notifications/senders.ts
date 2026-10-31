@@ -1,15 +1,26 @@
 import nodemailer from 'nodemailer';
+import type { EmailSettings } from '../admin/settings';
 import type { EmailSender, SmsSender } from '../services';
 
 /** Bounds every outbound call: the job runner is serial, so a hung provider would stall all jobs. */
 const TIMEOUT_MS = 10_000;
 
+/** `url` is an smtp:// connection string (server env); `smtp` is the fields an admin saved. */
 export function smtpEmailSender(
-  opts: { url: string; from: string },
+  opts: EmailSettings,
   createTransport: typeof nodemailer.createTransport = nodemailer.createTransport,
 ): EmailSender {
+  const server =
+    'url' in opts
+      ? { url: opts.url }
+      : {
+          host: opts.smtp.host,
+          port: opts.smtp.port,
+          secure: opts.smtp.secure,
+          ...(opts.smtp.user ? { auth: { user: opts.smtp.user, pass: opts.smtp.password ?? '' } } : {}),
+        };
   const transport = createTransport({
-    url: opts.url,
+    ...server,
     connectionTimeout: TIMEOUT_MS,
     greetingTimeout: TIMEOUT_MS,
     socketTimeout: TIMEOUT_MS,

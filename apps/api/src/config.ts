@@ -6,6 +6,7 @@ export type Config = {
   mongodbUri: string;
   corsOrigin: string;
   jwtSecret: string;
+  /** Fallback Google client ID; the admin dashboard's setting wins. */
   googleClientId?: string;
   /** Public web app URL, linked from every customer message; required in production. */
   appUrl: string;
@@ -17,9 +18,9 @@ export type Config = {
   trustProxy?: boolean | number | string;
   /** Whether this process runs the background jobs (sweeps, delivery, refund reconcile). */
   jobsEnabled: boolean;
-  /** SMTP delivery; unset means emails go to the console. Required in production. */
+  /** SMTP delivery from the env; the admin dashboard's setting wins. Unset everywhere: console in dev, refused in production. */
   email?: { smtpUrl: string; from: string };
-  /** Twilio delivery; unset means SMS go to the console. Required in production. */
+  /** Twilio delivery from the env; the admin dashboard's setting wins. Unset everywhere: console in dev, refused in production. */
   sms?: { accountSid: string; authToken: string; from: string };
 };
 
@@ -65,22 +66,19 @@ const envSchema = z
     if (e.NODE_ENV === 'production' && !e.APP_URL) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['APP_URL'], message: 'is required in production' });
     }
-    // Each provider group is all-or-nothing, and both are required in production.
+    // Each provider group is all-or-nothing. Both are optional: the admin dashboard can set them instead.
     const groups = [
       ['SMTP_URL', 'EMAIL_FROM'],
       ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM'],
     ] as const;
     for (const keys of groups) {
-      const anySet = keys.some((k) => e[k]);
-      if (!anySet && e.NODE_ENV !== 'production') continue;
+      if (!keys.some((k) => e[k])) continue;
       for (const k of keys) {
         if (!e[k]) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: [k],
-            message: anySet
-              ? `is required with ${keys.filter((o) => e[o]).join(', ')}`
-              : 'is required in production',
+            message: `is required with ${keys.filter((o) => e[o]).join(', ')}`,
           });
         }
       }

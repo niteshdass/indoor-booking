@@ -4,7 +4,8 @@ import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { renderApp } from '../helpers/render';
-import { mockApi } from '../helpers/api';
+import { mockApi, type Route } from '../helpers/api';
+import { resetGoogleClientId } from '../../src/auth/GoogleButton';
 import type { PublicUser } from '../../src/lib/types';
 
 const user: PublicUser = {
@@ -41,35 +42,45 @@ function stubGoogle() {
 
 beforeEach(async () => {
   await i18n.changeLanguage('en');
-  vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'cid.apps.googleusercontent.com');
+  resetGoogleClientId();
   stubGoogle();
 });
 afterEach(() => {
-  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   delete (window as unknown as { google?: unknown }).google;
   setAccessToken(null);
   setRefreshHandler(null);
 });
 
+const providers: Route = { method: 'GET', path: '/auth/providers', body: { googleClientId: 'cid.apps.googleusercontent.com' } };
+
 describe('GoogleButton', () => {
-  it('hidden without client id', () => {
-    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', '');
+  it('hidden without client id', async () => {
+    const api = mockApi([{ method: 'GET', path: '/auth/providers', body: { googleClientId: null } }]);
     renderApp('/login');
+    await waitFor(() => expect(api.calls.some((c) => c.path === '/auth/providers')).toBe(true));
     expect(screen.queryByText(en.auth.or)).not.toBeInTheDocument();
     expect(init).toBeNull();
   });
 
   it('initializes and renders the button with theme and locale', async () => {
+    mockApi([providers]);
     renderApp('/login');
     await waitFor(() => expect(rendered).not.toBeNull());
     expect(init?.client_id).toBe('cid.apps.googleusercontent.com');
-    expect(rendered?.opts).toMatchObject({ size: 'large', text: 'continue_with', locale: 'en' });
+    expect(rendered?.opts).toMatchObject({ theme: 'filled_blue', size: 'large', text: 'signin_with', locale: 'en' });
     expect(screen.getByText(en.auth.or)).toBeInTheDocument();
   });
 
+  it('says "Sign up with Google" on the create-account page', async () => {
+    mockApi([providers]);
+    renderApp('/register');
+    await waitFor(() => expect(rendered).not.toBeNull());
+    expect(rendered?.opts).toMatchObject({ text: 'signup_with' });
+  });
+
   it('credential posts idToken and signs in', async () => {
-    const api = mockApi([{ method: 'POST', path: '/auth/google', body: { user, accessToken: 'tok', refreshToken: 'r' } }]);
+    const api = mockApi([providers, { method: 'POST', path: '/auth/google', body: { user, accessToken: 'tok', refreshToken: 'r' } }]);
     const h = renderApp('/register?next=%2Fme%2Fbookings');
     await waitFor(() => expect(init).not.toBeNull());
     await act(async () => init?.callback({ credential: 'tok' }));
@@ -78,7 +89,7 @@ describe('GoogleButton', () => {
   });
 
   it('account_exists message', async () => {
-    mockApi([{ method: 'POST', path: '/auth/google', status: 409, body: { error: { code: 'account_exists', message: 'x' } } }]);
+    mockApi([providers, { method: 'POST', path: '/auth/google', status: 409, body: { error: { code: 'account_exists', message: 'x' } } }]);
     const h = renderApp('/login');
     await waitFor(() => expect(init).not.toBeNull());
     await act(async () => init?.callback({ credential: 'tok' }));

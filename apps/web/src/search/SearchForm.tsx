@@ -276,7 +276,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
             {t('search.dateHint')}
           </span>
         </div>
-        <Button type="submit" variant="brand" size="lg" className={styles.submit}>
+        <Button type="submit" variant="brand" className={styles.submit}>
           <Icon d={ICONS.search} />
           {t('search.submit')}
         </Button>
@@ -313,6 +313,8 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
           icon="distance"
           label={t('search.radius')}
           disabled={!draft.near}
+          title={draft.near ? undefined : t('search.radiusNeedsLocation')}
+          aria-describedby={draft.near ? undefined : `${id}-radius-hint`}
           value={draft.near ? texts.radiusChoice : 'any'}
           onChange={(e) => setTexts((x) => ({ ...x, radiusChoice: e.target.value }))}
           options={radiusOptions}
@@ -341,7 +343,11 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
         </button>
       </div>
 
-      {!draft.near && <p className={styles.hint}>{t('search.radiusNeedsLocation')}</p>}
+      {!draft.near && (
+        <span id={`${id}-radius-hint`} className={styles.srOnly}>
+          {t('search.radiusNeedsLocation')}
+        </span>
+      )}
       {locationDenied && (
         <p className={styles.error} role="alert">
           {t('search.locationDenied')}
@@ -367,7 +373,6 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
 
       <div id={`${id}-more`} className={styles.panel} hidden={!moreOpen}>
         <Select
-          size="lg"
           icon="indoor"
           layout="stacked"
           label={t('search.indoorLabel')}
@@ -379,62 +384,58 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
           className={styles.wide}
         />
 
-        <div className={styles.group}>
-          <div className={styles.pair}>
-            <TextField
-              label={t('search.timeFrom')}
-              type="time"
-              step={1800}
-              value={draft.from ?? ''}
-              onChange={(e) => patch({ from: e.target.value || null })}
-            />
-            <TextField
-              label={t('search.timeTo')}
-              type="time"
-              step={1800}
-              value={draft.to ?? ''}
-              error={errors.time ? t('search.timeInvalid') : undefined}
-              onChange={(e) => patch({ to: e.target.value || null })}
-            />
-          </div>
-          <p className={styles.hint}>{t('search.timeHint')}</p>
-        </div>
+        <TextField
+          label={t('search.timeFrom')}
+          type="time"
+          step={1800}
+          value={draft.from ?? ''}
+          aria-describedby={`${id}-time-hint`}
+          onChange={(e) => patch({ from: e.target.value || null })}
+        />
+        <TextField
+          label={t('search.timeTo')}
+          type="time"
+          step={1800}
+          value={draft.to ?? ''}
+          error={errors.time ? t('search.timeInvalid') : undefined}
+          onChange={(e) => patch({ to: e.target.value || null })}
+        />
+        <span id={`${id}-time-hint`} className={styles.srOnly}>
+          {t('search.timeHint')}
+        </span>
 
         {currencyOptions.length > 0 && (
           <fieldset className={styles.prices}>
-            <legend className={styles.legend}>{t('search.price')}</legend>
-            <div className={styles.priceRow}>
-              <Select
-                size="lg"
-                icon="money"
-                layout="stacked"
-                label={t('search.currency')}
-                value={priceCurrency ?? ''}
-                onChange={(e) => {
-                  // Amounts typed under another currency would change meaning, so they are cleared.
-                  patch({ currency: e.target.value, minPrice: null, maxPrice: null });
-                  setTexts((x) => ({ ...x, min: '', max: '', priceDirty: false }));
-                }}
-                options={currencyOptions.map((c) => ({ value: c, label: c }))}
-                className={styles.wide}
-              />
-              <TextField
-                icon="money"
-                label={t('search.minPrice')}
-                inputMode="decimal"
-                value={texts.min}
-                error={errors.min || errors.range ? priceError : undefined}
-                onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value, priceDirty: true }))}
-              />
-              <TextField
-                icon="money"
-                label={t('search.maxPrice')}
-                inputMode="decimal"
-                value={texts.max}
-                error={errors.max ? priceError : undefined}
-                onChange={(e) => setTexts((x) => ({ ...x, max: e.target.value, priceDirty: true }))}
-              />
-            </div>
+            <legend className={styles.srOnly}>{t('search.price')}</legend>
+            <Select
+              icon="money"
+              layout="stacked"
+              label={t('search.currency')}
+              value={priceCurrency ?? ''}
+              onChange={(e) => {
+                // Amounts typed under another currency would change meaning, so they are cleared.
+                patch({ currency: e.target.value, minPrice: null, maxPrice: null });
+                setTexts((x) => ({ ...x, min: '', max: '', priceDirty: false }));
+              }}
+              options={currencyOptions.map((c) => ({ value: c, label: c }))}
+              className={styles.wide}
+            />
+            <TextField
+              icon="money"
+              label={t('search.minPrice')}
+              inputMode="decimal"
+              value={texts.min}
+              error={errors.min || errors.range ? priceError : undefined}
+              onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value, priceDirty: true }))}
+            />
+            <TextField
+              icon="money"
+              label={t('search.maxPrice')}
+              inputMode="decimal"
+              value={texts.max}
+              error={errors.max ? priceError : undefined}
+              onChange={(e) => setTexts((x) => ({ ...x, max: e.target.value, priceDirty: true }))}
+            />
           </fieldset>
         )}
 

@@ -21,11 +21,6 @@
     "email": "Email address",
     "password": "Password",
     "name": "Name",
-    "tabs": {
-      "label": "Sign-in method",
-      "phone": "Phone",
-      "email": "Email"
-    },
     "otp": {
       "digit": "Digit {{n}} of {{total}}"
     },
@@ -45,7 +40,12 @@
       "title": "Sign in",
       "submit": "Sign in",
       "forgot": "Forgot password?",
-      "toRegister": "Create an account"
+      "toRegister": "Create an account",
+      "withPhone": "Continue with phone",
+      "withEmail": "Continue with email",
+      "titlePhone": "Sign in with phone",
+      "titleEmail": "Sign in with email",
+      "otherOptions": "Other sign-in options"
     },
     "register": {
       "title": "Create an account",
@@ -53,7 +53,9 @@
       "passwordHint": "At least 8 characters.",
       "haveAccount": "Already have an account? Sign in",
       "toLogin": "Sign in instead",
-      "phoneFirst": "Start with your phone number. We'll text you a code to verify it, and send booking confirmations there."
+      "phoneFirst": "Start with your phone number. We'll text you a code to verify it, and send booking confirmations there.",
+      "otherOptions": "Other sign-up options",
+      "titlePhone": "Sign up with phone"
     },
     "or": "or",
     "forgot": {
@@ -191,7 +193,10 @@
     "invalid_trx_id": "That Transaction ID doesn't look right.",
     "invalid_sender": "That sender number doesn't look right.",
     "payment_submitted": "You already sent payment details for this booking.",
-    "payment_to_verify": "Check the wallet payment for this booking first."
+    "payment_to_verify": "Check the wallet payment for this booking first.",
+    "secret_required": "Enter the password or token: it is needed for this account.",
+    "delivery_failed": "The message could not be sent.",
+    "delivery_unconfigured": "Message delivery is not set up yet. Ask the platform admin."
   },
   "myBookings": {
     "title": "My bookings",
@@ -1876,7 +1881,9 @@
       "owners": "Businesses",
       "users": "Users",
       "reviews": "Reviews",
-      "activity": "Activity"
+      "activity": "Activity",
+      "settings": "Settings",
+      "docs": "Documentation"
     },
     "shell": {
       "ownersWaiting_one": "{{count}} business waiting for approval",
@@ -2035,6 +2042,84 @@
           "kept": "Kept a review of {{target}}"
         }
       }
+    },
+    "settings": {
+      "intro": "Sign-in and message delivery for the whole platform. Values saved here replace the server configuration and take effect within seconds, no restart needed.",
+      "lastChange": "Last changed by {{who}} on {{when}}",
+      "noKey": "This server has no encryption key (PAYMENTS_ENCRYPTION_KEY), so passwords and tokens cannot be saved here.",
+      "source": {
+        "admin": "Set here",
+        "server": "Server config",
+        "none": "Not set"
+      },
+      "save": "Save",
+      "saved": "Saved",
+      "remove": "Use server config",
+      "keepSecret": "Saved. Leave blank to keep it.",
+      "testTitle": "Send a test",
+      "sendTest": "Send test",
+      "testTo": {
+        "email": "Send to email",
+        "sms": "Send to phone"
+      },
+      "testSent": "Test sent to {{to}}.",
+      "testFailed": "The provider refused the message: {{reason}}",
+      "google": {
+        "title": "Google sign-in",
+        "intro": "Shows \"Sign in with Google\" on sign-in and \"Sign up with Google\" on create account.",
+        "clientId": "Client ID",
+        "clientIdHint": "Ends with .apps.googleusercontent.com",
+        "serverValue": "Server uses:",
+        "stepsTitle": "How to get a client ID",
+        "stepsIntro": "Takes a few minutes in Google Cloud Console.",
+        "step1": "Open Google Cloud Console → Google Auth Platform → Clients",
+        "step2": "Press Create client and choose \"Web application\".",
+        "step3": "Under Authorised JavaScript origins, add",
+        "step4": "Copy the client ID, paste it here and save."
+      },
+      "email": {
+        "title": "Email (SMTP)",
+        "intro": "Sends verification codes, password resets and booking emails.",
+        "host": "SMTP host",
+        "port": "Port",
+        "secure": "Use TLS from the start (usually port 465)",
+        "user": "Username",
+        "userHint": "Leave blank if the server needs no sign-in.",
+        "password": "Password",
+        "from": "From",
+        "fromHint": "Name and address, e.g. Slots <no-reply@example.com>"
+      },
+      "sms": {
+        "title": "SMS (Twilio)",
+        "intro": "Sends phone verification codes and booking texts.",
+        "accountSid": "Account SID",
+        "authToken": "Auth token",
+        "from": "From number",
+        "fromHint": "Your Twilio number in international format, e.g. +15550001111"
+      },
+      "tabs": "Settings sections",
+      "tab": {
+        "google": "Google sign-in",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "testIntro": {
+        "email": "Sends a short email with the settings in use right now.",
+        "sms": "Sends a short text with the settings in use right now."
+      }
+    },
+    "docs": {
+      "title": "Admin guide",
+      "topics": "Topics",
+      "onThisPage": "On this page",
+      "backToAdmin": "Back to admin",
+      "openSettings": "Open in Settings",
+      "previous": "Previous",
+      "next": "Next",
+      "pager": "More topics",
+      "guide": "Read the guide",
+      "newTab": "opens in a new tab",
+      "skip": "Skip to content"
     }
   },
   "apply": {

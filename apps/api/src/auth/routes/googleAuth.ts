@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import type { AuthProvidersJson } from '@booking/shared';
+import { resolveGoogleClientId } from '../../admin/settings';
 import { AppError } from '../../errors';
 import { isDuplicateKeyError } from '../../db';
 import type { AuthDeps } from '../deps';
@@ -45,5 +47,15 @@ export function googleAuthRouter({ config, services }: AuthDeps): Router {
     sendAuthResponse(res, status, user, await issueTokens(user.id, services, config), config);
   });
 
+  return router;
+}
+
+/** Which sign-in options the login page can offer; read on every page load, so it sits outside the auth limit. */
+export function authProvidersRouter({ config }: AuthDeps): Router {
+  const router = Router();
+  router.get('/providers', async (_req, res) => {
+    const body: AuthProvidersJson = { googleClientId: (await resolveGoogleClientId(config)) ?? null };
+    res.json(body);
+  });
   return router;
 }

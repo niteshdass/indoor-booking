@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
-import { apiPost } from '../lib/apiClient';
+import type { AuthProvidersJson } from '@booking/shared';
+import { apiGet, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse } from '../lib/types';
-import { useTheme } from '../theme/ThemeProvider';
 import styles from './auth.module.css';
 
 const SRC = 'https://accounts.google.com/gsi/client';
@@ -32,20 +32,47 @@ function loadGoogle(): Promise<void> {
   return loading;
 }
 
-function prefersDark(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+let providers: Promise<string | null> | null = null;
+
+/** The Google client ID set in the admin dashboard (or the server env), fetched once per page; null hides the button. */
+function googleClientId(): Promise<string | null> {
+  providers ??= apiGet<AuthProvidersJson>('/auth/providers').then(
+    (p) => p.googleClientId,
+    () => {
+      providers = null; // try again on the next mount
+      return null;
+    },
+  );
+  return providers;
 }
 
-export function GoogleButton({ onSignedIn }: { onSignedIn(res: AuthResponse): void }) {
+/** Tests: forget the cached client ID. */
+export function resetGoogleClientId(): void {
+  providers = null;
+}
+
+/**
+ * Google's own button with an "or" rule under it; renders nothing when Google is not configured or fails to load.
+ * Google draws the label itself, so `text` picks one of its presets: "Sign in with Google" or "Sign up with Google".
+ */
+export function GoogleButton({ text, onSignedIn }: { text: 'signin_with' | 'signup_with'; onSignedIn(res: AuthResponse): void }) {
   const { t, i18n } = useTranslation();
-  const { theme } = useTheme();
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-  const dark = theme === 'dark' || (theme === 'system' && prefersDark());
+  const [clientId, setClientId] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const handler = useRef(onSignedIn);
   handler.current = onSignedIn;
   const [error, setError] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void googleClientId().then((id) => {
+      if (!cancelled) setClientId(id);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!clientId) return;
@@ -66,10 +93,14 @@ export function GoogleButton({ onSignedIn }: { onSignedIn(res: AuthResponse): vo
           },
         });
         gid.renderButton(el, {
-          theme: dark ? 'filled_black' : 'outline',
+          // Filled blue stands out from the grey phone / email buttons in light and dark mode alike.
+          theme: 'filled_blue',
           size: 'large',
-          text: 'continue_with',
+          shape: 'rectangular',
+          text,
           locale: i18n.language,
+          // Google caps the button at 400px; fill the card up to that.
+          ...(el.clientWidth ? { width: Math.min(el.clientWidth, 400) } : {}),
         });
       },
       () => {
@@ -80,16 +111,16 @@ export function GoogleButton({ onSignedIn }: { onSignedIn(res: AuthResponse): vo
       cancelled = true;
       el?.replaceChildren();
     };
-  }, [clientId, dark, i18n.language, t]);
+  }, [clientId, text, i18n.language, t]);
 
   if (!clientId || failed) return null;
   return (
     <>
+      <div ref={box} className={styles.google} />
+      {error && <Alert tone="danger">{error}</Alert>}
       <div className={styles.divider} role="separator">
         <span>{t('auth.or')}</span>
       </div>
-      <div ref={box} className={styles.google} />
-      {error && <Alert tone="danger">{error}</Alert>}
     </>
   );
 }

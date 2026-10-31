@@ -105,6 +105,10 @@
   --avatar-sm: 2rem; /* reviewer initial disc */
   --avatar-lg: 4rem; /* initials disc at the top of the profile page */
   --side-card-width: 20rem;
+  --docs-nav-width: 15rem; /* admin guide topic sidebar (lg+) */
+  --docs-article: 46rem; /* admin guide article column */
+  --docs-toc-width: 13rem; /* admin guide "On this page" column (xl+) */
+  --docs-cell-min: 8rem; /* first column of an admin guide table */
   --checkout-side-width: 24rem; /* checkout summary card, room for date, time and price on one line */
   --slot-min: 6rem;
   --slot-label: 7rem;

@@ -70,14 +70,14 @@ describe('Google sign-in', () => {
   });
 
   it('verifier without client id → 503 google_not_configured', async () => {
-    await expect(createGoogleVerifier(undefined).verify('x')).rejects.toMatchObject({
+    await expect(createGoogleVerifier(async () => undefined).verify('x')).rejects.toMatchObject({
       status: 503,
       code: 'google_not_configured',
     });
   });
 
   it('real verifier rejects a garbage token → 401 invalid_google_token', async () => {
-    await expect(createGoogleVerifier('client-id').verify('garbage')).rejects.toMatchObject({
+    await expect(createGoogleVerifier(async () => 'client-id').verify('garbage')).rejects.toMatchObject({
       status: 401,
       code: 'invalid_google_token',
     });

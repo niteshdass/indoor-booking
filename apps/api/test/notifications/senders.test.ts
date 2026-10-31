@@ -1,7 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { smtpEmailSender, twilioSmsSender } from '../../src/notifications/senders';
-import { defaultServices } from '../../src/services';
-import { loadConfig } from '../../src/config';
 
 const creds = { accountSid: 'ACxyz', authToken: 'tok', from: '+15550001111' };
 
@@ -59,27 +57,5 @@ describe('smtpEmailSender', () => {
         socketTimeout: 10_000,
       }),
     );
-  });
-});
-
-describe('defaultServices', () => {
-  it('defaultServices picks real senders only when configured', () => {
-    const base = { MONGODB_URI: 'mongodb://x', JWT_SECRET: 's'.repeat(32) };
-    const plain = defaultServices(loadConfig(base));
-    const real = defaultServices(
-      loadConfig({
-        ...base,
-        SMTP_URL: 'smtp://mail.example:587',
-        EMAIL_FROM: 'a@b.com',
-        TWILIO_ACCOUNT_SID: 'AC1',
-        TWILIO_AUTH_TOKEN: 't',
-        TWILIO_FROM: '+1555',
-      }),
-    );
-    expect(real.sms).not.toBe(plain.sms);
-    expect(real.email).not.toBe(plain.email);
-    expect(plain.sms.send.toString()).toContain('[sms]');
-    expect(real.sms.send.toString()).not.toContain('[sms]');
-    expect(real.email.send.toString()).not.toContain('[email]');
   });
 });

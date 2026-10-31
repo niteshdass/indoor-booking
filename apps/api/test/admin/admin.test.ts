@@ -16,6 +16,7 @@ import { Turf } from '../../src/venues/turf.model';
 import { Booking } from '../../src/bookings/booking.model';
 import { Review } from '../../src/reviews/review.model';
 import { PlatformLog } from '../../src/admin/platformLog.model';
+import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
 
 beforeAll(async () => {
   await startTestDb();
@@ -38,9 +39,11 @@ beforeEach(async () => {
     User.deleteMany({}),
     Owner.deleteMany({}),
     PlatformLog.deleteMany({}),
+    PlatformSettings.deleteMany({}),
     RefreshToken.deleteMany({}),
     ...[Membership, ActivityLog, Venue, Turf, Booking, Review].map((m) => (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true })),
   ]);
+  clearSettingsCache();
   ctx = buildTestApp();
   admin = await seedUser(ctx.services, { name: 'Admin', platformAdmin: true });
   a = await seedOwner(ctx.services, { name: 'Arena' });
@@ -101,6 +104,35 @@ describe('platform guard', () => {
 });
 
 describe('owner applications and approval', () => {
+  const setApproval = async (ownerApproval: 'manual' | 'automatic') => {
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { general: { ownerApproval, fee: { mode: 'free', fixed: null, percent: null, payer: 'owner' } } } }, { upsert: true });
+    clearSettingsCache();
+  };
+
+  it('automatic approval makes the owner active', async () => {
+    await setApproval('automatic');
+    const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
+    const res = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);
+    expect(res.status).toBe(201);
+    expect(res.body.owner.status).toBe('active');
+    const actions = (await PlatformLog.find({ entityId: res.body.owner.id }).lean()).map((l) => l.action);
+    expect(actions).toEqual(expect.arrayContaining(['owner.applied', 'owner.auto_approved']));
+  });
+
+  it('manual stays pending', async () => {
+    const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
+    const res = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);
+    expect(res.body.owner.status).toBe('pending_approval');
+    expect(await PlatformLog.countDocuments({ action: 'owner.auto_approved' })).toBe(0);
+  });
+
+  it('switching to automatic leaves existing pending owners pending', async () => {
+    const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
+    const res = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);
+    await setApproval('automatic');
+    expect((await Owner.findById(res.body.owner.id).lean())!.status).toBe('pending_approval');
+  });
+
   it('a user applies, waits, and is approved', async () => {
     const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
     const res = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT', locale: 'en' }, applicant.token);

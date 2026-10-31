@@ -2043,6 +2043,7 @@
         "owner": {
           "applied": "{{target}} applied",
           "approved": "Approved {{target}}",
+          "auto_approved": "Auto-approved {{target}}",
           "suspended": "Suspended {{target}}",
           "reactivated": "Reactivated {{target}}"
         },
@@ -2053,6 +2054,9 @@
         "review": {
           "hidden": "Hid a review of {{target}}",
           "kept": "Kept a review of {{target}}"
+        },
+        "settings": {
+          "general_updated": "Updated platform settings"
         }
       }
     },
@@ -2151,7 +2155,9 @@
     "choose": "Choose…",
     "submit": "Send application",
     "review": "We usually review applications within a day.",
-    "seeStatus": "See its status"
+    "seeStatus": "See its status",
+    "live": "Your business is live. Add your first venue.",
+    "goToDashboard": "Open dashboard"
   },
   "notificationEvent": {
     "payment_received": "Payment received",

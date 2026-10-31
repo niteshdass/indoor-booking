@@ -242,6 +242,20 @@ describe('list your venue', () => {
     expect(await screen.findByText(en.owner.pendingNote)).toBeInTheDocument();
   });
 
+  it('shows the live notice when the application is approved at once', async () => {
+    mockApi([
+      { method: 'POST', path: '/owners', status: 201, body: { owner: { id: 'o9', name: 'New Club', status: 'active' } } },
+      { path: '/me/memberships', body: { memberships: [ownerMembership({ ownerId: 'o9', ownerName: 'New Club', ownerStatus: 'active' })] } },
+    ]);
+    const h = renderApp('/list-your-venue', { user: staffUser });
+    await h.user.type(await screen.findByRole('textbox', { name: new RegExp(en.apply.name) }), 'New Club');
+    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.country) }), 'BD');
+    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.currency) }), 'BDT');
+    await h.user.click(screen.getByRole('button', { name: en.apply.submit }));
+    expect(await screen.findByText(en.apply.live)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.apply.goToDashboard })).toHaveAttribute('href', '/owner/o9');
+  });
+
   it('says so when an application is already waiting', async () => {
     mockApi([{ method: 'POST', path: '/owners', status: 409, body: { error: { code: 'application_pending', message: 'x' } } }]);
     const h = renderApp('/list-your-venue', { user: staffUser });

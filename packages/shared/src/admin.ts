@@ -14,6 +14,7 @@ export const SUSPEND_REASON_MAX = 500;
 export const PLATFORM_ACTIONS = [
   'owner.applied',
   'owner.approved',
+  'owner.auto_approved',
   'owner.suspended',
   'owner.reactivated',
   'user.disabled',

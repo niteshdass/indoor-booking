@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { LOCALES } from '@booking/shared';
+import { resolveGeneral } from '../../admin/settings';
 import { logPlatform } from '../../admin/platformLog.model';
 import type { AuthDeps } from '../../auth/deps';
 import { requireAuth } from '../../auth/requireAuth';
@@ -35,9 +36,11 @@ export function applyOwnerRouter({ config, services }: AuthDeps): Router {
       throw new AppError(409, 'application_pending', 'You already have an application waiting for approval');
     }
     const now = services.now();
-    const { owner } = await createOwner({ userId, ...input, status: 'pending_approval' }, now);
+    const automatic = (await resolveGeneral(config)).ownerApproval === 'automatic';
+    const { owner } = await createOwner({ userId, ...input, status: automatic ? 'active' : 'pending_approval' }, now);
     const ownerId = owner.id as string;
     await logPlatform(userId, { action: 'owner.applied', entity: 'owner', entityId: ownerId, ownerId }, now);
+    if (automatic) await logPlatform(userId, { action: 'owner.auto_approved', entity: 'owner', entityId: ownerId, ownerId }, now);
     res.status(201).json({ owner: { id: ownerId, name: owner.name, status: owner.status } });
   });
 

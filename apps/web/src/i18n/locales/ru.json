@@ -2121,6 +2121,7 @@
         "owner": {
           "applied": "«{{target}}» подала заявку",
           "approved": "Одобрена «{{target}}»",
+          "auto_approved": "Автоматически одобрена «{{target}}»",
           "suspended": "Приостановлена «{{target}}»",
           "reactivated": "Возобновлена «{{target}}»"
         },
@@ -2131,6 +2132,9 @@
         "review": {
           "hidden": "Скрыт отзыв о «{{target}}»",
           "kept": "Оставлен отзыв о «{{target}}»"
+        },
+        "settings": {
+          "general_updated": "Обновил настройки платформы"
         }
       }
     },
@@ -2229,7 +2233,9 @@
     "choose": "Выберите…",
     "submit": "Отправить заявку",
     "review": "Обычно мы рассматриваем заявки в течение дня.",
-    "seeStatus": "Посмотреть статус"
+    "seeStatus": "Посмотреть статус",
+    "live": "Ваш бизнес активен. Добавьте первую площадку.",
+    "goToDashboard": "Открыть кабинет"
   },
   "notificationEvent": {
     "payment_received": "Оплата получена",

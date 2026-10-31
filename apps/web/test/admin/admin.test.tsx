@@ -52,6 +52,7 @@ function overview(over: Partial<AdminOverviewJson> = {}): AdminOverviewJson {
     venues: { total: 10, published: 8 },
     bookings: { recent: 30, previous: 20 },
     earned: [{ currency: 'BDT', amount: 1_250_000 }],
+    fees: { owed: [], collected: [] },
     openFlags: 3,
     pendingOwners: [ownerRow()],
     newestOwners: [ownerRow()],

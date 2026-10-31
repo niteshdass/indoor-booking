@@ -20,6 +20,8 @@ export type Overview = {
   range: { from: string; to: string; days: number; previous: { from: string; to: string } };
   currency: string;
   timezone: string;
+  /** Platform fees owed for the period (revenue is already net of them). */
+  platformFees: number;
   kpis: Record<'revenue' | 'bookings' | 'minutes' | 'utilization' | 'averageBooking' | 'cancellationRate', Kpi>;
   daily: OverviewDay[];
   mix: { courts: number; addons: number; cancellationFees: number; collected: number; outstanding: number };

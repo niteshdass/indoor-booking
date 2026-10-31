@@ -64,6 +64,8 @@ export type AdminOverviewJson = {
   bookings: { recent: number; previous: number };
   /** Earned in the last ADMIN_PERIOD_DAYS days, largest first. */
   earned: CurrencyAmount[];
+  /** Platform fees in the same period: owed by bookings, collected by confirmed payouts. */
+  fees: { owed: CurrencyAmount[]; collected: CurrencyAmount[] };
   openFlags: number;
   pendingOwners: AdminOwnerRowJson[];
   newestOwners: AdminOwnerRowJson[];

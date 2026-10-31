@@ -1,8 +1,9 @@
 import mongoose from 'mongoose';
-import { ADMIN_PERIOD_DAYS, type AdminOwnerRowJson, type AdminPersonJson, type CurrencyAmount, type OwnerStatus } from '@booking/shared';
+import { ADMIN_PERIOD_DAYS, FEE_OWING_STATUSES, type AdminOwnerRowJson, type AdminPersonJson, type CurrencyAmount, type OwnerStatus } from '@booking/shared';
 import { User } from '../auth/user.model';
 import { Booking } from '../bookings/booking.model';
 import { balancesByOwner } from '../platform/balance';
+import { PlatformPayout } from '../platform/payout.model';
 import { PLAYED_STATUSES } from '../reports/overview';
 import { Membership } from '../tenancy/membership.model';
 import { systemRole } from '../tenancy/role.model';
@@ -30,7 +31,7 @@ export const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => 
 
 /**
  * What bookings played in [from, to) earned, per currency, largest first: the total once played, or what was kept
- * after a cancellation (the owner Overview's rule).
+ * after a cancellation (the owner Overview's rule), net of the platform fee on played bookings.
  */
 export async function earnedByCurrency(from: Date, to: Date, ownerId?: string): Promise<CurrencyAmount[]> {
   const match: Record<string, unknown> = { startAt: { $gte: from, $lt: to } };
@@ -44,7 +45,7 @@ export async function earnedByCurrency(from: Date, to: Date, ownerId?: string): 
           $sum: {
             $switch: {
               branches: [
-                { case: { $in: ['$status', PLAYED_STATUSES] }, then: '$total' },
+                { case: { $in: ['$status', PLAYED_STATUSES] }, then: { $max: [0, { $subtract: ['$total', { $ifNull: ['$platformFee.amount', 0] }] }] } },
                 { case: { $eq: ['$status', 'cancelled'] }, then: { $max: [0, { $subtract: ['$amountPaid', '$amountRefunded'] }] } },
               ],
               default: 0,
@@ -58,6 +59,30 @@ export async function earnedByCurrency(from: Date, to: Date, ownerId?: string): 
     .filter((r) => r.amount > 0)
     .map((r) => ({ currency: r._id, amount: r.amount }))
     .sort((a, b) => b.amount - a.amount || a.currency.localeCompare(b.currency));
+}
+
+const byAmount = (rows: { _id: string; amount: number }[]): CurrencyAmount[] =>
+  rows
+    .filter((r) => r.amount > 0)
+    .map((r) => ({ currency: r._id, amount: r.amount }))
+    .sort((a, b) => b.amount - a.amount || a.currency.localeCompare(b.currency));
+
+/**
+ * Platform fees per currency in [from, to): `owed` by the fees on owing bookings played in the period, `collected`
+ * by the confirmed payouts reviewed in it.
+ */
+export async function feesByCurrency(from: Date, to: Date): Promise<{ owed: CurrencyAmount[]; collected: CurrencyAmount[] }> {
+  const [owed, collected] = await Promise.all([
+    Booking.aggregate<{ _id: string; amount: number }>([
+      { $match: { startAt: { $gte: from, $lt: to }, status: { $in: FEE_OWING_STATUSES } } },
+      { $group: { _id: '$currency', amount: { $sum: { $ifNull: ['$platformFee.amount', 0] } } } },
+    ]).option({ crossTenant: true }),
+    PlatformPayout.aggregate<{ _id: string; amount: number }>([
+      { $match: { status: 'confirmed', reviewedAt: { $gte: from, $lt: to } } },
+      { $group: { _id: '$currency', amount: { $sum: '$amount' } } },
+    ]).option({ crossTenant: true }),
+  ]);
+  return { owed: byAmount(owed), collected: byAmount(collected) };
 }
 
 export const personJson = (u: { _id: unknown; name?: string | null; email?: string | null; phone?: string | null }): AdminPersonJson => ({

@@ -55,7 +55,7 @@ let refs = 0;
 async function book(
   date: string,
   hm: string,
-  over: Partial<{ turf: TurfDoc; status: string; source: string; hours: number; total: number; addons: number; paid: number; refunded: number; phone: string }> = {},
+  over: Partial<{ turf: TurfDoc; status: string; source: string; hours: number; total: number; addons: number; paid: number; refunded: number; phone: string; fee: { amount: number; payer: 'player' | 'owner' } }> = {},
 ) {
   const startAt = localToUtc(date, hmToMin(hm), TZ);
   const endAt = new Date(startAt.getTime() + (over.hours ?? 1) * 3_600_000);
@@ -83,6 +83,7 @@ async function book(
     source: over.source ?? 'online',
     guest: { name: 'Guest', phone: over.phone ?? '+8801700000001' },
     policySnapshot: { paymentPolicy: { type: 'none' }, refundRules: [] },
+    platformFee: over.fee ? { mode: 'fixed', value: over.fee.amount / 100, payer: over.fee.payer, amount: over.fee.amount } : null,
   });
 }
 
@@ -138,6 +139,27 @@ describe('owner overview report', () => {
     // Three customers this week (the expired one is not counted); two of them new, the old guest returning.
     expect(body.players).toEqual({ value: 3, previous: 1, newValue: 2, newPrevious: 1 });
     expect(body.recent).toHaveLength(6);
+  });
+
+  it('revenue is net of the platform fee', async () => {
+    await book(TODAY, '09:00', { total: 105000, fee: { amount: 5000, payer: 'player' } });
+    const res = await overview();
+    expect(res.body.kpis.revenue.value).toBe(100000);
+    expect(res.body.platformFees).toBe(5000);
+  });
+
+  it('owner-paid fee is deducted too', async () => {
+    await book(TODAY, '09:00', { total: 100000, fee: { amount: 5000, payer: 'owner' } });
+    const res = await overview();
+    expect(res.body.kpis.revenue.value).toBe(95000);
+    expect(res.body.platformFees).toBe(5000);
+  });
+
+  it('cancelled booking owes no fee', async () => {
+    await book(TODAY, '09:00', { status: 'cancelled', total: 100000, paid: 30000, fee: { amount: 5000, payer: 'owner' } });
+    const res = await overview();
+    expect(res.body.kpis.revenue.value).toBe(30000);
+    expect(res.body.platformFees).toBe(0);
   });
 
   it('splits payments by method, net of refunds', async () => {

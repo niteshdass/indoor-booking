@@ -1,4 +1,4 @@
-import { addDays, localParts, rangeMinutes, weekdayOf, WEEKDAYS, type BookingStatus, type WeeklyHours } from '@booking/shared';
+import { addDays, FEE_OWING_STATUSES, localParts, rangeMinutes, weekdayOf, WEEKDAYS, type BookingStatus, type WeeklyHours } from '@booking/shared';
 
 /** Statuses whose court time was (or will be) played and whose total counts as earned. */
 export const PLAYED_STATUSES: readonly BookingStatus[] = ['confirmed', 'completed', 'no_show'];
@@ -19,6 +19,7 @@ export type OverviewBooking = {
   total: number;
   amountPaid: number;
   amountRefunded: number;
+  platformFee: { amount: number } | null;
 };
 
 export type OverviewTurf = { id: string; name: string; hours: WeeklyHours };
@@ -41,8 +42,10 @@ export function datesOf({ from, to }: Range): string[] {
 const minutesOf = (b: OverviewBooking) => b.slots.reduce((sum, s) => sum + (s.endAt.getTime() - s.startAt.getTime()) / 60_000, 0);
 const played = (b: OverviewBooking) => PLAYED_STATUSES.includes(b.status);
 const kept = (b: OverviewBooking) => Math.max(0, b.amountPaid - b.amountRefunded);
-/** What a booking earned: the total once played, or what was kept after a cancellation. */
-export const earned = (b: OverviewBooking) => (played(b) ? b.total : b.status === 'cancelled' ? kept(b) : 0);
+/** The platform fee a booking owes; nothing once it is cancelled, rejected or unpaid. */
+export const feeOf = (b: OverviewBooking) => (FEE_OWING_STATUSES.includes(b.status) && b.platformFee ? b.platformFee.amount : 0);
+/** What a booking earned: the total once played (less its platform fee), or what was kept after a cancellation. */
+export const earned = (b: OverviewBooking) => Math.max(0, (played(b) ? b.total : b.status === 'cancelled' ? kept(b) : 0) - feeOf(b));
 
 /** Minutes a turf is open on `date` by its weekly hours (closures and one-off changes are not counted). */
 export function openMinutes(hours: WeeklyHours, date: string): number {
@@ -52,11 +55,12 @@ export function openMinutes(hours: WeeklyHours, date: string): number {
   return e - s;
 }
 
-type Totals = { revenue: number; playedRevenue: number; bookings: number; minutes: number; openMinutes: number; cancelled: number; decided: number };
+type Totals = { revenue: number; platformFees: number; playedRevenue: number; bookings: number; minutes: number; openMinutes: number; cancelled: number; decided: number };
 
 function totals(bookings: OverviewBooking[], turfs: OverviewTurf[], range: Range): Totals {
   const days = datesOf(range);
   let revenue = 0;
+  let platformFees = 0;
   let playedRevenue = 0;
   let count = 0;
   let minutes = 0;
@@ -64,6 +68,7 @@ function totals(bookings: OverviewBooking[], turfs: OverviewTurf[], range: Range
   let decided = 0;
   for (const b of bookings) {
     revenue += earned(b);
+    platformFees += feeOf(b);
     if (played(b)) {
       count += 1;
       playedRevenue += b.total;
@@ -73,7 +78,7 @@ function totals(bookings: OverviewBooking[], turfs: OverviewTurf[], range: Range
     if (b.status === 'cancelled') cancelled += 1;
   }
   const open = turfs.reduce((sum, t) => sum + days.reduce((s, d) => s + openMinutes(t.hours, d), 0), 0);
-  return { revenue, playedRevenue, bookings: count, minutes, openMinutes: open, cancelled, decided };
+  return { revenue, platformFees, playedRevenue, bookings: count, minutes, openMinutes: open, cancelled, decided };
 }
 
 /** Everything the owner Overview page shows, from the bookings of both periods. */
@@ -147,6 +152,7 @@ export function buildOverview(input: {
 
   const kpi = (pick: (t: Totals) => number) => ({ value: pick(now), previous: pick(before) });
   return {
+    platformFees: now.platformFees,
     kpis: {
       revenue: kpi((t) => t.revenue),
       bookings: kpi((t) => t.bookings),

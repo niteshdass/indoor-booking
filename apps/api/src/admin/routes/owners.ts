@@ -25,7 +25,7 @@ import { Venue } from '../../venues/venue.model';
 import { platformOf, requirePlatform } from '../context';
 import { platformLogJson } from '../logJson';
 import { PlatformLog, logPlatform } from '../platformLog.model';
-import { bookingCounts, earnedByCurrency, ownerContacts, ownerRows, periodStart, sum } from '../stats';
+import { bookingCounts, earnedByCurrency, feesByCurrency, ownerContacts, ownerRows, periodStart, sum } from '../stats';
 
 const listQuery = z
   .object({
@@ -65,7 +65,7 @@ export function adminOwnersRouter(services: AppServices): Router {
   router.get('/overview', requirePlatform('platform.view'), async (_req, res) => {
     const now = services.now();
     const [from, prevFrom] = [periodStart(now), periodStart(now, 2)];
-    const [owners, usersTotal, usersRecent, usersPrevious, venuesTotal, venuesPublished, recent, previous, earned, openFlags, pending, newest] =
+    const [owners, usersTotal, usersRecent, usersPrevious, venuesTotal, venuesPublished, recent, previous, earned, fees, openFlags, pending, newest] =
       await Promise.all([
         statusCounts(),
         User.countDocuments(),
@@ -76,6 +76,7 @@ export function adminOwnersRouter(services: AppServices): Router {
         bookingCounts(from, now),
         bookingCounts(prevFrom, from),
         earnedByCurrency(from, now),
+        feesByCurrency(from, now),
         Review.countDocuments({ flag: { $ne: null }, moderation: 'visible' }).setOptions({ crossTenant: true }),
         Owner.find({ status: 'pending_approval' }).sort({ createdAt: 1, _id: 1 }).limit(5).lean(),
         Owner.find().sort({ createdAt: -1, _id: -1 }).limit(5).lean(),
@@ -86,6 +87,7 @@ export function adminOwnersRouter(services: AppServices): Router {
       venues: { total: venuesTotal, published: venuesPublished },
       bookings: { recent: sum(recent), previous: sum(previous) },
       earned,
+      fees,
       openFlags,
       pendingOwners: await ownerRows(pending, now),
       newestOwners: await ownerRows(newest, now),

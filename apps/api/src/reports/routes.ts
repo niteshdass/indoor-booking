@@ -13,7 +13,7 @@ import { Turf } from '../venues/turf.model';
 import { buildOverview, OVERVIEW_DAYS, overviewRanges, type OverviewBooking, type Range } from './overview';
 
 const RECENT_LIMIT = 6;
-const FIELDS = 'turfId playerId guest businessDate status source slots subtotal addonsTotal total amountPaid amountRefunded';
+const FIELDS = 'turfId playerId guest businessDate status source slots subtotal addonsTotal total amountPaid amountRefunded platformFee';
 
 const querySchema = z.object({
   venueId: z.string().regex(/^[0-9a-f]{24}$/i, 'Must be an id'),
@@ -34,6 +34,7 @@ const asOverview = (b: BookingDoc): OverviewBooking => ({
   total: b.total,
   amountPaid: b.amountPaid,
   amountRefunded: b.amountRefunded,
+  platformFee: b.platformFee ?? null,
 });
 
 /** Mounted on ownerRouter. */

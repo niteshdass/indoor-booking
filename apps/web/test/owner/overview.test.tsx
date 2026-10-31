@@ -35,6 +35,7 @@ function overview(over: Partial<Overview> = {}): Overview {
     range: { from: '2026-10-21', to: '2026-10-27', days: 7, previous: { from: '2026-10-14', to: '2026-10-20' } },
     currency: 'BDT',
     timezone: 'Asia/Dhaka',
+    platformFees: 0,
     kpis: {
       revenue: { value: 300000, previous: 200000 },
       bookings: { value: 3, previous: 4 },

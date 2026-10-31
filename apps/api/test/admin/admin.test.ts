@@ -14,6 +14,7 @@ import { ActivityLog } from '../../src/tenancy/activityLog.model';
 import { Venue } from '../../src/venues/venue.model';
 import { Turf } from '../../src/venues/turf.model';
 import { Booking } from '../../src/bookings/booking.model';
+import { PlatformPayout } from '../../src/platform/payout.model';
 import { Review } from '../../src/reviews/review.model';
 import { PlatformLog } from '../../src/admin/platformLog.model';
 import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
@@ -205,12 +206,32 @@ describe('overview and owner detail', () => {
     expect(res.body.venues).toEqual({ total: 1, published: 1 });
     expect(res.body.bookings.recent).toBe(2);
     expect(res.body.earned).toEqual([{ currency: 'BDT', amount: 1300 }]);
+    expect(res.body.fees).toEqual({ owed: [], collected: [] });
     expect(res.body.newestOwners[0]).toMatchObject({ name: 'Arena', venues: 1, publishedVenues: 1, recentBookings: 2 });
 
     const detail = await get(`/admin/owners/${a.ownerId}`);
     expect(detail.body.venues).toEqual([expect.objectContaining({ name: 'Alpha', published: true })]);
     expect(detail.body.recent.bookings).toBe(2);
     expect(detail.body.contacts.map((c: { name: string }) => c.name)).toEqual(['Owner User']);
+  });
+});
+
+describe('overview platform fees', () => {
+  it('earned is net; fees owed and collected are as seeded', async () => {
+    const venue = await seedVenue(a.ownerId, { name: 'Alpha', slug: 'alpha' });
+    const fee = (amount: number) => ({ mode: 'fixed', value: amount / 100, payer: 'owner', amount });
+    await booking(a.ownerId, venue.id as string, { total: 10000, platformFee: fee(500) });
+    await booking(a.ownerId, venue.id as string, { status: 'pending', total: 4000, platformFee: fee(300) });
+    await booking(a.ownerId, venue.id as string, { status: 'cancelled', amountPaid: 700, platformFee: fee(900) });
+    const now = ctx.services.now();
+    const payout = (trxId: string, status: string, amount: number, reviewedAt: Date | null) =>
+      PlatformPayout.create({ ownerId: a.ownerId, currency: 'BDT', amount, method: 'bkash', trxId, status, reviewedAt });
+    await payout('IN1', 'confirmed', 600, new Date(now.getTime() - 86_400_000));
+    await payout('OLD', 'confirmed', 111, new Date(now.getTime() - 40 * 86_400_000));
+    await payout('PEND', 'pending', 222, null);
+    const res = await get('/admin/overview');
+    expect(res.body.earned).toEqual([{ currency: 'BDT', amount: 9500 + 700 }]);
+    expect(res.body.fees).toEqual({ owed: [{ currency: 'BDT', amount: 800 }], collected: [{ currency: 'BDT', amount: 600 }] });
   });
 });
 

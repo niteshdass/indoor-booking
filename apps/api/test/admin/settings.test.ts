@@ -5,8 +5,9 @@ import { buildTestApp, testConfig } from '../helpers/testApp';
 import { bearer, seedUser } from '../helpers/tenancy';
 import { User } from '../../src/auth/user.model';
 import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
+import { PlatformLog } from '../../src/admin/platformLog.model';
 import { defaultServices } from '../../src/services';
-import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGoogleClientId, resolveSms } from '../../src/admin/settings';
+import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGeneral, resolveGoogleClientId, resolveSms } from '../../src/admin/settings';
 
 const CLIENT_ID = '1234-abc.apps.googleusercontent.com';
 const SID = 'AC' + 'a'.repeat(32);
@@ -114,6 +115,98 @@ describe('admin settings', () => {
     const failed = await post('/admin/settings/sms/test', { to: '+8801712345678' });
     expect(failed.status).toBe(502);
     expect(failed.body.error).toMatchObject({ code: 'delivery_failed', message: 'Twilio 401: Authenticate' });
+  });
+});
+
+describe('admin general settings', () => {
+  const fee = (o: object) => ({ mode: 'percent', percent: 5, fixed: null, payer: 'player', ...o });
+  const general = (o: object = {}) => ({ ownerApproval: 'automatic', fee: fee({}), payout: { bkash: null, nagad: null }, ...o });
+
+  it('general starts at defaults', async () => {
+    const res = await get('/admin/settings');
+    expect(res.body.general).toMatchObject({
+      ownerApproval: 'manual',
+      fee: { mode: 'free', fixed: null, percent: null, payer: 'owner' },
+      payout: { bkash: null, nagad: null, stripe: null },
+      payoutWebhookUrl: `${testConfig.apiUrl}/api/v1/webhooks/stripe/platform`,
+    });
+  });
+
+  it('saves approval, fee and wallets', async () => {
+    const input = { provider: 'bkash', number: '01711111111', accountType: 'personal' };
+    // The number is normalized the way owner wallets are.
+    const bkash = { ...input, number: '+8801711111111' };
+    const res = await put('/admin/settings/general', general({ payout: { bkash: input, nagad: null } }));
+    expect(res.status).toBe(200);
+    expect(res.body.general).toMatchObject({
+      ownerApproval: 'automatic',
+      fee: { mode: 'percent', percent: 5, fixed: null, payer: 'player' },
+      payout: { bkash, nagad: null, stripe: null },
+    });
+    clearSettingsCache();
+    expect(await resolveGeneral(testConfig)).toEqual({
+      ownerApproval: 'automatic',
+      fee: { mode: 'percent', percent: 5, fixed: null, payer: 'player' },
+      payout: { bkash, nagad: null, stripe: null },
+    });
+  });
+
+  it('rejects bad fees and wallets', async () => {
+    const bad = [
+      fee({ percent: 60 }),
+      fee({ percent: 0 }),
+      fee({ percent: 1.234 }),
+      fee({ mode: 'fixed', percent: null, fixed: null }),
+      fee({ mode: 'fixed', percent: null, fixed: -1 }),
+      fee({ mode: 'free', percent: null, fixed: 10 }),
+    ];
+    for (const f of bad) expect((await put('/admin/settings/general', general({ fee: f }))).status).toBe(400);
+    const wrongProvider = { provider: 'nagad', number: '01711111111', accountType: 'personal' };
+    expect((await put('/admin/settings/general', general({ payout: { bkash: wrongProvider, nagad: null } }))).status).toBe(400);
+    const badNumber = { provider: 'bkash', number: '123', accountType: 'personal' };
+    expect((await put('/admin/settings/general', general({ payout: { bkash: badNumber, nagad: null } }))).status).toBe(400);
+  });
+
+  it('saves payout stripe keys, never returns secrets, and keeps them across general saves', async () => {
+    const keys = { mode: 'test', secretKey: 'sk_test_payout1', publishableKey: 'pk_test_payout1', webhookSecret: 'whsec_payout1', enabled: true };
+    const res = await put('/admin/settings/payout-stripe', keys);
+    expect(res.status).toBe(200);
+    expect(res.body.general.payout.stripe.mode).toBe('test');
+    expect(res.body.general.payout.stripe.enabled).toBe(true);
+    expect(res.body.general.payout.stripe.keys.test.publishableKey).toBe('pk_test_payout1');
+    expect(res.body.general.payout.stripe.keys.live).toBeNull();
+    expect(JSON.stringify(res.body)).not.toMatch(/secretKey|sk_test_payout1|whsec_payout1/);
+    expect(JSON.stringify(await PlatformSettings.findById('platform').lean())).not.toMatch(/sk_test_payout1|whsec_payout1/);
+
+    await put('/admin/settings/general', general());
+    clearSettingsCache();
+    expect((await resolveGeneral(ctx.config)).payout.stripe).toMatchObject({
+      mode: 'test',
+      publishableKey: 'pk_test_payout1',
+      creds: { secretKey: 'sk_test_payout1', webhookSecret: 'whsec_payout1' },
+    });
+
+    expect((await put('/admin/settings/payout-stripe', { ...keys, mode: 'live' })).status).toBe(400);
+    expect((await put('/admin/settings/payout-stripe', { ...keys, publishableKey: 'pk_live_x' })).status).toBe(400);
+    const off = await put('/admin/settings/payout-stripe', { ...keys, enabled: false });
+    expect(off.body.general.payout.stripe.enabled).toBe(false);
+    clearSettingsCache();
+    expect((await resolveGeneral(ctx.config)).payout.stripe).toBeNull();
+
+    const del = await request(ctx.app).delete(api('/admin/settings/payout-stripe')).set(...bearer(admin.token));
+    expect(del.body.general.payout.stripe).toBeNull();
+  });
+
+  it('logs each save', async () => {
+    await PlatformLog.deleteMany({});
+    await put('/admin/settings/general', general());
+    expect(await PlatformLog.countDocuments({ action: 'settings.general_updated' })).toBe(1);
+  });
+
+  it('general needs platform.settings', async () => {
+    const player = await seedUser(ctx.services, { name: 'Player' });
+    expect((await put('/admin/settings/general', general(), player.token)).status).toBe(403);
+    expect((await put('/admin/settings/payout-stripe', {}, player.token)).status).toBe(403);
   });
 });
 

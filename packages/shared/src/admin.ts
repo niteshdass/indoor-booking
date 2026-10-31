@@ -1,6 +1,8 @@
+import type { OwnerApprovalMode, PlatformFeeSettings } from './platformFee';
 import type { PlatformPermission, PlatformRoleKey } from './permissions';
 import type { RatingSummary } from './reviews';
 import type { OwnerStatus } from './statuses';
+import type { ManualWallet } from './wallets';
 
 export const ADMIN_PAGE_SIZE = 25;
 export const ADMIN_REVIEW_PAGE_SIZE = 20;
@@ -18,6 +20,7 @@ export const PLATFORM_ACTIONS = [
   'user.enabled',
   'review.hidden',
   'review.kept',
+  'settings.general_updated',
 ] as const;
 export type PlatformAction = (typeof PLATFORM_ACTIONS)[number];
 
@@ -143,6 +146,21 @@ export type AdminSettingsJson = {
   sms: { source: SettingSource; twilio: { accountSid: string; from: string; authTokenSet: boolean } | null };
   /** False when the server has no encryption key, so passwords and tokens cannot be saved. */
   secretsAvailable: boolean;
+  general: {
+    ownerApproval: OwnerApprovalMode;
+    fee: PlatformFeeSettings;
+    payout: {
+      bkash: ManualWallet | null;
+      nagad: ManualWallet | null;
+      stripe: {
+        mode: 'test' | 'live';
+        enabled: boolean;
+        keys: Record<'test' | 'live', { publishableKey: string; accountId: string } | null>;
+      } | null;
+    };
+    /** Where the payout Stripe account's webhook points. */
+    payoutWebhookUrl: string;
+  };
   updatedAt: string | null;
   updatedBy: string | null;
 };

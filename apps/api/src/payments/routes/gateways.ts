@@ -24,18 +24,22 @@ import { seal } from '../secretBox';
 
 const GATEWAYS = ['stripe'] as const;
 
+export const stripeKeyFields = {
+  secretKey: z.string().regex(/^(sk|rk)_(test|live)_\S+$/, 'Expected a Stripe secret or restricted key'),
+  publishableKey: z.string().regex(/^pk_(test|live)_\S+$/, 'Expected a Stripe publishable key'),
+  webhookSecret: z.string().regex(/^whsec_\S+$/, 'Expected a Stripe webhook signing secret'),
+};
+
+/** Secret and publishable keys must belong to the same mode. */
+export const sameKeyMode = {
+  check: (b: { secretKey: string; publishableKey: string }) => b.secretKey.split('_')[1] === b.publishableKey.split('_')[1],
+  issue: { path: ['publishableKey'], message: 'Secret and publishable keys must be for the same mode' },
+};
+
 const putSchema = z
-  .object({
-    secretKey: z.string().regex(/^(sk|rk)_(test|live)_\S+$/, 'Expected a Stripe secret or restricted key'),
-    publishableKey: z.string().regex(/^pk_(test|live)_\S+$/, 'Expected a Stripe publishable key'),
-    webhookSecret: z.string().regex(/^whsec_\S+$/, 'Expected a Stripe webhook signing secret'),
-    enabled: z.boolean().optional(),
-  })
+  .object({ ...stripeKeyFields, enabled: z.boolean().optional() })
   .strict()
-  .refine((b) => b.secretKey.split('_')[1] === b.publishableKey.split('_')[1], {
-    path: ['publishableKey'],
-    message: 'Secret and publishable keys must be for the same mode',
-  });
+  .refine(sameKeyMode.check, sameKeyMode.issue);
 
 const patchSchema = z
   .object({ enabled: z.boolean().optional(), mode: z.enum(GATEWAY_MODES).optional() })

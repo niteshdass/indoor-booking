@@ -1,6 +1,65 @@
 import mongoose from 'mongoose';
+import { DEFAULT_PLATFORM_FEE, FEE_PAYERS, OWNER_APPROVAL_MODES, PLATFORM_FEE_MODES, WALLET_PROVIDERS } from '@booking/shared';
+import type { ManualWallet, OwnerApprovalMode, PlatformFeeSettings } from '@booking/shared';
 import type { Config } from '../config';
+import type { GatewayCredentials } from '../payments/gateway';
 import { open } from '../payments/secretBox';
+
+const walletSchema = new mongoose.Schema(
+  {
+    provider: { type: String, enum: WALLET_PROVIDERS, required: true },
+    number: { type: String, required: true },
+    accountType: { type: String, enum: ['personal', 'merchant', 'agent'], required: true },
+    note: { type: String },
+  },
+  { _id: false },
+);
+
+/** One mode's payout Stripe keys; the secret key and webhook secret are sealed together. */
+const payoutKeySetSchema = new mongoose.Schema(
+  {
+    credentialsEncrypted: { type: String, required: true },
+    publishableKey: { type: String, required: true },
+    accountId: { type: String, required: true },
+  },
+  { _id: false },
+);
+
+const feeSchema = new mongoose.Schema(
+  {
+    mode: { type: String, enum: PLATFORM_FEE_MODES, required: true },
+    fixed: { type: Number, default: null },
+    percent: { type: Number, default: null },
+    payer: { type: String, enum: FEE_PAYERS, required: true },
+  },
+  { _id: false },
+);
+
+const generalSchema = new mongoose.Schema(
+  {
+    ownerApproval: { type: String, enum: OWNER_APPROVAL_MODES, required: true },
+    fee: { type: feeSchema, required: true },
+    payout: {
+      bkash: { type: walletSchema, default: null },
+      nagad: { type: walletSchema, default: null },
+      stripe: {
+        type: new mongoose.Schema(
+          {
+            mode: { type: String, enum: ['test', 'live'], required: true },
+            enabled: { type: Boolean, required: true },
+            keys: {
+              test: { type: payoutKeySetSchema, default: null },
+              live: { type: payoutKeySetSchema, default: null },
+            },
+          },
+          { _id: false },
+        ),
+        default: null,
+      },
+    },
+  },
+  { _id: false },
+);
 
 /** The single platform settings document: sign-in and delivery providers an admin sets in the dashboard. */
 const platformSettingsSchema = new mongoose.Schema(
@@ -28,6 +87,7 @@ const platformSettingsSchema = new mongoose.Schema(
       default: null,
       _id: false,
     },
+    general: { type: generalSchema, default: null },
     updatedAt: { type: Date, default: null },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
@@ -39,7 +99,7 @@ export type PlatformSettingsDoc = mongoose.InferSchemaType<typeof platformSettin
 
 export const SETTINGS_ID = 'platform';
 /** Sealed secrets are bound to their field, so one cannot be swapped for another. */
-export const secretAad = (field: 'smtp.password' | 'twilio.authToken') => `platform-settings:${field}`;
+export const secretAad = (field: 'smtp.password' | 'twilio.authToken' | 'payout.stripe') => `platform-settings:${field}`;
 
 /** Every server re-reads within this window after another one saves. */
 const CACHE_MS = 15_000;
@@ -82,4 +142,34 @@ export async function resolveSms(config: Config): Promise<SmsSettings | null> {
     return { accountSid: s.accountSid, from: s.from, authToken: open(s.authTokenSealed, config.paymentsKey, secretAad('twilio.authToken')) };
   }
   return config.sms ?? null;
+}
+
+/** A saved wallet as the API shapes it: no `note` key when there is none. */
+export function walletOf(w: { provider: string; number: string; accountType: string; note?: string | null } | null | undefined): ManualWallet | null {
+  if (!w) return null;
+  return { provider: w.provider, number: w.number, accountType: w.accountType, ...(w.note ? { note: w.note } : {}) } as ManualWallet;
+}
+
+export type PayoutStripe = { mode: 'test' | 'live'; publishableKey: string; accountId: string; creds: GatewayCredentials };
+export type GeneralSettings = {
+  ownerApproval: OwnerApprovalMode;
+  fee: PlatformFeeSettings;
+  payout: { bkash: ManualWallet | null; nagad: ManualWallet | null; stripe: PayoutStripe | null };
+};
+
+/** Approval mode, platform fee and where owners pay it; defaults when nothing is saved. */
+export async function resolveGeneral(config: Config): Promise<GeneralSettings> {
+  const g = (await loadSettings())?.general;
+  let stripe: PayoutStripe | null = null;
+  const s = g?.payout?.stripe;
+  const set = s?.keys?.[s.mode];
+  if (s && s.enabled && set && config.paymentsKey) {
+    const creds = JSON.parse(open(set.credentialsEncrypted, config.paymentsKey, secretAad('payout.stripe'))) as GatewayCredentials;
+    stripe = { mode: s.mode, publishableKey: set.publishableKey, accountId: set.accountId, creds };
+  }
+  return {
+    ownerApproval: g?.ownerApproval ?? 'manual',
+    fee: g ? { mode: g.fee.mode, fixed: g.fee.fixed ?? null, percent: g.fee.percent ?? null, payer: g.fee.payer } : { ...DEFAULT_PLATFORM_FEE },
+    payout: { bkash: walletOf(g?.payout?.bkash), nagad: walletOf(g?.payout?.nagad), stripe },
+  };
 }

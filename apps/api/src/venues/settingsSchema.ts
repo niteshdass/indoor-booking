@@ -62,7 +62,7 @@ export const weekendDaysSchema = z
 
 const guestBookingSchema = z.object({ allowed: z.boolean(), requireOtp: z.boolean() }).strict();
 
-const walletSchema = z
+export const walletSchema = z
   .object({
     provider: z.enum(WALLET_PROVIDERS),
     number: z.string().transform((raw, ctx) => {

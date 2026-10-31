@@ -1,13 +1,19 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { DEFAULT_PLATFORM_FEE, OWNER_APPROVAL_MODES, FEE_PAYERS, PLATFORM_FEE_MAX_PERCENT, PLATFORM_FEE_MODES } from '@booking/shared';
 import type { AdminSettingsJson, SettingSource } from '@booking/shared';
 import { User } from '../../auth/user.model';
 import type { Config } from '../../config';
 import { AppError } from '../../errors';
+import { gatewayFor } from '../../payments/gateway';
+import { GATEWAY_MODES, type GatewayMode } from '../../payments/gateway.model';
+import { sameKeyMode, stripeKeyFields } from '../../payments/routes/gateways';
 import { seal } from '../../payments/secretBox';
+import { walletSchema } from '../../venues/settingsSchema';
 import type { AppServices } from '../../services';
 import { platformOf, requirePlatform } from '../context';
-import { PlatformSettings, SETTINGS_ID, clearSettingsCache, secretAad, type PlatformSettingsDoc } from '../settings';
+import { logPlatform } from '../platformLog.model';
+import { PlatformSettings, SETTINGS_ID, clearSettingsCache, secretAad, walletOf, type PlatformSettingsDoc } from '../settings';
 
 const GOOGLE_CLIENT_ID_RE = /^[\w-]+\.apps\.googleusercontent\.com$/;
 const TWILIO_SID_RE = /^AC[0-9a-f]{32}$/i;
@@ -36,6 +42,44 @@ const smsBody = z
   })
   .strict();
 
+/** At most two decimals: money amounts are stored in major units but charged in minor ones. */
+const twoDecimals = (n: number) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
+const amount = (max: number) => z.number().finite().gt(0).max(max).refine(twoDecimals, 'Use at most 2 decimals');
+
+const feeSchema = z
+  .object({
+    mode: z.enum(PLATFORM_FEE_MODES),
+    fixed: amount(1_000_000).nullable(),
+    percent: amount(PLATFORM_FEE_MAX_PERCENT).nullable(),
+    payer: z.enum(FEE_PAYERS),
+  })
+  .strict()
+  .superRefine((f, ctx) => {
+    const need = (field: 'fixed' | 'percent', wanted: boolean) => {
+      if (wanted && f[field] === null) ctx.addIssue({ code: 'custom', path: [field], message: `Enter the ${field} fee` });
+      if (!wanted && f[field] !== null) ctx.addIssue({ code: 'custom', path: [field], message: `The ${f.mode} fee takes no ${field} amount` });
+    };
+    need('fixed', f.mode === 'fixed');
+    need('percent', f.mode === 'percent');
+  });
+
+/** Each slot takes its own provider's wallet. */
+const payoutWallet = (provider: 'bkash' | 'nagad') =>
+  walletSchema.nullable().refine((w) => !w || w.provider === provider, { message: `Must be a ${provider} wallet` });
+
+const generalBody = z
+  .object({
+    ownerApproval: z.enum(OWNER_APPROVAL_MODES),
+    fee: feeSchema,
+    payout: z.object({ bkash: payoutWallet('bkash'), nagad: payoutWallet('nagad') }).strict(),
+  })
+  .strict();
+
+const payoutStripeBody = z
+  .object({ mode: z.enum(GATEWAY_MODES), ...stripeKeyFields, enabled: z.boolean() })
+  .strict()
+  .refine(sameKeyMode.check, sameKeyMode.issue);
+
 const testEmailBody = z.object({ to: z.string().trim().email() }).strict();
 const testSmsBody = z.object({ to: z.string().trim().regex(E164_RE, 'Must be a phone number in international format') }).strict();
 
@@ -45,6 +89,10 @@ const sectionParam = z.enum(SECTIONS);
 const source = (saved: unknown, server: unknown): SettingSource => (saved ? 'admin' : server ? 'server' : 'none');
 
 async function settingsJson(config: Config, doc: PlatformSettingsDoc | null): Promise<AdminSettingsJson> {
+  const ps = doc?.general?.payout?.stripe;
+  const pub = (k: { publishableKey: string; accountId: string } | null | undefined) =>
+    k ? { publishableKey: k.publishableKey, accountId: k.accountId } : null;
+  const payoutStripe = ps ? { mode: ps.mode, enabled: ps.enabled, keys: { test: pub(ps.keys?.test), live: pub(ps.keys?.live) } } : null;
   const by = doc?.updatedBy ? await User.findById(doc.updatedBy, { name: 1 }).lean() : null;
   return {
     google: {
@@ -68,11 +116,31 @@ async function settingsJson(config: Config, doc: PlatformSettingsDoc | null): Pr
       source: source(doc?.sms, config.sms),
       twilio: doc?.sms ? { accountSid: doc.sms.accountSid, from: doc.sms.from, authTokenSet: true } : null,
     },
+    general: {
+      ownerApproval: doc?.general?.ownerApproval ?? 'manual',
+      fee: doc?.general
+        ? { ...doc.general.fee, fixed: doc.general.fee.fixed ?? null, percent: doc.general.fee.percent ?? null }
+        : { ...DEFAULT_PLATFORM_FEE },
+      payout: {
+        bkash: walletOf(doc?.general?.payout?.bkash),
+        nagad: walletOf(doc?.general?.payout?.nagad),
+        stripe: payoutStripe,
+      },
+      payoutWebhookUrl: `${config.apiUrl}/api/v1/webhooks/stripe/platform`,
+    },
     secretsAvailable: Boolean(config.paymentsKey),
     updatedAt: doc?.updatedAt ? doc.updatedAt.toISOString() : null,
     updatedBy: by?.name ?? null,
   };
 }
+
+type StoredKeys = { credentialsEncrypted: string; publishableKey: string; accountId: string } | null;
+type StoredPayoutStripe = { mode: GatewayMode; enabled: boolean; keys: Record<GatewayMode, StoredKeys> };
+type GeneralDoc = {
+  ownerApproval: (typeof OWNER_APPROVAL_MODES)[number];
+  fee: { mode: (typeof PLATFORM_FEE_MODES)[number]; fixed: number | null; percent: number | null; payer: (typeof FEE_PAYERS)[number] };
+  payout: { bkash: unknown; nagad: unknown; stripe: StoredPayoutStripe | null };
+};
 
 const noKey = () => new AppError(503, 'payments_unconfigured', 'This server has no encryption key, so secrets cannot be saved');
 
@@ -135,6 +203,62 @@ export function adminSettingsRouter(config: Config, services: AppServices): Rout
     else throw new AppError(400, 'secret_required', 'Enter the Twilio auth token');
     const sms = { accountSid: body.accountSid, authTokenSealed, from: body.from };
     res.json(await settingsJson(config, await save(platformOf(req).userId, { sms })));
+  });
+
+  /** Replaces part of the general settings, keeping the rest (the payout Stripe keys live beside the fee). */
+  const saveGeneral = async (actorId: string, patch: (g: GeneralDoc) => GeneralDoc) => {
+    const g = (await current())?.general;
+    const base: GeneralDoc = {
+      ownerApproval: g?.ownerApproval ?? 'manual',
+      fee: g ? { mode: g.fee.mode, fixed: g.fee.fixed ?? null, percent: g.fee.percent ?? null, payer: g.fee.payer } : { ...DEFAULT_PLATFORM_FEE },
+      payout: {
+        bkash: g?.payout?.bkash ?? null,
+        nagad: g?.payout?.nagad ?? null,
+        stripe: g?.payout?.stripe
+          ? { mode: g.payout.stripe.mode, enabled: g.payout.stripe.enabled, keys: { test: g.payout.stripe.keys?.test ?? null, live: g.payout.stripe.keys?.live ?? null } }
+          : null,
+      },
+    };
+    const doc = await save(actorId, { general: patch(base) });
+    // Settings are platform-wide, so the entry is filed against the admin who saved them.
+    await logPlatform(actorId, { action: 'settings.general_updated', entity: 'user', entityId: actorId }, services.now());
+    return doc;
+  };
+
+  router.put('/settings/general', async (req, res) => {
+    const body = generalBody.parse(req.body);
+    const doc = await saveGeneral(platformOf(req).userId, (g) => ({
+      ...g,
+      ownerApproval: body.ownerApproval,
+      fee: body.fee,
+      payout: { ...g.payout, bkash: body.payout.bkash, nagad: body.payout.nagad },
+    }));
+    res.json(await settingsJson(config, doc));
+  });
+
+  router.put('/settings/payout-stripe', async (req, res) => {
+    const body = payoutStripeBody.parse(req.body);
+    const key = config.paymentsKey;
+    if (!key) throw noKey();
+    const gateway = gatewayFor(services, 'stripe');
+    if (!gateway) throw new AppError(404, 'not_found', 'Payment gateway not found');
+    const creds = { secretKey: body.secretKey, webhookSecret: body.webhookSecret };
+    const { accountId } = await gateway.verifyCredentials(creds);
+    const keyMode = body.secretKey.split('_')[1] as GatewayMode;
+    const set = { credentialsEncrypted: seal(JSON.stringify(creds), key, secretAad('payout.stripe')), publishableKey: body.publishableKey, accountId };
+    const doc = await saveGeneral(platformOf(req).userId, (g) => {
+      const keys: Record<GatewayMode, StoredKeys> = { test: g.payout.stripe?.keys?.test ?? null, live: g.payout.stripe?.keys?.live ?? null };
+      keys[keyMode] = set;
+      // The active mode must have keys: adding the other mode's keys does not switch unless asked.
+      if (!keys[body.mode]) throw new AppError(400, 'gateway_mode_not_connected', 'Add the keys for this mode first');
+      return { ...g, payout: { ...g.payout, stripe: { mode: body.mode, enabled: body.enabled, keys } } };
+    });
+    res.json(await settingsJson(config, doc));
+  });
+
+  router.delete('/settings/payout-stripe', async (req, res) => {
+    const doc = await saveGeneral(platformOf(req).userId, (g) => ({ ...g, payout: { ...g.payout, stripe: null } }));
+    res.json(await settingsJson(config, doc));
   });
 
   router.delete('/settings/:section', async (req, res) => {

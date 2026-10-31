@@ -150,7 +150,8 @@ export function walletOf(w: { provider: string; number: string; accountType: str
   return { provider: w.provider, number: w.number, accountType: w.accountType, ...(w.note ? { note: w.note } : {}) } as ManualWallet;
 }
 
-export type PayoutStripe = { mode: 'test' | 'live'; publishableKey: string; accountId: string; creds: GatewayCredentials };
+/** The admin's payout Stripe account as everyone may see it: no secrets. */
+export type PayoutStripe = { mode: 'test' | 'live'; publishableKey: string; accountId: string };
 export type GeneralSettings = {
   ownerApproval: OwnerApprovalMode;
   fee: PlatformFeeSettings;
@@ -170,19 +171,32 @@ export async function payoutStripeWebhookCreds(config: Config): Promise<GatewayC
     .map((set) => JSON.parse(open(set.credentialsEncrypted, key, secretAad('payout.stripe'))) as GatewayCredentials);
 }
 
-/** Approval mode, platform fee and where owners pay it; defaults when nothing is saved. */
+/** Approval mode, platform fee and where owners pay it; defaults when nothing is saved. Opens no secrets. */
 export async function resolveGeneral(config: Config): Promise<GeneralSettings> {
   const g = (await loadSettings())?.general;
   let stripe: PayoutStripe | null = null;
   const s = g?.payout?.stripe;
   const set = s?.keys?.[s.mode];
   if (s && s.enabled && set && config.paymentsKey) {
-    const creds = JSON.parse(open(set.credentialsEncrypted, config.paymentsKey, secretAad('payout.stripe'))) as GatewayCredentials;
-    stripe = { mode: s.mode, publishableKey: set.publishableKey, accountId: set.accountId, creds };
+    stripe = { mode: s.mode, publishableKey: set.publishableKey, accountId: set.accountId };
   }
   return {
     ownerApproval: g?.ownerApproval ?? 'manual',
     fee: g ? { mode: g.fee.mode, fixed: g.fee.fixed ?? null, percent: g.fee.percent ?? null, payer: g.fee.payer } : { ...DEFAULT_PLATFORM_FEE },
     payout: { bkash: walletOf(g?.payout?.bkash), nagad: walletOf(g?.payout?.nagad), stripe },
   };
+}
+
+/** The active payout Stripe account with its secret credentials; null when off, unsealable or unreadable. */
+export async function resolvePayoutStripe(config: Config): Promise<(PayoutStripe & { creds: GatewayCredentials }) | null> {
+  const stripe = (await resolveGeneral(config)).payout.stripe;
+  const s = (await loadSettings())?.general?.payout?.stripe;
+  const set = s?.keys?.[s.mode];
+  if (!stripe || !set || !config.paymentsKey) return null;
+  try {
+    const creds = JSON.parse(open(set.credentialsEncrypted, config.paymentsKey, secretAad('payout.stripe'))) as GatewayCredentials;
+    return { ...stripe, creds };
+  } catch {
+    return null;
+  }
 }

@@ -168,6 +168,20 @@ describe('owner overview report', () => {
     expect(body.platformFees).toBe(11500);
   });
 
+  it('a pending booking adds no platform fee, as it adds no revenue', async () => {
+    await book(TODAY, '09:00', { status: 'pending', total: 100000, fee: { amount: 5000, payer: 'owner' } });
+    const res = await overview();
+    expect(res.body.kpis.revenue.value).toBe(0);
+    expect(res.body.platformFees).toBe(0);
+  });
+
+  it('average booking is net of the platform fee', async () => {
+    await book(TODAY, '09:00', { total: 105000, fee: { amount: 5000, payer: 'player' } });
+    await book(TODAY, '11:00', { total: 100000, fee: { amount: 5000, payer: 'owner' }, phone: '+8801700000002' });
+    const res = await overview();
+    expect(res.body.kpis.averageBooking.value).toBe(97500);
+  });
+
   it('cancelled booking owes no fee', async () => {
     await book(TODAY, '09:00', { status: 'cancelled', total: 100000, paid: 30000, fee: { amount: 5000, payer: 'owner' } });
     const res = await overview();

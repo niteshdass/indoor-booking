@@ -77,7 +77,7 @@ export function adminPayoutsRouter(services: AppServices): Router {
         if (!updated) throw notPending();
         await logPlatform(
           actorId,
-          { action: path === 'confirm' ? 'payout.confirmed' : 'payout.rejected', entity: 'owner', entityId: ownerId, ownerId, reason },
+          { action: path === 'confirm' ? 'payout.confirmed' : 'payout.rejected', entity: 'owner', entityId: ownerId, ownerId, reason, payoutId: String(updated._id), amount: updated.amount, currency: updated.currency },
           now,
           session,
         );

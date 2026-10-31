@@ -7,7 +7,7 @@ import { User } from '../../src/auth/user.model';
 import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
 import { PlatformLog } from '../../src/admin/platformLog.model';
 import { defaultServices } from '../../src/services';
-import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGeneral, resolveGoogleClientId, resolveSms } from '../../src/admin/settings';
+import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGeneral, resolveGoogleClientId, resolvePayoutStripe, resolveSms } from '../../src/admin/settings';
 
 const CLIENT_ID = '1234-abc.apps.googleusercontent.com';
 const SID = 'AC' + 'a'.repeat(32);
@@ -180,11 +180,23 @@ describe('admin general settings', () => {
 
     await put('/admin/settings/general', general());
     clearSettingsCache();
-    expect((await resolveGeneral(ctx.config)).payout.stripe).toMatchObject({
+    const open = (await resolveGeneral(ctx.config)).payout.stripe;
+    expect(open).toMatchObject({ mode: 'test', publishableKey: 'pk_test_payout1' });
+    expect(JSON.stringify(open)).not.toMatch(/sk_test_payout1|creds/);
+    expect(await resolvePayoutStripe(ctx.config)).toMatchObject({
       mode: 'test',
       publishableKey: 'pk_test_payout1',
       creds: { secretKey: 'sk_test_payout1', webhookSecret: 'whsec_payout1' },
     });
+
+    // A corrupt sealed secret cannot break resolveGeneral (it opens nothing); only the secret read fails.
+    const stored = await PlatformSettings.findById('platform').lean();
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { 'general.payout.stripe.keys.test.credentialsEncrypted': 'garbage' } });
+    clearSettingsCache();
+    expect((await resolveGeneral(ctx.config)).payout.stripe).toMatchObject({ mode: 'test' });
+    expect(await resolvePayoutStripe(ctx.config)).toBeNull();
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { 'general.payout.stripe.keys.test.credentialsEncrypted': (stored as any).general.payout.stripe.keys.test.credentialsEncrypted } });
+    clearSettingsCache();
 
     expect((await put('/admin/settings/payout-stripe', { ...keys, mode: 'live' })).status).toBe(400);
     expect((await put('/admin/settings/payout-stripe', { ...keys, publishableKey: 'pk_live_x' })).status).toBe(400);

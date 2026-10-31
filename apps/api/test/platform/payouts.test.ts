@@ -142,6 +142,9 @@ describe('manual payouts', () => {
     expect((await get('/admin/payouts', admin.token)).body.payouts).toHaveLength(0);
     expect((await get('/admin/payouts?status=all', admin.token)).body.payouts).toHaveLength(1);
     expect(await PlatformLog.countDocuments({ action: 'payout.confirmed', entityId: a.ownerId })).toBe(1);
+    const logged = await PlatformLog.findOne({ action: 'payout.confirmed', entityId: a.ownerId }).lean();
+    expect(logged).toMatchObject({ payoutId: expect.anything(), amount: ok.body.payout.amount, currency: ok.body.payout.currency });
+    expect(String(logged?.payoutId)).toBe(res.body.id);
 
     const again = await post(`/admin/payouts/${res.body.id}/confirm`, {}, admin.token);
     expect(again.status).toBe(409);

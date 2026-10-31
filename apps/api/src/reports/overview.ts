@@ -66,30 +66,30 @@ export function openMinutes(hours: WeeklyHours, date: string): number {
   return e - s;
 }
 
-type Totals = { revenue: number; platformFees: number; playedRevenue: number; bookings: number; minutes: number; openMinutes: number; cancelled: number; decided: number };
+type Totals = { revenue: number; platformFees: number; playedNet: number; bookings: number; minutes: number; openMinutes: number; cancelled: number; decided: number };
 
 function totals(bookings: OverviewBooking[], turfs: OverviewTurf[], range: Range): Totals {
   const days = datesOf(range);
   let revenue = 0;
   let platformFees = 0;
-  let playedRevenue = 0;
+  let playedNet = 0;
   let count = 0;
   let minutes = 0;
   let cancelled = 0;
   let decided = 0;
   for (const b of bookings) {
     revenue += earned(b);
-    platformFees += feeOf(b);
     if (played(b)) {
+      platformFees += feeOf(b);
+      playedNet += Math.max(0, b.total - feeOf(b));
       count += 1;
-      playedRevenue += b.total;
-      minutes += minutesOf(b);
+            minutes += minutesOf(b);
     }
     if (!NEVER_BOOKED.includes(b.status)) decided += 1;
     if (b.status === 'cancelled') cancelled += 1;
   }
   const open = turfs.reduce((sum, t) => sum + days.reduce((s, d) => s + openMinutes(t.hours, d), 0), 0);
-  return { revenue, platformFees, playedRevenue, bookings: count, minutes, openMinutes: open, cancelled, decided };
+  return { revenue, platformFees, playedNet, bookings: count, minutes, openMinutes: open, cancelled, decided };
 }
 
 /** Everything the owner Overview page shows, from the bookings of both periods. */
@@ -169,7 +169,7 @@ export function buildOverview(input: {
       bookings: kpi((t) => t.bookings),
       minutes: kpi((t) => t.minutes),
       utilization: kpi((t) => (t.openMinutes > 0 ? t.minutes / t.openMinutes : 0)),
-      averageBooking: kpi((t) => (t.bookings > 0 ? Math.round(t.playedRevenue / t.bookings) : 0)),
+      averageBooking: kpi((t) => (t.bookings > 0 ? Math.round(t.playedNet / t.bookings) : 0)),
       cancellationRate: kpi((t) => (t.decided > 0 ? t.cancelled / t.decided : 0)),
     },
     daily,

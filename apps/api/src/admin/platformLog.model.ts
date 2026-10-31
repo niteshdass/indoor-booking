@@ -12,6 +12,10 @@ const platformLogSchema = new mongoose.Schema({
   /** The owner the entity belongs to (the owner itself for owner actions). */
   ownerId: { type: ObjectId, ref: 'Owner', default: null },
   reason: { type: String, default: null },
+  /** Payout reviews: which payout, and what it was for. */
+  payoutId: { type: ObjectId, default: null },
+  amount: { type: Number, default: null },
+  currency: { type: String, default: null },
   at: { type: Date, required: true },
 });
 platformLogSchema.index({ ownerId: 1, _id: -1 });
@@ -24,6 +28,9 @@ export type PlatformEntry = {
   entityId: string;
   ownerId?: string | null;
   reason?: string | null;
+  payoutId?: string | null;
+  amount?: number | null;
+  currency?: string | null;
 };
 
 export async function logPlatform(actorId: string, entry: PlatformEntry, at: Date, session?: mongoose.ClientSession): Promise<void> {

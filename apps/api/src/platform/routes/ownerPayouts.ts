@@ -6,7 +6,7 @@ import { keyHas } from '../../bookings/create';
 import type { Config } from '../../config';
 import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
-import { resolveGeneral } from '../../admin/settings';
+import { resolveGeneral, resolvePayoutStripe } from '../../admin/settings';
 import { GatewayError, gatewayFor } from '../../payments/gateway';
 import type { AppServices } from '../../services';
 import { Owner } from '../../tenancy/owner.model';
@@ -105,7 +105,7 @@ export function ownerPayoutsRouter(config: Config, services: AppServices): Route
   router.post('/platform-payouts/stripe', requirePermission('settings.edit'), async (req, res) => {
     const t = tenantOf(req);
     const body = stripePayoutSchema.parse(req.body);
-    const { stripe } = (await resolveGeneral(config)).payout;
+    const stripe = await resolvePayoutStripe(config);
     const gateway = gatewayFor(services, 'stripe');
     const owner = await Owner.findById(t.ownerId, { country: 1 }).lean();
     if (!stripe || !gateway || !owner || !gateway.supports(owner.country, body.currency)) throw unavailable();

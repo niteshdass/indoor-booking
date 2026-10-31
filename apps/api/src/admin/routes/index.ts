@@ -7,6 +7,7 @@ import { requireAuth } from '../../auth/requireAuth';
 import { platformOf, requirePlatform } from '../context';
 import { platformLogJson } from '../logJson';
 import { PlatformLog } from '../platformLog.model';
+import { adminPayoutsRouter } from '../../platform/routes/adminPayouts';
 import { adminOwnersRouter } from './owners';
 import { adminReviewsRouter } from './reviews';
 import { adminSettingsRouter } from './settings';
@@ -47,6 +48,7 @@ export function adminRouter({ config, services }: AuthDeps): Router {
   router.use(adminUsersRouter(services));
   router.use(adminReviewsRouter(services));
   router.use(adminSettingsRouter(config, services));
+  router.use(adminPayoutsRouter(services));
 
   return router;
 }

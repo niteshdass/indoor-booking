@@ -2135,6 +2135,10 @@
         },
         "settings": {
           "general_updated": "Обновил настройки платформы"
+        },
+        "payout": {
+          "confirmed": "Подтверждён платёж от «{{target}}»",
+          "rejected": "Отклонён платёж от «{{target}}»"
         }
       }
     },

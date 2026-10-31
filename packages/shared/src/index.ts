@@ -16,3 +16,4 @@ export * from './reviews';
 export * from './series';
 export * from './admin';
 export * from './platformFee';
+export * from './platformPayouts';

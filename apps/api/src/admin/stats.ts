@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { ADMIN_PERIOD_DAYS, type AdminOwnerRowJson, type AdminPersonJson, type CurrencyAmount, type OwnerStatus } from '@booking/shared';
 import { User } from '../auth/user.model';
 import { Booking } from '../bookings/booking.model';
+import { balancesByOwner } from '../platform/balance';
 import { PLAYED_STATUSES } from '../reports/overview';
 import { Membership } from '../tenancy/membership.model';
 import { systemRole } from '../tenancy/role.model';
@@ -91,13 +92,14 @@ type OwnerLean = { _id: unknown; name: string; country: string; defaultCurrency:
 export async function ownerRows(owners: OwnerLean[], now: Date): Promise<AdminOwnerRowJson[]> {
   if (owners.length === 0) return [];
   const ids = owners.map((o) => String(o._id));
-  const [venueRows, bookings, contacts] = await Promise.all([
+  const [venueRows, bookings, contacts, owes] = await Promise.all([
     Venue.aggregate<{ _id: unknown; total: number; published: number }>([
       { $match: { ownerId: { $in: oids(ids) } } },
       { $group: { _id: '$ownerId', total: { $sum: 1 }, published: { $sum: { $cond: ['$published', 1, 0] } } } },
     ]),
     bookingCounts(periodStart(now), now, ids),
     ownerContacts(ids),
+    balancesByOwner(ids),
   ]);
   const venues = new Map(venueRows.map((r) => [String(r._id), r]));
   return owners.map((o) => {
@@ -113,6 +115,7 @@ export async function ownerRows(owners: OwnerLean[], now: Date): Promise<AdminOw
       venues: venues.get(id)?.total ?? 0,
       publishedVenues: venues.get(id)?.published ?? 0,
       recentBookings: bookings.get(id) ?? 0,
+      owes: owes.get(id) ?? [],
     };
   });
 }

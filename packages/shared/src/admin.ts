@@ -22,6 +22,8 @@ export const PLATFORM_ACTIONS = [
   'review.hidden',
   'review.kept',
   'settings.general_updated',
+  'payout.confirmed',
+  'payout.rejected',
 ] as const;
 export type PlatformAction = (typeof PLATFORM_ACTIONS)[number];
 
@@ -48,6 +50,8 @@ export type AdminOwnerRowJson = {
   publishedVenues: number;
   /** Bookings made in the last ADMIN_PERIOD_DAYS days. */
   recentBookings: number;
+  /** Platform-fee balance per currency; negative is a credit. Only non-zero currencies. */
+  owes: CurrencyAmount[];
 };
 
 export type AdminOverviewJson = {

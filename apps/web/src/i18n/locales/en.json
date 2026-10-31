@@ -2057,6 +2057,10 @@
         },
         "settings": {
           "general_updated": "Updated platform settings"
+        },
+        "payout": {
+          "confirmed": "Confirmed a payout from {{target}}",
+          "rejected": "Rejected a payout from {{target}}"
         }
       }
     },

@@ -12,6 +12,8 @@ const ownerSchema = new mongoose.Schema(
     status: { type: String, enum: OWNER_STATUSES, default: 'active' },
     /** Global defaults; typed by Plan 04. */
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
+    /** Written by each platform payout submit, so two at once conflict and one retries. */
+    payoutLockAt: { type: Date, default: null },
   },
   { timestamps: true, minimize: false },
 );

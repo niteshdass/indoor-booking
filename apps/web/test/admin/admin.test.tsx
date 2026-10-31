@@ -245,7 +245,7 @@ describe('list your venue', () => {
   it('shows the live notice when the application is approved at once', async () => {
     mockApi([
       { method: 'POST', path: '/owners', status: 201, body: { owner: { id: 'o9', name: 'New Club', status: 'active' } } },
-      { path: '/me/memberships', body: { memberships: [ownerMembership({ ownerId: 'o9', ownerName: 'New Club', ownerStatus: 'active' })] } },
+      { path: '/me/memberships', body: { memberships: [ownerMembership({ ownerId: 'o1', ownerName: 'Old Club', ownerStatus: 'active' }), ownerMembership({ ownerId: 'o9', ownerName: 'New Club', ownerStatus: 'active' })] } },
     ]);
     const h = renderApp('/list-your-venue', { user: staffUser });
     await h.user.type(await screen.findByRole('textbox', { name: new RegExp(en.apply.name) }), 'New Club');

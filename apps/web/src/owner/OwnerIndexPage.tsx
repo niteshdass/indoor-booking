@@ -22,7 +22,8 @@ function lastOwner(): string | null {
 /** `/owner`: sends the user to their remembered active team, or the first active one; otherwise says where things stand. */
 export function OwnerIndexPage() {
   const { t } = useTranslation();
-  const justApplied = (useLocation().state as { applied?: string } | null)?.applied === 'active';
+  const navState = useLocation().state as { applied?: string; ownerId?: string } | null;
+  const justApplied = navState?.applied === 'active';
   const { state } = useResource<{ memberships: OwnerMembership[] }>('/me/memberships');
   if (state.status === 'error') {
     return (
@@ -70,11 +71,12 @@ export function OwnerIndexPage() {
   const last = lastOwner();
   const target = active.find((m) => m.ownerId === last) ?? active[0]!;
   if (justApplied) {
+    const created = active.find((m) => m.ownerId === navState?.ownerId) ?? target;
     // Just approved on the spot: say so before dropping them into the dashboard.
     return (
       <div className={styles.state}>
         <Alert tone="success">{t('apply.live')}</Alert>
-        <Button to={`/owner/${target.ownerId}`} variant="brand" icon="arrowRight">
+        <Button to={`/owner/${created.ownerId}`} variant="brand" icon="arrowRight">
           {t('apply.goToDashboard')}
         </Button>
       </div>

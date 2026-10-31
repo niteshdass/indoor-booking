@@ -30,8 +30,8 @@ export function ApplyPage() {
     setBusy(true);
     setError(null);
     try {
-      const { owner } = await apiPost<{ owner: { status: string } }>('/owners', { name: name.trim(), country, currency, locale });
-      navigate('/owner', { replace: true, state: owner.status === 'active' ? { applied: 'active' } : undefined });
+      const { owner } = await apiPost<{ owner: { id: string; status: string } }>('/owners', { name: name.trim(), country, currency, locale });
+      navigate('/owner', { replace: true, state: owner.status === 'active' ? { applied: 'active', ownerId: owner.id } : undefined });
     } catch (err) {
       setError({ message: errorMessage(err, t), pending: err instanceof ApiError && err.code === 'application_pending' });
       setBusy(false);

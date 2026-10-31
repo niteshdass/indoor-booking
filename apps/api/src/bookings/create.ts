@@ -16,6 +16,8 @@ import {
   type EffectiveSettings,
   type OfferedAddon,
 } from '@booking/shared';
+import { resolveGeneral } from '../admin/settings';
+import type { Config } from '../config';
 import { isDuplicateKeyError, runInTransaction } from '../db';
 import { AppError } from '../errors';
 import { offeredAddons } from '../addons/offered';
@@ -38,6 +40,8 @@ type QuoteInput = {
   selection: AddonSelection[];
   source: 'online' | 'walkin';
   now: Date;
+  /** Reads the platform fee in force; only online bookings carry one. */
+  config: Config;
 };
 
 export type CreateBookingInput = QuoteInput & {
@@ -153,7 +157,7 @@ export async function expireStaleHolds(
 }
 
 async function prepare(input: QuoteInput) {
-  const { venue, turf, date, startAts, selection, source, now } = input;
+  const { venue, turf, date, startAts, selection, source, now, config } = input;
   const ownerId = String(venue.ownerId);
   const { day, settings } = await loadDay(ownerId, venue, turf, date, now);
   if (!inWindow(date, now, venue.timezone, settings.bookingWindowDays)) {
@@ -163,8 +167,10 @@ async function prepare(input: QuoteInput) {
   const offered = await offeredAddons(ownerId, venue, turf);
   const inUse = await stockInUse(ownerId, venue, limited(offered, selection), rangeOf(picked), now);
   const paymentPolicy = source === 'online' ? settings.paymentPolicy : null;
-  const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy });
-  return { ownerId, settings, picked, offered, paymentPolicy, quote };
+  // Read once here, so the price quoted is the price the transaction books.
+  const fee = source === 'online' ? { settings: (await resolveGeneral(config)).fee, currency: venue.currency } : null;
+  const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee });
+  return { ownerId, settings, picked, offered, paymentPolicy, fee, quote };
 }
 
 /** Prices a booking against the live grid. Stock in use is read outside a transaction: a preview only. */
@@ -194,7 +200,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
     }
     throw err;
   }
-  const { ownerId, settings, picked, offered, paymentPolicy } = prepared;
+  const { ownerId, settings, picked, offered, paymentPolicy, fee } = prepared;
   const range = rangeOf(picked);
   const lockOwner = { ownerId };
 
@@ -210,7 +216,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
       const stocked = [...new Set(limited(offered, selection))].sort();
       for (const addonId of stocked) await lockAddon(lockOwner, addonId, now, session);
       const inUse = await stockInUse(ownerId, venue, stocked, range, now, session);
-      const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy });
+      const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee });
 
       const status = card
         ? 'awaiting_payment'
@@ -245,6 +251,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             addonsTotal: quote.addonsTotal,
             total: quote.total,
             advanceRequired: quote.advanceRequired,
+            platformFee: quote.platformFee,
             amountPaid,
             status,
             paymentStatus: paymentStatusFor(amountPaid, quote.total),
@@ -417,7 +424,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
         let quote: BookingQuote;
         try {
           const inUse = await stockInUse(ownerId, venue, limited(d.offered, d.selection), range, now, session);
-          quote = quoteBooking({ slots: d.picked, offered: d.offered, indoor: turf.indoor, selection: d.selection, inUse, paymentPolicy: d.paymentPolicy });
+          quote = quoteBooking({ slots: d.picked, offered: d.offered, indoor: turf.indoor, selection: d.selection, inUse, paymentPolicy: d.paymentPolicy, fee: d.fee });
         } catch (err) {
           throw itemError(d.item, err);
         }
@@ -444,6 +451,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
               addonsTotal: quote.addonsTotal,
               total: quote.total,
               advanceRequired: quote.advanceRequired,
+              platformFee: quote.platformFee,
               amountPaid,
               status,
               paymentStatus: paymentStatusFor(amountPaid, quote.total),

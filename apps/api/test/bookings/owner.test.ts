@@ -276,7 +276,7 @@ describe('walk-in atomicity and permissions', () => {
     const turf = (await Turf.findOne({ ownerId: a.ownerId, _id: t1 }))!;
     await expect(
       createBooking({
-        venue, turf, date: D, startAts: [at('18:00')], selection: [], source: 'walkin', now: ctx.services.now(),
+        venue, turf, date: D, startAts: [at('18:00')], selection: [], source: 'walkin', now: ctx.services.now(), config: ctx.config,
         who: { playerId: null, guest: { name: 'W', phone: PHONE }, createdBy: staff.userId },
         cash: { recordedBy: staff.userId },
         afterInsert: async () => {

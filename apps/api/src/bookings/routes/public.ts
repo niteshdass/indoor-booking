@@ -204,6 +204,7 @@ const quoteJson = (q: BookingQuote, currency: string) => ({
   addonsTotal: q.addonsTotal,
   total: q.total,
   advanceRequired: q.advanceRequired,
+  platformFee: q.platformFee,
 });
 
 /** Provider names only; the numbers are shown once the player has a booking to pay for. */
@@ -217,7 +218,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     const input = quoteSchema.parse(req.body);
     const { venue, turf } = await publicTurf(req.params.slug, req.params.turfId);
     if (input.more.length > 0) {
-      const { items, settings } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now() });
+      const { items, settings } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now(), config });
       const methods = await offeredMethods(String(venue.ownerId), venue, settings, { config, services });
       const sum = (key: 'total' | 'advanceRequired') => items.reduce((n, d) => n + d.quote[key], 0);
       res.json({
@@ -240,6 +241,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       selection: input.addons,
       source: 'online',
       now: services.now(),
+      config,
     });
     const methods = await offeredMethods(String(venue.ownerId), venue, settings, { config, services });
     res.json({
@@ -278,7 +280,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       if (!userId && !input.guest) throw new AppError(401, 'unauthenticated', 'Sign in required');
       const { venue, turf } = await publicTurf(req.params.slug as string, req.params.turfId as string);
       const now = services.now();
-      const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'online' as const, now };
+      const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'online' as const, now, config };
       const header = req.get('Idempotency-Key');
       const guestPhone = input.guest ? normalizePhone(input.guest.phone) : null;
       const requestKey = requestKeyOf(header, userId ? { playerId: userId } : { phone: guestPhone! });
@@ -318,6 +320,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
             items,
             selection: input.addons,
             now,
+            config,
             requestKey,
             holdMinutes,
             who: { playerId: userId, guest: null, createdBy: userId },

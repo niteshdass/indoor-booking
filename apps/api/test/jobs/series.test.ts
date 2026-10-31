@@ -78,7 +78,7 @@ async function seedSeries(mode: 'request' | 'owner' = 'request', firstDate = TUE
   const venue = (await Venue.findById(venueId).setOptions(cross))!;
   const turf = (await Turf.findById(turfId).setOptions(cross))!;
   const out = await bookSeries({
-    venue, turf, mode, now: now(),
+    venue, turf, mode, now: now(), config: ctx.config,
     who: { playerId, guest: null, createdBy: playerId },
     pattern: { weekdays: ['tue'], startTime: '18:00', slotCount: 1, firstDate, endDate: null, count },
   });

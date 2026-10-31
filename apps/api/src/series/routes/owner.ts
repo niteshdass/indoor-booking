@@ -69,7 +69,7 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
     const t = tenantOf(req);
     const pattern = seriesPatternSchema.parse(req.body);
     const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
-    res.json({ preview: await seriesAvailability(venue, turf, pattern, services.now()) });
+    res.json({ preview: await seriesAvailability(venue, turf, pattern, services.now(), { config, source: 'walkin' }) });
   });
 
   router.post('/venues/:venueId/turfs/:turfId/series', requirePermission('booking.create'), async (req, res) => {
@@ -86,6 +86,7 @@ export function ownerSeriesRouter(config: Config, services: AppServices): Router
       who: { playerId, guest: { name: customer.name, phone }, createdBy: t.userId },
       mode: 'owner',
       now,
+      config,
       // Same transaction as the inserts: the series, its log and its notice commit or fail together.
       beforeCommit: async (session, series, games) => {
         const skipped = series.skipped.map((k) => ({ date: k.date, reason: k.reason as SeriesClashReason }));

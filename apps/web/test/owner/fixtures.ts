@@ -223,6 +223,7 @@ export function seriesPreview(over: Partial<SeriesPreview> = {}): SeriesPreview 
     currency: 'BDT',
     freeCount: 2,
     total: 2000,
+    platformFee: null,
     dates: [
       { date: '2026-10-26', status: 'free', startAt: '2026-10-26T04:00:00.000Z', endAt: '2026-10-26T05:00:00.000Z', price: 1000 },
       { date: '2026-11-02', status: 'clash', reason: 'taken' },

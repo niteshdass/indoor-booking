@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { addDays, hmToMin, localParts, localToUtc, weekdayOf, type SeriesPattern } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
+import { testConfig } from '../helpers/testApp';
+import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
 import { makeTestServices, type TestServices } from '../helpers/testServices';
 import { seedOwner } from '../helpers/tenancy';
 import { seedTurf, seedVenue } from '../helpers/venues';
@@ -50,7 +52,9 @@ beforeEach(async () => {
     ...[Venue, Turf, Closure, SlotOverride, Booking, SlotLock, Payment, RecurringSeries].map((m) =>
       (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true }),
     ),
+    PlatformSettings.deleteMany({}),
   ]);
+  clearSettingsCache();
   services = makeTestServices();
   services.clock.advance(4 * 86_400_000); // 2026-01-05T00:00Z = Monday 06:00 in Dhaka
   ({ ownerId, userId } = await seedOwner(services));
@@ -90,8 +94,11 @@ async function seedBooking(date: string, hm: string, status = 'confirmed') {
   });
 }
 
+const walkin = { config: testConfig, source: 'walkin' } as const;
+const online = { config: testConfig, source: 'online' } as const;
+
 const run = (over: Partial<Parameters<typeof bookSeries>[0]> = {}) =>
-  bookSeries({ venue, turf, pattern: pattern(), who: owner(), mode: 'owner', now: services.now(), ...over });
+  bookSeries({ venue, turf, pattern: pattern(), who: owner(), mode: 'owner', now: services.now(), config: testConfig, ...over });
 
 describe('seriesAvailability', () => {
   it('preview marks each date free with price or clash with reason', async () => {
@@ -99,7 +106,7 @@ describe('seriesAvailability', () => {
     await SlotOverride.create({ ownerId, venueId: venue._id, turfId: turf._id, date: TUE[2], type: 'block', start: '18:00', end: '19:00' });
     await Closure.create({ ownerId, venueId: venue._id, turfId: null, from: TUE[3], to: TUE[3], reason: 'Eid' });
 
-    const p = await seriesAvailability(venue, turf, pattern({ count: 5, slotCount: 2 }), services.now());
+    const p = await seriesAvailability(venue, turf, pattern({ count: 5, slotCount: 2 }), services.now(), walkin);
     expect(p.currency).toBe('BDT');
     expect(p.dates).toEqual([
       { date: TUE[0], status: 'free', startAt: at('18:00', TUE[0]!).toISOString(), endAt: at('20:00', TUE[0]!).toISOString(), price: 2000 },
@@ -111,9 +118,9 @@ describe('seriesAvailability', () => {
     expect(p.freeCount).toBe(2);
     expect(p.total).toBe(4000);
 
-    const late = await seriesAvailability(venue, turf, pattern({ startTime: '23:00', slotCount: 2, count: 1 }), services.now());
+    const late = await seriesAvailability(venue, turf, pattern({ startTime: '23:00', slotCount: 2, count: 1 }), services.now(), walkin);
     expect(late.dates).toEqual([{ date: TUE[0], status: 'clash', reason: 'outside_hours' }]);
-    const runOff = await seriesAvailability(venue, turf, pattern({ startTime: '22:00', slotCount: 2, count: 1 }), services.now());
+    const runOff = await seriesAvailability(venue, turf, pattern({ startTime: '22:00', slotCount: 2, count: 1 }), services.now(), walkin);
     expect(runOff.dates).toEqual([{ date: TUE[0], status: 'clash', reason: 'outside_hours' }]);
     expect(late.freeCount).toBe(0);
     expect(late.total).toBe(0);
@@ -121,22 +128,22 @@ describe('seriesAvailability', () => {
 
   it("today's slot already started is past", async () => {
     services.clock.advance(4.5 * 3_600_000); // Monday 10:30 local
-    const p = await seriesAvailability(venue, turf, pattern({ weekdays: ['mon'], firstDate: MON, startTime: '10:00', count: 2 }), services.now());
+    const p = await seriesAvailability(venue, turf, pattern({ weekdays: ['mon'], firstDate: MON, startTime: '10:00', count: 2 }), services.now(), walkin);
     expect(p.dates.map((d) => (d.status === 'clash' ? d.reason : d.status))).toEqual(['past', 'free']);
   });
 
   it('ignores bookingWindowDays', async () => {
     ({ venue, turf } = await makeVenueTurf({ bookingWindowDays: 7 }));
     const date = addDays(MON, 60);
-    const p = await seriesAvailability(venue, turf, pattern({ weekdays: [weekdayOf(date)], firstDate: date, count: 1 }), services.now());
+    const p = await seriesAvailability(venue, turf, pattern({ weekdays: [weekdayOf(date)], firstDate: date, count: 1 }), services.now(), walkin);
     expect(p.dates[0]).toMatchObject({ date, status: 'free', price: 1000 });
   });
 
   it('pattern errors map to 400', async () => {
-    await expect(seriesAvailability(venue, turf, pattern({ count: null, endDate: addDays(MON, 200) }), services.now())).rejects.toMatchObject({
+    await expect(seriesAvailability(venue, turf, pattern({ count: null, endDate: addDays(MON, 200) }), services.now(), walkin)).rejects.toMatchObject({
       name: 'AppError', status: 400, code: 'series_too_long',
     });
-    await expect(seriesAvailability(venue, turf, pattern({ firstDate: addDays(MON, -1) }), services.now())).rejects.toMatchObject({
+    await expect(seriesAvailability(venue, turf, pattern({ firstDate: addDays(MON, -1) }), services.now(), walkin)).rejects.toMatchObject({
       name: 'AppError', status: 400, code: 'series_past_start',
     });
     await expect(run({ pattern: pattern({ firstDate: addDays(MON, -1) }) })).rejects.toMatchObject({ status: 400, code: 'series_past_start' });
@@ -228,7 +235,7 @@ describe('bookSeries', () => {
         run(),
         createBooking({
           venue, turf, date: TUE[1]!, startAts: [slot], selection: [], source: 'online', now: services.now(),
-          who: player(),
+          config: testConfig, who: player(),
         }),
       ]);
       expect(series.status).toBe('fulfilled');
@@ -263,7 +270,7 @@ describe('bookSeries', () => {
   it('night venue 01:00 books on the business date', async () => {
     ({ venue, turf } = await makeVenueTurf({ hours: hoursOf('16:00', '02:00') }));
     const p = pattern({ weekdays: ['fri'], startTime: '01:00', firstDate: '2026-01-09', count: 3 });
-    const preview = await seriesAvailability(venue, turf, p, services.now());
+    const preview = await seriesAvailability(venue, turf, p, services.now(), walkin);
     expect(preview.freeCount).toBe(3);
     const { games } = await run({ pattern: p });
     expect(games).toHaveLength(3);
@@ -273,6 +280,48 @@ describe('bookSeries', () => {
       expect(local.hm).toBe('01:00');
       expect(local.date).toBe(addDays(g.businessDate, 1));
       expect(weekdayOf(local.date)).toBe('sat');
+    }
+  });
+});
+
+describe('platform fee', () => {
+  beforeEach(async () => {
+    await PlatformSettings.updateOne(
+      { _id: 'platform' },
+      { $set: { general: { ownerApproval: 'manual', fee: { mode: 'fixed', fixed: 50, percent: null, payer: 'player' }, payout: { bkash: null, nagad: null, stripe: null } } } },
+      { upsert: true },
+    );
+    clearSettingsCache();
+  });
+  const snapshot = { mode: 'fixed', value: 50, payer: 'player', amount: 5000 };
+
+  it('online series games carry the fee', async () => {
+    await seedBooking(TUE[1]!, '18:00');
+    const p = pattern({ count: 4, slotCount: 2 });
+    const preview = await seriesAvailability(venue, turf, p, services.now(), online);
+    expect(preview.freeCount).toBe(3);
+    expect(preview.platformFee).toEqual({ payer: 'player', perGame: [5000, 5000, 5000] });
+    expect(preview.total).toBe(3 * (2000 + 5000));
+
+    const { games } = await run({ who: player(), mode: 'request', pattern: p });
+    expect(games).toHaveLength(3);
+    for (const g of games) {
+      expect(g.subtotal).toBe(2000);
+      expect(g.total).toBe(2000 + 5000);
+      expect(g.advanceRequired).toBe(0);
+      expect(g.platformFee).toEqual(snapshot);
+    }
+    expect(games.map((g) => g.total - g.subtotal)).toEqual(preview.platformFee!.perGame);
+  });
+
+  it('an owner-created series has no fee', async () => {
+    const preview = await seriesAvailability(venue, turf, pattern(), services.now(), walkin);
+    expect(preview.platformFee).toBeNull();
+    expect(preview.total).toBe(4000);
+    const { games } = await run();
+    for (const g of games) {
+      expect(g.platformFee).toBeNull();
+      expect(g.total).toBe(1000);
     }
   });
 });

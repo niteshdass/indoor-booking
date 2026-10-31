@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
+import request from 'supertest';
 import { AddonQuoteError, BookingQuoteError, InvalidMoneyError, hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { makeTestServices, type TestServices } from '../helpers/testServices';
+import { buildTestApp, testConfig } from '../helpers/testApp';
 import { seedOwner } from '../helpers/tenancy';
 import { seedTurf, seedVenue } from '../helpers/venues';
 import { User } from '../../src/auth/user.model';
@@ -17,7 +19,8 @@ import { AddonAssignment } from '../../src/addons/assignment.model';
 import { Booking } from '../../src/bookings/booking.model';
 import { SlotLock } from '../../src/bookings/slotLock.model';
 import { Payment } from '../../src/bookings/payment.model';
-import { createBooking } from '../../src/bookings/create';
+import { createBooking, quoteFor } from '../../src/bookings/create';
+import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
 import { loadDay } from '../../src/schedule/load';
 import { AppError } from '../../src/errors';
 
@@ -60,7 +63,9 @@ beforeEach(async () => {
     ...[Venue, Turf, Closure, SlotOverride, Addon, AddonAssignment, Booking, SlotLock, Payment].map((m) =>
       (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true }),
     ),
+    PlatformSettings.deleteMany({}),
   ]);
+  clearSettingsCache();
   services = makeTestServices();
   ({ ownerId, userId } = await seedOwner(services));
   venue = await makeVenue();
@@ -86,6 +91,7 @@ function book(over: Partial<Input> & { hms?: string[] } = {}) {
     selection: [],
     source: 'online',
     now: services.now(),
+    config: testConfig,
     who: player(),
     ...rest,
   });
@@ -323,5 +329,77 @@ describe('createBooking', () => {
     await expect(closed).rejects.toBeInstanceOf(BookingQuoteError);
     await expect(closed).rejects.toMatchObject({ code: 'day_closed' });
     expect(await Booking.countDocuments({ ownerId })).toBe(0);
+  });
+});
+
+async function setFee(fee: Record<string, unknown>) {
+  await PlatformSettings.updateOne(
+    { _id: 'platform' },
+    { $set: { general: { ownerApproval: 'manual', fee, payout: { bkash: null, nagad: null, stripe: null } } } },
+    { upsert: true },
+  );
+  clearSettingsCache();
+}
+const fixed50 = { mode: 'fixed', fixed: 50, percent: null, payer: 'player' };
+const percentFee = (percent: number) => ({ mode: 'percent', fixed: null, percent, payer: 'player' });
+
+describe('platform fee snapshot', () => {
+  // BDT 1000 a slot.
+  beforeEach(async () => {
+    venue = await seedVenue(ownerId, {
+      published: true,
+      slug: `fee-${Math.random().toString(36).slice(2, 8)}`,
+      timezone: TZ,
+      settings: { hours: HOURS, bookingWindowDays: 365 },
+    });
+    turf = await seedTurf(ownerId, venue.id as string, { pricing: { base: 100000, rules: [] } });
+  });
+
+  it('online booking snapshots the fee', async () => {
+    await setFee(fixed50);
+    const snapshot = { mode: 'fixed', value: 50, payer: 'player', amount: 5000 };
+    const { app } = buildTestApp({ services });
+    const res = await request(app)
+      .post(`/api/v1/venues/${venue.slug}/turfs/${turf.id as string}/quote`)
+      .send({ date: D, startAts: [at('18:00').toISOString()] });
+    expect(res.status).toBe(200);
+    expect(res.body.quote).toMatchObject({ total: 105000, platformFee: snapshot });
+
+    const b = await book();
+    expect(b.total).toBe(105000);
+    expect(b.subtotal).toBe(100000);
+    expect(b.platformFee).toEqual(snapshot);
+  });
+
+  it('walk-in has no fee', async () => {
+    await setFee(fixed50);
+    const b = await book({ source: 'walkin', who: { playerId: null, guest, createdBy: userId } });
+    expect(b.platformFee).toBeNull();
+    expect(b.total).toBe(100000);
+  });
+
+  it('uses the fee in force at create time', async () => {
+    await setFee(percentFee(5));
+    const { quote } = await quoteFor({ venue, turf, date: D, startAts: [at('18:00')], selection: [], source: 'online', now: services.now(), config: testConfig });
+    expect(quote.platformFee).toMatchObject({ mode: 'percent', value: 5, amount: 5000 });
+    await setFee(percentFee(10));
+    const b = await book();
+    expect(b.platformFee).toMatchObject({ mode: 'percent', value: 10, amount: 10000 });
+    expect(b.total).toBe(110000);
+  });
+
+  it('existing bookings keep their fee', async () => {
+    await setFee(fixed50);
+    const b = await book();
+    await setFee(percentFee(10));
+    const again = await Booking.findOne({ ownerId, _id: b._id });
+    expect(again!.platformFee).toEqual({ mode: 'fixed', value: 50, payer: 'player', amount: 5000 });
+    expect(again!.total).toBe(105000);
+  });
+
+  it('a booking made with no settings has no fee', async () => {
+    const b = await book();
+    expect(b.platformFee).toBeNull();
+    expect(b.total).toBe(100000);
   });
 });

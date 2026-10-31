@@ -117,7 +117,7 @@ async function seedRequest(venueId = v1, turfId = t1) {
   const { venue, turf } = await docs(venueId, turfId);
   const who: SeriesWho = { playerId: player.userId, guest: null, createdBy: player.userId };
   const out = await bookSeries({
-    venue, turf, who, mode: 'request', now: ctx.services.now(),
+    venue, turf, who, mode: 'request', now: ctx.services.now(), config: ctx.config,
     pattern: { weekdays: ['tue'], startTime: '18:00', slotCount: 1, firstDate: TUE[0]!, endDate: null, count: 4 },
   });
   await Notification.deleteMany({}).setOptions(cross);

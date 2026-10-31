@@ -272,7 +272,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const phone = normalizePhone(input.customer.phone);
     const playerId = await walkinPlayerId(t, input.customer.playerId);
     const now = services.now();
-    const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'walkin' as const, now };
+    const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'walkin' as const, now, config };
     const many = input.more.length > 0;
     // A group takes each booking's whole total: one amount cannot be split across its bookings.
     if (many && 'amount' in input.payment && input.payment.amount !== undefined) {
@@ -335,6 +335,7 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
           selection: input.addons,
           source: 'walkin',
           now,
+          config,
           who,
           cash: cash && { recordedBy: cash.recordedBy },
           card: card && { gateway: card.gateway, gatewayAccountId: card.gatewayAccountId, gatewayMode: card.gatewayMode },

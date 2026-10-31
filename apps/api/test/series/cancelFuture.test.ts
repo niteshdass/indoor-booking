@@ -70,7 +70,7 @@ beforeEach(async () => {
   const venue = await seedVenue(ownerId, { timezone: 'Asia/Dhaka', settings: { hours: HOURS, bookingWindowDays: 7 } });
   const turf = await seedTurf(ownerId, venue.id as string, { pricing: { base: 1000, rules: [] } });
   ({ series, games } = await bookSeries({
-    venue, turf, mode: 'owner', now: services.now(),
+    venue, turf, mode: 'owner', now: services.now(), config: testConfig,
     who: { playerId: null, guest: { name: 'Team', phone: '+8801711111111' }, createdBy: userId },
     pattern: { weekdays: ['tue'], startTime: '18:00', slotCount: 1, firstDate: '2026-01-06', endDate: null, count: 4 },
   }));

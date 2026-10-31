@@ -60,7 +60,7 @@ export function playerSeriesRouter(config: Config, services: AppServices): Route
   router.post('/venues/:slug/turfs/:turfId/series/preview', auth, async (req, res) => {
     const pattern = seriesPatternSchema.parse(req.body);
     const { venue, turf } = await publicTurf(req.params.slug as string, req.params.turfId as string);
-    res.json({ preview: await seriesAvailability(venue, turf, pattern, services.now()) });
+    res.json({ preview: await seriesAvailability(venue, turf, pattern, services.now(), { config, source: 'online' }) });
   });
 
   router.post('/venues/:slug/turfs/:turfId/series', auth, async (req, res) => {
@@ -76,6 +76,7 @@ export function playerSeriesRouter(config: Config, services: AppServices): Route
       who: { playerId: userId, guest: null, createdBy: userId },
       mode: 'request',
       now,
+      config,
       beforeCommit: async (session, series, games) => {
         // The new series counts too, so more than the cap means a parallel request got there first.
         if ((await openRequests(userId, session)) > SERIES_MAX_OPEN_REQUESTS) throw limitReached();

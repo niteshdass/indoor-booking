@@ -1,3 +1,4 @@
+import type { FeePayer } from './platformFee';
 import type { BookingStatus } from './statuses';
 import { addDays, weekdayOf } from './time';
 import type { Weekday } from './venues';
@@ -27,7 +28,17 @@ export type SeriesDate =
   | { date: string; status: 'free'; startAt: string; endAt: string; price: number }
   | { date: string; status: 'clash'; reason: SeriesClashReason };
 
-export type SeriesPreview = { currency: string; dates: SeriesDate[]; freeCount: number; total: number };
+/**
+ * `total` includes a player-paid fee. `platformFee` is null when no fee applies (walk-in series, free
+ * mode); `perGame` is in minor units, one per free date in order (0 where a game's fee rounds to nothing).
+ */
+export type SeriesPreview = {
+  currency: string;
+  dates: SeriesDate[];
+  freeCount: number;
+  total: number;
+  platformFee: { payer: FeePayer; perGame: number[] } | null;
+};
 
 export type SeriesGameJson = {
   id: string;

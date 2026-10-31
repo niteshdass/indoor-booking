@@ -10,7 +10,7 @@ import {
   type Sport,
   type TurfPricing,
 } from '@booking/shared';
-import { loadConfig } from '../config';
+import { loadConfig, type Config } from '../config';
 import { connectDb, disconnectDb, runInTransaction } from '../db';
 import { hashPassword } from '../auth/crypto';
 import { User } from '../auth/user.model';
@@ -628,7 +628,7 @@ async function settle(b: BookingDoc, s: Seeded, now: Date, d: Dice, stats: Recor
   }
 }
 
-async function seedBookings(s: Seeded, players: Person[], daysBack: number, daysAhead: number, now: Date) {
+async function seedBookings(s: Seeded, players: Person[], daysBack: number, daysAhead: number, now: Date, config: Config) {
   const stats: Record<string, number> = {};
   const { venue } = s;
   // Each venue rolls its own dice, so running venues in parallel keeps the outcome deterministic.
@@ -671,6 +671,7 @@ async function seedBookings(s: Seeded, players: Person[], daysBack: number, days
             startAts,
             selection,
             source: kind === 'walkin' ? 'walkin' : 'online',
+            config,
             now: kind === 'walkin' ? new Date(Math.min(now.getTime(), startAts[0]!.getTime() - 600_000)) : bookedAt,
             who:
               kind === 'player'
@@ -772,7 +773,7 @@ async function main(): Promise<number> {
 
     const totals: Record<string, number> = {};
     await inBatches(seeded, PARALLEL_VENUES, async (s) => {
-      const stats = s.venue.published ? await seedBookings(s, players, daysBack, daysAhead, now) : {};
+      const stats = s.venue.published ? await seedBookings(s, players, daysBack, daysAhead, now, config) : {};
       const rating = await runInTransaction((session) =>
         recomputeVenueRating(String(s.venue.ownerId), s.venue.id as string, session),
       );

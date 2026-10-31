@@ -5,14 +5,19 @@ import {
   SeriesPatternError,
   expandSeriesDates,
   localParts,
+  platformFeeFor,
   type ComputedSlot,
   type DaySlots,
   type EffectiveSettings,
+  type PlatformFeeSettings,
+  type PlatformFeeSnapshot,
   type SeriesClashReason,
   type SeriesDate,
   type SeriesPattern,
   type SeriesPreview,
 } from '@booking/shared';
+import { resolveGeneral } from '../admin/settings';
+import type { Config } from '../config';
 import { runInTransaction } from '../db';
 import { AppError } from '../errors';
 import { loadDay } from '../schedule/load';
@@ -30,6 +35,17 @@ type Game = { date: string; slots: ComputedSlot[]; startAt: Date; endAt: Date; p
 type Checked = { date: string; game: Game } | { date: string; reason: SeriesClashReason };
 
 const HOUR_MS = 3_600_000;
+
+/** The platform fee in force for an online series; walk-in (owner-made) series carry none. */
+async function feeSettings(config: Config, source: 'online' | 'walkin'): Promise<PlatformFeeSettings | null> {
+  return source === 'online' ? (await resolveGeneral(config)).fee : null;
+}
+
+/** A game's fee snapshot and the total the player owes for it. */
+function priced(fee: PlatformFeeSettings | null, g: Game, currency: string): { platformFee: PlatformFeeSnapshot | null; total: number } {
+  const platformFee = fee ? platformFeeFor(fee, g.price, currency) : null;
+  return { platformFee, total: g.price + (platformFee?.payer === 'player' ? platformFee.amount : 0) };
+}
 
 /**
  * The run of `slotCount` back-to-back slots starting at local `startTime`, or why the date clashes.
@@ -84,21 +100,33 @@ async function checkAll(venue: VenueDoc, turf: TurfDoc, pattern: SeriesPattern, 
   return results.map((r) => r.checked);
 }
 
-/** Validates the pattern (maps SeriesPatternError to AppError 400 with its code) and checks every date. */
+/**
+ * Validates the pattern (maps SeriesPatternError to AppError 400 with its code) and checks every date.
+ * `source` is how the series would be booked: online (a player's request) games carry the platform fee.
+ */
 export async function seriesAvailability(
   venue: VenueDoc,
   turf: TurfDoc,
   pattern: SeriesPattern,
   now: Date,
+  opts: { config: Config; source: 'online' | 'walkin' },
 ): Promise<SeriesPreview> {
   const checked = await checkAll(venue, turf, pattern, now);
+  const fee = await feeSettings(opts.config, opts.source);
   const dates: SeriesDate[] = checked.map((c) =>
     'game' in c
       ? { date: c.date, status: 'free', startAt: c.game.startAt.toISOString(), endAt: c.game.endAt.toISOString(), price: c.game.price }
       : { date: c.date, status: 'clash', reason: c.reason },
   );
   const free = checked.flatMap((c) => ('game' in c ? [c.game] : []));
-  return { currency: venue.currency, dates, freeCount: free.length, total: free.reduce((sum, g) => sum + g.price, 0) };
+  const games = free.map((g) => priced(fee, g, venue.currency));
+  return {
+    currency: venue.currency,
+    dates,
+    freeCount: free.length,
+    total: games.reduce((sum, g) => sum + g.total, 0),
+    platformFee: fee && fee.mode !== 'free' ? { payer: fee.payer, perGame: games.map((g) => g.platformFee?.amount ?? 0) } : null,
+  };
 }
 
 /**
@@ -113,12 +141,15 @@ export async function bookSeries(input: {
   who: SeriesWho;
   mode: 'owner' | 'request';
   now: Date;
+  /** Reads the platform fee in force for request (online) series. */
+  config: Config;
   beforeCommit?: (session: ClientSession, series: SeriesDoc, games: BookingDoc[]) => Promise<void>;
 }): Promise<{ series: SeriesDoc; games: BookingDoc[] }> {
-  const { venue, turf, pattern, who, mode, now, beforeCommit } = input;
+  const { venue, turf, pattern, who, mode, now, config, beforeCommit } = input;
   const ownerId = String(venue.ownerId);
   const preview = await checkAll(venue, turf, pattern, now);
   const owner = mode === 'owner';
+  const fee = await feeSettings(config, owner ? 'walkin' : 'online');
 
   /** Dates found taken by a slot-lock clash on an earlier attempt. */
   const lost = new Set<string>();
@@ -209,7 +240,8 @@ export async function bookSeries(input: {
           currency: venue.currency,
           subtotal: g.price,
           addonsTotal: 0,
-          total: g.price,
+          ...priced(fee, g, venue.currency),
+          // Series take no advance, fee or not.
           advanceRequired: 0,
           amountPaid: 0,
           status: owner ? 'confirmed' : 'pending',

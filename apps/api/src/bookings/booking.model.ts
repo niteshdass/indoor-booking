@@ -1,5 +1,5 @@
 import mongoose, { type HydratedDocument, type InferSchemaType } from 'mongoose';
-import { BOOKING_STATUSES, PAYMENT_STATUSES, SLOT_HOLDING_STATUSES } from '@booking/shared';
+import { BOOKING_STATUSES, PAYMENT_STATUSES, SLOT_HOLDING_STATUSES, type PlatformFeeSnapshot } from '@booking/shared';
 import { tenantScoped } from '../tenancy/tenantScoped.plugin';
 
 const { ObjectId, Mixed } = mongoose.Schema.Types;
@@ -58,6 +58,8 @@ const bookingSchema = new mongoose.Schema(
       type: new mongoose.Schema({ paymentPolicy: { type: Mixed, default: null }, refundRules: { type: [Mixed], default: [] } }, { _id: false, minimize: false }),
       required: true,
     },
+    /** PlatformFeeSnapshot frozen at create time; null for walk-ins, free mode and bookings made before fees. */
+    platformFee: { type: Mixed, default: null },
     createdBy: { type: ObjectId, ref: 'User', default: null },
     /** The recurring series this booking is a game of, if any. */
     seriesId: { type: ObjectId, ref: 'RecurringSeries', default: null },
@@ -126,6 +128,7 @@ export function bookingJson(b: BookingDoc) {
     addonsTotal: b.addonsTotal,
     total: b.total,
     advanceRequired: b.advanceRequired,
+    platformFee: (b.platformFee ?? null) as PlatformFeeSnapshot | null,
     amountPaid: b.amountPaid,
     amountRefunded: b.amountRefunded,
     status: b.status,

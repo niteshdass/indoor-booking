@@ -22,6 +22,7 @@ import { Payment } from '../../src/bookings/payment.model';
 import { Refund } from '../../src/payments/refund.model';
 import { PaymentGatewayAccount } from '../../src/payments/gateway.model';
 import { WebhookEvent } from '../../src/payments/webhookEvent.model';
+import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
 
 beforeAll(async () => {
   await startTestDb();
@@ -36,7 +37,7 @@ afterAll(stopTestDb);
 
 const TZ = 'Asia/Dhaka';
 const D = '2026-01-10';
-const ALSO = ['2026-01-11', '2026-01-12'];
+const ALSO = ['2026-01-11', '2026-01-12'] as const;
 const HOURS = Object.fromEntries(
   ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d) => [d, { open: '08:00', close: '23:00' }]),
 );
@@ -55,7 +56,9 @@ beforeEach(async () => {
     ...[ActivityLog, Venue, Turf, Addon, AddonAssignment, Booking, SlotLock, Payment, Refund, PaymentGatewayAccount, WebhookEvent].map(
       (m) => (m as typeof Venue).deleteMany({}).setOptions(cross),
     ),
+    PlatformSettings.deleteMany({}),
   ]);
+  clearSettingsCache();
   ctx = buildTestApp();
   owner = await seedOwner(ctx.services);
 });
@@ -84,7 +87,7 @@ const post = (path: string, body: object, token?: string) => {
   if (token) r.set(...bearer(token));
   return r.send(body);
 };
-const sameTime = (dates: string[], hm = '19:00') => dates.map((d) => ({ date: d, startAts: [at(hm, d)] }));
+const sameTime = (dates: readonly string[], hm = '19:00') => dates.map((d) => ({ date: d, startAts: [at(hm, d)] }));
 const groupBody = (over: Record<string, unknown> = {}) => ({ date: D, startAts: [at('19:00')], more: sameTime(ALSO), ...over });
 const bookings = () => Booking.find({}).setOptions(cross).sort({ startAt: 1 });
 
@@ -381,5 +384,31 @@ describe('several courts in one checkout', () => {
     const lead = await Payment.findOne({ ownerId: owner.ownerId, _id: pay.body.payment.id });
     expect((await postEvent(ctx.app, owner.ownerId, webhookSecret, piSucceeded({ ...lead!.toObject(), amount: 600 }))).status).toBe(200);
     expect((await bookings()).map((b) => b.status)).toEqual(['confirmed', 'confirmed']);
+  });
+});
+
+describe('platform fee', () => {
+  it('each booking of a group carries its own fee', async () => {
+    await PlatformSettings.updateOne(
+      { _id: 'platform' },
+      { $set: { general: { ownerApproval: 'manual', fee: { mode: 'fixed', fixed: 50, percent: null, payer: 'player' }, payout: { bkash: null, nagad: null, stripe: null } } } },
+      { upsert: true },
+    );
+    clearSettingsCache();
+    await setup();
+    const snapshot = { mode: 'fixed', value: 50, payer: 'player', amount: 5000 };
+    const body = groupBody({ more: sameTime([ALSO[0]]) });
+
+    const quote = await post(`${base()}/quote`, body);
+    expect(quote.status).toBe(200);
+    expect(quote.body.items.map((d: { quote: { platformFee: unknown } }) => d.quote.platformFee)).toEqual([snapshot, snapshot]);
+    expect(quote.body.total).toBe(2 * (1500 + 5000));
+
+    const { token } = await newPlayer();
+    const res = await post(`${base()}/bookings`, body, token);
+    expect(res.status).toBe(201);
+    expect(res.body.bookings.map((b: { platformFee: unknown }) => b.platformFee)).toEqual([snapshot, snapshot]);
+    expect(res.body.bookings.map((b: { total: number }) => b.total)).toEqual([6500, 6500]);
+    expect((await bookings()).map((b) => b.platformFee)).toEqual([snapshot, snapshot]);
   });
 });

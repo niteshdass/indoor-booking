@@ -137,6 +137,39 @@ describe('booking detail', () => {
     expect(screen.getByText(/Bibs/)).toBeInTheDocument();
   });
 
+  it('shows the platform fee the player paid above the total, on the page and the receipt', async () => {
+    const fee = { mode: 'fixed' as const, value: 50, payer: 'player' as const, amount: 5000 };
+    api(() => booking({ total: 7150, platformFee: fee }));
+    let text = '';
+    pdf.mockImplementation(async (node: HTMLElement) => {
+      text = (node.textContent ?? '').replace(/\s/g, ' ');
+    });
+    const { user } = renderApp('/me/bookings/b1', { user: player });
+    const row = (await screen.findByText(en.checkout.platformFee)).closest('div')!;
+    expect(row).toHaveTextContent(/BDT\s50\.00/);
+    expect(row.nextElementSibling).toHaveTextContent(en.booking.total);
+    await user.click(screen.getByRole('button', { name: en.receipt.download }));
+    await waitFor(() => expect(pdf).toHaveBeenCalledOnce());
+    expect(text).toMatch(new RegExp(`${en.checkout.platformFee}BDT 50\\.00${en.booking.total}BDT 71\\.50`));
+  });
+
+  it.each([
+    ['the owner pays it', { mode: 'fixed' as const, value: 50, payer: 'owner' as const, amount: 5000 }],
+    ['there is no fee', null],
+  ])('shows no platform fee to the player when %s', async (_label, fee) => {
+    api(() => booking({ platformFee: fee }));
+    let text = '';
+    pdf.mockImplementation(async (node: HTMLElement) => {
+      text = node.textContent ?? '';
+    });
+    const { user } = renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByText('AB12CD')).toBeInTheDocument();
+    expect(screen.queryByText(en.checkout.platformFee)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: en.receipt.download }));
+    await waitFor(() => expect(pdf).toHaveBeenCalledOnce());
+    expect(text).not.toContain(en.checkout.platformFee);
+  });
+
   it('pending shows venue-will-confirm note', async () => {
     api(() => booking({ status: 'pending' }));
     renderApp('/me/bookings/b1', { user: player });

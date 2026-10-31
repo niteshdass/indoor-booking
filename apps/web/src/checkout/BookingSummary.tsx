@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import type { AddonLine, WalletProvider } from '@booking/shared';
 import { PROVIDER_NAMES } from '../lib/wallets';
 import { formatDate, formatTime, money } from '../lib/format';
+import { playerFee } from '../lib/platformFee';
 import type { PublicTurf, PublicVenue, QuoteJson } from '../lib/types';
 import styles from './BookingSummary.module.css';
 
@@ -66,6 +67,15 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
   const multi = items && items.length > 1 ? items : null;
   const due = multi ? (groupDue ?? 0) : quote.advanceRequired;
   const total = multi ? (groupTotal ?? multi.reduce((n, d) => n + d.quote.total, 0)) : quote.total;
+  // Already in each quote's total; shown so the player sees what the total is made of.
+  const fee = multi ? multi.reduce((n, d) => n + playerFee(d.quote.platformFee), 0) : playerFee(quote.platformFee);
+  const feeRow = (className?: string) =>
+    fee > 0 && (
+      <div className={[styles.row, className].filter(Boolean).join(' ')}>
+        <dt>{t('checkout.platformFee')}</dt>
+        <dd>{fmt(fee)}</dd>
+      </div>
+    );
   const span = (q: QuoteJson) => {
     const first = q.slots[0];
     const last = q.slots[q.slots.length - 1];
@@ -114,7 +124,8 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
               <dd>{fmt(multi.reduce((n, d) => n + (d.quote.addons.find((x) => x.addonId === a.addonId && x.auto === a.auto)?.total ?? 0), 0))}</dd>
             </div>
           ))}
-          <div className={[styles.row, styles.total, styles.sep].join(' ')}>
+          {feeRow(styles.sep)}
+          <div className={[styles.row, styles.total, fee > 0 ? '' : styles.sep].filter(Boolean).join(' ')}>
             <dt>{t('checkout.total')}</dt>
             <dd>{fmt(total)}</dd>
           </div>
@@ -172,6 +183,7 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
           <dt>{t('checkout.addonsTotal')}</dt>
           <dd>{fmt(quote.addonsTotal)}</dd>
         </div>
+        {feeRow()}
         <div className={[styles.row, styles.total].join(' ')}>
           <dt>{t('checkout.total')}</dt>
           <dd>{fmt(quote.total)}</dd>

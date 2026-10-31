@@ -36,6 +36,7 @@ function qr(over: Partial<QuoteResponse> = {}, advance = 0): QuoteResponse {
       addonsTotal: 0,
       total: 2000,
       advanceRequired: advance,
+      platformFee: null,
     },
     guestAllowed: true,
     guestOtpRequired: false,

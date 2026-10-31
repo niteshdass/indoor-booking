@@ -263,6 +263,12 @@ export function OwnerBookingPage() {
           <dl className={[styles.rows, styles.totals].join(' ')}>
             <Row label={t('owner.bookings.subtotal')} value={fmt(b.subtotal)} />
             {b.addonsTotal > 0 && <Row label={t('owner.bookings.addons')} value={fmt(b.addonsTotal)} />}
+            {b.platformFee && (
+              <Row
+                label={t('owner.bookings.platformFee', { payer: t(`owner.bookings.feePayer.${b.platformFee.payer}`) })}
+                value={fmt(b.platformFee.amount)}
+              />
+            )}
             <Row label={t('owner.bookings.total')} value={fmt(b.total)} strong />
             {b.advanceRequired > 0 && <Row label={t('owner.bookings.advance')} value={fmt(b.advanceRequired)} />}
             <Row label={t('owner.bookings.paid')} value={fmt(b.amountPaid)} />

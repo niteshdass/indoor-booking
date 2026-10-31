@@ -129,6 +129,7 @@ export function ownerBooking(over: Partial<OwnerBooking> = {}): OwnerBooking {
     addonsTotal: 0,
     total: 1000,
     advanceRequired: 0,
+    platformFee: null,
     amountPaid: 0,
     amountRefunded: 0,
     status: 'pending',

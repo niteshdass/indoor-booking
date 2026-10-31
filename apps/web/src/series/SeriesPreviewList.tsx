@@ -8,7 +8,7 @@ import type { SeriesPreview } from './types';
 /** Rows shown before the list collapses behind "Show all". */
 const COLLAPSED_ROWS = 5;
 
-/** One row per candidate date: the price when it is free, else why it is skipped; then the totals and an optional action. */
+/** One row per candidate date: the price when it is free, else why it is skipped; then the totals (with any player-paid fee named) and an optional action. */
 export function SeriesPreviewList({ preview, timeZone, action }: { preview: SeriesPreview; timeZone: string; action?: ReactNode }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
@@ -17,6 +17,8 @@ export function SeriesPreviewList({ preview, timeZone, action }: { preview: Seri
   // Keep one extra row rather than a "Show all" that reveals a single date.
   const collapsible = preview.dates.length > COLLAPSED_ROWS + 1;
   const dates = collapsible && !expanded ? preview.dates.slice(0, COLLAPSED_ROWS) : preview.dates;
+  // A player-paid fee is already in `total`; it is named, never added again.
+  const fee = preview.platformFee?.payer === 'player' ? preview.platformFee.perGame.reduce((n, x) => n + x, 0) : 0;
   return (
     <div className={styles.group}>
       <ul className={styles.list} aria-label={t('series.previewLabel')}>
@@ -44,6 +46,7 @@ export function SeriesPreviewList({ preview, timeZone, action }: { preview: Seri
       <div className={styles.footer}>
         <p className={styles.totals}>
           <span className={styles.total}>{t('series.footer', { count: preview.freeCount, total: money(preview.total, preview.currency, lang) })}</span>
+          {fee > 0 && <span className={styles.skipped}>{t('series.feeIncluded', { amount: money(fee, preview.currency, lang) })}</span>}
           {skipped > 0 && <span className={styles.skipped}>{t('series.skipped', { count: skipped })}</span>}
         </p>
         {action}

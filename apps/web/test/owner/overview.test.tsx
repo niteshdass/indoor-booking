@@ -95,6 +95,22 @@ describe('Overview page', () => {
     expect(screen.getByRole('table', { name: 'Revenue by day' })).toBeTruthy();
   });
 
+  it('shows the platform fee beside revenue only when there is one', async () => {
+    mockApi(routes(overview({ platformFees: 5000 })));
+    const { unmount } = renderApp(`/owner/${OWNER_ID}/overview`, { user: staffUser });
+    const kpi = (label: string) => screen.getAllByText(label).find((el) => el.tagName === 'P')!.closest('div')!;
+    await screen.findByText(en.owner.overview.kpi.cancellations);
+    expect(kpi(en.owner.overview.kpi.revenue).textContent).toMatch(/after BDT\s*50 platform fee/i);
+    const mixFee = screen.getByText(en.owner.overview.mix.platformFee, { selector: 'dt' });
+    expect(mixFee.nextElementSibling).toHaveTextContent(/BDT\s50\.00/);
+    unmount();
+
+    mockApi(routes());
+    renderApp(`/owner/${OWNER_ID}/overview`, { user: staffUser });
+    await screen.findByText(en.owner.overview.kpi.cancellations);
+    expect(screen.queryByText(/platform fee/i)).toBeNull();
+  });
+
   it('switches the trend between revenue, bookings and hours', async () => {
     mockApi(routes());
     const { user } = renderApp(`/owner/${OWNER_ID}/overview`, { user: staffUser });

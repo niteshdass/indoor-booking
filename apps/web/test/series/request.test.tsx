@@ -122,6 +122,27 @@ describe('request weekly booking', () => {
     expect(screen.getByRole('link', { name: en.series.player.toBookings })).toHaveAttribute('href', '/me/bookings');
   });
 
+  it.each([
+    ['player', true],
+    ['owner', false],
+  ] as const)('the preview shows the platform fee only when the player pays it (%s)', async (payer, shown) => {
+    // The total from the API already includes a player-paid fee.
+    const preview = seriesPreview({ total: payer === 'player' ? 2100 : 2000, platformFee: { payer, perGame: [50, 50] } });
+    mockApi([...baseRoutes(), { method: 'POST', path: PREVIEW, body: { preview } }]);
+    const { user } = renderApp(URL, { user: player });
+    await waitFor(() => expect(screen.getByLabelText(en.series.startTime)).toHaveValue('10:00'));
+    await user.click(screen.getByRole('button', { name: en.series.check }));
+    await screen.findByRole('list', { name: en.series.previewLabel });
+    const fee = screen.queryByText(/platform fee/);
+    if (shown) {
+      expect(fee).toHaveTextContent(/^Includes BDT\s1\.00 platform fee$/);
+      expect(screen.getByText(/2 games ·/)).toHaveTextContent(/BDT\s21\.00/);
+    } else {
+      expect(fee).toBeNull();
+      expect(screen.getByText(/2 games ·/)).toHaveTextContent(/BDT\s20\.00/);
+    }
+  });
+
   it('series_request_limit shows the translated error', async () => {
     mockApi([
       ...baseRoutes(),

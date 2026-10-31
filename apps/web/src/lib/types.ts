@@ -1,4 +1,4 @@
-import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, ManualWallet, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
 
 export type { SearchResult, SearchResponse } from '@booking/shared';
 
@@ -66,6 +66,8 @@ export type QuoteJson = {
   addonsTotal: number;
   total: number;
   advanceRequired: number;
+  /** Frozen at booking time; null when no fee applies. A player-paid fee is already in `total`. */
+  platformFee: PlatformFeeSnapshot | null;
 };
 
 export type QuoteResponse = {
@@ -97,6 +99,8 @@ export type BookingJson = {
   addonsTotal: number;
   total: number;
   advanceRequired: number;
+  /** Null for walk-ins, Free mode, or a fee that rounds to nothing. A player-paid fee is already in `total`. */
+  platformFee: PlatformFeeSnapshot | null;
   amountPaid: number;
   amountRefunded: number;
   status: BookingStatus;

@@ -223,6 +223,8 @@ function Kpis({ o, f }: CardProps) {
           <p className={styles.kpiLabel}>{tile.label}</p>
           <p className={styles.kpiValue}>{tile.format(tile.kpi.value)}</p>
           <Delta kpi={tile.kpi} format={tile.format} f={f} lowerIsBetter={tile.lowerIsBetter} rate={tile.rate} />
+          {/* Revenue is net of the platform fee; say so whenever there was one. */}
+          {tile.key === 'revenue' && o.platformFees > 0 && <p className={styles.kpiNote}>{t('owner.overview.kpi.afterFee', { amount: f.short(o.platformFees) })}</p>}
           {tile.spark ? (
             <Sparkline values={tile.spark} />
           ) : (
@@ -392,6 +394,12 @@ function MixCard({ o, f }: CardProps) {
           <dt>{t('owner.overview.mix.outstanding')}</dt>
           <dd className={o.mix.outstanding > 0 ? styles.warn : undefined}>{f.money(o.mix.outstanding)}</dd>
         </div>
+        {o.platformFees > 0 && (
+          <div>
+            <dt>{t('owner.overview.mix.platformFee')}</dt>
+            <dd>{f.money(o.platformFees)}</dd>
+          </div>
+        )}
       </dl>
     </Section>
   );

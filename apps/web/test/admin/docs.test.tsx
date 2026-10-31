@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import en from '../../src/i18n/locales/en.json';
+import ru from '../../src/i18n/locales/ru.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import type { PublicUser } from '../../src/lib/types';
@@ -64,6 +65,33 @@ describe('admin docs', () => {
     await h.user.click(within(pager).getByRole('link', { name: (n) => n.includes(topic('sms').title) }));
     expect(h.location().pathname).toBe('/admin/docs/sms');
     expect(await screen.findByRole('heading', { level: 1, name: topic('sms').title })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['en', docsEn],
+    ['ru', docsRu],
+  ] as const)('has a General topic linked to the General tab (%s)', async (lang, docs) => {
+    await i18n.changeLanguage(lang);
+    const general = docs.topics.find((tp) => tp.id === 'general')!;
+    expect(general.settings).toBe('general');
+    mockApi([{ path: '/admin/me', body: ME }]);
+    renderApp('/admin/docs/general', { user: admin });
+    expect(await screen.findByRole('heading', { level: 1, name: general.title })).toBeInTheDocument();
+    for (const sec of general.sections) expect(screen.getByRole('heading', { level: 2, name: sec.title })).toBeInTheDocument();
+    const settingsLabel = (lang === 'en' ? en : ru).admin.docs.openSettings;
+    expect(screen.getByRole('link', { name: settingsLabel })).toHaveAttribute('href', '/admin/settings?section=general');
+    const text = document.body.textContent ?? '';
+    expect(text).toContain('/api/v1/webhooks/stripe/platform');
+    expect(text).toMatch(/1[,.\s ]?000/);
+    expect(text).toMatch(/1[,.\s ]?050/);
+  });
+
+  it('the General topic covers approval, fee modes, who pays, payouts and walk-ins', () => {
+    const body = JSON.stringify(topic('general'));
+    for (const word of ['Automatic', 'Free', 'Fixed', 'Percent', '50%', 'Court', 'bKash', 'Nagad', 'Stripe', 'Payouts', 'Reject', 'Owes', 'credit', 'walk-in']) {
+      expect(body).toContain(word);
+    }
+    expect(body).not.toContain('Field');
   });
 
   it('sends an unknown topic to the overview', async () => {

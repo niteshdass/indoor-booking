@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { LogoMark } from '../components/LogoMark';
 import { formatDate, formatDateTime, formatTime, money } from '../lib/format';
+import { playerFee } from '../lib/platformFee';
 import type { BookingJson } from '../lib/types';
 import { addonLabel, amountDue } from './BookingFacts';
 import styles from './Receipt.module.css';
@@ -20,6 +21,7 @@ export function Receipt({ booking, holder }: Props) {
   const first = booking.slots[0];
   const last = booking.slots[booking.slots.length - 1];
   const due = amountDue(booking);
+  const fee = playerFee(booking.platformFee);
 
   return (
     <article className={styles.receipt}>
@@ -97,6 +99,12 @@ export function Receipt({ booking, holder }: Props) {
               <td>{fmt(a.total)}</td>
             </tr>
           ))}
+          {fee > 0 && (
+            <tr>
+              <td>{t('checkout.platformFee')}</td>
+              <td>{fmt(fee)}</td>
+            </tr>
+          )}
         </tbody>
         <tfoot>
           <tr className={styles.total}>

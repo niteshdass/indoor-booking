@@ -46,6 +46,7 @@ function quote(over: Partial<QuoteJson> = {}): QuoteJson {
     addonsTotal: 0,
     total: 2000,
     advanceRequired: 0,
+    platformFee: null,
     ...over,
   };
 }
@@ -166,6 +167,40 @@ describe('CheckoutPage', () => {
     renderApp(PATH, { user: player });
     expect(await screen.findByRole('button', { name: en.checkout.book })).toBeInTheDocument();
     expect(screen.queryByText(en.checkout.advanceDue)).not.toBeInTheDocument();
+  });
+
+  it('shows the platform fee above the total when the player pays it', async () => {
+    const fee = { mode: 'fixed' as const, value: 50, payer: 'player' as const, amount: 5000 };
+    api(() => qr(quote({ slots: [{ startAt: START, endAt: '2026-01-01T13:00:00.000Z', price: 100000 }], subtotal: 100000, total: 105000, platformFee: fee })));
+    renderApp(PATH, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    const row = (await within(summary).findByText(en.checkout.platformFee)).closest('div')!;
+    expect(norm(row.textContent ?? '')).toBe(`${en.checkout.platformFee}${m(5000)}`);
+    expect(within(summary).getByText(en.checkout.total).closest('div')).toHaveTextContent(m(105000));
+    // The fee row sits right above Total.
+    expect(row.nextElementSibling).toBe(within(summary).getByText(en.checkout.total).closest('div'));
+  });
+
+  it.each([
+    ['the owner pays it', { mode: 'fixed' as const, value: 50, payer: 'owner' as const, amount: 5000 }],
+    ['there is no fee', null],
+  ])('shows no platform fee row when %s', async (_label, fee) => {
+    api(() => qr(quote({ platformFee: fee })));
+    renderApp(PATH, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    expect((await within(summary).findAllByText(amount(2000), { selector: 'dd' })).length).toBeGreaterThan(0);
+    expect(within(summary).queryByText(en.checkout.platformFee)).not.toBeInTheDocument();
+  });
+
+  it('several bookings: the platform fee row sums every booking', async () => {
+    const fee = { mode: 'fixed' as const, value: 50, payer: 'player' as const, amount: 5000 };
+    const q = quote({ total: 7000, platformFee: fee });
+    api(() => ({ ...qr(q, false), items: [{ date: '2026-01-01', quote: q }, { date: '2026-01-02', quote: q }], total: 14000, advanceRequired: 0 }));
+    renderApp(`${PATH}&more=${MORE2}`, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    const row = (await within(summary).findByText(en.checkout.platformFee)).closest('div')!;
+    expect(row).toHaveTextContent(m(10000));
+    expect(within(summary).getByText(en.checkout.total).closest('div')).toHaveTextContent(m(14000));
   });
 
   it('auto add-on shown as included and not selectable', async () => {

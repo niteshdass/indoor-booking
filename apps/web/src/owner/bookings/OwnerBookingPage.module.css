@@ -140,13 +140,17 @@
 }
 
 .row dt {
+  flex: 1 1 0;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
+/* The amount stays on the label's line; a long label wraps beside it instead. */
 .row dd {
   margin: 0;
   color: var(--text-strong);
+  white-space: nowrap;
+  text-align: end;
 }
 
 .strong {

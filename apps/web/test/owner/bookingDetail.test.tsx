@@ -101,6 +101,24 @@ describe('owner booking detail', () => {
     expect(screen.getAllByText(/BDT\s6\.00/).length).toBeGreaterThan(0);
   });
 
+  it.each([
+    ['owner', en.owner.bookings.feePayer.owner],
+    ['player', en.owner.bookings.feePayer.player],
+  ] as const)('booking detail shows the platform fee and who paid it (%s)', async (payer, label) => {
+    const platformFee = { mode: 'fixed' as const, value: 50, payer, amount: 5000 };
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ platformFee }) }) }]);
+    renderApp(URL_, { user: staffUser });
+    const row = (await screen.findByText(en.owner.bookings.platformFee.replace('{{payer}}', label))).closest('div')!;
+    expect(row).toHaveTextContent(/BDT\s50\.00/);
+  });
+
+  it('booking detail shows no platform fee row when the booking has none', async () => {
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ source: 'walkin', platformFee: null }) }) }]);
+    renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText('BK-0001')).toBeTruthy();
+    expect(screen.queryByText(/Platform fee/)).toBeNull();
+  });
+
   it('booking detail links the other bookings made in the same go', async () => {
     const other = ownerBooking({ id: 'b2', reference: 'BK-0002', businessDate: '2026-10-27', groupId: 'g1' });
     mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ groupId: 'g1' }), group: [other] }) }]);

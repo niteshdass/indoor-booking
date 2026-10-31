@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next';
 import type { AddonLine } from '@booking/shared';
 import { Button } from '../components/ui/Button';
 import { formatDate, formatTime, money } from '../lib/format';
+import { playerFee } from '../lib/platformFee';
 import type { BookingJson } from '../lib/types';
 import { BookingStatusBadge, PaymentStatusBadge } from './BookingStatusBadge';
 import styles from './BookingFacts.module.css';
@@ -68,6 +69,7 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
   const last = booking.slots[booking.slots.length - 1];
 
   const due = amountDue(booking);
+  const fee = playerFee(booking.platformFee);
 
   return (
     <section className={styles.facts} aria-label={t('booking.title')}>
@@ -114,6 +116,12 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
             <dd>{fmt(a.total)}</dd>
           </div>
         ))}
+        {fee > 0 && (
+          <div className={styles.row}>
+            <dt>{t('checkout.platformFee')}</dt>
+            <dd>{fmt(fee)}</dd>
+          </div>
+        )}
         <div className={[styles.row, styles.sep].join(' ')}>
           <dt className={styles.totalLabel}>{t('booking.total')}</dt>
           <dd className={styles.total}>{fmt(booking.total)}</dd>

@@ -12,8 +12,8 @@ export type Block =
 
 export type DocSection = { id: string; title: string; blocks: Block[] };
 
-export type GroupId = 'start' | 'signin' | 'messages' | 'server';
-export type TopicId = 'overview' | 'google' | 'email' | 'sms' | 'encryption' | 'server-config';
+export type GroupId = 'start' | 'platform' | 'signin' | 'messages' | 'server';
+export type TopicId = 'overview' | 'general' | 'google' | 'email' | 'sms' | 'encryption' | 'server-config';
 
 export type DocTopic = {
   id: TopicId;
@@ -21,22 +21,22 @@ export type DocTopic = {
   title: string;
   summary: string;
   /** The Admin > Settings tab this topic configures. */
-  settings?: 'google' | 'email' | 'sms';
+  settings?: 'general' | 'google' | 'email' | 'sms';
   sections: DocSection[];
 };
 
 export type Docs = { groups: Record<GroupId, string>; topics: DocTopic[] };
 
-export const GROUP_ORDER: GroupId[] = ['start', 'signin', 'messages', 'server'];
+export const GROUP_ORDER: GroupId[] = ['start', 'platform', 'signin', 'messages', 'server'];
 
 export const docsEn: Docs = {
-  groups: { start: 'Getting started', signin: 'Sign-in', messages: 'Messages', server: 'Server and security' },
+  groups: { start: 'Getting started', platform: 'Businesses and fees', signin: 'Sign-in', messages: 'Messages', server: 'Server and security' },
   topics: [
     {
       id: 'overview',
       group: 'start',
       title: 'How settings work',
-      summary: 'Admin > Settings holds the services the whole platform depends on: Google sign-in, email and SMS. Business owners never see these settings.',
+      summary: 'Admin > Settings holds what the whole platform depends on: venue signup, the platform fee, Google sign-in, email and SMS. Business owners never see these settings.',
       sections: [
         {
           id: 'source',
@@ -82,6 +82,118 @@ export const docsEn: Docs = {
               ],
             },
           ],
+        },
+      ],
+    },
+    {
+      id: 'general',
+      group: 'platform',
+      title: 'Venue signup and platform fee',
+      summary: 'Admin > Settings > General decides whether new businesses need your approval, what you earn on each online booking, and where owners pay you what they owe.',
+      settings: 'general',
+      sections: [
+        {
+          id: 'approval',
+          title: 'Venue signup approval',
+          blocks: [
+            {
+              table: {
+                head: ['Mode', 'What happens'],
+                rows: [
+                  ['Manual', 'A new business waits under Businesses > Pending approval until you approve it. The owner is told to wait for approval.'],
+                  ['Automatic', 'A new business is active at once and the owner is told they are live. The activity log records it as approved automatically.'],
+                ],
+              },
+            },
+            { note: 'Switching to Automatic does not approve businesses that are already waiting. They stay in Pending approval for you to approve or reject.', tone: 'warning' },
+          ],
+        },
+        {
+          id: 'fee',
+          title: 'Platform fee modes',
+          blocks: [
+            {
+              table: {
+                head: ['Mode', 'Fee on each online booking'],
+                rows: [
+                  ['Free', 'No fee. Nothing is owed, and no fee shows anywhere: not at checkout, not on bookings, not in the owner portal.'],
+                  ['Fixed', 'The same amount on every booking, in that booking\'s own currency: 50 means ৳50 on a BDT venue and $50 on a USD one. Run a single-currency platform to keep this simple.'],
+                  ['Percent', 'A share of court time plus extras, above 0% and up to 50%, at most 2 decimals. It is rounded to the nearest poisha or cent.'],
+                ],
+              },
+            },
+            {
+              list: [
+                'The fee is fixed when a booking is made and saved on it. Changing the settings later never re-prices bookings that already exist.',
+                'Only online bookings carry a fee, weekly bookings that players request included. A walk-in that staff enter never has one, and neither does a weekly series staff create.',
+                'A booking owes its fee while it is pending, confirmed, completed or a no-show. One that is waiting for payment owes nothing yet; rejected, cancelled and expired bookings owe nothing.',
+              ],
+            },
+          ],
+        },
+        {
+          id: 'payer',
+          title: 'Who pays the fee',
+          blocks: [
+            { p: 'Either way the owner owes you the fee: the player pays the venue, never you. The choice only changes what the player is charged. Example with a fixed fee of 50 on a Court that costs 1,000:' },
+            {
+              table: {
+                head: ['Who pays', 'Player pays', 'Owner owes you'],
+                rows: [
+                  ['Owner', '1,000', '50 (out of the 1,000 they took)'],
+                  ['Player', '1,050 (a "Platform fee" line shows above the total at checkout, on the booking and on the receipt)', '50 (collected with the booking)'],
+                ],
+              },
+            },
+            { p: 'When the player pays the fee and the venue asks for an advance, the fee is added to the advance, so it is collected up front. When nothing is due up front, it is paid at the venue with the rest.' },
+            { p: 'Owners see the fee on each booking ("Platform fee (paid by you)" or "(paid by player)"). Their Overview revenue is after the fee, with the fee shown beside it.' },
+          ],
+        },
+        {
+          id: 'payout-details',
+          title: 'Where owners pay you',
+          blocks: [
+            { p: 'Owners pay what they owe from the Platform fee page in the owner portal. They are offered only the methods you set up here.' },
+            {
+              list: [
+                'bKash and Nagad: tick the wallet, enter its number (for example `01712345678`) and the account type (Personal, Merchant or Agent). These are saved with Save settings.',
+                'Card (Stripe): your own Stripe account, with Test and Live keys like an owner\'s Stripe setup. The keys have their own Save button and are stored encrypted; the server needs an encryption key for this.',
+              ],
+            },
+            { p: 'In Stripe, add a webhook endpoint with this URL, once in test mode and once in live mode, and paste each endpoint\'s signing secret with that mode\'s keys:' },
+            { code: 'https://<your API domain>/api/v1/webhooks/stripe/platform' },
+            { p: 'Subscribe it to `payment_intent.succeeded`, `payment_intent.payment_failed` and `payment_intent.canceled`. The General tab shows the exact URL for this server with copy buttons.' },
+            { note: 'This is a different endpoint from the owners\' own Stripe webhooks. Card payouts are only confirmed when this one is set up.', tone: 'info' },
+          ],
+        },
+        {
+          id: 'payouts',
+          title: 'Checking payouts',
+          blocks: [
+            { p: 'Admin > Payouts lists what owners send you. The Pending tab holds bKash and Nagad payouts waiting for a check, oldest first; All shows every payout.' },
+            {
+              steps: [
+                'Open your bKash or Nagad app and find the payment by its TrxID and sender number.',
+                'If it arrived with that amount, press Confirm. The amount comes off the business\'s balance. This cannot be undone.',
+                'If it did not arrive, press Reject and give a reason. The business sees the reason and can send the payment again.',
+              ],
+            },
+            { p: 'Card payouts confirm themselves through the Stripe webhook and never need a check. A card payout still pending after an hour shows as Not completed.' },
+          ],
+        },
+        {
+          id: 'owes',
+          title: 'Who owes what',
+          blocks: [
+            { p: 'Admin > Businesses has an Owes column with each business\'s balance per currency: fees owed minus confirmed payouts. Payouts waiting for a check do not lower it yet. The Overview shows fees owed and collected for the period.' },
+            { p: 'A negative balance is a credit, shown as "Credit ৳X". It happens when a booking whose fee was already paid is later cancelled or rejected. Credit is not paid back: the business\'s next fees use it up.' },
+            { p: 'Nothing is enforced automatically: a business that does not pay keeps taking bookings. You can still suspend it by hand.' },
+          ],
+        },
+        {
+          id: 'no-env',
+          title: 'No server fallback',
+          blocks: [{ p: 'These settings have no environment variables. Until something is saved here the defaults apply: Manual approval, Free, and no payout methods.' }],
         },
       ],
     },

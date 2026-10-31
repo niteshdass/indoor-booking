@@ -459,6 +459,7 @@
     "autoAdded": "Включено",
     "subtotal": "Слоты",
     "addonsTotal": "Дополнения",
+    "platformFee": "Сервисный сбор",
     "total": "Итого",
     "advanceDue": "К оплате сейчас",
     "payLater": "Оплата на месте",
@@ -794,6 +795,7 @@
       "compared": "{{from}} – {{to}}, сравнение с {{prevFrom}} – {{prevTo}}",
       "kpi": {
         "revenue": "Выручка",
+        "afterFee": "После комиссии платформы {{amount}}",
         "bookings": "Брони",
         "hours": "Часов сыграно",
         "utilization": "Загрузка кортов",
@@ -827,7 +829,8 @@
         "fees": "Удержано при отмене",
         "total": "Всего",
         "collected": "Получено",
-        "outstanding": "Осталось получить"
+        "outstanding": "Осталось получить",
+        "platformFee": "Комиссия платформы"
       },
       "heat": {
         "title": "Когда корты заняты",
@@ -942,6 +945,11 @@
       "slots": "Слоты и дополнения",
       "subtotal": "Подытог",
       "addons": "Дополнения",
+      "platformFee": "Комиссия платформы ({{payer}})",
+      "feePayer": {
+        "owner": "платите вы",
+        "player": "платит игрок"
+      },
       "advance": "Требуемая предоплата",
       "refunded": "Возвращено",
       "payments": "Платежи",
@@ -1832,6 +1840,7 @@
     "skipped_few": "Пропущено {{count}} даты",
     "skipped_many": "Пропущено {{count}} дат",
     "skipped_other": "Пропущено {{count}} даты",
+    "feeIncluded": "Включая сервисный сбор {{amount}}",
     "previewLabel": "Даты серии",
     "showAll_one": "Показать все {{count}} дату",
     "showAll_few": "Показать все {{count}} даты",

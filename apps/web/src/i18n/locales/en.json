@@ -437,6 +437,7 @@
     "autoAdded": "Included",
     "subtotal": "Slots",
     "addonsTotal": "Extras",
+    "platformFee": "Platform fee",
     "total": "Total",
     "advanceDue": "Due now",
     "payLater": "Pay at the venue",
@@ -764,6 +765,7 @@
       "compared": "{{from}} – {{to}}, compared with {{prevFrom}} – {{prevTo}}",
       "kpi": {
         "revenue": "Revenue",
+        "afterFee": "After {{amount}} platform fee",
         "bookings": "Bookings",
         "hours": "Hours played",
         "utilization": "Court use",
@@ -797,7 +799,8 @@
         "fees": "Kept on cancellation",
         "total": "Total",
         "collected": "Collected",
-        "outstanding": "Still to collect"
+        "outstanding": "Still to collect",
+        "platformFee": "Platform fee"
       },
       "heat": {
         "title": "When courts are busy",
@@ -906,6 +909,11 @@
       "slots": "Slots and add-ons",
       "subtotal": "Subtotal",
       "addons": "Add-ons",
+      "platformFee": "Platform fee ({{payer}})",
+      "feePayer": {
+        "owner": "paid by you",
+        "player": "paid by player"
+      },
       "advance": "Advance required",
       "refunded": "Refunded",
       "payments": "Payments",
@@ -1772,6 +1780,7 @@
     "footer_other": "{{count}} games · {{total}}",
     "skipped_one": "{{count}} date skipped",
     "skipped_other": "{{count}} dates skipped",
+    "feeIncluded": "Includes {{amount}} platform fee",
     "previewLabel": "Dates in this series",
     "showAll_one": "Show all {{count}} date",
     "showAll_other": "Show all {{count}} dates",

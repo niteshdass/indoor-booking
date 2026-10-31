@@ -44,7 +44,7 @@ function CopyTrx({ value }: { value: string }) {
   return (
     <>
       {available && (
-        <Button size="sm" variant="secondary" onClick={() => void copy()}>
+        <Button size="sm" variant="secondary" icon="copy" onClick={() => void copy()}>
           {t('owner.verify.copy')}
         </Button>
       )}
@@ -158,10 +158,10 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
               <p className={shared.description}>{t('owner.verify.notReceivedAsk')}</p>
               {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
               <div className={shared.actions}>
-                <Button type="button" variant="secondary" disabled={submitting} onClick={() => setAsking(false)}>
+                <Button type="button" variant="secondary" icon="arrowLeft" disabled={submitting} onClick={() => setAsking(false)}>
                   {t('owner.verify.back')}
                 </Button>
-                <Button type="button" variant="danger" loading={submitting} onClick={() => void post('reject', {})}>
+                <Button type="button" variant="danger" icon="ban" loading={submitting} onClick={() => void post('reject', {})}>
                   {t('owner.verify.notReceivedConfirm')}
                 </Button>
               </div>
@@ -169,6 +169,7 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
           ) : (
             <>
               <TextField
+                icon="money"
                 label={t('owner.verify.amountReceived')}
                 inputMode="decimal"
                 value={text}
@@ -186,10 +187,10 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
               />
               {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
               <div className={shared.actions}>
-                <Button type="button" variant="danger" disabled={submitting} onClick={() => setAsking(true)}>
+                <Button type="button" variant="danger" icon="ban" disabled={submitting} onClick={() => setAsking(true)}>
                   {t('owner.verify.notReceived')}
                 </Button>
-                <Button type="submit" loading={submitting}>
+                <Button icon="check" type="submit" loading={submitting}>
                   {t('owner.verify.received')}
                 </Button>
               </div>

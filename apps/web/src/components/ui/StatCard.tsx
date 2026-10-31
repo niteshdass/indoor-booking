@@ -8,11 +8,13 @@ export type StatCardProps = {
   tone?: 'warning';
   /** 0–1 share shown as a bar under the value; the value text carries the same number for screen readers. */
   meter?: number;
+  /** No surface of its own: one cell of a strip that the caller draws (the Today KPI strip). */
+  plain?: boolean;
 };
 
-export function StatCard({ label, value, hint, tone, meter }: StatCardProps) {
+export function StatCard({ label, value, hint, tone, meter, plain }: StatCardProps) {
   return (
-    <div className={[styles.card, tone && styles[tone]].filter(Boolean).join(' ')}>
+    <div className={[styles.card, tone && styles[tone], plain && styles.plain].filter(Boolean).join(' ')}>
       <p className={styles.label}>{label}</p>
       <p className={styles.value}>{value}</p>
       {meter !== undefined && (

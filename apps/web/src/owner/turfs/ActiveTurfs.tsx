@@ -20,7 +20,7 @@ export function ActiveTurfs({ venue, children }: { venue: OwnerVenue; children: 
     return (
       <Alert tone="danger">
         <p className={styles.empty}>{errorMessage(turfs.state.error, t)}</p>
-        <Button variant="secondary" onClick={turfs.reload}>
+        <Button variant="secondary" icon="refresh" onClick={turfs.reload}>
           {t('auth.retry')}
         </Button>
       </Alert>

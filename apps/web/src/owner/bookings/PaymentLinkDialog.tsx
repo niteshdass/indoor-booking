@@ -87,8 +87,8 @@ export function PaymentLinkDialog({ open, link, load, onClose }: Props) {
                 {t('owner.link.amount')}: <strong>{money(link.amount, link.currency, i18n.language)}</strong>
               </p>
               <div className={styles.copyRow}>
-                <TextField className={styles.url} label={t('owner.link.url')} readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
-                <Button variant="secondary" onClick={() => void copy()}>
+                <TextField icon="link" className={styles.url} label={t('owner.link.url')} readOnly value={link.url} onFocus={(e) => e.currentTarget.select()} />
+                <Button variant="secondary" icon="link" onClick={() => void copy()}>
                   {t('owner.link.copy')}
                 </Button>
               </div>

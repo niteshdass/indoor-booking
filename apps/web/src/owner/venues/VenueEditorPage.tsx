@@ -130,10 +130,10 @@ function PublishBar({ venue }: { venue: OwnerVenue }) {
     <div className={styles.card}>
       <div className={styles.publishRow}>
         <Badge tone={venue.published ? 'success' : 'neutral'}>{t(venue.published ? 'owner.venues.published' : 'owner.venues.draft')}</Badge>
-        <Button variant="secondary" loading={busy && !confirming} onClick={togglePublish}>
+        <Button variant="secondary" icon={venue.published ? 'eyeOff' : 'send'} loading={busy && !confirming} onClick={togglePublish}>
           {t(venue.published ? 'owner.venues.unpublish' : 'owner.venues.publish')}
         </Button>
-        <Button variant="danger" onClick={() => setConfirming(true)}>
+        <Button variant="danger" icon="trash" onClick={() => setConfirming(true)}>
           {t('owner.venues.delete')}
         </Button>
       </div>
@@ -146,7 +146,7 @@ function PublishBar({ venue }: { venue: OwnerVenue }) {
             <Button variant="secondary" disabled={busy} onClick={() => setConfirming(false)}>
               {t('owner.venues.cancel')}
             </Button>
-            <Button variant="danger" loading={busy} onClick={remove}>
+            <Button variant="danger" icon="trash" loading={busy} onClick={remove}>
               {t('owner.venues.deleteConfirm')}
             </Button>
           </div>

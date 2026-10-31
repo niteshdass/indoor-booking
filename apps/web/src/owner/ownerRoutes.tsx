@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
-import { Route, Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router';
 import { ActivityPage } from './activity/ActivityPage';
 import { AddonsPage } from './addons/AddonsPage';
 import { BookingsPage } from './bookings/BookingsPage';
 import { OwnerBookingPage } from './bookings/OwnerBookingPage';
 import { OwnerGroupPage } from './bookings/OwnerGroupPage';
 import { OwnerIndexPage } from './OwnerIndexPage';
-import { OwnerProvider } from './OwnerProvider';
+import { OwnerProvider, useOwner } from './OwnerProvider';
 import { RequirePermission } from './RequirePermission';
 import { ClosuresPage } from './schedule/ClosuresPage';
 import { ReviewsPage } from './reviews/ReviewsPage';
@@ -37,6 +37,13 @@ function Guarded({ nav, perm, any, children }: { nav?: string; perm?: Permission
   );
 }
 
+/** `/owner/:ownerId` opens the first nav page the member may see: Overview, else Today. */
+function OwnerHome() {
+  const { can } = useOwner();
+  const first = NAV.find((n) => (n.any ? n.perms.some(can) : n.perms.every(can)));
+  return <Navigate to={first?.to ?? 'today'} replace />;
+}
+
 /** The `/owner/*` tree. */
 export function OwnerRoutes() {
   return (
@@ -50,8 +57,9 @@ export function OwnerRoutes() {
           </OwnerProvider>
         }
       >
-        <Route index element={<Guarded nav=""><TodayPage /></Guarded>} />
+        <Route index element={<OwnerHome />} />
         <Route path="overview" element={<Guarded nav="overview"><OverviewPage /></Guarded>} />
+        <Route path="today" element={<Guarded nav="today"><TodayPage /></Guarded>} />
         <Route path="schedule" element={<Guarded nav="schedule"><SchedulePage /></Guarded>} />
         <Route path="bookings" element={<Guarded nav="bookings"><BookingsPage /></Guarded>} />
         <Route path="bookings/:bookingId" element={<Guarded perm={['booking.view']}><OwnerBookingPage /></Guarded>} />

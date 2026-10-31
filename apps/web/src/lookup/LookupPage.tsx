@@ -99,6 +99,7 @@ export function LookupPage() {
           <p className={styles.intro}>{t('lookup.intro')}</p>
           <form className={styles.form} onSubmit={submit}>
             <TextField
+              icon="hash"
               label={t('lookup.reference')}
               autoComplete="off"
               autoCapitalize="characters"
@@ -107,7 +108,7 @@ export function LookupPage() {
               onChange={(e) => setReference(e.target.value.toUpperCase())}
             />
             <PhoneInput key={urlPhone} label={t('auth.phone.label')} value={phone} onChange={setPhone} />
-            <Button type="submit" variant="brand" size="lg" block loading={state.status === 'loading'} disabled={!reference.trim() || !phone}>
+            <Button type="submit" variant="brand" size="lg" icon="search" block loading={state.status === 'loading'} disabled={!reference.trim() || !phone}>
               {t('lookup.submit')}
             </Button>
           </form>
@@ -179,7 +180,7 @@ function SaveReference({ reference }: { reference: string }) {
       <div className={styles.save}>
         <p>{t('lookup.saveReference')}</p>
         {available && (
-          <Button size="sm" variant="secondary" onClick={() => void copy()}>
+          <Button size="sm" variant="secondary" icon="link" onClick={() => void copy()}>
             {t('lookup.copyLink')}
           </Button>
         )}
@@ -227,7 +228,7 @@ function GuestCancel({ reference, phone, open, setOpen, onCancelled }: GuestCanc
       {error && <Alert tone="danger">{error}</Alert>}
       {!sent && <p className={styles.sent}>{t('lookup.codeNote')}</p>}
       {!sent && (
-        <Button variant="secondary" size="lg" block loading={sending} disabled={cooldown.left > 0} onClick={() => void sendCode()}>
+        <Button variant="secondary" size="lg" icon="send" block loading={sending} disabled={cooldown.left > 0} onClick={() => void sendCode()}>
           {t('lookup.sendCode')}
         </Button>
       )}
@@ -235,7 +236,7 @@ function GuestCancel({ reference, phone, open, setOpen, onCancelled }: GuestCanc
         <>
           <p className={styles.sent}>{t('auth.phone.sentTo', { phone })}</p>
           <OtpInput label={t('auth.phone.code')} value={code} onChange={setCode} />
-          <Button variant="ghost" size="lg" block disabled={cooldown.left > 0 || sending} onClick={() => void sendCode()}>
+          <Button variant="ghost" size="lg" icon="send" block disabled={cooldown.left > 0 || sending} onClick={() => void sendCode()}>
             {cooldown.left > 0 ? <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span> : t('auth.phone.resend')}
           </Button>
         </>
@@ -245,7 +246,7 @@ function GuestCancel({ reference, phone, open, setOpen, onCancelled }: GuestCanc
 
   return (
     <>
-      <Button variant="secondary" size="lg" block onClick={() => setOpen(true)}>
+      <Button variant="secondary" size="lg" icon="ban" block onClick={() => setOpen(true)}>
         {t('cancel.open')}
       </Button>
       <CancelDialog

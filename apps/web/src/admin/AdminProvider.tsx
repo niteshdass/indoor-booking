@@ -30,7 +30,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
         {denied ? (
           <Link to="/">{t('admin.home')}</Link>
         ) : (
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         )}

@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { Icon, type IconName } from './Icon';
 import { Spinner } from './Spinner';
 import styles from './Button.module.css';
 
@@ -9,6 +10,8 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   size?: 'sm' | 'md' | 'lg';
   block?: boolean;
   loading?: boolean;
+  /** Glyph before the label; the spinner takes its place while loading. */
+  icon?: IconName;
   /** Renders a router link with the same look instead of a button. */
   to?: string;
 };
@@ -18,6 +21,7 @@ export function Button({
   size = 'md',
   block = false,
   loading = false,
+  icon,
   disabled,
   className,
   children,
@@ -32,6 +36,7 @@ export function Button({
   if (to !== undefined) {
     return (
       <Link to={to} className={cls}>
+        {icon && <Icon name={icon} className={styles.icon} />}
         {children}
       </Link>
     );
@@ -44,7 +49,7 @@ export function Button({
       aria-busy={loading || undefined}
       {...rest}
     >
-      {loading && <Spinner label={t('common.loading')} />}
+      {loading ? <Spinner label={t('common.loading')} /> : icon && <Icon name={icon} className={styles.icon} />}
       {children}
     </button>
   );

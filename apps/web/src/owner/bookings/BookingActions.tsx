@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next';
 import { ActionMenu } from '../../components/ActionMenu';
 import { Alert } from '../../components/ui/Alert';
 import { Button, type ButtonProps } from '../../components/ui/Button';
+import type { IconName } from '../../components/ui/Icon';
 import { apiPost, ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
@@ -67,6 +68,22 @@ export type ActionCallbacks = {
 /** The button label for an action. */
 export function actionLabel(a: Action, t: TFunction): string {
   return t(`owner.bookings.actions.${a}`);
+}
+
+const ACTION_ICON: Record<Action, IconName> = {
+  verify: 'check',
+  confirm: 'check',
+  reject: 'ban',
+  cancel: 'ban',
+  checkIn: 'check',
+  noShow: 'ban',
+  markCash: 'money',
+  paymentLink: 'link',
+};
+
+/** The leading icon for an action's button. */
+export function actionIcon(a: Action): IconName {
+  return ACTION_ICON[a];
 }
 
 /**
@@ -200,6 +217,7 @@ export function BookingActions({
             size={size}
             block={block}
             variant={a === 'reject' ? 'danger' : PRIMARY.has(a) ? undefined : 'secondary'}
+            icon={actionIcon(a)}
             disabled={pending}
             onClick={() => trigger(a)}
           >
@@ -216,17 +234,20 @@ export function BookingActions({
  * One list row's actions: `primary` as a small button, every other action this member has in a "More actions"
  * menu. Renders nothing when the member has no action on the booking. `onDone` runs after any action succeeds;
  * `onOpenChange` reports while one of the row's dialogs is open, so the list can keep the row until it closes.
+ * `quiet` draws the main action as an outline button, for long lists where a solid button on every row is noise.
  */
 export function RowActions({
   booking,
   primary,
   onDone,
   onOpenChange,
+  quiet = false,
 }: {
   booking: OwnerBooking;
   primary: Action | null;
   onDone(): void;
   onOpenChange?(open: boolean): void;
+  quiet?: boolean;
 }) {
   const { t } = useTranslation();
   const done = () => onDone();
@@ -251,7 +272,7 @@ export function RowActions({
     <div className={styles.rowActions}>
       <div className={styles.buttons}>
         {main && (
-          <Button size="sm" disabled={pending} onClick={() => trigger(main)}>
+          <Button size="sm" variant={quiet ? 'secondary' : undefined} icon={actionIcon(main)} disabled={pending} onClick={() => trigger(main)}>
             {actionLabel(main, t)}
           </Button>
         )}

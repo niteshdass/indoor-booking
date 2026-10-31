@@ -113,13 +113,14 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
       {done && <Alert tone="success">{t('owner.venues.saved')}</Alert>}
       <section className={styles.formCard}>
         <div className={styles.grid}>
-          <TextField className={styles.wide} label={t('owner.venues.name')} maxLength={100} {...text('name')} />
-          <TextField label={t('owner.venues.slug')} hint={t('owner.venues.slugHint')} maxLength={60} {...text('slug')} />
-          <TextField className={styles.wide} label={t('owner.venues.address')} maxLength={300} {...text('address')} />
-          <TextField label={t('owner.venues.city')} maxLength={100} {...text('city')} />
+          <TextField icon="venue" className={styles.wide} label={t('owner.venues.name')} maxLength={100} {...text('name')} />
+          <TextField icon="link" label={t('owner.venues.slug')} hint={t('owner.venues.slugHint')} maxLength={60} {...text('slug')} />
+          <TextField icon="pin" className={styles.wide} label={t('owner.venues.address')} maxLength={300} {...text('address')} />
+          <TextField icon="city" label={t('owner.venues.city')} maxLength={100} {...text('city')} />
           <Select
             layout="stacked"
             size="lg"
+            icon="globe"
             label={t('owner.venues.country')}
             options={pick(countries, draft.country, t('owner.venues.chooseCountry'))}
             value={draft.country}
@@ -130,6 +131,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
           <Select
             layout="stacked"
             size="lg"
+            icon="timezone"
             label={t('owner.venues.timezone')}
             options={pick(zones, draft.timezone, t('owner.venues.chooseTimezone'))}
             value={draft.timezone}
@@ -140,6 +142,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
           <Select
             layout="stacked"
             size="lg"
+            icon="money"
             label={t('owner.venues.currency')}
             hint={isNew ? t('owner.venues.currencyHint') : t('owner.venues.currencyLocked')}
             options={pick(currencies, draft.currency, t('owner.venues.chooseCurrency'))}
@@ -169,6 +172,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
           )}
           <div className={styles.coords}>
             <TextField
+              icon="compass"
               label={t('owner.venues.latitude')}
               inputMode="decimal"
               value={draft.lat}
@@ -177,6 +181,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
               onChange={(e) => set('lat', e.target.value)}
             />
             <TextField
+              icon="compass"
               label={t('owner.venues.longitude')}
               inputMode="decimal"
               value={draft.lng}
@@ -220,7 +225,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
             onBusy={onUploading}
           />
           {!readOnly && (
-            <Button type="submit" block loading={busy} disabled={uploading}>
+            <Button icon={isNew ? 'plus' : 'check'} type="submit" block loading={busy} disabled={uploading}>
               {t(isNew ? 'owner.venues.create' : 'owner.venues.save')}
             </Button>
           )}

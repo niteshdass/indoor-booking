@@ -37,7 +37,7 @@ export function ActivityPage() {
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(first.state.error, t)}</p>
-        <Button variant="secondary" onClick={first.reload}>
+        <Button variant="secondary" icon="refresh" onClick={first.reload}>
           {t('owner.activity.retry')}
         </Button>
       </Alert>

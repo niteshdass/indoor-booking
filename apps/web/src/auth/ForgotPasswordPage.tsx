@@ -41,6 +41,7 @@ export function ForgotPasswordPage() {
             {error && <Alert tone="danger">{error}</Alert>}
             <form className={styles.form} onSubmit={submit}>
               <TextField
+                icon="mail"
                 label={t('auth.email')}
                 type="email"
                 autoComplete="email"
@@ -48,7 +49,7 @@ export function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              <Button type="submit" variant="brand" size="lg" block loading={busy}>
+              <Button type="submit" variant="brand" size="lg" icon="send" block loading={busy}>
                 {t('auth.forgot.submit')}
               </Button>
             </form>

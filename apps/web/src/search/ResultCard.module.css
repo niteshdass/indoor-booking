@@ -60,7 +60,7 @@
   width: 100%;
   max-height: 100%;
   border-radius: var(--radius-sm);
-  background: var(--court-blue);
+  background: var(--graphite);
   fill: none;
   stroke: var(--chalk);
   stroke-width: var(--court-line);

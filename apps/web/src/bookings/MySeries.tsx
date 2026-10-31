@@ -147,12 +147,12 @@ function SeriesCard({ series, onChanged }: { series: PlayerSeries; onChanged: ()
             )}
           </div>
           {canWithdraw && (
-            <Button variant="secondary" loading={pending} onClick={withdraw}>
+            <Button variant="secondary" icon="ban" loading={pending} onClick={withdraw}>
               {t('series.player.withdraw')}
             </Button>
           )}
           {canCancel && (
-            <Button variant="danger" disabled={pending} onClick={() => setConfirming(true)}>
+            <Button variant="danger" icon="ban" disabled={pending} onClick={() => setConfirming(true)}>
               {t('series.player.cancelFuture')}
             </Button>
           )}
@@ -165,7 +165,7 @@ function SeriesCard({ series, onChanged }: { series: PlayerSeries; onChanged: ()
           <Button variant="secondary" disabled={pending} onClick={() => setConfirming(false)}>
             {t('series.player.keep')}
           </Button>
-          <Button variant="danger" loading={pending} onClick={() => void cancelFuture()}>
+          <Button variant="danger" icon="ban" loading={pending} onClick={() => void cancelFuture()}>
             {t('series.player.cancelFutureConfirm')}
           </Button>
         </div>

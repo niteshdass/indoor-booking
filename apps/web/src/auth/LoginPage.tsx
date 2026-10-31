@@ -126,7 +126,7 @@ export function LoginPage() {
           {tab === 'phone' && !codeSent && (
             <form className={styles.form} onSubmit={requestCode}>
               <PhoneInput label={t('auth.phone.label')} value={phone} onChange={setPhone} />
-              <Button type="submit" variant="brand" size="lg" block loading={busy} disabled={!phone}>
+              <Button type="submit" variant="brand" size="lg" icon="send" block loading={busy} disabled={!phone}>
                 {t('auth.phone.sendCode')}
               </Button>
             </form>
@@ -136,11 +136,11 @@ export function LoginPage() {
             <form className={styles.form} onSubmit={verify}>
               <p className={styles.sent}>{t('auth.phone.sentTo', { phone })}</p>
               <OtpInput label={t('auth.phone.code')} value={code} onChange={setCode} />
-              <Button type="submit" variant="brand" size="lg" block loading={busy} disabled={code.length !== 6}>
+              <Button type="submit" variant="brand" size="lg" icon="check" block loading={busy} disabled={code.length !== 6}>
                 {t('auth.phone.verify')}
               </Button>
               <div className={styles.row}>
-                <Button variant="secondary" size="lg" disabled={cooldown.left > 0 || busy} onClick={() => void requestCode()}>
+                <Button variant="secondary" size="lg" icon="send" disabled={cooldown.left > 0 || busy} onClick={() => void requestCode()}>
                   {cooldown.left > 0 ? (
                     <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span>
                   ) : (
@@ -150,6 +150,7 @@ export function LoginPage() {
                 <Button
                   variant="ghost"
                   size="lg"
+                  icon="edit"
                   onClick={() => {
                     setCodeSent(false);
                     setCode('');
@@ -165,6 +166,7 @@ export function LoginPage() {
           {tab === 'email' && (
             <form className={styles.form} onSubmit={emailLogin}>
               <TextField
+                icon="mail"
                 label={t('auth.email')}
                 type="email"
                 autoComplete="email"
@@ -173,6 +175,7 @@ export function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
               />
               <TextField
+                icon="lock"
                 label={t('auth.password')}
                 type="password"
                 autoComplete="current-password"
@@ -180,7 +183,7 @@ export function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Button type="submit" variant="brand" size="lg" block loading={busy}>
+              <Button type="submit" variant="brand" size="lg" icon="login" block loading={busy}>
                 {t('auth.login.submit')}
               </Button>
             </form>

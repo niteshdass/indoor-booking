@@ -96,7 +96,7 @@ export function RegisterPage() {
           <form className={styles.form} onSubmit={requestCode}>
             <p className={styles.sent}>{t('auth.register.phoneFirst')}</p>
             <PhoneInput label={t('auth.phone.label')} value={phone} onChange={setPhone} />
-            <Button type="submit" variant="brand" size="lg" block loading={busy} disabled={!phone}>
+            <Button type="submit" variant="brand" size="lg" icon="send" block loading={busy} disabled={!phone}>
               {t('auth.phone.sendCode')}
             </Button>
           </form>
@@ -107,7 +107,7 @@ export function RegisterPage() {
             <p className={styles.sent}>{t('auth.phone.sentTo', { phone })}</p>
             <OtpInput label={t('auth.phone.code')} value={code} onChange={setCode} />
             <div className={styles.row}>
-              <Button variant="secondary" size="lg" disabled={cooldown.left > 0 || busy} onClick={() => void requestCode()}>
+              <Button variant="secondary" size="lg" icon="send" disabled={cooldown.left > 0 || busy} onClick={() => void requestCode()}>
                 {cooldown.left > 0 ? (
                   <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span>
                 ) : (
@@ -117,6 +117,7 @@ export function RegisterPage() {
               <Button
                 variant="ghost"
                 size="lg"
+                icon="edit"
                 onClick={() => {
                   setCodeSent(false);
                   setCode('');
@@ -126,8 +127,9 @@ export function RegisterPage() {
                 {t('auth.phone.change')}
               </Button>
             </div>
-            <TextField label={t('auth.name')} autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
+            <TextField icon="person" label={t('auth.name')} autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
             <TextField
+              icon="mail"
               label={t('auth.email')}
               type="email"
               autoComplete="email"
@@ -136,6 +138,7 @@ export function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <TextField
+              icon="lock"
               label={t('auth.password')}
               type="password"
               autoComplete="new-password"
@@ -145,7 +148,7 @@ export function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <Button type="submit" variant="brand" size="lg" block loading={busy} disabled={code.length !== 6}>
+            <Button type="submit" variant="brand" size="lg" icon="personAdd" block loading={busy} disabled={code.length !== 6}>
               {t('auth.register.submit')}
             </Button>
           </form>

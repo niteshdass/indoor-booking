@@ -72,6 +72,7 @@ function MarkSentDialog({ refund, onClose, onSent, onConflict }: { refund: Refun
         >
           <p className={shared.description}>{sendLine(refund, t, i18n.language)}</p>
           <TextField
+            icon="hash"
             label={t('owner.refunds.trxId')}
             hint={t('owner.refunds.trxHint')}
             value={text}
@@ -85,7 +86,7 @@ function MarkSentDialog({ refund, onClose, onSent, onConflict }: { refund: Refun
             <Button type="button" variant="secondary" disabled={submitting} onClick={onClose}>
               {t('owner.refunds.back')}
             </Button>
-            <Button type="submit" loading={submitting}>
+            <Button icon="send" type="submit" loading={submitting}>
               {t('owner.refunds.markSent')}
             </Button>
           </div>
@@ -143,7 +144,7 @@ export function OwnerRefunds({ refunds, onChanged }: { refunds: RefundJson[]; on
               <li key={r.id} className={styles.row}>
                 <span className={styles.amount}>{sendLine(r, t, i18n.language)}</span>
                 <span className={styles.buttons}>
-                  <Button size="sm" variant="secondary" disabled={busyId !== null} onClick={() => setSending(r)}>
+                  <Button size="sm" variant="secondary" icon="send" disabled={busyId !== null} onClick={() => setSending(r)}>
                     {t('owner.refunds.markSent')}
                   </Button>
                 </span>
@@ -171,15 +172,15 @@ export function OwnerRefunds({ refunds, onChanged }: { refunds: RefundJson[]; on
                 <span className={styles.buttons}>
                   {r.method === 'card' ? (
                     <>
-                      <Button size="sm" variant="secondary" disabled={busyId !== null} onClick={() => void run(r, 'retry')}>
+                      <Button size="sm" variant="secondary" icon="refresh" disabled={busyId !== null} onClick={() => void run(r, 'retry')}>
                         {t('owner.refunds.retry')}
                       </Button>
-                      <Button size="sm" variant="secondary" disabled={busyId !== null} onClick={() => void run(r, 'record-cash')}>
+                      <Button size="sm" variant="secondary" icon="money" disabled={busyId !== null} onClick={() => void run(r, 'record-cash')}>
                         {t('owner.refunds.recordCash')}
                       </Button>
                     </>
                   ) : (
-                    <Button size="sm" variant="secondary" disabled={busyId !== null} onClick={() => void run(r, 'record-cash')}>
+                    <Button size="sm" variant="secondary" icon="money" disabled={busyId !== null} onClick={() => void run(r, 'record-cash')}>
                       {t('owner.refunds.recordPaidOut')}
                     </Button>
                   )}

@@ -186,7 +186,7 @@ export function CheckoutPage() {
       <main className={styles.page}>
         <Alert tone="danger" className={styles.alert}>
           <span>{t('checkout.invalidParams')}</span>
-          <Button to={venueHref} size="sm" variant="secondary">
+          <Button to={venueHref} size="sm" variant="secondary" icon="arrowLeft">
             {t('checkout.backToVenue')}
           </Button>
         </Alert>
@@ -206,7 +206,7 @@ export function CheckoutPage() {
       <main className={styles.page}>
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(venueState.error, t)}</span>
-          <Button size="sm" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+          <Button size="sm" variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
             {t('search.retry')}
           </Button>
         </Alert>
@@ -221,7 +221,7 @@ export function CheckoutPage() {
       <main className={styles.page}>
         <Alert tone="danger" className={styles.alert}>
           <span>{t('checkout.invalidParams')}</span>
-          <Button to={venueHref} size="sm" variant="secondary">
+          <Button to={venueHref} size="sm" variant="secondary" icon="arrowLeft">
             {t('checkout.backToVenue')}
           </Button>
         </Alert>
@@ -256,6 +256,7 @@ export function CheckoutPage() {
         <Button
           size="sm"
           variant="secondary"
+          icon="trash"
           onClick={() => {
             setSubmitError(null);
             navigate(checkoutHref(slug, first!.turfId!, first!.date, first!.startAts, rest), { replace: true });
@@ -274,6 +275,7 @@ export function CheckoutPage() {
         <Button
           variant="brand"
           size="lg"
+          icon="calendarCheck"
           block
           disabled={submitBusy || (noMethods && due > 0)}
           aria-disabled={submitBusy || (noMethods && due > 0)}
@@ -296,7 +298,7 @@ export function CheckoutPage() {
             label={due > 0 ? t('checkout.bookAndPay', { amount: money(due, q.currency, lang) }) : t('checkout.book')}
             onSubmit={(g) => void place(g)}
           />
-          <Button to={`/login?next=${next}`} variant="secondary" size="lg" block>
+          <Button to={`/login?next=${next}`} variant="secondary" size="lg" icon="login" block>
             {t('checkout.signInInstead')}
           </Button>
         </>
@@ -305,10 +307,10 @@ export function CheckoutPage() {
           <p className={styles.note}>
             {many ? t('checkout.groupSignIn') : due > 0 ? t('checkout.signInRequired') : t('checkout.accountRequired')}
           </p>
-          <Button to={`/login?next=${next}`} variant="brand" size="lg" block>
+          <Button to={`/login?next=${next}`} variant="brand" size="lg" icon="login" block>
             {t('checkout.signIn')}
           </Button>
-          <Button to={`/register?next=${next}`} variant="secondary" size="lg" block>
+          <Button to={`/register?next=${next}`} variant="secondary" size="lg" icon="personAdd" block>
             {t('checkout.createAccount')}
           </Button>
         </>
@@ -324,7 +326,7 @@ export function CheckoutPage() {
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(quote.error, t)}</span>
           {!isAddonError(quote.error) && (
-            <Button to={chooseHref} size="sm" variant="secondary">
+            <Button to={chooseHref} size="sm" variant="secondary" icon="arrowLeft">
               {t('checkout.chooseOtherSlots')}
             </Button>
           )}

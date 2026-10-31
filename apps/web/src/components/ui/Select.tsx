@@ -1,4 +1,5 @@
 import { useId, type SelectHTMLAttributes } from 'react';
+import { Icon, type IconName } from './Icon';
 import styles from './Select.module.css';
 
 export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> & {
@@ -9,6 +10,8 @@ export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> 
   /** Keep the label for screen readers only, when the options already say what the control is (header switchers). */
   hideLabel?: boolean;
   options: { value: string; label: string }[];
+  /** Muted glyph at the start of the field that says what it picks. */
+  icon?: IconName;
   /** Muted line under a stacked select. */
   hint?: string;
   error?: string;
@@ -17,6 +20,7 @@ export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size'> 
 export function Select({
   label,
   options,
+  icon,
   size = 'md',
   layout = 'inline',
   hideLabel = false,
@@ -41,9 +45,10 @@ export function Select({
         {label}
       </label>
       <span className={styles.control}>
+        {icon && <Icon name={icon} className={styles.icon} />}
         <select
           id={selectId}
-          className={[styles.select, size === 'lg' && styles.lg].filter(Boolean).join(' ')}
+          className={[styles.select, size === 'lg' && styles.lg, icon && styles.withIcon].filter(Boolean).join(' ')}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           {...rest}

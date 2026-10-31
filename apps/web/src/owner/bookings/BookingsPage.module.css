@@ -50,11 +50,11 @@
 
 .searchInput {
   min-width: 0;
-  min-height: var(--control-lg);
+  min-height: var(--input-height);
   padding-inline: calc(var(--space-3) + var(--icon-sm) + var(--space-2)) var(--space-3);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font-family: inherit;
   /* 16px so iOS does not zoom in on focus */
@@ -66,7 +66,8 @@
 }
 
 .searchInput:focus-visible {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  background: var(--bg-surface-raised);
 }
 
 .filterRoot {
@@ -81,9 +82,9 @@
   justify-content: center;
   width: var(--control-lg);
   height: var(--control-lg);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   cursor: pointer;
   transition:
@@ -93,8 +94,7 @@
 
 .filterButton:hover,
 .filterButton[aria-expanded='true'] {
-  border-color: var(--border-strong);
-  background: var(--bg-hover);
+  background: var(--control-fill-hover);
 }
 
 .filterIcon {
@@ -177,11 +177,11 @@
 
 .date {
   min-width: 0;
-  min-height: var(--control-md);
+  min-height: var(--input-height);
   padding-inline: var(--space-3);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font-family: inherit;
   font-size: var(--text-md);
@@ -189,7 +189,8 @@
 }
 
 .date:focus-visible {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  background: var(--bg-surface-raised);
 }
 
 .date::-webkit-calendar-picker-indicator {

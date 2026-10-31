@@ -23,12 +23,12 @@
 .box {
   flex: 1 1 0;
   min-width: 0;
-  max-width: var(--control-lg);
-  min-height: var(--control-lg);
+  max-width: var(--input-height);
+  min-height: var(--input-height);
   padding: 0;
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font-family: inherit;
   font-size: var(--text-xl);
@@ -37,7 +37,8 @@
 }
 
 .box:focus-visible {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  background: var(--bg-surface-raised);
 }
 
 .invalid {

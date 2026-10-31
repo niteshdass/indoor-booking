@@ -29,7 +29,7 @@
   display: block;
   width: var(--empty-court);
   border-radius: var(--radius-sm);
-  background: var(--court-blue);
+  background: var(--graphite);
   fill: none;
   stroke: var(--chalk);
   stroke-width: var(--court-line);

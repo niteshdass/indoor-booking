@@ -106,7 +106,7 @@ export function ReviewsSection({ slug, timeZone, rating }: ReviewsSectionProps) 
         {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
         {(next || (error !== null && !loaded)) && (
           <div>
-            <Button variant="secondary" loading={busy} onClick={() => void load(next)}>
+            <Button variant="secondary" icon="chevronDown" loading={busy} onClick={() => void load(next)}>
               {t('reviews.showMore')}
             </Button>
           </div>

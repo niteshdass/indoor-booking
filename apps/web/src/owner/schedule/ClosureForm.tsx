@@ -90,6 +90,7 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
     <form className={styles.body} onSubmit={submit} noValidate>
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <Select
+        icon="layers"
         layout="stacked"
         label={t('owner.closures.scopeLabel')}
         value={scope}
@@ -101,6 +102,7 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
       />
       {scope !== 'owner' && (
         <Select
+          icon="venue"
           layout="stacked"
           label={t('owner.closures.venue')}
           value={venueId}
@@ -114,6 +116,7 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
       {scope === 'turf' && (
         <>
           <Select
+            icon="court"
             layout="stacked"
             label={t('owner.closures.turf')}
             value={turf?.id ?? ''}
@@ -127,12 +130,12 @@ function ClosureFormBody({ onClose, onCreated, turfsByVenue }: Omit<Props, 'open
         <TextField label={t('owner.closures.from')} type="date" value={from} error={err('from')} onChange={(e) => setFrom(e.target.value)} />
         <TextField label={t('owner.closures.to')} type="date" value={to} error={err('to')} onChange={(e) => setTo(e.target.value)} />
       </div>
-      <TextField label={t('owner.closures.reason')} maxLength={REASON_MAX} value={reason} error={err('reason')} onChange={(e) => setReason(e.target.value)} />
+      <TextField icon="note" label={t('owner.closures.reason')} maxLength={REASON_MAX} value={reason} error={err('reason')} onChange={(e) => setReason(e.target.value)} />
       <div className={styles.actions}>
         <Button variant="secondary" disabled={busy} onClick={onClose}>
           {t('owner.venues.cancel')}
         </Button>
-        <Button type="submit" loading={busy}>
+        <Button icon="check" type="submit" loading={busy}>
           {t('owner.closures.save')}
         </Button>
       </div>

@@ -229,7 +229,7 @@
 }
 
 .tabActive .tabCourt {
-  background: var(--court-blue);
+  background: var(--graphite);
   stroke: var(--chalk);
 }
 

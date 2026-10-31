@@ -34,7 +34,7 @@
   width: var(--avatar-lg);
   height: var(--avatar-lg);
   border-radius: var(--radius-full);
-  background: var(--court-blue);
+  background: var(--graphite);
   color: var(--ball);
   font-family: var(--font-display);
   font-size: var(--text-xl);

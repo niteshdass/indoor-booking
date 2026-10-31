@@ -43,8 +43,8 @@ export function SettingsPage() {
         disabled={!can('settings.edit')}
         stripeReady={stripe.ready}
         canConnectStripe={stripe.canConnect}
+        stripe={can('settings.edit') ? <StripeGatewayCard /> : undefined}
       />
-      {can('settings.edit') && <StripeGatewayCard />}
     </div>
   );
 }

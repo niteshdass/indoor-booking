@@ -18,6 +18,16 @@
     border-color var(--duration-fast);
 }
 
+/* Leading icon sits a little under the label size and follows its colour */
+.icon {
+  margin-inline-start: calc(var(--space-1) * -1);
+}
+
+.sm .icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
 .button:disabled {
   opacity: var(--opacity-muted);
   cursor: not-allowed;
@@ -63,13 +73,12 @@
 }
 
 .secondary {
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
-  border-color: var(--border-default);
 }
 
 .secondary:hover:not(:disabled) {
-  background: var(--bg-hover);
+  background: var(--control-fill-hover);
 }
 
 .ghost {
@@ -81,16 +90,17 @@
   background: var(--bg-hover);
 }
 
+/* Soft red, so a destructive action reads clearly without shouting over the primary. */
 .danger {
-  background: var(--danger);
-  color: var(--bg-surface);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .danger:hover:not(:disabled) {
-  filter: brightness(0.92);
+  filter: brightness(0.95);
 }
 
-/* CTA on dark (night / court-blue) surfaces only; see design-system.md. */
+/* CTA on dark (night / graphite) surfaces only; see design-system.md. */
 .ball {
   background: var(--ball);
   color: var(--ball-ink);

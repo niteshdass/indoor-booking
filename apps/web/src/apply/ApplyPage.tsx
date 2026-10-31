@@ -56,6 +56,7 @@ export function ApplyPage() {
         )}
         <form className={styles.form} onSubmit={(e) => void submit(e)}>
           <TextField
+            icon="venue"
             label={t('apply.name')}
             hint={t('apply.nameHint')}
             required
@@ -65,6 +66,7 @@ export function ApplyPage() {
             onChange={(e) => setName(e.target.value)}
           />
           <Select
+            icon="globe"
             layout="stacked"
             label={t('apply.country')}
             required
@@ -73,6 +75,7 @@ export function ApplyPage() {
             onChange={(e) => setCountry(e.target.value)}
           />
           <Select
+            icon="money"
             layout="stacked"
             label={t('apply.currency')}
             hint={t('apply.currencyHint')}
@@ -82,13 +85,14 @@ export function ApplyPage() {
             onChange={(e) => setCurrency(e.target.value)}
           />
           <Select
+            icon="language"
             layout="stacked"
             label={t('apply.language')}
             value={locale}
             options={LOCALES.map((l) => ({ value: l, label: t(`apply.locale.${l}`) }))}
             onChange={(e) => setLocale(e.target.value as Locale)}
           />
-          <Button type="submit" variant="brand" size="lg" block loading={busy} disabled={!name.trim() || !country || !currency}>
+          <Button type="submit" variant="brand" size="lg" icon="send" block loading={busy} disabled={!name.trim() || !country || !currency}>
             {t('apply.submit')}
           </Button>
         </form>

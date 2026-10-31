@@ -41,14 +41,14 @@ export function AddonsPage() {
     <div className={styles.card}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{t('owner.addons.title')}</h2>
-        {writable && <Button onClick={() => setCreating(true)}>{t('owner.addons.add')}</Button>}
+        {writable && <Button icon="plus" onClick={() => setCreating(true)}>{t('owner.addons.add')}</Button>}
       </div>
       <p className={styles.muted}>{t('owner.addons.intro')}</p>
       {!writable && <Alert tone="info">{t('owner.addons.ownerWideOnly')}</Alert>}
       {state.status === 'error' && (
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         </Alert>
@@ -84,10 +84,10 @@ export function AddonsPage() {
                       {writable && (
                         <td>
                           <div className={styles.rowActions}>
-                            <Button variant="ghost" size="sm" onClick={() => setEditing(a)}>
+                            <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(a)}>
                               {t('owner.addons.edit')}
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setRemoving(a)}>
+                            <Button variant="ghost" size="sm" icon="trash" onClick={() => setRemoving(a)}>
                               {t('owner.addons.delete')}
                             </Button>
                           </div>

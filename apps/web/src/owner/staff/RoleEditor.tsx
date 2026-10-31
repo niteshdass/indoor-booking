@@ -51,7 +51,7 @@ export function RoleEditor({ roles, onChanged }: Props) {
     <div className={styles.card}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{t('owner.staff.tab.roles')}</h2>
-        <Button onClick={() => setCreating(true)}>{t('owner.staff.roleAdd')}</Button>
+        <Button icon="plus" onClick={() => setCreating(true)}>{t('owner.staff.roleAdd')}</Button>
       </div>
       {roles.length === 0 ? (
         <EmptyState size="sm" bare sport="basketball" title={t('owner.staff.roleEmpty')} />
@@ -80,11 +80,11 @@ export function RoleEditor({ roles, onChanged }: Props) {
                     <td className={styles.num}>{r.permissions.length}</td>
                     <td>
                       <div className={styles.rowActions}>
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                        <Button variant="ghost" size="sm" icon={r.system ? 'arrowRight' : 'edit'} onClick={() => setEditing(r)}>
                           {t(r.system ? 'owner.staff.view' : 'owner.staff.edit')}
                         </Button>
                         {!r.system && (
-                          <Button variant="ghost" size="sm" disabled={r.memberCount > 0} onClick={() => setRemoving(r)}>
+                          <Button variant="ghost" size="sm" icon="trash" disabled={r.memberCount > 0} onClick={() => setRemoving(r)}>
                             {t('owner.staff.delete')}
                           </Button>
                         )}
@@ -173,6 +173,7 @@ function RoleBody({ role, onClose, onSaved }: Omit<DialogProps, 'open'>) {
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       {readOnly && <p className={styles.muted}>{t('owner.staff.systemReadonly')}</p>}
       <TextField
+        icon="role"
         label={t('owner.staff.field.roleName')}
         maxLength={NAME_MAX}
         value={name}
@@ -204,7 +205,7 @@ function RoleBody({ role, onClose, onSaved }: Omit<DialogProps, 'open'>) {
           {t('owner.staff.cancel')}
         </Button>
         {!readOnly && (
-          <Button type="submit" loading={busy}>
+          <Button icon="check" type="submit" loading={busy}>
             {t('owner.staff.save')}
           </Button>
         )}

@@ -41,7 +41,7 @@ export function ConfirmDeleteDialog({ open, title, body, confirmLabel, onClose, 
           <Button variant="secondary" disabled={busy} onClick={close}>
             {t('owner.venues.cancel')}
           </Button>
-          <Button variant="danger" loading={busy} onClick={confirm}>
+          <Button variant="danger" icon="trash" loading={busy} onClick={confirm}>
             {confirmLabel}
           </Button>
         </div>

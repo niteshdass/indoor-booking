@@ -29,7 +29,7 @@ export function VenuesPage() {
     <div className={styles.page}>
       {canCreate && (
         <div className={styles.toolbar}>
-          <Button to="new">{t('owner.venues.new')}</Button>
+          <Button icon="plus" to="new">{t('owner.venues.new')}</Button>
         </div>
       )}
       {venues.length === 0 ? (

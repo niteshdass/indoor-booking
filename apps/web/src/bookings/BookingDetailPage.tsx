@@ -246,7 +246,7 @@ export function BookingDetailPage() {
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(state.error, t)}</span>
-          <Button size="sm" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+          <Button size="sm" variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
             {t('search.retry')}
           </Button>
         </Alert>
@@ -281,7 +281,7 @@ export function BookingDetailPage() {
           {paid && !redirectFailed && slow && booking.status === 'awaiting_payment' && (
             <Alert tone="warning" className={styles.alert}>
               <span>{t('booking.processingSlow')}</span>
-              <Button size="sm" variant="secondary" onClick={refresh}>
+              <Button size="sm" variant="secondary" icon="refresh" onClick={refresh}>
                 {t('booking.refresh')}
               </Button>
             </Alert>
@@ -312,18 +312,18 @@ export function BookingDetailPage() {
             </section>
           )}
           {showPayNow && (
-            <Button to={`${path}/pay`} variant="brand" size="lg" block>
+            <Button to={`${path}/pay`} variant="brand" size="lg" icon="money" block>
               {t('booking.payNow')}
             </Button>
           )}
           {lateEntryCandidate && walletsOffered && (
-            <Button to={`${path}/pay`} variant="secondary" size="lg" block>
+            <Button to={`${path}/pay`} variant="secondary" size="lg" icon="hash" block>
               {t('booking.lateEntry')}
             </Button>
           )}
           <RefundList refunds={refunds} />
           {reviewable && (
-            <Button size="lg" block onClick={() => setReviewOpen(true)}>
+            <Button size="lg" icon="star" block onClick={() => setReviewOpen(true)}>
               {t('reviews.rate')}
             </Button>
           )}

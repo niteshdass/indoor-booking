@@ -11,6 +11,7 @@ export function ThemeToggle() {
   return (
     <Select
       size="lg"
+      icon="theme"
       hideLabel
       label={t('theme.label')}
       value={theme}

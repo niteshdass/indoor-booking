@@ -39,8 +39,8 @@ export function SearchForm({ label, value, onSearch }: { label: string; value: s
   };
   return (
     <form role="search" className={styles.search} onSubmit={submit}>
-      <TextField label={label} type="search" value={draft} onChange={(e) => setDraft(e.target.value)} />
-      <Button type="submit" variant="secondary">
+      <TextField icon="search" label={label} type="search" value={draft} onChange={(e) => setDraft(e.target.value)} />
+      <Button type="submit" variant="secondary" icon="search">
         {t('admin.search')}
       </Button>
     </form>

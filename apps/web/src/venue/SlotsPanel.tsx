@@ -337,7 +337,7 @@ export function SlotsPanel({ slug, turfs, turfId, date, tabId, onOpen, onPicked 
         {state.status === 'error' && (
           <Alert tone="danger" className={styles.alert}>
             <span>{errorMessage(state.error, t)}</span>
-            <Button size="sm" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+            <Button size="sm" variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
               {t('search.retry')}
             </Button>
           </Alert>
@@ -421,6 +421,7 @@ export function SlotsPanel({ slug, turfs, turfId, date, tabId, onOpen, onPicked 
                 disabled={!ready}
                 variant="brand"
                 size="lg"
+                icon="arrowRight"
                 block
                 className={styles.cta}
               >

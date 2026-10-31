@@ -66,6 +66,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
         <Select
           layout="stacked"
           size="lg"
+          icon="clock"
           label={t('series.startTime')}
           value={value.startTime}
           options={times.map((x) => ({ value: x, label: x }))}
@@ -74,6 +75,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
         <Select
           layout="stacked"
           size="lg"
+          icon="duration"
           label={t('series.length')}
           value={String(value.slotCount)}
           options={Array.from({ length: MAX_SLOTS_PER_BOOKING }, (_, k) => ({ value: String(k + 1), label: duration(k + 1) }))}
@@ -92,6 +94,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
         <Select
           layout="stacked"
           size="lg"
+          icon="flag"
           label={t('series.ends')}
           value={mode}
           options={[
@@ -117,6 +120,7 @@ export function SeriesForm({ value, onChange, tone, slotTimes, slotMinutes }: Se
         />
       ) : (
         <TextField
+          icon="repeat"
           type="number"
           inputMode="numeric"
           label={t('series.count')}

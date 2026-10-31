@@ -33,7 +33,7 @@ export function SignOutDialog({ open, onClose }: Props) {
           <Button variant="secondary" disabled={busy} onClick={close}>
             {t('profile.signOutConfirm.cancel')}
           </Button>
-          <Button loading={busy} onClick={() => void confirm()}>
+          <Button icon="logout" loading={busy} onClick={() => void confirm()}>
             {t('profile.signOut')}
           </Button>
         </div>

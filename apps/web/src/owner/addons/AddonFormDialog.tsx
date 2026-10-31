@@ -69,8 +69,9 @@ function AddonFormBody({ addon, onClose, onSaved }: Omit<Props, 'open'>) {
   return (
     <form className={styles.body} onSubmit={submit} noValidate>
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-      <TextField label={t('owner.addons.field.name')} maxLength={NAME_MAX} value={d.name} error={err('name')} onChange={(e) => set({ name: e.target.value })} />
+      <TextField icon="tag" label={t('owner.addons.field.name')} maxLength={NAME_MAX} value={d.name} error={err('name')} onChange={(e) => set({ name: e.target.value })} />
       <Select
+        icon="tag"
         layout="stacked"
         label={t('owner.addons.field.type')}
         value={d.pricingType}
@@ -79,6 +80,7 @@ function AddonFormBody({ addon, onClose, onSaved }: Omit<Props, 'open'>) {
       />
       <div className={styles.pair}>
         <TextField
+          icon="money"
           label={t('owner.addons.field.price', { currency })}
           inputMode="decimal"
           value={d.price}
@@ -86,6 +88,7 @@ function AddonFormBody({ addon, onClose, onSaved }: Omit<Props, 'open'>) {
           onChange={(e) => set({ price: e.target.value })}
         />
         <TextField
+          icon="box"
           label={t('owner.addons.field.maxQuantity')}
           inputMode="numeric"
           value={d.maxQuantity}
@@ -94,6 +97,7 @@ function AddonFormBody({ addon, onClose, onSaved }: Omit<Props, 'open'>) {
         />
       </div>
       <TextField
+        icon="box"
         label={t('owner.addons.field.stock')}
         inputMode="numeric"
         value={d.stock}
@@ -128,7 +132,7 @@ function AddonFormBody({ addon, onClose, onSaved }: Omit<Props, 'open'>) {
         <Button variant="secondary" disabled={busy} onClick={onClose}>
           {t('owner.venues.cancel')}
         </Button>
-        <Button type="submit" loading={busy}>
+        <Button icon="check" type="submit" loading={busy}>
           {t('owner.addons.save')}
         </Button>
       </div>

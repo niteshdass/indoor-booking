@@ -37,7 +37,7 @@ function CopyNumber({ value }: { value: string }) {
   return (
     <>
       {available && (
-        <Button size="sm" variant="secondary" onClick={() => void copy()}>
+        <Button size="sm" variant="secondary" icon="copy" onClick={() => void copy()}>
           {t('payment.wallet.copy')}
         </Button>
       )}
@@ -139,6 +139,7 @@ export function WalletPayForm({
       </p>
 
       <TextField
+        icon="hash"
         label={t('payment.wallet.trxId')}
         hint={t('payment.wallet.trxHint', { provider })}
         error={trxError}
@@ -150,6 +151,7 @@ export function WalletPayForm({
         className={styles.mono}
       />
       <TextField
+        icon="phone"
         label={t('payment.wallet.sender')}
         hint={t('payment.wallet.senderHint', { provider })}
         error={senderError}
@@ -160,7 +162,7 @@ export function WalletPayForm({
         type="tel"
       />
       {error && <Alert tone="danger">{error}</Alert>}
-      <Button type="submit" size="lg" block loading={busy} disabled={busy}>
+      <Button type="submit" size="lg" icon="send" block loading={busy} disabled={busy}>
         {t('payment.wallet.submit')}
       </Button>
       <p className={styles.metaSmall}>{t('payment.wallet.hint')}</p>

@@ -59,6 +59,7 @@ export function ResetPasswordPage() {
             {error && <Alert tone="danger">{error.message}</Alert>}
             <form className={styles.form} onSubmit={submit}>
               <TextField
+                icon="lock"
                 label={t('auth.reset.newPassword')}
                 type="password"
                 autoComplete="new-password"
@@ -68,7 +69,7 @@ export function ResetPasswordPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <Button type="submit" variant="brand" size="lg" block loading={busy}>
+              <Button type="submit" variant="brand" size="lg" icon="check" block loading={busy}>
                 {t('auth.reset.submit')}
               </Button>
             </form>

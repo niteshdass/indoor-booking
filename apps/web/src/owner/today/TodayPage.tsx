@@ -46,7 +46,7 @@ export function TodayPage() {
       <div className={styles.page}>
         <EmptyState title={t('owner.today.noVenues')} />
         {can('venue.manage') && (
-          <Link to="venues/new" className={styles.cta}>
+          <Link to="../venues/new" className={styles.cta}>
             {t('owner.today.createVenue')}
           </Link>
         )}
@@ -63,7 +63,7 @@ export function TodayPage() {
         </p>
         <VenueSelect />
         {can('reports.view') && (
-          <Link to={`overview?venue=${encodeURIComponent(venue.id)}`} className={styles.trends}>
+          <Link to={`../overview?venue=${encodeURIComponent(venue.id)}`} className={styles.trends}>
             {t('owner.today.trends')}
           </Link>
         )}
@@ -103,7 +103,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
     return (
       <Alert tone="danger">
         <p className={styles.empty}>{errorMessage(state.error, t)}</p>
-        <Button variant="secondary" onClick={reload}>
+        <Button variant="secondary" icon="refresh" onClick={reload}>
           {t('auth.retry')}
         </Button>
       </Alert>
@@ -141,17 +141,20 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
       </p>
       <div className={styles.stats}>
         <StatCard
+          plain
           label={t('owner.today.bookings')}
           value={String(count)}
           hint={extras.lastWeek ? t('owner.today.lastWeek', { n: summarize(extras.lastWeek).count }) : undefined}
         />
         <StatCard
+          plain
           label={t('owner.today.collected')}
           value={money(collected, venue.currency, lang)}
           hint={t('owner.today.collectedHint')}
         />
         {usage && (
           <StatCard
+            plain
             label={t('owner.today.courtsUsed')}
             value={new Intl.NumberFormat(lang, { style: 'percent' }).format(usage.booked / usage.open)}
             meter={usage.booked / usage.open}
@@ -160,6 +163,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
         )}
         {can('booking.confirm') && (
           <StatCard
+            plain
             label={t('owner.today.pending')}
             value={String(pending)}
             tone={pending > 0 ? 'warning' : undefined}
@@ -219,12 +223,17 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                           </td>
                           <td className={styles.turf}>{b.turf?.name ?? '—'}</td>
                           <td className={styles.customer}>
-                            <Link to={`bookings/${encodeURIComponent(b.id)}`} className={styles.link}>
+                            <Link to={`../bookings/${encodeURIComponent(b.id)}`} className={styles.name}>
                               {b.customer?.name ?? b.reference}
                             </Link>
                           </td>
                           <td className={styles.status}>
-                            <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
+                            {/* Confirmed is the usual case: plain text, so the badges left are the rows that need a look. */}
+                            {b.status === 'confirmed' && !awaitsVerification(b) ? (
+                              <span className={styles.quietStatus}>{t('status.confirmed')}</span>
+                            ) : (
+                              <BookingStatusBadge status={b.status} toVerify={awaitsVerification(b)} />
+                            )}
                           </td>
                           {canAct && (
                             <td className={styles.rowActions}>
@@ -233,6 +242,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                                 primary={nextStep(b, availableActions(b, can), now)}
                                 onDone={refresh}
                                 onOpenChange={(open) => opened(b.id, open)}
+                                quiet
                               />
                             </td>
                           )}

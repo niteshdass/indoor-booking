@@ -108,7 +108,7 @@ function HeroSearch() {
           onChange={(e) => setDate(e.target.value)}
         />
       </div>
-      <Button type="submit" size="lg" className={styles.searchButton}>
+      <Button type="submit" size="lg" icon="search" className={styles.searchButton}>
         {t('landing.submit')}
       </Button>
     </form>
@@ -508,7 +508,7 @@ export function LandingPage() {
                 ))}
               </ul>
               <div className={styles.ownerCta}>
-                <Button to="/list-your-venue" variant="ball" size="lg">
+                <Button to="/list-your-venue" variant="ball" size="lg" icon="arrowRight">
                   {t('landing.owners.cta')}
                 </Button>
               </div>
@@ -537,7 +537,7 @@ export function LandingPage() {
           <div className={styles.wrap}>
             <div className={styles.closingBand}>
               <h2>{t('landing.band.title')}</h2>
-              <Button to="/search?available=true" variant="ball" size="lg">
+              <Button to="/search?available=true" variant="ball" size="lg" icon="search">
                 {t('landing.band.cta')}
               </Button>
             </div>

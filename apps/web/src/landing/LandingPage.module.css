@@ -10,7 +10,7 @@
 }
 
 /* Hero */
-/* Hero: a court-blue band; the colour lives here and nowhere else on the page */
+/* Hero: a graphite band; the colour lives here and nowhere else on the page */
 .hero {
   padding-block: var(--space-12) var(--space-16);
   border-bottom: 1px solid var(--border-subtle);
@@ -233,7 +233,7 @@
 
 .court {
   border-radius: var(--radius-sm);
-  background: var(--court-blue);
+  background: var(--graphite);
 }
 
 .lines {
@@ -1242,7 +1242,7 @@
   gap: var(--space-6);
   padding: var(--space-10) var(--space-6);
   border-radius: var(--radius-xl);
-  background: var(--court-blue);
+  background: var(--graphite);
 }
 
 .closingBand h2 {

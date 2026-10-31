@@ -68,7 +68,7 @@ function Loaded<T>({ state, reload, children }: { state: ResourceState<T>; reloa
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-        <Button variant="secondary" onClick={reload}>
+        <Button variant="secondary" icon="refresh" onClick={reload}>
           {t('owner.staff.retry')}
         </Button>
       </Alert>
@@ -101,7 +101,7 @@ function MembersTab({ members, roles, onChanged }: { members: Member[]; roles: R
     <div className={styles.card}>
       <div className={styles.toolbar}>
         <h2 className={styles.heading}>{t('owner.staff.tab.members')}</h2>
-        <Button onClick={() => setCreating(true)}>{t('owner.staff.memberAdd')}</Button>
+        <Button icon="personAdd" onClick={() => setCreating(true)}>{t('owner.staff.memberAdd')}</Button>
       </div>
       {members.length === 0 ? (
         <EmptyState size="sm" bare sport="basketball" title={t('owner.staff.memberEmpty')} />
@@ -146,10 +146,10 @@ function MembersTab({ members, roles, onChanged }: { members: Member[]; roles: R
                       <td>
                         {!locked && (
                           <div className={styles.rowActions}>
-                            <Button variant="ghost" size="sm" onClick={() => setEditing(m)}>
+                            <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(m)}>
                               {t('owner.staff.edit')}
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setRemoving(m)}>
+                            <Button variant="ghost" size="sm" icon="trash" onClick={() => setRemoving(m)}>
                               {t('owner.staff.remove')}
                             </Button>
                           </div>

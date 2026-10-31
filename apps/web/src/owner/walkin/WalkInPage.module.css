@@ -73,10 +73,6 @@
   cursor: pointer;
 }
 
-.method input {
-  accent-color: var(--primary);
-}
-
 .estimate {
   display: flex;
   flex-direction: column;
@@ -169,7 +165,7 @@
 }
 
 .courtActive .courtArt {
-  background: var(--court-blue);
+  background: var(--graphite);
   stroke: var(--chalk);
 }
 

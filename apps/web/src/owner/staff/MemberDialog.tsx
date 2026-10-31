@@ -108,8 +108,9 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
       ) : (
         <>
           <p className={styles.muted}>{t('owner.staff.noInvite')}</p>
-          <TextField label={t('owner.staff.field.name')} value={name} error={err('name')} onChange={(e) => setName(e.target.value)} />
+          <TextField icon="person" label={t('owner.staff.field.name')} value={name} error={err('name')} onChange={(e) => setName(e.target.value)} />
           <Select
+            icon="at"
             layout="stacked"
             label={t('owner.staff.field.contactType')}
             value={contact}
@@ -118,6 +119,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
           />
           {contact === 'email' ? (
             <TextField
+              icon="mail"
               label={t('owner.staff.field.email')}
               type="email"
               autoComplete="off"
@@ -131,6 +133,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
         </>
       )}
       <Select
+        icon="role"
         layout="stacked"
         label={t('owner.staff.field.role')}
         value={roleId}
@@ -143,6 +146,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
       {err('role') && <p className={styles.error}>{err('role')}</p>}
       {member && (
         <Select
+          icon="status"
           layout="stacked"
           label={t('owner.staff.field.status')}
           value={status}
@@ -163,7 +167,7 @@ function MemberBody({ member, roles, onClose, onSaved }: Omit<Props, 'open'>) {
         <Button variant="secondary" disabled={busy} onClick={onClose}>
           {t('owner.staff.cancel')}
         </Button>
-        <Button type="submit" loading={busy}>
+        <Button icon="check" type="submit" loading={busy}>
           {t('owner.staff.save')}
         </Button>
       </div>

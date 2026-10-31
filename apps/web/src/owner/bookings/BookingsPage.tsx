@@ -203,6 +203,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
             </div>
             {venues.length > 1 && (
               <Select
+                icon="venue"
                 layout="stacked"
                 label={t('owner.venue')}
                 value={venue.id}
@@ -212,6 +213,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
               />
             )}
             <Select
+              icon="court"
               layout="stacked"
               label={t('owner.bookings.turf')}
               value={filters.turfId ?? ''}
@@ -219,6 +221,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
               options={turfOptions}
             />
             <Select
+              icon="status"
               layout="stacked"
               label={t('owner.bookings.status')}
               value={filters.status ?? ''}
@@ -229,12 +232,13 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
               <Button
                 variant="ghost"
                 size="sm"
+                icon="close"
                 disabled={active === 0}
                 onClick={() => update(cleared)}
               >
                 {t('owner.bookings.clearFilters')}
               </Button>
-              <Button size="sm" onClick={closeFilters}>
+              <Button size="sm" icon="check" onClick={closeFilters}>
                 {t('owner.bookings.done')}
               </Button>
             </div>
@@ -243,6 +247,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
         <Select
           className={styles.sort}
           size="lg"
+          icon="sort"
           label={t('owner.bookings.sortLabel')}
           value={filters.sort}
           onChange={(e) => update({ sort: BOOKING_SORTS.find((s) => s === e.target.value) ?? DEFAULT_SORT[filters.tab] })}
@@ -310,7 +315,7 @@ function BookingsList({ venue, filters, onClear }: { venue: OwnerVenue; filters:
     return (
       <Alert tone="danger">
         <p className={styles.empty}>{errorMessage(state.error, t)}</p>
-        <Button variant="secondary" onClick={reload}>
+        <Button variant="secondary" icon="refresh" onClick={reload}>
           {t('auth.retry')}
         </Button>
       </Alert>
@@ -334,7 +339,7 @@ function BookingsList({ venue, filters, onClear }: { venue: OwnerVenue; filters:
           description={t(q.trim() ? 'owner.bookings.emptySearchHint' : onClear ? 'owner.bookings.emptyFilteredHint' : 'owner.bookings.emptyHint')}
           action={
             onClear && (
-              <Button variant="secondary" onClick={onClear}>
+              <Button variant="secondary" icon="close" onClick={onClear}>
                 {t('owner.bookings.clearFilters')}
               </Button>
             )

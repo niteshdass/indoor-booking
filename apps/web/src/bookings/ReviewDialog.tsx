@@ -71,7 +71,7 @@ export function ReviewDialog({ open, onClose, bookingPath, review, onSaved }: Re
             <Button variant="secondary" disabled={submitting} onClick={onClose}>
               {t('reviews.cancel')}
             </Button>
-            <Button loading={submitting} disabled={stars === null || submitting} onClick={() => void submit()}>
+            <Button icon="check" loading={submitting} disabled={stars === null || submitting} onClick={() => void submit()}>
               {review ? t('reviews.save') : t('reviews.submit')}
             </Button>
           </div>

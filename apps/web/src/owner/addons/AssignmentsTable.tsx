@@ -172,11 +172,11 @@ function AssignmentRow({ level, venue, turfId, addon, row, onChanged }: Omit<Pro
       )}
       <td>
         <div className={styles.rowActions}>
-          <Button size="sm" loading={busy} onClick={save} aria-label={t('owner.addons.assign.saveLabel', { name: addon.name })}>
+          <Button size="sm" icon="check" loading={busy} onClick={save} aria-label={t('owner.addons.assign.saveLabel', { name: addon.name })}>
             {t('owner.addons.assign.save')}
           </Button>
           {row && (
-            <Button variant="ghost" size="sm" disabled={busy} onClick={remove} aria-label={t('owner.addons.assign.removeLabel', { name: addon.name })}>
+            <Button variant="ghost" size="sm" icon="trash" disabled={busy} onClick={remove} aria-label={t('owner.addons.assign.removeLabel', { name: addon.name })}>
               {t('owner.addons.assign.remove')}
             </Button>
           )}
@@ -207,6 +207,7 @@ export function AssignmentsPanel({ venue, turfId }: { venue: OwnerVenue; turfId?
         <p className={styles.muted}>{errorMessage(failed.error, t)}</p>
         <Button
           variant="secondary"
+          icon="refresh"
           onClick={() => {
             addons.reload();
             assigned.reload();

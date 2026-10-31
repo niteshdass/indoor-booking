@@ -92,7 +92,7 @@ export function SearchPage() {
   }
   const loadMoreButton = status === 'idle' && hasMore && (
     <div className={styles.more}>
-      <Button variant="secondary" size="lg" onClick={loadMore}>
+      <Button variant="secondary" size="lg" icon="chevronDown" onClick={loadMore}>
         {t('search.loadMore')}
       </Button>
     </div>
@@ -163,7 +163,7 @@ export function SearchPage() {
               {criteria.bbox && (
                 <div className={styles.area}>
                   <p className={styles.areaText}>{t('search.areaActive')}</p>
-                  <Button size="sm" variant="secondary" onClick={clearArea}>
+                  <Button size="sm" variant="secondary" icon="close" onClick={clearArea}>
                     {t('search.areaClear')}
                   </Button>
                 </div>
@@ -172,7 +172,7 @@ export function SearchPage() {
               {status === 'error' && (
                 <Alert tone="danger" className={styles.alert}>
                   <span>{errorMessage(error, t)}</span>
-                  <Button size="sm" variant="secondary" onClick={retry}>
+                  <Button size="sm" variant="secondary" icon="refresh" onClick={retry}>
                     {t('search.retry')}
                   </Button>
                 </Alert>
@@ -201,7 +201,7 @@ export function SearchPage() {
                   description={t('search.empty')}
                   action={
                     filtered && (
-                      <Button to="/search" variant="secondary" size="lg">
+                      <Button to="/search" variant="secondary" size="lg" icon="close">
                         {t('search.clearFilters')}
                       </Button>
                     )

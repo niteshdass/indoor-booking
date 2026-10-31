@@ -8,6 +8,7 @@ export function LanguageSwitcher() {
   return (
     <Select
       size="lg"
+      icon="language"
       hideLabel
       label={t('language.label')}
       value={i18n.language}

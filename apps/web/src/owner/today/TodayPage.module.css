@@ -4,15 +4,21 @@
   gap: var(--space-4);
 }
 
+/* KPIs: one surface split by hairlines (the gap shows the strip's hairline colour), not a row of separate cards */
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--border-subtle);
+  box-shadow: var(--shadow-xs);
 }
 
-@media (min-width: 768px) {
-  .stats {
-    gap: var(--space-4);
+/* An odd last cell takes the whole row, so no empty hairline square is left */
+@media (max-width: 1279px) {
+  .stats > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 }
 
@@ -132,14 +138,12 @@
   margin-inline-start: auto;
 }
 
+/* How many: a quiet number beside the title, read with it */
 .count {
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-full);
-  background: var(--bg-subtle);
-  font-size: var(--text-xs);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-md);
+  font-weight: var(--weight-regular);
   line-height: var(--leading-heading);
-  color: var(--text-muted);
+  color: var(--text-subtle);
   font-variant-numeric: tabular-nums;
 }
 
@@ -181,6 +185,51 @@
 .cta {
   color: var(--primary);
   font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+/* Customer name in Coming up: reads as the row's name, shows it is a link on hover */
+.name {
+  color: var(--text-strong);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.link:hover,
+.cta:hover,
+.name:hover {
+  text-decoration: underline;
+}
+
+.name:hover {
+  color: var(--primary);
+}
+
+.link:focus-visible,
+.cta:focus-visible,
+.name:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+
+/* Confirmed in Coming up: a dot and plain text instead of a badge */
+.quietStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.quietStatus::before {
+  content: '';
+  flex: none;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--success);
 }
 
 /* Court timeline: one lane per court on the day's hour axis */
@@ -289,8 +338,7 @@
   min-width: 0;
   overflow: hidden;
   padding: 0 var(--space-2);
-  border: 0;
-  border-left: var(--status-bar) solid;
+  border: 1px solid;
   border-radius: var(--radius-sm);
   font: inherit;
   font-size: var(--text-xs);

@@ -374,7 +374,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     grid = (
       <Alert tone="danger">
         <p className={common.empty}>{errorMessage(slots.state.error, t)}</p>
-        <Button variant="secondary" onClick={slots.reload}>
+        <Button variant="secondary" icon="refresh" onClick={slots.reload}>
           {t('auth.retry')}
         </Button>
       </Alert>
@@ -460,6 +460,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
             </span>
             <Button
               size="sm"
+              icon="arrowRight"
               onClick={() => {
                 side.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 side.current?.querySelector('input')?.focus({ preventScroll: true });
@@ -525,6 +526,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         </fieldset>
         {method === 'cash' && single && (
           <TextField
+            icon="money"
             label={t('owner.walkIn.cashAmount')}
             inputMode="decimal"
             value={cashText ?? (estimate ? forInput(estimate.total, currency) : '')}
@@ -553,7 +555,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
         )}
         <p className={common.hint}>{t('owner.walkIn.estimate')}</p>
         {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
-        <Button type="submit" size="lg" loading={submitting} disabled={!ready}>
+        <Button type="submit" size="lg" icon="plus" loading={submitting} disabled={!ready}>
           {runs.length > 1 ? t('owner.walkIn.submitMany', { count: runs.length }) : t('owner.walkIn.submit')}
         </Button>
       </section>

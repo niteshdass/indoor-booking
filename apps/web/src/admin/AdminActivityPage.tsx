@@ -23,7 +23,7 @@ export function AdminActivityPage() {
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(list.state.error, t)}</p>
-        <Button variant="secondary" onClick={list.reload}>
+        <Button variant="secondary" icon="refresh" onClick={list.reload}>
           {t('auth.retry')}
         </Button>
       </Alert>

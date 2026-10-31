@@ -310,6 +310,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
         )}
 
         <Select
+          icon="distance"
           label={t('search.radius')}
           disabled={!draft.near}
           value={draft.near ? texts.radiusChoice : 'any'}
@@ -319,6 +320,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
         />
 
         <Select
+          icon="sort"
           label={t('search.sort')}
           value={draft.sort}
           onChange={(e) => patch({ sort: e.target.value === 'rating' ? 'rating' : 'default' })}
@@ -348,6 +350,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       {draft.near && texts.radiusChoice === 'custom' && (
         <div className={styles.custom}>
           <TextField
+            icon="distance"
             label={t('search.customRadius')}
             type="number"
             inputMode="decimal"
@@ -365,6 +368,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       <div id={`${id}-more`} className={styles.panel} hidden={!moreOpen}>
         <Select
           size="lg"
+          icon="indoor"
           layout="stacked"
           label={t('search.indoorLabel')}
           value={draft.indoor === null ? '' : draft.indoor ? 'indoor' : 'outdoor'}
@@ -402,6 +406,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
             <div className={styles.priceRow}>
               <Select
                 size="lg"
+                icon="money"
                 layout="stacked"
                 label={t('search.currency')}
                 value={priceCurrency ?? ''}
@@ -414,6 +419,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
                 className={styles.wide}
               />
               <TextField
+                icon="money"
                 label={t('search.minPrice')}
                 inputMode="decimal"
                 value={texts.min}
@@ -421,6 +427,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
                 onChange={(e) => setTexts((x) => ({ ...x, min: e.target.value, priceDirty: true }))}
               />
               <TextField
+                icon="money"
                 label={t('search.maxPrice')}
                 inputMode="decimal"
                 value={texts.max}

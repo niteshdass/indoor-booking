@@ -65,7 +65,7 @@ export function GuestForm({ otpRequired, onSubmit, pending, slug, label, disable
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <TextField label={t('checkout.guestName')} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+      <TextField icon="person" label={t('checkout.guestName')} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
       <PhoneInput label={t('auth.phone.label')} value={phone} onChange={(v) => {
           if (v === phone) return;
           setPhone(v);
@@ -75,7 +75,7 @@ export function GuestForm({ otpRequired, onSubmit, pending, slug, label, disable
       />
       {error && <Alert tone="danger">{error}</Alert>}
       {otpRequired && !sent && (
-        <Button variant="secondary" size="lg" block loading={sending} disabled={!phone || cooldown.left > 0} onClick={() => void sendCode()}>
+        <Button variant="secondary" size="lg" icon="send" block loading={sending} disabled={!phone || cooldown.left > 0} onClick={() => void sendCode()}>
           {t('checkout.sendCode')}
         </Button>
       )}
@@ -83,7 +83,7 @@ export function GuestForm({ otpRequired, onSubmit, pending, slug, label, disable
         <>
           <p className={styles.sent}>{t('auth.phone.sentTo', { phone })}</p>
           <OtpInput label={t('auth.phone.code')} value={code} onChange={setCode} />
-          <Button variant="ghost" size="lg" block disabled={cooldown.left > 0 || sending} onClick={() => void sendCode()}>
+          <Button variant="ghost" size="lg" icon="send" block disabled={cooldown.left > 0 || sending} onClick={() => void sendCode()}>
             {cooldown.left > 0 ? (
               <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span>
             ) : (
@@ -92,7 +92,7 @@ export function GuestForm({ otpRequired, onSubmit, pending, slug, label, disable
           </Button>
         </>
       )}
-      <Button type="submit" variant="brand" size="lg" block loading={pending} disabled={!ready || disabled}>
+      <Button type="submit" variant="brand" size="lg" icon="calendarCheck" block loading={pending} disabled={!ready || disabled}>
         {label}
       </Button>
     </form>

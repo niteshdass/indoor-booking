@@ -117,7 +117,7 @@ function PayForm({
       </div>
       <PaymentElement />
       {error && <Alert tone="danger">{error}</Alert>}
-      <Button type="submit" size="lg" block loading={busy} disabled={!stripe || !elements || busy}>
+      <Button type="submit" size="lg" icon="card" block loading={busy} disabled={!stripe || !elements || busy}>
         {t('payment.pay')}
       </Button>
     </form>
@@ -130,7 +130,7 @@ function Expired({ slug }: { slug: string | null }) {
     <div className={styles.expired}>
       <Alert tone="warning">{t('payment.expired')}</Alert>
       {slug && (
-        <Button to={`/venues/${encodeURIComponent(slug)}`} variant="secondary">
+        <Button to={`/venues/${encodeURIComponent(slug)}`} variant="secondary" icon="arrowLeft">
           {t('payment.backToVenue')}
         </Button>
       )}
@@ -195,7 +195,7 @@ function CardPane({
     return (
       <Alert tone="danger" className={styles.alert}>
         <span>{state.loadFailed ? t('payment.loadFailed') : errorMessage(state.error, t)}</span>
-        <Button size="sm" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+        <Button size="sm" variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
           {t('search.retry')}
         </Button>
       </Alert>
@@ -340,7 +340,7 @@ export function PayPage() {
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>
           <span>{errorMessage(state.error, t)}</span>
-          <Button size="sm" variant="secondary" onClick={load}>
+          <Button size="sm" variant="secondary" icon="refresh" onClick={load}>
             {t('search.retry')}
           </Button>
         </Alert>

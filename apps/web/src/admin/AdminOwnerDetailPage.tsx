@@ -60,13 +60,13 @@ export function AdminOwnerDetailPage() {
           </h2>
           <OwnerStatusBadge status={owner.status} />
           <div className={styles.actions}>
-            {owner.status === 'pending_approval' && <Button onClick={() => setAction('approve')}>{t('admin.owner.approve')}</Button>}
+            {owner.status === 'pending_approval' && <Button icon="check" onClick={() => setAction('approve')}>{t('admin.owner.approve')}</Button>}
             {owner.status === 'active' && (
-              <Button variant="danger" onClick={() => setAction('suspend')}>
+              <Button variant="danger" icon="ban" onClick={() => setAction('suspend')}>
                 {t('admin.owner.suspend')}
               </Button>
             )}
-            {owner.status === 'suspended' && <Button onClick={() => setAction('reactivate')}>{t('admin.owner.reactivate')}</Button>}
+            {owner.status === 'suspended' && <Button icon="power" onClick={() => setAction('reactivate')}>{t('admin.owner.reactivate')}</Button>}
           </div>
         </div>
         {owner.status === 'pending_approval' && <p className={styles.muted}>{t('admin.owner.pendingNote')}</p>}

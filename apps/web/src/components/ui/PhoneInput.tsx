@@ -69,6 +69,7 @@ export function PhoneInput({ value, onChange, label, error }: PhoneInputProps) {
           }}
         />
         <TextField
+          icon="phone"
           className={styles.number}
           label={t('auth.phone.number')}
           type="tel"

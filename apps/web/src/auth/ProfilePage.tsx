@@ -83,6 +83,7 @@ export function ProfilePage() {
         <form className={styles.form} onSubmit={save}>
           <div className={styles.field}>
             <TextField
+              icon="person"
               label={t('profile.name')}
               autoComplete="name"
               required
@@ -97,6 +98,7 @@ export function ProfilePage() {
           <Button
             type="submit"
             size="lg"
+            icon="check"
             className={styles.save}
             loading={busy}
             disabled={!name.trim() || name.trim() === user.name}

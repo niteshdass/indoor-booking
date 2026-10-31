@@ -16,7 +16,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return (
       <div className={styles.offline}>
         <Alert tone="warning">{t('auth.offline')}</Alert>
-        <Button onClick={retry}>{t('auth.retry')}</Button>
+        <Button icon="refresh" onClick={retry}>{t('auth.retry')}</Button>
       </div>
     );
   }

@@ -42,7 +42,7 @@ export function ReplyForm({ initial, onSave, onCancel }: ReplyFormProps) {
       />
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <div className={styles.actions}>
-        <Button type="submit" loading={busy} disabled={empty}>
+        <Button icon="check" type="submit" loading={busy} disabled={empty}>
           {t('owner.reviews.replySave')}
         </Button>
         <Button type="button" variant="secondary" disabled={busy} onClick={onCancel}>

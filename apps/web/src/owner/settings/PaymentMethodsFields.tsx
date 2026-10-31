@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router';
 import { WALLET_PROVIDERS, type ManualWallet, type PaymentMethods, type WalletProvider } from '@booking/shared';
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Select } from '../../components/ui/Select';
@@ -34,6 +35,7 @@ type Props = {
 /** One row per wallet provider (number, account type, note) plus the card switch. */
 export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, canConnectStripe = true }: Props) {
   const { t } = useTranslation();
+  const { ownerId } = useOwner();
   const [editing, setEditing] = useState<WalletProvider | null>(null);
   const wallets = value.manualWallets ?? [];
   const setWallets = (next: ManualWallet[]) => onChange({ ...value, manualWallets: next });
@@ -63,6 +65,7 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, c
             {wallet && (
               <div className={styles.walletFields}>
                 <TextField
+                  icon="phone"
                   label={t('owner.settings.methods.number')}
                   inputMode="tel"
                   autoComplete="off"
@@ -73,6 +76,7 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, c
                   onChange={(e) => patchWallet(provider, { number: e.target.value })}
                 />
                 <Select
+                  icon="wallet"
                   layout="stacked"
                   label={t('owner.settings.methods.accountType')}
                   value={wallet.accountType}
@@ -81,6 +85,7 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, c
                   onChange={(e) => patchWallet(provider, { accountType: e.target.value as ManualWallet['accountType'] })}
                 />
                 <TextField
+                  icon="note"
                   className={styles.walletNote}
                   label={t('owner.settings.methods.note')}
                   maxLength={140}
@@ -101,7 +106,13 @@ export function PaymentMethodsFields({ value, onChange, disabled, stripeReady, c
         label={t('owner.settings.methods.card')}
         checked={card}
         disabled={disabled || (!stripeReady && !card)}
-        hint={stripeReady || card || !canConnectStripe ? undefined : t('owner.settings.methods.connectStripe')}
+        hint={
+          stripeReady || card || !canConnectStripe ? undefined : (
+            <Link to={`/owner/${encodeURIComponent(ownerId)}/settings?section=stripe`} className={styles.link}>
+              {t('owner.settings.methods.connectStripe')}
+            </Link>
+          )
+        }
         onChange={(on) => onChange({ ...value, gateways: on ? [...gateways, 'stripe'] : gateways.filter((g) => g !== 'stripe') })}
       />
     </div>

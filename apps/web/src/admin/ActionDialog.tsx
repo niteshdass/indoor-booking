@@ -72,6 +72,7 @@ export function ActionDialog({ open, title, body, confirmLabel, tone, reasonMax,
             </Button>
             <Button
               variant={tone}
+              icon={tone === 'danger' ? 'ban' : 'check'}
               loading={busy}
               disabled={reasonMax !== undefined && trimmed.length === 0}
               onClick={() => void confirm()}

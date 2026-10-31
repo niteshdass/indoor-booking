@@ -11,11 +11,11 @@
 }
 
 .input {
-  min-height: calc(var(--control-lg) * 2);
+  min-height: calc(var(--input-height) * 2);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font-family: inherit;
   font-size: var(--text-md);
@@ -24,7 +24,8 @@
 }
 
 .input:focus-visible {
-  border-color: var(--border-strong);
+  border-color: var(--primary);
+  background: var(--bg-surface-raised);
 }
 
 .input[aria-invalid='true'] {

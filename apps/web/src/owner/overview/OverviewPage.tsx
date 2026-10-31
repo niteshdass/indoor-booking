@@ -67,6 +67,7 @@ export function OverviewPage() {
       <div className={styles.toolbar}>
         <VenueSelect />
         <Select
+          icon="calendar"
           label={t('owner.overview.range')}
           hideLabel
           value={String(days)}
@@ -113,7 +114,7 @@ function OverviewVenue({ venue, days }: { venue: OwnerVenue; days: OverviewDays 
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-        <Button variant="secondary" onClick={reload}>
+        <Button variant="secondary" icon="refresh" onClick={reload}>
           {t('auth.retry')}
         </Button>
       </Alert>

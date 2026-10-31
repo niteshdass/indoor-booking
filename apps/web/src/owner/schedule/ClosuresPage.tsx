@@ -103,6 +103,7 @@ export function ClosuresPage() {
       <div className={styles.toolbar}>
         <div className={styles.filters}>
           <Select
+            icon="venue"
             label={t('owner.closures.venue')}
             value={venueId}
             options={[{ value: '', label: t('owner.closures.allVenues') }, ...venues.map((v) => ({ value: v.id, label: v.name }))]}
@@ -110,6 +111,7 @@ export function ClosuresPage() {
           />
           {venueId && (
             <Select
+              icon="court"
               label={t('owner.closures.turf')}
               value={turfId}
               options={[{ value: '', label: t('owner.closures.allTurfs') }, ...(turfsByVenue[venueId] ?? []).map((x) => ({ value: x.id, label: x.name }))]}
@@ -117,12 +119,12 @@ export function ClosuresPage() {
             />
           )}
         </div>
-        {canAdd && <Button onClick={() => setAdding(true)}>{t('owner.closures.add')}</Button>}
+        {canAdd && <Button icon="plus" onClick={() => setAdding(true)}>{t('owner.closures.add')}</Button>}
       </div>
       {state.status === 'error' && (
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         </Alert>
@@ -151,7 +153,7 @@ export function ClosuresPage() {
                       <td>{c.reason ?? t('owner.override.none')}</td>
                       <td>
                         {canDelete(c) && (
-                          <Button variant="ghost" size="sm" onClick={() => setRemoving(c)}>
+                          <Button variant="ghost" size="sm" icon="trash" onClick={() => setRemoving(c)}>
                             {t('owner.closures.delete')}
                           </Button>
                         )}

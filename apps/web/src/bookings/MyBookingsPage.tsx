@@ -124,7 +124,7 @@ export function MyBookingsPage() {
         {state.status === 'error' && (
           <Alert tone="danger" className={styles.alert}>
             <span>{errorMessage(state.error, t)}</span>
-            <Button size="sm" variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+            <Button size="sm" variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
               {t('search.retry')}
             </Button>
           </Alert>
@@ -136,7 +136,7 @@ export function MyBookingsPage() {
               title={t(tab === 'upcoming' ? 'myBookings.noUpcoming' : 'myBookings.noPast')}
               action={
                 tab === 'upcoming' && (
-                  <Button to="/search" variant="brand">
+                  <Button to="/search" variant="brand" icon="search">
                     {t('myBookings.findVenues')}
                   </Button>
                 )

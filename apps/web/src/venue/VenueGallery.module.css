@@ -58,7 +58,7 @@
   max-width: 100%;
   aspect-ratio: 3 / 2;
   border-radius: var(--radius-sm);
-  background: var(--court-blue);
+  background: var(--graphite);
   fill: none;
   stroke: var(--chalk);
   stroke-width: var(--court-line);
@@ -116,9 +116,9 @@
     align-items: center;
     min-height: var(--control-md);
     padding-inline: var(--space-4);
-    border: 1px solid var(--border-default);
+    border: 1px solid transparent;
     border-radius: var(--radius-full);
-    background: var(--bg-surface);
+    background: var(--control-fill);
     color: var(--text-strong);
     font-family: inherit;
     font-size: var(--text-sm);
@@ -128,7 +128,7 @@
   }
 
   .more:hover {
-    background: var(--bg-hover);
+    background: var(--control-fill-hover);
   }
 
   .more:focus-visible {

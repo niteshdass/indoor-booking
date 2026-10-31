@@ -65,8 +65,8 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div className={styles.copyRow}>
-        <TextField className={styles.grow} label={label} readOnly value={value} onFocus={(e) => e.currentTarget.select()} />
-        <Button variant="secondary" onClick={() => void copy()}>
+        <TextField icon="link" className={styles.grow} label={label} readOnly value={value} onFocus={(e) => e.currentTarget.select()} />
+        <Button variant="secondary" icon="copy" onClick={() => void copy()}>
           {t('owner.gateway.copy')}
         </Button>
       </div>
@@ -133,7 +133,7 @@ function ModeKeys({ mode, view, base, onSaved }: { mode: Mode; view: GatewayView
           <code className={styles.account}>{saved.publishableKey}</code>
         </div>
         <div className={styles.actions}>
-          <Button variant="secondary" onClick={() => setReplacing(true)}>
+          <Button variant="secondary" icon="edit" onClick={() => setReplacing(true)}>
             {t('owner.gateway.replace')}
           </Button>
         </div>
@@ -145,6 +145,7 @@ function ModeKeys({ mode, view, base, onSaved }: { mode: Mode; view: GatewayView
     <form className={styles.stack} onSubmit={(e) => void save(e)} noValidate>
       {!saved && <p className={styles.muted}>{t(`owner.gateway.noKeys.${mode}`)}</p>}
       <TextField
+        icon="key"
         label={t('owner.gateway.secretKey')}
         hint={t('owner.gateway.secretHint')}
         type="password"
@@ -155,6 +156,7 @@ function ModeKeys({ mode, view, base, onSaved }: { mode: Mode; view: GatewayView
         error={fieldError('secretKey')}
       />
       <TextField
+        icon="key"
         label={t('owner.gateway.publishableKey')}
         type="text"
         autoComplete="off"
@@ -164,6 +166,7 @@ function ModeKeys({ mode, view, base, onSaved }: { mode: Mode; view: GatewayView
         error={fieldError('publishableKey')}
       />
       <TextField
+        icon="key"
         label={t('owner.gateway.webhookSecret')}
         hint={t('owner.gateway.webhookSecretHint')}
         type="password"
@@ -180,7 +183,7 @@ function ModeKeys({ mode, view, base, onSaved }: { mode: Mode; view: GatewayView
             {t('owner.gateway.cancel')}
           </Button>
         )}
-        <Button type="submit" loading={busy}>
+        <Button icon="check" type="submit" loading={busy}>
           {t(`owner.gateway.save.${mode}`)}
         </Button>
       </div>
@@ -239,6 +242,7 @@ export function StripeGatewayCard() {
             <span className={styles.muted}>{t(`owner.gateway.modeHint.${stripe.mode}`)}</span>
           </div>
           <Select
+            icon="mode"
             layout="stacked"
             label={t('owner.gateway.activeMode')}
             value={stripe.mode}

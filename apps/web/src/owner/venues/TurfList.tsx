@@ -35,7 +35,7 @@ export function TurfList({ venue }: { venue: OwnerVenue }) {
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-        <Button variant="secondary" onClick={reload}>
+        <Button variant="secondary" icon="refresh" onClick={reload}>
           {t('auth.retry')}
         </Button>
       </Alert>
@@ -127,6 +127,7 @@ function TurfCreateForm({ venueId, base }: { venueId: string; base: string }) {
       <h2 className={styles.heading}>{t('owner.venues.newTurf')}</h2>
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <TextField
+        icon="court"
         label={t('owner.venues.turfName')}
         value={name}
         maxLength={NAME_MAX}
@@ -149,6 +150,7 @@ function TurfCreateForm({ venueId, base }: { venueId: string; base: string }) {
       </fieldset>
       <Checkbox label={t('owner.venues.indoorLabel')} checked={indoor} onChange={setIndoor} />
       <Select
+        icon="duration"
         layout="stacked"
         label={t('owner.venues.slotLength')}
         value={slotLength}
@@ -156,7 +158,7 @@ function TurfCreateForm({ venueId, base }: { venueId: string; base: string }) {
         options={SLOT_OPTIONS.map((m) => ({ value: String(m), label: t('owner.venues.minutes', { count: m }) }))}
       />
       <div>
-        <Button type="submit" loading={busy}>
+        <Button icon="plus" type="submit" loading={busy}>
           {t('owner.venues.createTurf')}
         </Button>
       </div>

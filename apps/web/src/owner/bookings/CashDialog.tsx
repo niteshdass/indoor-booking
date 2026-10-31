@@ -85,6 +85,7 @@ export function CashDialog({ open, booking, onClose, onRecorded, onConflict }: P
           }}
         >
           <TextField
+            icon="money"
             label={t('owner.cash.amount')}
             hint={`${t('owner.bookings.total')}: ${money(booking.total, booking.currency, i18n.language)} · ${t('owner.bookings.paid')}: ${money(booking.amountPaid, booking.currency, i18n.language)}`}
             inputMode="decimal"
@@ -97,7 +98,7 @@ export function CashDialog({ open, booking, onClose, onRecorded, onConflict }: P
             <Button type="button" variant="secondary" disabled={submitting} onClick={onClose}>
               {t('owner.cash.back')}
             </Button>
-            <Button type="submit" loading={submitting}>
+            <Button icon="money" type="submit" loading={submitting}>
               {t('owner.cash.confirm')}
             </Button>
           </div>

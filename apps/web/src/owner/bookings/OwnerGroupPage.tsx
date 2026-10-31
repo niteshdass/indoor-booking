@@ -61,7 +61,7 @@ export function OwnerGroupPage() {
         ) : (
           <Alert tone="danger">
             <p className={page.muted}>{errorMessage(state.error, t)}</p>
-            <Button variant="secondary" onClick={reload}>
+            <Button variant="secondary" icon="refresh" onClick={reload}>
               {t('auth.retry')}
             </Button>
           </Alert>
@@ -115,9 +115,9 @@ export function OwnerGroupPage() {
 
       {(canCash || canCancel) && (
         <div className={styles.buttons}>
-          {canCash && <Button onClick={() => { setCashError(null); setCashOpen(true); }}>{t('owner.bookings.group.cashAll')}</Button>}
+          {canCash && <Button icon="money" onClick={() => { setCashError(null); setCashOpen(true); }}>{t('owner.bookings.group.cashAll')}</Button>}
           {canCancel && (
-            <Button variant="secondary" onClick={() => setCancelOpen(true)}>
+            <Button variant="secondary" icon="ban" onClick={() => setCancelOpen(true)}>
               {t('owner.bookings.group.cancelAll')}
             </Button>
           )}
@@ -212,7 +212,7 @@ export function OwnerGroupPage() {
               <Button variant="secondary" disabled={paying} onClick={() => setCashOpen(false)}>
                 {t('owner.bookings.group.back')}
               </Button>
-              <Button loading={paying} onClick={() => void payAll()}>
+              <Button icon="money" loading={paying} onClick={() => void payAll()}>
                 {t('owner.bookings.group.cashConfirm')}
               </Button>
             </div>

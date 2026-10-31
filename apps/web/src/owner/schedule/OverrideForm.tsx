@@ -90,6 +90,7 @@ function OverrideFormBody({ onClose, turf, currency, onCreated }: Omit<Props, 'o
     <form className={styles.body} onSubmit={submit} noValidate>
       {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
       <Select
+        icon="sliders"
         layout="stacked"
         label={t('owner.override.typeLabel')}
         value={d.type}
@@ -97,6 +98,7 @@ function OverrideFormBody({ onClose, turf, currency, onCreated }: Omit<Props, 'o
         onChange={(e) => set({ type: e.target.value as OverrideType, slotStart: '' })}
       />
       <Select
+        icon="calendar"
         layout="stacked"
         label={t('owner.override.whenLabel')}
         value={d.when}
@@ -134,6 +136,7 @@ function OverrideFormBody({ onClose, turf, currency, onCreated }: Omit<Props, 'o
         (pickSlot ? (
           <>
             <Select
+              icon="clock"
               layout="stacked"
               label={t('owner.override.slotStart')}
               value={d.slotStart}
@@ -169,15 +172,15 @@ function OverrideFormBody({ onClose, turf, currency, onCreated }: Omit<Props, 'o
         </div>
       )}
       {(d.type === 'modify' || d.type === 'add') && (
-        <TextField label={t('owner.override.price')} inputMode="decimal" value={d.price} error={err('price')} onChange={(e) => set({ price: e.target.value })} />
+        <TextField icon="money" label={t('owner.override.price')} inputMode="decimal" value={d.price} error={err('price')} onChange={(e) => set({ price: e.target.value })} />
       )}
-      <TextField label={t('owner.override.reason')} maxLength={REASON_MAX} value={d.reason} error={err('reason')} onChange={(e) => set({ reason: e.target.value })} />
+      <TextField icon="note" label={t('owner.override.reason')} maxLength={REASON_MAX} value={d.reason} error={err('reason')} onChange={(e) => set({ reason: e.target.value })} />
       <p className={styles.muted}>{t('owner.override.existingBookings')}</p>
       <div className={styles.actions}>
         <Button variant="secondary" disabled={busy} onClick={onClose}>
           {t('owner.venues.cancel')}
         </Button>
-        <Button type="submit" loading={busy}>
+        <Button icon="check" type="submit" loading={busy}>
           {t('owner.override.save')}
         </Button>
       </div>

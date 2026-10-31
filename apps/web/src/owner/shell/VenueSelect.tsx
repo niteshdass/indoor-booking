@@ -11,6 +11,7 @@ export function VenueSelect() {
   if (venues.length < 2) return null;
   return (
     <Select
+      icon="venue"
       label={t('owner.venue')}
       value={venue?.id ?? ''}
       onChange={(e) => setVenueId(e.target.value)}

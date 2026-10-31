@@ -9,6 +9,11 @@
   box-shadow: var(--shadow-xs);
 }
 
+.plain {
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .label,
 .value,
 .hint {

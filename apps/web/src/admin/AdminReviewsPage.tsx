@@ -41,7 +41,7 @@ export function AdminReviewsPage() {
       return (
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(list.state.error, t)}</p>
-          <Button variant="secondary" onClick={list.reload}>
+          <Button variant="secondary" icon="refresh" onClick={list.reload}>
             {t('auth.retry')}
           </Button>
         </Alert>
@@ -79,7 +79,7 @@ export function AdminReviewsPage() {
             )}
             {r.state === 'flagged' && (
               <div className={styles.actions}>
-                <Button size="sm" variant="danger" onClick={() => setPending({ review: r, action: 'hide' })}>
+                <Button size="sm" variant="danger" icon="eyeOff" onClick={() => setPending({ review: r, action: 'hide' })}>
                   {t('admin.reviews.hide')}
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => setPending({ review: r, action: 'keep' })}>
@@ -91,7 +91,7 @@ export function AdminReviewsPage() {
         ))}
         {list.moreError && <Alert tone="danger">{list.moreError}</Alert>}
         {list.more && (
-          <Button className={styles.more} variant="secondary" loading={list.loading} onClick={() => void list.loadMore()}>
+          <Button className={styles.more} variant="secondary" icon="chevronDown" loading={list.loading} onClick={() => void list.loadMore()}>
             {t('admin.loadMore')}
           </Button>
         )}

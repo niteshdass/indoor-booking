@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes } from 'react';
+import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import styles from './Checkbox.module.css';
 
 export type CheckboxProps = Omit<
@@ -8,7 +8,7 @@ export type CheckboxProps = Omit<
   label: string;
   checked: boolean;
   onChange(checked: boolean): void;
-  hint?: string;
+  hint?: ReactNode;
 };
 
 export function Checkbox({

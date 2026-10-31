@@ -10,7 +10,7 @@ type Props = {
   items: ActionMenuItem[];
 };
 
-/** "⋯" button that opens a small menu of actions under it, for actions that should not sit on the page openly. */
+/** "⋮" button that opens a small menu of actions under it, for actions that should not sit on the page openly. */
 export function ActionMenu({ label, items }: Props) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -67,7 +67,7 @@ export function ActionMenu({ label, items }: Props) {
         }}
       >
         <svg className={styles.glyph} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M5 12h.01M12 12h.01M19 12h.01" className={own.dots} />
+          <path d="M12 5h.01M12 12h.01M12 19h.01" className={own.dots} />
         </svg>
       </button>
       {open && (

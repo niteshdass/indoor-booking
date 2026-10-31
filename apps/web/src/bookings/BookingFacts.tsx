@@ -40,7 +40,7 @@ function CopyReference({ value }: { value: string }) {
   return (
     <>
       {available && (
-        <Button size="sm" variant="secondary" onClick={() => void copy()}>
+        <Button size="sm" variant="secondary" icon="copy" onClick={() => void copy()}>
           {t('booking.copy')}
         </Button>
       )}

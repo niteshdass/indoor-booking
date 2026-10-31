@@ -52,14 +52,6 @@
   background: var(--bg-hover);
 }
 
-.check input {
-  flex: none;
-  margin: 0;
-  accent-color: var(--brand);
-  inline-size: var(--space-5);
-  block-size: var(--space-5);
-}
-
 .text {
   display: flex;
   flex-direction: column;

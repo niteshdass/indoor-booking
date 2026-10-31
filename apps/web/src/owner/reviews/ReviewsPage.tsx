@@ -77,7 +77,7 @@ export function ReviewsPage() {
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(first.state.error, t)}</p>
-        <Button variant="secondary" onClick={first.reload}>
+        <Button variant="secondary" icon="refresh" onClick={first.reload}>
           {t('owner.reviews.retry')}
         </Button>
       </Alert>
@@ -153,12 +153,14 @@ export function ReviewsPage() {
 
       <div className={styles.filters}>
         <Select
+          icon="venue"
           label={t('owner.reviews.filterVenue')}
           value={venueId}
           onChange={(e) => setFilter('venue', e.target.value)}
           options={[{ value: '', label: t('owner.reviews.allVenues') }, ...venues.map((v) => ({ value: v.id, label: v.name }))]}
         />
         <Select
+          icon="star"
           label={t('owner.reviews.filterStars')}
           value={stars ? String(stars) : ''}
           onChange={(e) => setFilter('stars', e.target.value)}
@@ -205,11 +207,12 @@ export function ReviewsPage() {
                   <div className={styles.actions}>
                     {r.reply ? (
                       <>
-                        <Button variant="secondary" onClick={() => setReplying(r.id)}>
+                        <Button variant="secondary" icon="edit" onClick={() => setReplying(r.id)}>
                           {t('owner.reviews.replyEdit')}
                         </Button>
                         <Button
                           variant="secondary"
+                          icon="trash"
                           onClick={() => {
                             setDeleteError(null);
                             setDeleting(r.id);
@@ -219,12 +222,12 @@ export function ReviewsPage() {
                         </Button>
                       </>
                     ) : (
-                      <Button variant="secondary" onClick={() => setReplying(r.id)}>
+                      <Button variant="secondary" icon="reply" onClick={() => setReplying(r.id)}>
                         {t('owner.reviews.reply')}
                       </Button>
                     )}
                     {!r.flag && !r.flagCleared && (
-                      <Button variant="secondary" onClick={() => setFlagging(r.id)}>
+                      <Button variant="secondary" icon="flag" onClick={() => setFlagging(r.id)}>
                         {t('owner.reviews.flag')}
                       </Button>
                     )}
@@ -238,7 +241,7 @@ export function ReviewsPage() {
 
       {moreError !== null && <Alert tone="danger">{errorMessage(moreError, t)}</Alert>}
       {nextBefore !== null && (
-        <Button variant="secondary" className={styles.more} loading={loadingMore} onClick={() => void loadMore()}>
+        <Button variant="secondary" icon="chevronDown" className={styles.more} loading={loadingMore} onClick={() => void loadMore()}>
           {t('reviews.showMore')}
         </Button>
       )}
@@ -258,7 +261,7 @@ export function ReviewsPage() {
             <Button variant="secondary" disabled={deleteBusy} onClick={() => setDeleting(null)}>
               {t('owner.reviews.cancel')}
             </Button>
-            <Button variant="danger" loading={deleteBusy} onClick={() => void removeReply()}>
+            <Button variant="danger" icon="trash" loading={deleteBusy} onClick={() => void removeReply()}>
               {t('owner.reviews.deleteConfirm')}
             </Button>
           </div>

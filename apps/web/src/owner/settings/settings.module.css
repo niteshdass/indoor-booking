@@ -33,13 +33,28 @@
   color: var(--info);
 }
 
+.link {
+  color: var(--primary);
+  font-weight: var(--weight-medium);
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.link:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}
+
 .error {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--danger);
 }
 
-/* Settings form: from lg, opening hours on the start side and the shorter cards stacked beside it. */
+/* A settings tab's cards: two columns from lg. */
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -50,10 +65,6 @@
 @media (min-width: 1024px) {
   .layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .full {
-    grid-column: 1 / -1;
   }
 }
 
@@ -80,14 +91,6 @@
 
 .split > .column {
   gap: var(--space-3);
-}
-
-/* Two short cards side by side once each can be --field-min wide plus padding. */
-.pair {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--field-min) * 1.6)), 1fr));
-  gap: var(--space-4);
-  align-items: stretch;
 }
 
 .checkList {

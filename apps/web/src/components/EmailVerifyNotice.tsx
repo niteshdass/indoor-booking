@@ -101,7 +101,7 @@ export function EmailVerifyNotice({ className }: { className?: string }) {
       )}
       {!sent ? (
         <div className={styles.actions}>
-          <Button variant="primary" size="sm" loading={busy} onClick={() => void send()}>
+          <Button variant="primary" size="sm" icon="send" loading={busy} onClick={() => void send()}>
             {t('verifyEmail.send')}
           </Button>
           <Button variant="ghost" size="sm" onClick={later}>
@@ -112,10 +112,10 @@ export function EmailVerifyNotice({ className }: { className?: string }) {
         <form className={styles.form} onSubmit={verify}>
           <OtpInput label={t('verifyEmail.code')} value={code} onChange={setCode} />
           <div className={styles.actions}>
-            <Button type="submit" variant="primary" size="sm" loading={busy} disabled={code.length !== 6}>
+            <Button type="submit" variant="primary" size="sm" icon="check" loading={busy} disabled={code.length !== 6}>
               {t('verifyEmail.verify')}
             </Button>
-            <Button variant="secondary" size="sm" disabled={cooldown.left > 0 || busy} onClick={() => void send()}>
+            <Button variant="secondary" size="sm" icon="send" disabled={cooldown.left > 0 || busy} onClick={() => void send()}>
               {cooldown.left > 0 ? (
                 <span className={styles.countdown}>{t('auth.phone.resendIn', { sec: cooldown.left })}</span>
               ) : (

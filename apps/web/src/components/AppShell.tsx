@@ -40,7 +40,7 @@ export function AppShell() {
               <span aria-hidden="true">{initials(user.name) || '?'}</span>
             </NavLink>
           ) : (
-            <Button to="/login" variant="brand" size="md" className={styles.signIn}>
+            <Button to="/login" variant="brand" size="md" icon="login" className={styles.signIn}>
               {t('nav.signIn')}
             </Button>
           )}

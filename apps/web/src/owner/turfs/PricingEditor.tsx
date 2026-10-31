@@ -79,6 +79,7 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
       {error !== null && <Alert tone="danger">{message(error)}</Alert>}
       {done && <Alert tone="success">{t('owner.pricing.saved')}</Alert>}
       <TextField
+        icon="money"
         label={t('owner.pricing.base')}
         hint={t('owner.pricing.baseHint', { currency })}
         inputMode="decimal"
@@ -99,6 +100,7 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
                 <legend className={styles.legend}>{t('owner.pricing.rule', { n: i + 1 })}</legend>
                 <div className={styles.ruleFields}>
                   <Select
+                    icon="tag"
                     layout="stacked"
                     label={t('owner.pricing.kind')}
                     value={r.kind}
@@ -107,6 +109,7 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
                     onChange={(e) => setRule(i, { kind: e.target.value as RuleDraft['kind'] })}
                   />
                   <TextField
+                    icon="money"
                     label={t('owner.pricing.price')}
                     inputMode="decimal"
                     value={r.price}
@@ -154,7 +157,7 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
                 {fieldError(`rule.${i}.range`) && <p className={styles.error}>{fieldError(`rule.${i}.range`)}</p>}
                 {editable && (
                   <div>
-                    <Button variant="secondary" onClick={() => edit({ ...draft, rules: draft.rules.filter((_, j) => j !== i) })}>
+                    <Button variant="secondary" icon="trash" onClick={() => edit({ ...draft, rules: draft.rules.filter((_, j) => j !== i) })}>
                       {t('owner.pricing.removeRule')}
                     </Button>
                   </div>
@@ -166,10 +169,10 @@ export function PricingEditor({ turf, currency, onSaved }: Props) {
       })}
       {editable && (
         <div className={styles.actions}>
-          <Button variant="secondary" onClick={() => edit({ ...draft, rules: [...draft.rules, { ...NEW_RULE }] })}>
+          <Button variant="secondary" icon="plus" onClick={() => edit({ ...draft, rules: [...draft.rules, { ...NEW_RULE }] })}>
             {t('owner.pricing.addRule')}
           </Button>
-          <Button type="submit" loading={busy}>
+          <Button icon="check" type="submit" loading={busy}>
             {t('owner.pricing.save')}
           </Button>
         </div>

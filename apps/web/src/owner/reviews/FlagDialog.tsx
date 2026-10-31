@@ -60,7 +60,7 @@ export function FlagDialog({ open, onClose, onSubmit }: FlagDialogProps) {
           <Button variant="secondary" disabled={busy} onClick={close}>
             {t('owner.reviews.cancel')}
           </Button>
-          <Button loading={busy} onClick={() => void submit()}>
+          <Button icon="flag" loading={busy} onClick={() => void submit()}>
             {t('owner.reviews.flagSubmit')}
           </Button>
         </div>

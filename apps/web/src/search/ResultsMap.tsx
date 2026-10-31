@@ -288,7 +288,7 @@ export function ResultsMap({
           onChange={toggleFollow}
         />
         {!follow && moved && (
-          <Button size="sm" variant="secondary" onClick={searchArea}>
+          <Button size="sm" variant="secondary" icon="search" onClick={searchArea}>
             {t('search.searchArea')}
           </Button>
         )}

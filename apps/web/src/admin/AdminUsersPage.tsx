@@ -73,7 +73,7 @@ export function AdminUsersPage() {
       {state.status === 'error' ? (
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         </Alert>
@@ -119,7 +119,7 @@ export function AdminUsersPage() {
                   </td>
                   <td>
                     {!u.platformAdmin && (
-                      <Button size="sm" variant={u.status === 'active' ? 'secondary' : 'primary'} onClick={() => setTarget(u)}>
+                      <Button size="sm" variant={u.status === 'active' ? 'secondary' : 'primary'} icon={u.status === 'active' ? 'ban' : 'power'} onClick={() => setTarget(u)}>
                         {u.status === 'active' ? t('admin.users.disable') : t('admin.users.enable')}
                       </Button>
                     )}

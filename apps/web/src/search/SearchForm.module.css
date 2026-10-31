@@ -130,9 +130,9 @@
   gap: var(--space-2);
   min-height: var(--control-lg);
   padding-inline: var(--space-4);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-full);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font: inherit;
   font-size: var(--text-sm);
@@ -142,10 +142,6 @@
   transition:
     border-color var(--duration-fast),
     background-color var(--duration-fast);
-}
-
-.chip:hover:not(:disabled) {
-  border-color: var(--border-strong);
 }
 
 .chip:disabled {
@@ -190,14 +186,27 @@
 .chipSelect {
   min-height: var(--control-lg);
   padding-inline: var(--space-4) var(--space-3);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-full);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   transition: border-color var(--duration-fast);
 }
 
-.chipSelect:hover:not(:has(select:disabled)) {
-  border-color: var(--border-strong);
+/* The field's icon leads the pill, before the label: icon and chevron sit against the pill */
+.chipSelect {
+  position: relative;
+}
+
+.chipSelect > span {
+  position: static;
+}
+
+.chipSelect:has(svg + select) {
+  padding-inline-start: calc(var(--space-3) + var(--icon-md) + var(--space-2));
+}
+
+.chipSelect svg:first-child {
+  inset-inline-start: var(--space-3);
 }
 
 .chipSelect:has(select:disabled) {
@@ -222,8 +231,8 @@
   font-weight: var(--weight-medium);
 }
 
-.chipSelect svg {
-  inset-inline-end: 0;
+.chipSelect svg:last-child {
+  inset-inline-end: var(--space-3);
 }
 
 .chipSelect select:disabled {
@@ -307,13 +316,6 @@
   font-size: var(--text-base);
   color: var(--text-strong);
   cursor: pointer;
-}
-
-.check input {
-  margin: 0;
-  width: var(--space-5);
-  height: var(--space-5);
-  accent-color: var(--primary);
 }
 
 .prices {

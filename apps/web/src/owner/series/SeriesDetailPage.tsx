@@ -65,7 +65,7 @@ export function SeriesDetailPage() {
       <div className={styles.page}>
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         </Alert>
@@ -127,16 +127,16 @@ export function SeriesDetailPage() {
           <div className={styles.headActions}>
             {canAnswer && (
               <>
-                <Button disabled={pending} onClick={accept}>
+                <Button icon="check" disabled={pending} onClick={accept}>
                   {t('series.owner.accept')}
                 </Button>
-                <Button variant="secondary" disabled={pending} onClick={() => setDeclineOpen(true)}>
+                <Button variant="secondary" icon="ban" disabled={pending} onClick={() => setDeclineOpen(true)}>
                   {t('series.owner.decline')}
                 </Button>
               </>
             )}
             {canCancelFuture && (
-              <Button variant="danger" disabled={pending} onClick={() => setCancelAllOpen(true)}>
+              <Button variant="danger" icon="ban" disabled={pending} onClick={() => setCancelAllOpen(true)}>
                 {t('series.owner.cancelFuture')}
               </Button>
             )}
@@ -211,7 +211,7 @@ export function SeriesDetailPage() {
                       {canCancelGame && (
                         <td className={styles.end}>
                           {CANCELLABLE.includes(g.status) && (
-                            <Button size="sm" variant="ghost" disabled={pending} onClick={() => setCancelGameId(g.id)}>
+                            <Button size="sm" variant="ghost" icon="ban" disabled={pending} onClick={() => setCancelGameId(g.id)}>
                               {t('series.owner.cancelGame')}
                             </Button>
                           )}

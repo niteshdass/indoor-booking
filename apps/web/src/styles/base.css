@@ -45,6 +45,46 @@ h2 {
   box-shadow: var(--focus-ring);
 }
 
+/* Checkboxes and radios match the filled inputs: grey box, primary fill when checked.
+   :where() keeps these at zero specificity so a module class can still restyle or hide one. */
+:where(input[type='checkbox'], input[type='radio']) {
+  appearance: none;
+  flex: none;
+  width: var(--check-size);
+  height: var(--check-size);
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--control-fill);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast),
+    border-color var(--duration-fast);
+}
+
+:where(input[type='radio']) {
+  border-radius: var(--radius-full);
+}
+
+:where(input[type='checkbox']:hover:not(:disabled), input[type='radio']:hover:not(:disabled)) {
+  background-color: var(--control-fill-hover);
+}
+
+:where(input[type='checkbox']:checked) {
+  border-color: var(--primary);
+  background: var(--primary) var(--check-glyph) center / 75% no-repeat;
+}
+
+:where(input[type='radio']:checked) {
+  border-color: var(--primary);
+  background: radial-gradient(circle, var(--primary-fg) 0 28%, var(--primary) 32%);
+}
+
+:where(input[type='checkbox']:disabled, input[type='radio']:disabled) {
+  opacity: var(--opacity-muted);
+  cursor: not-allowed;
+}
+
 /* Selects open a styled list under the field instead of the OS popup over it (customizable select).
    Browsers without support keep the native picker, which still works. */
 @supports (appearance: base-select) {

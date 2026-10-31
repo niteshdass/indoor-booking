@@ -122,7 +122,7 @@ function TurfHours({ turf, inherited, onSaved }: { turf: OwnerTurf; inherited: W
       />
       {editable && (
         <div className={styles.actions}>
-          <Button loading={busy} onClick={save}>
+          <Button icon="check" loading={busy} onClick={save}>
             {t('owner.turf.saveHours')}
           </Button>
         </div>

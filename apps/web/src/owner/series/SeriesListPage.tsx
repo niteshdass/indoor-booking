@@ -63,6 +63,7 @@ function SeriesVenue({ venue }: { venue: OwnerVenue }) {
         <div className={styles.filters}>
           <VenueSelect />
           <Select
+            icon="status"
             label={t('owner.bookings.status')}
             value={status ?? ''}
             onChange={(e) => setStatus(SERIES_STATUSES.find((s) => s === e.target.value) ?? null)}
@@ -73,7 +74,7 @@ function SeriesVenue({ venue }: { venue: OwnerVenue }) {
           />
         </div>
         {can('booking.create') && (
-          <Button onClick={() => navigate(`new?venue=${encodeURIComponent(venue.id)}`)}>{t('series.owner.newSeries')}</Button>
+          <Button icon="repeat" onClick={() => navigate(`new?venue=${encodeURIComponent(venue.id)}`)}>{t('series.owner.newSeries')}</Button>
         )}
       </div>
       <SeriesRows key={`${venue.id}|${status ?? ''}`} venue={venue} status={status} />
@@ -127,7 +128,7 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
     return (
       <Alert tone="danger">
         <p className={styles.muted}>{errorMessage(load.error, t)}</p>
-        <Button variant="secondary" onClick={() => setAttempt((n) => n + 1)}>
+        <Button variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
           {t('auth.retry')}
         </Button>
       </Alert>

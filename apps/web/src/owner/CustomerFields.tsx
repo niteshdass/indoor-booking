@@ -99,6 +99,7 @@ export function CustomerFields({ value, onChange, tried }: { value: Customer; on
     <>
       <div className={styles.combo}>
         <TextField
+          icon="person"
           label={t('owner.walkIn.name')}
           value={value.name}
           maxLength={80}

@@ -30,7 +30,7 @@ export function RequestSeriesPage() {
     body = (
       <Alert tone="danger" className={styles.alert}>
         <span>{errorMessage(venue.state.error, t)}</span>
-        <Button size="sm" variant="secondary" onClick={venue.reload}>
+        <Button size="sm" variant="secondary" icon="refresh" onClick={venue.reload}>
           {t('search.retry')}
         </Button>
       </Alert>
@@ -93,7 +93,7 @@ function Request({ venue }: { venue: PublicVenue }) {
             ? t('series.player.sent', { when: formatDateTime(sent.respondBy, venue.timezone, lang) })
             : t('series.player.sentNoDate')}
         </Alert>
-        <Button to="/me/bookings" variant="brand" size="lg">
+        <Button to="/me/bookings" variant="brand" size="lg" icon="arrowRight">
           {t('series.player.toBookings')}
         </Button>
       </div>
@@ -147,6 +147,7 @@ function Request({ venue }: { venue: PublicVenue }) {
         <Select
           layout="stacked"
           size="lg"
+          icon="court"
           label={t('series.player.turf')}
           value={turfId}
           options={venue.turfs.map((x) => ({ value: x.id, label: x.name }))}
@@ -163,14 +164,14 @@ function Request({ venue }: { venue: PublicVenue }) {
               preview={preview}
               timeZone={venue.timezone}
               action={
-                <Button type="button" variant="brand" size="lg" loading={sending} disabled={preview.freeCount === 0} onClick={send}>
+                <Button type="button" variant="brand" size="lg" icon="send" loading={sending} disabled={preview.freeCount === 0} onClick={send}>
                   {t('series.player.send')}
                 </Button>
               }
             />
           </div>
         ) : (
-          <Button type="button" variant="secondary" size="lg" block loading={checking} disabled={!patternOk} onClick={checkDates}>
+          <Button type="button" variant="secondary" size="lg" icon="calendar" block loading={checking} disabled={!patternOk} onClick={checkDates}>
             {t('series.check')}
           </Button>
         )}

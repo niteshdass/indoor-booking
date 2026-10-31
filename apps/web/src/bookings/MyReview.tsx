@@ -65,10 +65,10 @@ export function MyReview({ review, bookingPath, onEdit, onDeleted }: MyReviewPro
       )}
       {review.editableUntil && (
         <div className={styles.actions}>
-          <Button variant="secondary" onClick={onEdit}>
+          <Button variant="secondary" icon="edit" onClick={onEdit}>
             {t('reviews.edit')}
           </Button>
-          <Button variant="secondary" onClick={() => setConfirming(true)}>
+          <Button variant="secondary" icon="trash" onClick={() => setConfirming(true)}>
             {t('reviews.delete')}
           </Button>
         </div>
@@ -81,7 +81,7 @@ export function MyReview({ review, bookingPath, onEdit, onDeleted }: MyReviewPro
             <Button variant="secondary" disabled={busy} onClick={close}>
               {t('reviews.cancel')}
             </Button>
-            <Button variant="danger" loading={busy} onClick={() => void remove()}>
+            <Button variant="danger" icon="trash" loading={busy} onClick={() => void remove()}>
               {t('reviews.deleteConfirm')}
             </Button>
           </div>

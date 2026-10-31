@@ -10,9 +10,9 @@
   min-width: var(--control-lg);
   height: var(--control-lg);
   padding-inline: var(--space-3);
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-full);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font: inherit;
   cursor: pointer;
@@ -23,8 +23,7 @@
 
 .trigger:hover,
 .trigger[aria-expanded='true'] {
-  border-color: var(--border-strong);
-  background: var(--bg-hover);
+  background: var(--control-fill-hover);
 }
 
 .trigger:focus-visible,

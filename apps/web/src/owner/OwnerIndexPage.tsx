@@ -39,7 +39,7 @@ export function OwnerIndexPage() {
           title={t('owner.noTeams')}
           description={t('owner.noTeamsHint')}
           action={
-            <Button to="/list-your-venue" variant="brand">
+            <Button to="/list-your-venue" variant="brand" icon="arrowRight">
               {t('landing.owners.cta')}
             </Button>
           }

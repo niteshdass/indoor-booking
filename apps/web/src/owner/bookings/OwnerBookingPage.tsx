@@ -87,7 +87,7 @@ export function OwnerBookingPage() {
       <div className={styles.page}>
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         </Alert>

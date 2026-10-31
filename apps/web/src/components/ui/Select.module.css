@@ -50,15 +50,23 @@
   pointer-events: none;
 }
 
+/* Leading icon: muted like the chevron, so the chosen value leads */
+.icon {
+  position: absolute;
+  inset-inline-start: var(--space-3);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .select {
   appearance: none;
   min-width: 0;
-  min-height: var(--control-md);
+  min-height: var(--input-height);
   padding-inline: var(--space-3) var(--space-8);
   cursor: pointer;
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  background: var(--control-fill);
   color: var(--text-strong);
   font-family: inherit;
   font-size: var(--text-base);
@@ -66,6 +74,10 @@
 
 .lg {
   min-height: var(--control-lg);
+}
+
+.withIcon {
+  padding-inline-start: calc(var(--space-3) + var(--icon-md) + var(--space-2));
 }
 
 .select:disabled {

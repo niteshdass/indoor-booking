@@ -117,7 +117,7 @@ export function CancelDialog<B = BookingJson>({ open, onClose, loadPreview, canc
               {t('cancel.keep')}
             </Button>
             {canConfirm && (
-              <Button variant="danger" loading={submitting} disabled={submitting || !allowed} onClick={() => void confirm()}>
+              <Button variant="danger" icon="ban" loading={submitting} disabled={submitting || !allowed} onClick={() => void confirm()}>
                 {t('cancel.confirm')}
               </Button>
             )}

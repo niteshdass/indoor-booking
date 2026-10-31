@@ -102,7 +102,7 @@ export function OwnerShell() {
               <div key={g} className={styles.group}>
                 <p className={styles.groupLabel}>{t(`owner.nav.groups.${g}`)}</p>
                 {group.map((n) => (
-                  <NavLink key={n.key} to={n.to} end={n.to === ''} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
+                  <NavLink key={n.key} to={n.to} className={({ isActive }) => [styles.link, isActive && styles.active].filter(Boolean).join(' ')}>
                     <NavIcon navKey={n.key} />
                     {t(n.key)}
                     {n.to === 'series' && requests && (
@@ -159,7 +159,7 @@ export function OwnerShell() {
           </button>
           <h1 className={styles.title}>{title}</h1>
           {can('booking.create') && !pathname.endsWith('/walk-in') && (
-            <Button to={venueParam ? `walk-in?venue=${encodeURIComponent(venueParam)}` : 'walk-in'} size="sm" className={styles.topAction}>
+            <Button to={venueParam ? `walk-in?venue=${encodeURIComponent(venueParam)}` : 'walk-in'} size="sm" icon="plus" className={styles.topAction}>
               {t('owner.shell.newWalkIn')}
             </Button>
           )}

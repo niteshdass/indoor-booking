@@ -104,12 +104,12 @@ export function OverridesTab({ turf, venue }: { turf: OwnerTurf; venue: OwnerVen
             ›
           </Button>
         </div>
-        {editable && <Button onClick={() => setAdding(true)}>{t('owner.override.add')}</Button>}
+        {editable && <Button icon="plus" onClick={() => setAdding(true)}>{t('owner.override.add')}</Button>}
       </div>
       {state.status === 'error' && (
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(state.error, t)}</p>
-          <Button variant="secondary" onClick={reload}>
+          <Button variant="secondary" icon="refresh" onClick={reload}>
             {t('auth.retry')}
           </Button>
         </Alert>
@@ -142,7 +142,7 @@ export function OverridesTab({ turf, venue }: { turf: OwnerTurf; venue: OwnerVen
                       <td>{o.reason ?? t('owner.override.none')}</td>
                       {editable && (
                         <td>
-                          <Button variant="ghost" size="sm" onClick={() => setRemoving(o)}>
+                          <Button variant="ghost" size="sm" icon="trash" onClick={() => setRemoving(o)}>
                             {t('owner.override.delete')}
                           </Button>
                         </td>

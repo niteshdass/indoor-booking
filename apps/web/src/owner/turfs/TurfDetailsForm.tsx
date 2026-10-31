@@ -79,6 +79,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
         {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
         {done && <Alert tone="success">{t('owner.turf.saved')}</Alert>}
         <TextField
+          icon="court"
           label={t('owner.turf.name')}
           value={name}
           maxLength={NAME_MAX}
@@ -104,6 +105,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
         <Checkbox label={t('owner.venues.indoorLabel')} checked={indoor} disabled={!editable} onChange={setIndoor} />
         <Checkbox label={t('owner.turf.active')} checked={active} disabled={!editable} onChange={setActive} />
         <TextField
+          icon="duration"
           label={t('owner.venues.slotLength')}
           value={t('owner.venues.minutes', { count: turf.slotLengthMin })}
           hint={t('owner.turf.slotLengthFixed')}
@@ -111,7 +113,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
         />
         {editable && (
           <div className={styles.actions}>
-            <Button type="submit" loading={busy}>
+            <Button icon="check" type="submit" loading={busy}>
               {t('owner.turf.save')}
             </Button>
           </div>
@@ -169,7 +171,7 @@ function DeleteTurf({ turf, path, onDeactivated }: { turf: OwnerTurf; path: stri
   return (
     <div className={styles.card}>
       <div className={styles.actions}>
-        <Button variant="danger" onClick={() => setOpen(true)}>
+        <Button variant="danger" icon="trash" onClick={() => setOpen(true)}>
           {t('owner.turf.delete')}
         </Button>
       </div>
@@ -182,11 +184,11 @@ function DeleteTurf({ turf, path, onDeactivated }: { turf: OwnerTurf; path: stri
               {t('owner.venues.cancel')}
             </Button>
             {hasBookings && turf.active && (
-              <Button variant="secondary" loading={busy} onClick={deactivate}>
+              <Button variant="secondary" icon="ban" loading={busy} onClick={deactivate}>
                 {t('owner.turf.deactivate')}
               </Button>
             )}
-            <Button variant="danger" loading={busy} onClick={remove}>
+            <Button variant="danger" icon="trash" loading={busy} onClick={remove}>
               {t('owner.turf.deleteConfirm')}
             </Button>
           </div>

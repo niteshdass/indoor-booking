@@ -1102,6 +1102,14 @@
         "window": "Enter a whole number from 1 to 365.",
         "wallet": "Enter a Bangladesh mobile number, like 01712345678.",
         "autoReject": "Enter a whole number from 0 to 72."
+      },
+      "sections": "Settings sections",
+      "tab": {
+        "hours": "Hours",
+        "booking": "Booking",
+        "payments": "Payments",
+        "refunds": "Refunds",
+        "stripe": "Stripe"
       }
     },
     "gateway": {

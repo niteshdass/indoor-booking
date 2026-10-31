@@ -117,6 +117,7 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
     >
       <section className={styles.card}>
         <Select
+          icon="court"
           layout="stacked"
           label={t('owner.walkIn.turf')}
           value={turfId}
@@ -128,7 +129,7 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
           }}
         />
         <SeriesForm value={pattern} onChange={edit} tone="portal" slotTimes={slotTimes} slotMinutes={turf.slotLengthMin} />
-        <Button type="button" variant="secondary" loading={checking} disabled={!patternOk} onClick={() => void checkDates()}>
+        <Button type="button" variant="secondary" icon="calendar" loading={checking} disabled={!patternOk} onClick={() => void checkDates()}>
           {t('series.check')}
         </Button>
       </section>
@@ -143,7 +144,7 @@ function SeriesBuilder({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[]
         <section className={styles.card}>
           <h2 className={styles.heading}>{t('owner.walkIn.customer')}</h2>
           <CustomerFields value={customer} onChange={setCustomer} tried={tried} />
-          <Button type="button" size="lg" loading={submitting} disabled={preview.freeCount === 0} onClick={() => void book()}>
+          <Button type="button" size="lg" icon="calendarCheck" loading={submitting} disabled={preview.freeCount === 0} onClick={() => void book()}>
             {t('series.book', { count: preview.freeCount })}
           </Button>
         </section>

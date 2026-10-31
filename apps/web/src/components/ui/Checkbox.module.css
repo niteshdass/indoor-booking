@@ -6,16 +6,9 @@
 
 .input {
   flex: none;
-  width: var(--space-4);
-  height: var(--space-4);
-  margin: var(--space-1) 0 0;
-  accent-color: var(--primary);
+  /* Box look comes from base.css; this centres it on the label's first line. */
+  margin: calc((1lh - var(--check-size)) / 2) 0 0;
   cursor: pointer;
-}
-
-.input:focus-visible {
-  outline: var(--focus-width) solid var(--text-strong);
-  outline-offset: var(--space-1);
 }
 
 .input:disabled {

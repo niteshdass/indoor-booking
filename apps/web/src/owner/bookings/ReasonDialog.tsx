@@ -68,7 +68,7 @@ export function ReasonDialog({ open, title, confirmLabel, tone, description, onC
             <Button variant="secondary" disabled={submitting} onClick={onClose}>
               {t('owner.bookings.reason.back')}
             </Button>
-            <Button variant={tone === 'danger' ? 'danger' : 'primary'} loading={submitting} onClick={() => void submit()}>
+            <Button variant={tone === 'danger' ? 'danger' : 'primary'} icon={tone === 'danger' ? 'ban' : 'check'} loading={submitting} onClick={() => void submit()}>
               {confirmLabel}
             </Button>
           </div>

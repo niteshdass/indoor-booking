@@ -26,7 +26,7 @@
   height: var(--header-tape);
   background: linear-gradient(
     90deg,
-    var(--court-blue) 0 30%,
+    var(--graphite) 0 30%,
     var(--surround) 30% 55%,
     var(--clay) 55% 75%,
     var(--wood) 75% 92%,
@@ -99,14 +99,14 @@
   white-space: nowrap;
 }
 
-/* Initials on a court-blue disc with a ball-yellow ring */
+/* Initials on a graphite disc with a ball-yellow ring */
 .avatar {
   display: grid;
   place-items: center;
   width: var(--control-lg);
   height: var(--control-lg);
   border-radius: var(--radius-full);
-  background: var(--court-blue);
+  background: var(--graphite);
   color: var(--ball);
   font-family: var(--font-display);
   font-size: var(--text-sm);

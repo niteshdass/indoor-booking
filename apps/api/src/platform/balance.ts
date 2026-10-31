@@ -1,10 +1,9 @@
 import mongoose, { type ClientSession } from 'mongoose';
-import { FEE_OWING_STATUSES, type CurrencyAmount, type PlatformBalanceJson } from '@booking/shared';
+import { FEE_OWING_STATUSES, STRIPE_PAYOUT_HOLD_MS, type CurrencyAmount, type PlatformBalanceJson } from '@booking/shared';
 import { Booking } from '../bookings/booking.model';
 import { PlatformPayout } from './payout.model';
 
-/** A pending Stripe payout stops holding back the payable amount after this long (the card was never paid). */
-export const STRIPE_PAYOUT_HOLD_MS = 60 * 60 * 1000;
+export { STRIPE_PAYOUT_HOLD_MS };
 
 const oids = (ids: readonly string[]) => ids.map((id) => new mongoose.Types.ObjectId(id));
 

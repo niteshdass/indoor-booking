@@ -7,6 +7,7 @@ import type {
   AdminReviewJson,
   AdminUserJson,
   PlatformLogJson,
+  PlatformPayoutJson,
 } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
@@ -68,6 +69,24 @@ function detail(status: AdminOwnerDetailJson['owner']['status'] = 'pending_appro
     venues: [{ id: 'v1', name: 'Main Hall', slug: 'main-hall', city: 'Dhaka', published: true, courts: 4, rating: { average: 4.5, count: 12 } }],
     recent: { bookings: 5, earned: [] },
     history: [],
+  };
+}
+
+function payout(over: Partial<PlatformPayoutJson> = {}): PlatformPayoutJson {
+  return {
+    id: 'p1',
+    ownerId: 'o1',
+    ownerName: 'Arena One',
+    currency: 'BDT',
+    amount: 40_000,
+    method: 'bkash',
+    trxId: 'TRX12345',
+    senderNumber: '01712345678',
+    status: 'pending',
+    rejectReason: null,
+    createdAt: '2026-10-20T10:00:00.000Z',
+    reviewedAt: null,
+    ...over,
   };
 }
 
@@ -221,6 +240,135 @@ describe('admin portal', () => {
     renderApp('/admin/activity', { user: admin });
     expect(await screen.findByRole('link', { name: 'Suspended Arena One' })).toHaveAttribute('href', '/admin/owners/o1');
     expect(screen.getByText('Fake venue')).toBeInTheDocument();
+  });
+});
+
+describe('admin payouts and balances', () => {
+  it('lists pending payouts and confirms one', async () => {
+    const api = mockApi(
+      adminRoutes([
+        { path: '/admin/payouts', body: { payouts: [payout()], nextBefore: null } },
+        { method: 'POST', path: '/admin/payouts/p1/confirm', body: { payout: payout({ status: 'confirmed', reviewedAt: '2026-10-21T00:00:00.000Z' }) } },
+      ]),
+    );
+    const h = renderApp('/admin/payouts', { user: admin });
+    expect(await screen.findByText('TRX12345')).toBeInTheDocument();
+    expect(api.calls.find((c) => c.path === '/admin/payouts')?.query.get('status')).toBe('pending');
+    await h.user.click(screen.getByRole('button', { name: en.admin.payouts.confirm }));
+    const dialog = await screen.findByRole('dialog');
+    await h.user.click(within(dialog).getByRole('button', { name: en.admin.payouts.confirm }));
+    await waitFor(() => expect(screen.queryByText('TRX12345')).not.toBeInTheDocument());
+    expect(api.calls.some((c) => c.method === 'POST' && c.path === '/admin/payouts/p1/confirm')).toBe(true);
+    expect(screen.getByText(en.admin.payouts.empty.pending)).toBeInTheDocument();
+  });
+
+  it('reject needs a reason', async () => {
+    const api = mockApi(
+      adminRoutes([
+        { path: '/admin/payouts', body: { payouts: [payout()], nextBefore: null } },
+        { method: 'POST', path: '/admin/payouts/p1/reject', body: { payout: payout({ status: 'rejected', rejectReason: 'No such transfer' }) } },
+      ]),
+    );
+    const h = renderApp('/admin/payouts', { user: admin });
+    await h.user.click(await screen.findByRole('button', { name: en.admin.payouts.reject }));
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: en.admin.payouts.reject });
+    expect(confirm).toBeDisabled();
+    await h.user.type(within(dialog).getByRole('textbox', { name: new RegExp(en.admin.reason) }), 'No such transfer');
+    await h.user.click(confirm);
+    await waitFor(() => expect(api.calls.find((c) => c.path === '/admin/payouts/p1/reject')?.body).toEqual({ reason: 'No such transfer' }));
+  });
+
+  it('shows a friendly error when the payout was already reviewed', async () => {
+    mockApi(
+      adminRoutes([
+        { path: '/admin/payouts', body: { payouts: [payout()], nextBefore: null } },
+        { method: 'POST', path: '/admin/payouts/p1/confirm', status: 409, body: { error: { code: 'payout_not_pending', message: 'x' } } },
+      ]),
+    );
+    const h = renderApp('/admin/payouts', { user: admin });
+    await h.user.click(await screen.findByRole('button', { name: en.admin.payouts.confirm }));
+    const dialog = await screen.findByRole('dialog');
+    await h.user.click(within(dialog).getByRole('button', { name: en.admin.payouts.confirm }));
+    expect(await within(dialog).findByText(en.errors.payout_not_pending)).toBeInTheDocument();
+  });
+
+  it('history labels stale card payouts and offers no actions on them', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-20T12:00:00.000Z') });
+    try {
+      const api = mockApi(
+        adminRoutes([
+          {
+            path: '/admin/payouts',
+            body: {
+              payouts: [
+                payout({ id: 'p2', method: 'stripe', trxId: null, senderNumber: null, createdAt: '2026-10-20T10:00:00.000Z' }),
+                payout({ id: 'p3', status: 'rejected', trxId: 'OLDTRX99', rejectReason: 'Wrong amount' }),
+              ],
+              nextBefore: null,
+            },
+          },
+        ]),
+      );
+      renderApp('/admin/payouts?status=all', { user: admin });
+      expect(await screen.findByText(en.admin.payouts.status.stale)).toBeInTheDocument();
+      expect(api.calls.find((c) => c.path === '/admin/payouts')?.query.get('status')).toBe('all');
+      expect(screen.getByText('OLDTRX99')).toBeInTheDocument();
+      expect(screen.getByText('Wrong amount')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: en.admin.payouts.confirm })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('owners list shows owes and credit', async () => {
+    mockApi(
+      adminRoutes([
+        {
+          path: '/admin/owners',
+          body: {
+            owners: [ownerRow({ owes: [{ currency: 'BDT', amount: 4000 }] }), ownerRow({ id: 'o2', name: 'Arena Two', owes: [{ currency: 'BDT', amount: -5000 }] }), ownerRow({ id: 'o3', name: 'Arena Three', owes: [] })],
+            total: 3,
+            counts: { all: 3, active: 0, pending_approval: 3, suspended: 0 },
+          },
+        },
+      ]),
+    );
+    renderApp('/admin/owners', { user: admin });
+    expect(await screen.findByRole('columnheader', { name: en.admin.owners.col.owes })).toBeInTheDocument();
+    expect(screen.getByText(/^(৳|BDT\s)40\.00$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Credit (৳|BDT\s)50\.00$/)).toBeInTheDocument();
+    expect(screen.queryByText(/[-−](৳|BDT)/)).not.toBeInTheDocument();
+  });
+
+  it('hides payouts and the Owes column without platform.owners', async () => {
+    mockApi([
+      { path: '/admin/me', body: { ...ME, permissions: ['platform.view'] } },
+      { path: '/admin/overview', body: overview() },
+      { path: '/admin/owners', body: { owners: [ownerRow()], total: 1, counts: { all: 1, active: 0, pending_approval: 1, suspended: 0 } } },
+    ]);
+    renderApp('/admin/owners', { user: admin });
+    expect(await screen.findByRole('link', { name: 'Arena One' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: en.admin.owners.col.owes })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: en.admin.nav.payouts })).not.toBeInTheDocument();
+  });
+
+  it('overview shows fees only when there are any', async () => {
+    mockApi([
+      { path: '/admin/me', body: ME },
+      { path: '/admin/overview', body: overview({ fees: { owed: [{ currency: 'BDT', amount: 12_000 }], collected: [] } }) },
+    ]);
+    renderApp('/admin', { user: admin });
+    const fees = await screen.findByRole('region', { name: new RegExp(en.admin.overview.fees.title.replace('{{days}}', '30')) });
+    expect(within(fees).getByText(en.admin.overview.fees.owed)).toBeInTheDocument();
+    expect(within(fees).getByText(/(৳|BDT\s)120\.00/)).toBeInTheDocument();
+  });
+
+  it('overview has no fee block in free mode', async () => {
+    mockApi(adminRoutes());
+    renderApp('/admin', { user: admin });
+    expect(await screen.findByText(en.admin.overview.businesses)).toBeInTheDocument();
+    expect(screen.queryByText(en.admin.overview.fees.owed)).not.toBeInTheDocument();
   });
 });
 

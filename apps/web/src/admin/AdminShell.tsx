@@ -45,7 +45,8 @@ function useCounts(pathname: string): { owners: number; reviews: number } | null
 export function AdminShell() {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { role } = useAdmin();
+  const { role, permissions } = useAdmin();
+  const nav = ADMIN_NAV.filter((n) => !('perm' in n) || permissions.includes(n.perm));
   const { pathname } = useLocation();
   const counts = useCounts(pathname);
   const [title, setTitle] = useState('');
@@ -109,7 +110,7 @@ export function AdminShell() {
         </div>
         <nav aria-label={t('admin.nav.label')} className={styles.nav}>
           <div className={styles.group}>
-            {ADMIN_NAV.map((n) =>
+            {nav.map((n) =>
               'external' in n ? (
                 <a key={n.key} href={`/admin/${n.to}`} target="_blank" rel="noopener" className={styles.link}>
                   <NavIcon navKey={n.icon} />

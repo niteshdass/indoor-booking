@@ -1,4 +1,6 @@
+/* Positioned so visually hidden header labels stay inside the scroll box instead of widening the page. */
 .scroll {
+  position: relative;
   overflow-x: auto;
   box-shadow: var(--shadow-xs);
   border-radius: var(--radius-lg);

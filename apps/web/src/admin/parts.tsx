@@ -12,11 +12,37 @@ const localZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 /** An instant as a date in the viewer's zone (admins look across every venue's zone). */
 export const day = (iso: string, lang: string) => formatDate(iso, localZone(), lang);
+export const timeOf = (iso: string, lang: string) => formatTime(iso, localZone(), lang);
 export const dayTime = (iso: string, lang: string) => `${formatDate(iso, localZone(), lang)} ${formatTime(iso, localZone(), lang)}`;
 
 /** "BDT 1,200 · USD 40", or a dash when nothing was earned. */
 export const earnedText = (earned: CurrencyAmount[], lang: string) =>
   earned.length === 0 ? '—' : earned.map((e) => money(e.amount, e.currency, lang)).join(' · ');
+
+/**
+ * An owner's platform-fee balance per currency: what is owed, or a neutral "Credit ৳X" badge (absolute value)
+ * when the owner has paid ahead. A dash when nothing is owed either way.
+ */
+export function OwesCell({ owes }: { owes: CurrencyAmount[] | undefined }) {
+  const { t, i18n } = useTranslation();
+  const rows = (owes ?? []).filter((e) => e.amount !== 0);
+  if (rows.length === 0) return <>—</>;
+  return (
+    <span className={`${styles.stack} ${styles.endStack}`}>
+      {rows.map((e) =>
+        e.amount < 0 ? (
+          <span key={e.currency}>
+            <Badge tone="neutral">{t('admin.owners.credit', { amount: money(-e.amount, e.currency, i18n.language) })}</Badge>
+          </span>
+        ) : (
+          <span key={e.currency} className={styles.strong}>
+            {money(e.amount, e.currency, i18n.language)}
+          </span>
+        ),
+      )}
+    </span>
+  );
+}
 
 const STATUS_TONE: Record<OwnerStatus, Tone> = { active: 'success', pending_approval: 'warning', suspended: 'danger' };
 

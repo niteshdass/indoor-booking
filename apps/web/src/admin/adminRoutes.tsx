@@ -4,6 +4,7 @@ import { AdminDocsPage } from './docs/AdminDocsPage';
 import { AdminOverviewPage } from './AdminOverviewPage';
 import { AdminOwnerDetailPage } from './AdminOwnerDetailPage';
 import { AdminOwnersPage } from './AdminOwnersPage';
+import { AdminPayoutsPage } from './AdminPayoutsPage';
 import { AdminProvider } from './AdminProvider';
 import { AdminReviewsPage } from './AdminReviewsPage';
 import { AdminShell } from './AdminShell';
@@ -19,6 +20,7 @@ export function AdminRoutes() {
           <Route index element={<AdminOverviewPage />} />
           <Route path="owners" element={<AdminOwnersPage />} />
           <Route path="owners/:ownerId" element={<AdminOwnerDetailPage />} />
+          <Route path="payouts" element={<AdminPayoutsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="activity" element={<AdminActivityPage />} />

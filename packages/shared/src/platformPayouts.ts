@@ -8,6 +8,9 @@ export type PayoutMethod = (typeof PAYOUT_METHODS)[number];
 export const PAYOUT_STATUSES = ['pending', 'confirmed', 'rejected'] as const;
 export type PayoutStatus = (typeof PAYOUT_STATUSES)[number];
 
+/** A pending Stripe payout stops holding back the payable amount after this long (the card was never paid). */
+export const STRIPE_PAYOUT_HOLD_MS = 60 * 60 * 1000;
+
 /**
  * What an owner owes the platform in one currency, in minor units. `balance` is owed − paid (negative is a
  * credit); pending payouts do not reduce it, but they do reduce `payable` = max(0, balance − pending).

@@ -10,6 +10,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { moneyCompact, moneyShort } from '../lib/format';
 import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
+import { useAdmin } from './AdminProvider';
 import { useAdminTitle } from './AdminShell';
 import { day, earnedText, OwnerStatusBadge } from './parts';
 import styles from './admin.module.css';
@@ -58,6 +59,7 @@ function OwnerList({ owners, empty }: { owners: AdminOwnerRowJson[]; empty: stri
 export function AdminOverviewPage() {
   const { t, i18n } = useTranslation();
   useAdminTitle(t('admin.nav.overview'));
+  const canPayouts = useAdmin().permissions.includes('platform.owners');
   const { state, reload } = useResource<AdminOverviewJson>('/admin/overview');
 
   if (state.status === 'error') {
@@ -111,6 +113,32 @@ export function AdminOverviewPage() {
           hint={o.openFlags > 0 ? t('admin.overview.flagsHint') : undefined}
         />
       </div>
+
+      {(o.fees.owed.length > 0 || o.fees.collected.length > 0) && (
+        <section className={styles.panel} aria-labelledby="admin-fees">
+          <div className={styles.panelHead}>
+            <h2 id="admin-fees" className={styles.heading}>
+              {t('admin.overview.fees.title', { days: ADMIN_PERIOD_DAYS })}
+            </h2>
+            {canPayouts && (
+              <Link to="payouts" className={styles.link}>
+                {t('admin.overview.fees.payouts')}
+              </Link>
+            )}
+          </div>
+          <dl className={styles.facts}>
+            <div>
+              <dt>{t('admin.overview.fees.owed')}</dt>
+              <dd>{earnedText(o.fees.owed, i18n.language)}</dd>
+            </div>
+            <div>
+              <dt>{t('admin.overview.fees.collected')}</dt>
+              <dd>{earnedText(o.fees.collected, i18n.language)}</dd>
+            </div>
+          </dl>
+          <p className={styles.muted}>{t('admin.overview.fees.hint')}</p>
+        </section>
+      )}
 
       <div className={styles.split}>
         <section className={styles.panel} aria-labelledby="admin-pending">

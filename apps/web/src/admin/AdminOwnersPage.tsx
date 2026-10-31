@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ADMIN_PAGE_SIZE, OWNER_STATUSES, type AdminOwnersJson, type OwnerStatus } from '@booking/shared';
+import { useAdmin } from './AdminProvider';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -11,7 +12,7 @@ import { Tabs } from '../components/ui/Tabs';
 import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
 import { useAdminTitle } from './AdminShell';
-import { day, OwnerStatusBadge, SearchForm } from './parts';
+import { day, OwesCell, OwnerStatusBadge, SearchForm } from './parts';
 import styles from './admin.module.css';
 
 type Filter = OwnerStatus | 'all';
@@ -20,6 +21,7 @@ type Filter = OwnerStatus | 'all';
 export function AdminOwnersPage() {
   const { t, i18n } = useTranslation();
   useAdminTitle(t('admin.nav.owners'));
+  const showOwes = useAdmin().permissions.includes('platform.owners');
   const [params, setParams] = useSearchParams();
   const raw = params.get('status');
   const status: Filter = raw && (OWNER_STATUSES as readonly string[]).includes(raw) ? (raw as OwnerStatus) : 'all';
@@ -82,6 +84,7 @@ export function AdminOwnersPage() {
                 <th>{t('admin.owners.col.venues')}</th>
                 <th>{t('admin.owners.col.bookings')}</th>
                 <th>{t('admin.owners.col.joined')}</th>
+                {showOwes && <th className={styles.end}>{t('admin.owners.col.owes')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -113,6 +116,11 @@ export function AdminOwnersPage() {
                   <td className={styles.num}>{t('admin.owners.venuesValue', { published: n(o.publishedVenues), total: n(o.venues) })}</td>
                   <td className={styles.num}>{n(o.recentBookings)}</td>
                   <td className={styles.num}>{day(o.createdAt, i18n.language)}</td>
+                  {showOwes && (
+                    <td className={`${styles.num} ${styles.end}`}>
+                      <OwesCell owes={o.owes} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

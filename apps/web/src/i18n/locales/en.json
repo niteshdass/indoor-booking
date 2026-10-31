@@ -209,7 +209,9 @@
     "payment_to_verify": "Check the wallet payment for this booking first.",
     "secret_required": "Enter the password or token: it is needed for this account.",
     "delivery_failed": "The message could not be sent.",
-    "delivery_unconfigured": "Message delivery is not set up yet. Ask the platform admin."
+    "delivery_unconfigured": "Message delivery is not set up yet. Ask the platform admin.",
+    "payout_not_manual": "Card payouts are confirmed by Stripe, not by hand.",
+    "payout_not_pending": "This payout was already reviewed. Reload to see its status."
   },
   "myBookings": {
     "title": "My bookings",
@@ -1892,6 +1894,7 @@
       "label": "Admin",
       "overview": "Overview",
       "owners": "Businesses",
+      "payouts": "Payouts",
       "users": "Users",
       "reviews": "Reviews",
       "activity": "Activity",
@@ -1921,7 +1924,14 @@
       "newest": "Newest businesses",
       "seeAll": "See all",
       "noPending": "Nobody is waiting for approval.",
-      "noOwners": "No businesses yet."
+      "noOwners": "No businesses yet.",
+      "fees": {
+        "title": "Platform fees, {{days}} days",
+        "owed": "Fees owed (incl. upcoming)",
+        "collected": "Fees collected",
+        "payouts": "Payouts",
+        "hint": "Owed includes fees on bookings not played yet, so it does not compare with Earned. Collected is confirmed payouts."
+      }
     },
     "owners": {
       "filter": "Business status",
@@ -1937,8 +1947,10 @@
         "status": "Status",
         "venues": "Published venues",
         "bookings": "Bookings, 30 days",
-        "joined": "Joined"
-      }
+        "joined": "Joined",
+        "owes": "Owes"
+      },
+      "credit": "Credit {{amount}}"
     },
     "owner": {
       "back": "All businesses",
@@ -1973,6 +1985,48 @@
       "suspendBody": "Its venues leave search, new bookings stop and its team loses access to the owner portal. Existing bookings stay as they are. The reason is kept in the history.",
       "reactivateTitle": "Reactivate {{name}}?",
       "reactivateBody": "Its published venues come back to search and its team can work again."
+    },
+    "payouts": {
+      "filter": "Payout status",
+      "tab": {
+        "pending": "Pending",
+        "all": "All"
+      },
+      "intro": {
+        "pending": "bKash and Nagad payments from businesses. Check the TrxID arrived in your wallet, then confirm or reject.",
+        "all": "Every payout, newest first. Card payments are confirmed by Stripe."
+      },
+      "empty": {
+        "pending": "No payouts waiting to be checked.",
+        "all": "No payouts yet."
+      },
+      "col": {
+        "business": "Business",
+        "amount": "Amount",
+        "method": "Method",
+        "trxId": "TrxID",
+        "sender": "Sender",
+        "date": "Sent",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "method": {
+        "bkash": "bKash",
+        "nagad": "Nagad",
+        "stripe": "Card (Stripe)"
+      },
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "rejected": "Rejected",
+        "stale": "Not completed"
+      },
+      "confirm": "Confirm",
+      "reject": "Reject",
+      "confirmTitle": "Confirm {{amount}} from {{owner}}?",
+      "confirmBody": "Only confirm once TrxID {{trxId}} shows in your wallet. It counts towards the business's balance and can't be undone.",
+      "rejectTitle": "Reject {{amount}} from {{owner}}?",
+      "rejectBody": "The business sees your reason and can send the payment again."
     },
     "users": {
       "filter": "Account status",

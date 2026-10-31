@@ -15,6 +15,7 @@ import { NAV } from './shell/nav';
 import { OwnerShell } from './shell/OwnerShell';
 import { TodayPage } from './today/TodayPage';
 import { OverviewPage } from './overview/OverviewPage';
+import { PlatformFeePage } from './platform/PlatformFeePage';
 import { SettingsPage } from './settings/SettingsPage';
 import { StaffPage } from './staff/StaffPage';
 import { NewSeriesPage } from './series/NewSeriesPage';
@@ -76,6 +77,7 @@ export function OwnerRoutes() {
         <Route path="closures" element={<Guarded nav="closures"><ClosuresPage /></Guarded>} />
         <Route path="addons" element={<Guarded nav="addons"><AddonsPage /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
+        <Route path="platform-fee" element={<Guarded nav="platform-fee"><PlatformFeePage /></Guarded>} />
         <Route path="staff" element={<Guarded nav="staff"><StaffPage /></Guarded>} />
         <Route path="reviews" element={<Guarded nav="reviews"><ReviewsPage /></Guarded>} />
         <Route path="activity" element={<Guarded nav="activity"><ActivityPage /></Guarded>} />

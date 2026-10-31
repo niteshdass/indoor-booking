@@ -83,6 +83,7 @@
   --fact-min: 8.5rem; /* narrowest column in a label-over-value fact grid */
   --field-min: 10rem;
   --choice-min: 8rem; /* narrowest option in a segmented choice (admin General settings) */
+  --balance-card-min: 18rem; /* narrowest platform-fee balance card on the owner page before the cards stack */
   --map-height: 32rem;
   --demo-dot: 1.5rem; /* landing demo stepper dot */
   --demo-rule: 2px; /* landing demo stepper connector */

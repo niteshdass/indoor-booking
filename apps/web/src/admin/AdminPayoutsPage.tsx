@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { STRIPE_PAYOUT_HOLD_MS, SUSPEND_REASON_MAX, type PlatformPayoutJson } from '@booking/shared';
+import { SUSPEND_REASON_MAX, type PlatformPayoutJson } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
-import { Badge, type Tone } from '../components/ui/Badge';
+import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -12,6 +12,7 @@ import { Tabs } from '../components/ui/Tabs';
 import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
+import { PAYOUT_TONE as TONE, isManualPayout as isManual, payoutShown as shownStatus } from '../lib/payouts';
 import { ActionDialog } from './ActionDialog';
 import { useAdminTitle } from './AdminShell';
 import { day, timeOf } from './parts';
@@ -21,15 +22,6 @@ import styles from './admin.module.css';
 const FILTERS = ['pending', 'all'] as const;
 type Filter = (typeof FILTERS)[number];
 type Pending = { payout: PlatformPayoutJson; action: 'confirm' | 'reject' };
-
-/** bKash and Nagad are checked by hand; card payouts are settled by the Stripe webhook only. */
-const isManual = (p: PlatformPayoutJson) => p.method !== 'stripe';
-
-/** What the status badge says: a card payout left pending past the hold was never paid and no longer counts. */
-type Shown = PlatformPayoutJson['status'] | 'stale';
-const shownStatus = (p: PlatformPayoutJson, now: number): Shown =>
-  p.status === 'pending' && !isManual(p) && now - Date.parse(p.createdAt) > STRIPE_PAYOUT_HOLD_MS ? 'stale' : p.status;
-const TONE: Record<Shown, Tone> = { pending: 'warning', confirmed: 'success', rejected: 'danger', stale: 'neutral' };
 
 /** Owner payouts of the platform fee: the manual queue to confirm or reject, and every payout under All. */
 export function AdminPayoutsPage() {

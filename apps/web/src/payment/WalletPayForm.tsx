@@ -16,7 +16,8 @@ export type ManualOutcome = 'pending' | 'slots_taken';
 
 const ACTION_KEY = { personal: 'send', agent: 'agent', merchant: 'merchant' } as const;
 
-function CopyNumber({ value }: { value: string }) {
+/** Copy button for a wallet number, with a polite "Copied" beside it. */
+export function CopyNumber({ value }: { value: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

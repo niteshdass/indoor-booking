@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -12,26 +11,11 @@ import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
 import type { BookingJson, PaymentOptions, PaymentStart } from '../lib/types';
 import { PROVIDER_NAMES } from '../lib/wallets';
-import { stripeAppearance } from './stripeAppearance';
+import { elementsOptions, stripeFor } from './stripe';
 import { useCountdown } from './useCountdown';
 import { BookingLine, HoldPill } from './BookingLine';
 import { WalletPayForm, type ManualOutcome } from './WalletPayForm';
 import styles from './PayPage.module.css';
-
-const stripes = new Map<string, Promise<Stripe | null>>();
-/** One Stripe instance per publishable key (the key is per venue owner). */
-function stripeFor(key: string): Promise<Stripe | null> {
-  let p = stripes.get(key);
-  if (!p) {
-    p = loadStripe(key);
-    stripes.set(key, p);
-    // A failed load must not stay cached, or Retry could never recover.
-    p.catch(() => {
-      if (stripes.get(key) === p) stripes.delete(key);
-    });
-  }
-  return p;
-}
 
 type State =
   | { status: 'loading' }
@@ -223,10 +207,7 @@ function CardElements({
 }) {
   const stripe = useMemo(() => stripeFor(start.payment.publishableKey), [start.payment.publishableKey]);
   // Computed once per payment start so Elements never sees a changing clientSecret/appearance.
-  const options = useMemo(
-    () => ({ clientSecret: start.payment.clientSecret, appearance: stripeAppearance(), locale: (lang === 'en' || lang === 'ru' ? lang : 'auto') as 'en' | 'ru' | 'auto' }),
-    [start.payment.clientSecret, lang],
-  );
+  const options = useMemo(() => elementsOptions(start.payment.clientSecret, lang), [start.payment.clientSecret, lang]);
   return (
     <Elements stripe={stripe} options={options}>
       <PayForm id={id} booking={booking} start={start} msLeft={msLeft} expired={expired} onConfirming={onConfirming} />

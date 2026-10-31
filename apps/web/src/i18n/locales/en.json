@@ -212,6 +212,9 @@
     "delivery_unconfigured": "Message delivery is not set up yet. Ask the platform admin.",
     "payout_not_manual": "Card payouts are confirmed by Stripe, not by hand.",
     "payout_not_pending": "Someone already reviewed this payout. The list now shows its status.",
+    "duplicate_trx": "This Transaction ID was already used.",
+    "amount_exceeds_balance": "The amount is more than you can pay now. The balance was updated.",
+    "method_unavailable": "This way to pay is not available now. Pick another one.",
     "forbidden": "You don't have permission to see this."
   },
   "myBookings": {
@@ -638,6 +641,7 @@
       "playerSite": "Player site",
       "groups": {
         "daily": "Day to day",
+      "platformFee": "Platform fee",
         "setup": "Setup",
         "team": "Team and players"
       }
@@ -645,6 +649,55 @@
     "today": {
       "bookings": "Bookings today",
       "collected": "Collected",
+    "platformFee": {
+      "intro": {
+        "owner": "Your business pays the platform fee on each online booking. Pay what you owe here.",
+        "player": "Players pay the platform fee on top of the booking price, and you collect it with the booking. Send it on to the platform here."
+      },
+      "feeOff": "The platform fee is off now. This is what is left from before.",
+      "balances": "Balances",
+      "owe": "You owe {{amount}}",
+      "pending": "Awaiting check {{pending}}",
+      "allPending": "Everything you owe is waiting for the platform to check it.",
+      "credit": "Credit {{amount}}",
+      "creditHint": "Your next fees use it up. It is not paid back.",
+      "settled": "Nothing to pay in {{currency}}",
+      "nothingYet": "Nothing to pay yet",
+      "payNow": "Pay now",
+      "history": "Payment history",
+      "historyEmpty": "No payments yet",
+      "col": {
+        "date": "Sent",
+        "method": "Method",
+        "amount": "Amount",
+        "trxId": "TrxID",
+        "status": "Status"
+      },
+      "stripeFailed": "The card payment did not go through.",
+      "dialog": {
+        "title": "Pay the platform fee",
+        "method": "How you pay",
+        "methodHint": {
+          "wallet": "Send money, then enter the TrxID",
+          "card": "Pay by card now"
+        },
+        "amount": "Amount",
+        "amountHint": "Up to {{max}} now",
+        "amountInvalid": "Enter an amount above zero.",
+        "amountOver": "You can pay at most {{max}} now.",
+        "steps": "Open {{provider}} → {{action}} to this number → the amount above → then enter the Transaction ID below.",
+        "submitManual": "Send for checking",
+        "manualHint": "The platform checks your TrxID, then marks it paid.",
+        "toCard": "Continue to card",
+        "cardLine": "Paying {{amount}} by card",
+        "payCard": "Pay {{amount}}",
+        "cardHold": "If you close this without paying, the amount stays held for up to an hour.",
+        "received": "Payment received; it shows as paid in a moment.",
+        "sent": "Sent. It shows as paid once the platform checks your TrxID.",
+        "noMethods": "The platform has not set up a way to pay yet.",
+        "cancel": "Cancel"
+      }
+    },
       "collectedHint": "Paid for today's bookings, minus refunds",
       "pending": "Waiting for confirmation",
       "upcoming": "Coming up",

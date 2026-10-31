@@ -8,9 +8,10 @@ import { LanguageMenu } from '../../components/LanguageSwitcher';
 import { Button } from '../../components/ui/Button';
 import { initials } from '../../lib/initials';
 import { ThemeMenu } from '../../theme/ThemeToggle';
-import type { SeriesJson } from '@booking/shared';
+import type { OwnerPlatformFeeJson, SeriesJson } from '@booking/shared';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
+import { platformFeeShown } from '../platform/feeShown';
 import { useResource } from '../useResource';
 import { NAV, NAV_GROUPS } from './nav';
 import { NavIcon } from './NavIcon';
@@ -48,6 +49,13 @@ function useOpenRequests(enabled: boolean, pathname: string): { count: number; m
   return { count: state.data.series.length, more: state.data.nextBefore !== null };
 }
 
+/** Whether the Platform fee nav item shows; loaded once per team, and hidden until it is known. */
+function usePlatformFeeNav(enabled: boolean): boolean {
+  const { ownerId } = useOwner();
+  const { state } = useResource<OwnerPlatformFeeJson>(enabled ? ownerPath(ownerId, '/platform-fee') : null);
+  return state.status === 'ready' && platformFeeShown(state.data);
+}
+
 /** Owner portal layout: sidebar from lg, a drawer below it, and a top bar with the page title. */
 export function OwnerShell() {
   const { t } = useTranslation();
@@ -56,6 +64,7 @@ export function OwnerShell() {
   const { pathname, search } = useLocation();
   const venueParam = new URLSearchParams(search).get('venue');
   const requests = useOpenRequests(can('booking.view'), pathname);
+  const feeNav = usePlatformFeeNav(can('settings.edit'));
   const [title, setTitle] = useState('');
   const [open, setOpen] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
@@ -88,7 +97,7 @@ export function OwnerShell() {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
-  const items = NAV.filter((n) => (n.any ? n.perms.some(can) : n.perms.every(can)));
+  const items = NAV.filter((n) => (n.any ? n.perms.some(can) : n.perms.every(can)) && (n.to !== 'platform-fee' || feeNav));
 
   return (
     <div className={styles.shell}>

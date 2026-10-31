@@ -262,10 +262,13 @@
   border-radius: var(--radius-lg);
 }
 
+/* Cells wrap between words only (the article's anywhere-wrap would let a column shrink until
+   a long Russian word such as «Автоматически» breaks mid-word); the wrap scrolls sideways instead. */
 .table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-base);
+  overflow-wrap: normal;
 }
 
 .table th,

@@ -394,10 +394,12 @@ function MixCard({ o, f }: CardProps) {
           <dt>{t('owner.overview.mix.outstanding')}</dt>
           <dd className={o.mix.outstanding > 0 ? styles.warn : undefined}>{f.money(o.mix.outstanding)}</dd>
         </div>
+        {/* Already taken off the courts and add-ons above; shown for reference, not part of the chart. */}
         {o.platformFees > 0 && (
-          <div>
+          <div className={styles.aside}>
             <dt>{t('owner.overview.mix.platformFee')}</dt>
             <dd>{f.money(o.platformFees)}</dd>
+            <dd className={styles.asideNote}>{t('owner.overview.mix.platformFeeNote')}</dd>
           </div>
         )}
       </dl>

@@ -61,6 +61,8 @@ async function book(
   const endAt = new Date(startAt.getTime() + (over.hours ?? 1) * 3_600_000);
   const total = over.total ?? 1000;
   const addons = over.addons ?? 0;
+  // A player-paid fee sits on top of the court price and add-ons.
+  const court = total - addons - (over.fee?.payer === 'player' ? over.fee.amount : 0);
   refs += 1;
   return Booking.create({
     ownerId: a.ownerId,
@@ -70,9 +72,9 @@ async function book(
     businessDate: date,
     startAt,
     endAt,
-    slots: [{ startAt, endAt, price: total - addons }],
+    slots: [{ startAt, endAt, price: court }],
     currency: 'BDT',
-    subtotal: total - addons,
+    subtotal: court,
     addonsTotal: addons,
     total,
     advanceRequired: 0,
@@ -153,6 +155,17 @@ describe('owner overview report', () => {
     const res = await overview();
     expect(res.body.kpis.revenue.value).toBe(95000);
     expect(res.body.platformFees).toBe(5000);
+  });
+
+  it('revenue mix is net of the fee and adds up to revenue, whoever pays', async () => {
+    await book(TODAY, '09:00', { total: 105000, addons: 20000, fee: { amount: 5000, payer: 'player' } });
+    await book(TODAY, '11:00', { total: 100000, addons: 20000, fee: { amount: 5000, payer: 'owner' }, phone: '+8801700000002' });
+    // An owner fee larger than the court price spills into add-ons.
+    await book(TODAY, '13:00', { total: 3000, addons: 2000, fee: { amount: 1500, payer: 'owner' }, phone: '+8801700000003' });
+    const { body } = await overview();
+    expect(body.mix).toMatchObject({ courts: 80000 + 75000 + 0, addons: 20000 + 20000 + 1500 });
+    expect(body.mix.courts + body.mix.addons + body.mix.cancellationFees).toBe(body.kpis.revenue.value);
+    expect(body.platformFees).toBe(11500);
   });
 
   it('cancelled booking owes no fee', async () => {

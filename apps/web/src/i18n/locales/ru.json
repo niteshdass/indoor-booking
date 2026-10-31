@@ -830,7 +830,8 @@
         "total": "Всего",
         "collected": "Получено",
         "outstanding": "Осталось получить",
-        "platformFee": "Комиссия платформы"
+        "platformFee": "Комиссия платформы",
+        "platformFeeNote": "Не входит в суммы выше"
       },
       "heat": {
         "title": "Когда корты заняты",

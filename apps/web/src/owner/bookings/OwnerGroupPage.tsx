@@ -12,6 +12,7 @@ import { Table } from '../../components/ui/Table';
 import { ApiError, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
+import { playerFee } from '../../lib/platformFee';
 import { useOwner } from '../OwnerProvider';
 import { customerLabel } from '../customerLabel';
 import { ownerPath } from '../ownerApi';
@@ -191,6 +192,13 @@ export function OwnerGroupPage() {
           <dl className={page.rows}>
             <Row label={t('owner.bookings.subtotal')} value={fmt(sum(bookings, (b) => b.subtotal))} />
             {sum(bookings, (b) => b.addonsTotal) > 0 && <Row label={t('owner.bookings.addons')} value={fmt(sum(bookings, (b) => b.addonsTotal))} />}
+            {/* Player-paid fees are part of the total, so Subtotal + Add-ons + fee adds up to it. */}
+            {sum(bookings, (b) => playerFee(b.platformFee)) > 0 && (
+              <Row
+                label={t('owner.bookings.platformFee', { payer: t('owner.bookings.feePayer.player') })}
+                value={fmt(sum(bookings, (b) => playerFee(b.platformFee)))}
+              />
+            )}
           </dl>
           <dl className={[page.rows, page.totals].join(' ')}>
             <Row label={t('owner.bookings.total')} value={fmt(sum(bookings, (b) => b.total))} strong />

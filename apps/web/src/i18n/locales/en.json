@@ -800,7 +800,8 @@
         "total": "Total",
         "collected": "Collected",
         "outstanding": "Still to collect",
-        "platformFee": "Platform fee"
+        "platformFee": "Platform fee",
+        "platformFeeNote": "Not included in the figures above"
       },
       "heat": {
         "title": "When courts are busy",

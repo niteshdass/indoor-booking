@@ -91,6 +91,7 @@ describe('admin docs', () => {
     for (const word of ['Automatic', 'Free', 'Fixed', 'Percent', '50%', 'Court', 'bKash', 'Nagad', 'Stripe', 'Payouts', 'Reject', 'Owes', 'credit', 'walk-in']) {
       expect(body).toContain(word);
     }
+    // The app calls a playable space a "Court" everywhere; the guide must not slip back to "Field".
     expect(body).not.toContain('Field');
   });
 

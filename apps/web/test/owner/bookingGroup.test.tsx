@@ -39,6 +39,17 @@ describe('owner booking group page', () => {
     await waitFor(() => expect(location().pathname).toBe(`/owner/${OWNER_ID}/bookings/b2`));
   });
 
+  it('sums player-paid platform fees so the rows add up to the total', async () => {
+    const fee = { mode: 'fixed' as const, value: 50, payer: 'player' as const, amount: 5000 };
+    const withFee = (b: typeof b1) => ({ ...b, platformFee: fee, total: b.subtotal + b.addonsTotal + fee.amount });
+    mockApi([...ownerRoutes(), { path: GET, body: group({ bookings: [withFee(b1), withFee(b2)] }) }]);
+    renderApp(URL_, { user: staffUser });
+    await screen.findByRole('table', { name: en.owner.bookings.group.list });
+    const summary = screen.getByRole('region', { name: en.owner.bookings.slots });
+    const label = en.owner.bookings.platformFee.replace('{{payer}}', en.owner.bookings.feePayer.player);
+    expect(within(summary).getByText(label).nextElementSibling!.textContent).toMatch(/100\.00/);
+  });
+
   it('mark cash paid for all posts once and reloads', async () => {
     const paid = group({ bookings: [{ ...b1, amountPaid: b1.total, paymentStatus: 'paid' }, { ...b2, amountPaid: b2.total, paymentStatus: 'paid' }] });
     const api = mockApi([

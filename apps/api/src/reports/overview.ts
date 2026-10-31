@@ -19,7 +19,7 @@ export type OverviewBooking = {
   total: number;
   amountPaid: number;
   amountRefunded: number;
-  platformFee: { amount: number } | null;
+  platformFee: { amount: number; payer: 'owner' | 'player' } | null;
 };
 
 export type OverviewTurf = { id: string; name: string; hours: WeeklyHours };
@@ -46,6 +46,17 @@ const kept = (b: OverviewBooking) => Math.max(0, b.amountPaid - b.amountRefunded
 export const feeOf = (b: OverviewBooking) => (FEE_OWING_STATUSES.includes(b.status) && b.platformFee ? b.platformFee.amount : 0);
 /** What a booking earned: the total once played (less its platform fee), or what was kept after a cancellation. */
 export const earned = (b: OverviewBooking) => Math.max(0, (played(b) ? b.total : b.status === 'cancelled' ? kept(b) : 0) - feeOf(b));
+
+/**
+ * A played booking's court and add-on earnings, net of its platform fee. A player-paid fee sits on
+ * top of both, so nothing comes off; an owner-paid fee comes off the court price first, then add-ons.
+ */
+function netParts(b: OverviewBooking): { courts: number; addons: number } {
+  const ownerFee = b.platformFee?.payer === 'owner' ? feeOf(b) : 0;
+  const courts = Math.max(0, b.subtotal - ownerFee);
+  const addons = Math.max(0, b.addonsTotal - Math.max(0, ownerFee - b.subtotal));
+  return { courts, addons };
+}
 
 /** Minutes a turf is open on `date` by its weekly hours (closures and one-off changes are not counted). */
 export function openMinutes(hours: WeeklyHours, date: string): number {
@@ -114,8 +125,8 @@ export function buildOverview(input: {
 
   const playedNow = current.filter(played);
   const mix = {
-    courts: playedNow.reduce((s, b) => s + b.subtotal, 0),
-    addons: playedNow.reduce((s, b) => s + b.addonsTotal, 0),
+    courts: playedNow.reduce((s, b) => s + netParts(b).courts, 0),
+    addons: playedNow.reduce((s, b) => s + netParts(b).addons, 0),
     cancellationFees: current.filter((b) => b.status === 'cancelled').reduce((s, b) => s + kept(b), 0),
     collected: current.reduce((s, b) => s + kept(b), 0),
     outstanding: playedNow.reduce((s, b) => s + Math.max(0, b.total - kept(b)), 0),

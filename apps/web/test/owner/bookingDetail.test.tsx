@@ -101,15 +101,35 @@ describe('owner booking detail', () => {
     expect(screen.getAllByText(/BDT\s6\.00/).length).toBeGreaterThan(0);
   });
 
-  it.each([
-    ['owner', en.owner.bookings.feePayer.owner],
-    ['player', en.owner.bookings.feePayer.player],
-  ] as const)('booking detail shows the platform fee and who paid it (%s)', async (payer, label) => {
-    const platformFee = { mode: 'fixed' as const, value: 50, payer, amount: 5000 };
+  const feeLabel = (payer: string) => en.owner.bookings.platformFee.replace('{{payer}}', payer);
+  const follows = (a: Element, b: Element) => Boolean(b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+  it('a player-paid fee sits above the total, as part of the sum', async () => {
+    const platformFee = { mode: 'fixed' as const, value: 50, payer: 'player' as const, amount: 5000 };
     mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ platformFee }) }) }]);
     renderApp(URL_, { user: staffUser });
-    const row = (await screen.findByText(en.owner.bookings.platformFee.replace('{{payer}}', label))).closest('div')!;
+    const row = (await screen.findByText(feeLabel(en.owner.bookings.feePayer.player))).closest('div')!;
     expect(row).toHaveTextContent(/BDT\s50\.00/);
+    expect(follows(screen.getByText(en.owner.bookings.total), row)).toBe(true);
+  });
+
+  it('an owner-paid fee is shown apart, below the total', async () => {
+    const platformFee = { mode: 'fixed' as const, value: 50, payer: 'owner' as const, amount: 5000 };
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ platformFee }) }) }]);
+    renderApp(URL_, { user: staffUser });
+    const row = (await screen.findByText(feeLabel(en.owner.bookings.feePayer.owner))).closest('div')!;
+    expect(row).toHaveTextContent(/BDT\s50\.00/);
+    expect(follows(row, screen.getByText(en.owner.bookings.total))).toBe(true);
+    // Its own list, outside the one that sums to the total.
+    expect(row.closest('dl')).not.toBe(screen.getByText(en.owner.bookings.total).closest('dl'));
+  });
+
+  it.each(['rejected', 'cancelled', 'expired', 'awaiting_payment'] as const)('an owner-paid fee is hidden once the booking does not owe it (%s)', async (status) => {
+    const platformFee = { mode: 'fixed' as const, value: 50, payer: 'owner' as const, amount: 5000 };
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ status, platformFee }) }) }]);
+    renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText('BK-0001')).toBeTruthy();
+    expect(screen.queryByText(/Platform fee/)).toBeNull();
   });
 
   it('booking detail shows no platform fee row when the booking has none', async () => {

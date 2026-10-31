@@ -164,6 +164,12 @@
   color: var(--text-strong);
 }
 
+/* An information row outside the sum, e.g. an owner-paid platform fee. */
+.muted dt,
+.muted dd {
+  color: var(--text-muted);
+}
+
 tr > .num {
   text-align: end;
   white-space: nowrap;

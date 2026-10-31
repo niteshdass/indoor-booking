@@ -103,6 +103,8 @@ describe('Overview page', () => {
     expect(kpi(en.owner.overview.kpi.revenue).textContent).toMatch(/after BDT\s*50 platform fee/i);
     const mixFee = screen.getByText(en.owner.overview.mix.platformFee, { selector: 'dt' });
     expect(mixFee.nextElementSibling).toHaveTextContent(/BDT\s50\.00/);
+    // Read as apart from the chart, which is already net of it.
+    expect(mixFee.parentElement).toHaveTextContent(en.owner.overview.mix.platformFeeNote);
     unmount();
 
     mockApi(routes());

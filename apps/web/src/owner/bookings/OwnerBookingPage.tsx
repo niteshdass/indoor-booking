@@ -15,6 +15,7 @@ import { SeriesBadge } from '../../series/SeriesBadge';
 import { ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
+import { ownerOwedFee, playerFee } from '../../lib/platformFee';
 import { useOwner } from '../OwnerProvider';
 import { customerLabel } from '../customerLabel';
 import { ownerPath } from '../ownerApi';
@@ -101,6 +102,7 @@ export function OwnerBookingPage() {
   const venue = venues.find((v) => v.id === b.venueId);
   const tz = venue?.timezone ?? 'UTC';
   const fmt = (n: number) => money(n, b.currency, lang);
+  const ownerFee = ownerOwedFee(b);
   const starts = b.slots.map((s) => s.startAt).sort();
   const ends = b.slots.map((s) => s.endAt).sort();
   const range = (a: string, z: string) => `${formatTime(a, tz, lang)} – ${formatTime(z, tz, lang)}`;
@@ -263,17 +265,21 @@ export function OwnerBookingPage() {
           <dl className={[styles.rows, styles.totals].join(' ')}>
             <Row label={t('owner.bookings.subtotal')} value={fmt(b.subtotal)} />
             {b.addonsTotal > 0 && <Row label={t('owner.bookings.addons')} value={fmt(b.addonsTotal)} />}
-            {b.platformFee && (
-              <Row
-                label={t('owner.bookings.platformFee', { payer: t(`owner.bookings.feePayer.${b.platformFee.payer}`) })}
-                value={fmt(b.platformFee.amount)}
-              />
+            {/* A player-paid fee is part of the total, so it sits above it. */}
+            {playerFee(b.platformFee) > 0 && (
+              <Row label={t('owner.bookings.platformFee', { payer: t('owner.bookings.feePayer.player') })} value={fmt(playerFee(b.platformFee))} />
             )}
             <Row label={t('owner.bookings.total')} value={fmt(b.total)} strong />
             {b.advanceRequired > 0 && <Row label={t('owner.bookings.advance')} value={fmt(b.advanceRequired)} />}
             <Row label={t('owner.bookings.paid')} value={fmt(b.amountPaid)} />
             {b.amountRefunded > 0 && <Row label={t('owner.bookings.refunded')} value={fmt(b.amountRefunded)} />}
           </dl>
+          {/* An owner-paid fee is not in the total: it is shown apart, below it, and only while the booking owes it. */}
+          {ownerFee && (
+            <dl className={[styles.rows, styles.totals].join(' ')}>
+              <Row label={t('owner.bookings.platformFee', { payer: t('owner.bookings.feePayer.owner') })} value={fmt(ownerFee.amount)} muted />
+            </dl>
+          )}
         </section>
       </div>
     </div>
@@ -289,9 +295,9 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Row({ label, value, strong, muted }: { label: string; value: string; strong?: boolean; muted?: boolean }) {
   return (
-    <div className={[styles.row, strong ? styles.strong : ''].filter(Boolean).join(' ')}>
+    <div className={[styles.row, strong ? styles.strong : '', muted ? styles.muted : ''].filter(Boolean).join(' ')}>
       <dt>{label}</dt>
       <dd>{value}</dd>
     </div>

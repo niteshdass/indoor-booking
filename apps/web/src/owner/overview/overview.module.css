@@ -588,6 +588,16 @@
   color: var(--warning);
 }
 
+/* A footer figure that is not part of the chart (the platform fee): muted, with a note saying so. */
+.footer .aside dd {
+  color: var(--text-muted);
+}
+
+.footer .aside .asideNote {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
 /* Heatmap */
 .heatScroll {
   overflow-x: auto;

@@ -387,7 +387,33 @@ describe('several courts in one checkout', () => {
   });
 });
 
+const setFee = async (fee: Record<string, unknown>) => {
+  await PlatformSettings.updateOne(
+    { _id: 'platform' },
+    { $set: { general: { ownerApproval: 'manual', fee, payout: { bkash: null, nagad: null, stripe: null } } } },
+    { upsert: true },
+  );
+  clearSettingsCache();
+};
+
 describe('platform fee', () => {
+  it('the group advance sums each booking advance with its fee', async () => {
+    await setFee({ mode: 'fixed', fixed: 50, percent: null, payer: 'player' });
+    await setup({ paymentPolicy: { type: 'partial_percent', percent: 20 } });
+    const body = groupBody({ more: sameTime([ALSO[0]]) });
+    const quote = await post(`${base()}/quote`, body);
+    expect(quote.status).toBe(200);
+    // 20% of 1500 = 300, plus the 5000 fee, per booking.
+    expect(quote.body.items.map((d: { quote: { advanceRequired: number } }) => d.quote.advanceRequired)).toEqual([5300, 5300]);
+    expect(quote.body.advanceRequired).toBe(10600);
+    expect(quote.body.total).toBe(13000);
+
+    const { token } = await newPlayer();
+    const res = await post(`${base()}/bookings`, body, token);
+    expect(res.status).toBe(201);
+    expect((await bookings()).map((b) => b.advanceRequired)).toEqual([5300, 5300]);
+  });
+
   it('each booking of a group carries its own fee', async () => {
     await PlatformSettings.updateOne(
       { _id: 'platform' },

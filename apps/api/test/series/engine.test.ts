@@ -314,6 +314,19 @@ describe('platform fee', () => {
     expect(games.map((g) => g.total - g.subtotal)).toEqual(preview.platformFee!.perGame);
   });
 
+  it('an owner-paid fee leaves the series total alone but is still recorded', async () => {
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { 'general.fee.payer': 'owner' } });
+    clearSettingsCache();
+    const preview = await seriesAvailability(venue, turf, pattern(), services.now(), online);
+    expect(preview.platformFee).toEqual({ payer: 'owner', perGame: [5000, 5000, 5000, 5000] });
+    expect(preview.total).toBe(4000);
+    const { games } = await run({ who: player(), mode: 'request' });
+    for (const g of games) {
+      expect(g.total).toBe(1000);
+      expect(g.platformFee).toEqual({ ...snapshot, payer: 'owner' });
+    }
+  });
+
   it('an owner-created series has no fee', async () => {
     const preview = await seriesAvailability(venue, turf, pattern(), services.now(), walkin);
     expect(preview.platformFee).toBeNull();

@@ -15,6 +15,7 @@ import {
   type ComputedSlot,
   type EffectiveSettings,
   type OfferedAddon,
+  type PlatformFeeSettings,
 } from '@booking/shared';
 import { resolveGeneral } from '../admin/settings';
 import type { Config } from '../config';
@@ -156,7 +157,12 @@ export async function expireStaleHolds(
   await SlotLock.deleteMany({ ownerId, bookingId: { $in: ids } }, { session });
 }
 
-async function prepare(input: QuoteInput) {
+/** The platform fee settings for a booking of `source`: walk-ins carry none. */
+const feeSettingsFor = async (config: Config, source: QuoteInput['source']): Promise<PlatformFeeSettings | null> =>
+  source === 'online' ? (await resolveGeneral(config)).fee : null;
+
+/** `feeSettings` overrides the read, so a group prices every item on one read of the settings. */
+async function prepare(input: QuoteInput, feeSettings?: PlatformFeeSettings | null) {
   const { venue, turf, date, startAts, selection, source, now, config } = input;
   const ownerId = String(venue.ownerId);
   const { day, settings } = await loadDay(ownerId, venue, turf, date, now);
@@ -168,7 +174,8 @@ async function prepare(input: QuoteInput) {
   const inUse = await stockInUse(ownerId, venue, limited(offered, selection), rangeOf(picked), now);
   const paymentPolicy = source === 'online' ? settings.paymentPolicy : null;
   // Read once here, so the price quoted is the price the transaction books.
-  const fee = source === 'online' ? { settings: (await resolveGeneral(config)).fee, currency: venue.currency } : null;
+  const settingsNow = feeSettings === undefined ? await feeSettingsFor(config, source) : feeSettings;
+  const fee = settingsNow ? { settings: settingsNow, currency: venue.currency } : null;
   const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee });
   return { ownerId, settings, picked, offered, paymentPolicy, fee, quote };
 }
@@ -343,12 +350,14 @@ const offeredOn = async (ownerId: string, input: GroupInput, turf: TurfDoc, many
 async function prepareGroup(input: GroupInput) {
   const ownerId = String(input.venue.ownerId);
   const many = new Set(input.items.map((i) => String(i.turf._id))).size > 1;
+  // One read for the whole checkout, so a cache refresh mid-way cannot price items differently.
+  const feeSettings = await feeSettingsFor(input.config, input.source ?? 'online');
   const items: (Awaited<ReturnType<typeof prepare>> & { item: GroupItem; selection: AddonSelection[] })[] = [];
   for (const item of input.items) {
     try {
       const selection = await offeredOn(ownerId, input, item.turf, many);
       const base = { ...input, turf: item.turf, selection, source: input.source ?? 'online' };
-      items.push({ ...(await prepare({ ...base, date: item.date, startAts: item.startAts })), item, selection });
+      items.push({ ...(await prepare({ ...base, date: item.date, startAts: item.startAts }, feeSettings)), item, selection });
     } catch (err) {
       // Someone else holding a slot is "just booked", as for a single booking.
       if (err instanceof BookingQuoteError && err.code === 'slot_unavailable' && err.startAt) {

@@ -397,6 +397,17 @@ describe('platform fee snapshot', () => {
     expect(again!.total).toBe(105000);
   });
 
+  it('a player-paid fee joins the advance', async () => {
+    await Venue.updateOne({ _id: venue._id }, { 'settings.paymentPolicy': { type: 'partial_percent', percent: 20 } }).setOptions({ crossTenant: true });
+    venue = (await Venue.findById(venue._id).setOptions({ crossTenant: true }))!;
+    await setFee(fixed50);
+    const b = await book();
+    expect(b.total).toBe(105000);
+    // 20% of 100000, plus the 5000 fee.
+    expect(b.advanceRequired).toBe(25000);
+    expect(b.status).toBe('awaiting_payment');
+  });
+
   it('a booking made with no settings has no fee', async () => {
     const b = await book();
     expect(b.platformFee).toBeNull();

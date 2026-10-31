@@ -638,17 +638,14 @@
       "staff": "Staff",
       "reviews": "Reviews",
       "activity": "Activity",
+      "platformFee": "Platform fee",
       "playerSite": "Player site",
       "groups": {
         "daily": "Day to day",
-      "platformFee": "Platform fee",
         "setup": "Setup",
         "team": "Team and players"
       }
     },
-    "today": {
-      "bookings": "Bookings today",
-      "collected": "Collected",
     "platformFee": {
       "intro": {
         "owner": "Your business pays the platform fee on each online booking. Pay what you owe here.",
@@ -672,6 +669,11 @@
         "amount": "Amount",
         "trxId": "TrxID",
         "status": "Status"
+      },
+      "status": {
+        "pending": "Awaiting check",
+        "confirmed": "Paid",
+        "rejected": "Rejected"
       },
       "stripeFailed": "The card payment did not go through.",
       "dialog": {
@@ -698,6 +700,9 @@
         "cancel": "Cancel"
       }
     },
+    "today": {
+      "bookings": "Bookings today",
+      "collected": "Collected",
       "collectedHint": "Paid for today's bookings, minus refunds",
       "pending": "Waiting for confirmation",
       "upcoming": "Coming up",

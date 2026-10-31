@@ -111,6 +111,7 @@ describe('owner platform fee page', () => {
           payout({ id: 'b', status: 'confirmed', trxId: 'OK12345678' }),
           payout({ id: 'c', method: 'stripe', trxId: null, senderNumber: null, createdAt: old }),
           payout({ id: 'd', method: 'stripe', trxId: null, senderNumber: null, status: 'rejected', rejectReason: 'stripe_failed' }),
+          payout({ id: 'e', trxId: 'PEN1234567' }),
         ],
       }),
     );
@@ -118,7 +119,10 @@ describe('owner platform fee page', () => {
     const table = await screen.findByRole('table', { name: en.owner.platformFee.history });
     expect(within(table).getByText('REJ1234567')).toBeInTheDocument();
     expect(within(table).getByText('Not in our wallet')).toBeInTheDocument();
-    expect(within(table).getByText(en.admin.payouts.status.confirmed)).toBeInTheDocument();
+    // Owner wording, not the admin queue's.
+    expect(within(table).getByText(en.owner.platformFee.status.confirmed)).toBeInTheDocument();
+    expect(within(table).getByText(en.owner.platformFee.status.pending)).toBeInTheDocument();
+    expect(within(table).getAllByText(en.owner.platformFee.status.rejected)).toHaveLength(2);
     expect(within(table).getByText(en.admin.payouts.status.stale)).toBeInTheDocument();
     expect(within(table).getByText(en.owner.platformFee.stripeFailed)).toBeInTheDocument();
   });
@@ -215,6 +219,28 @@ describe('owner platform fee page', () => {
 });
 
 describe('platform fee nav item', () => {
+  it('retry after Stripe fails to load reuses the card payout already made', async () => {
+    const { calls } = api(fee({ methods: { bkash: null, nagad: null, stripe: { publishableKey: 'pk_retry' } } }), [
+      {
+        method: 'POST',
+        path: `/owners/${OWNER_ID}/platform-payouts/stripe`,
+        status: 201,
+        body: { payout: payout({ method: 'stripe', trxId: null, amount: 4000 }), clientSecret: 'cs_admin', publishableKey: 'pk_retry' },
+      },
+    ]);
+    // Its own key: stripeFor caches a loaded key for the whole file.
+    h.loadStripe.mockRejectedValueOnce(new Error('offline'));
+    const { user } = renderApp(PAGE, { user: staffUser });
+    const dialog = await openDialog(user);
+    await user.click(within(dialog).getByRole('button', { name: en.owner.platformFee.dialog.toCard }));
+    expect(await within(dialog).findByText(en.payment.loadFailed)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText(en.owner.platformFee.dialog.amount)).toHaveAttribute('readonly');
+    await user.click(within(dialog).getByRole('button', { name: en.owner.platformFee.dialog.toCard }));
+    expect(await within(dialog).findByTestId('payment-element')).toBeInTheDocument();
+    expect(h.loadStripe).toHaveBeenCalledTimes(2);
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+
   it('nav item hidden in free mode with no balance', async () => {
     const { calls } = api(fee({ feeActive: false, balances: [balance({ owed: 0, pending: 0, balance: 0, payable: 0 })] }));
     renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
@@ -224,6 +250,13 @@ describe('platform fee nav item', () => {
     await screen.findByRole('link', { name: en.owner.nav.settings });
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByRole('link', { name: en.owner.nav.platformFee })).toBeNull();
+  });
+
+  it('free mode with a balance left says only that the fee is off', async () => {
+    api(fee({ feeActive: false }));
+    renderApp(PAGE, { user: staffUser });
+    expect(await screen.findByText(en.owner.platformFee.feeOff)).toBeInTheDocument();
+    expect(screen.queryByText(en.owner.platformFee.intro.owner)).toBeNull();
   });
 
   it('nav item shown in free mode while a credit is left', async () => {

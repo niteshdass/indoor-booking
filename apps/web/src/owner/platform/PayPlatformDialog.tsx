@@ -121,6 +121,8 @@ export function PayPlatformDialog({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState<Stage>({ kind: 'form' });
+  // The card payout the API already made; when only the Stripe load failed, Retry reuses it instead of making another.
+  const [created, setCreated] = useState<OwnerStripePayoutJson | null>(null);
   const inflight = useRef(false);
   const fmt = (minor: number) => money(minor, balance.currency, i18n.language);
   const max = fmt(balance.payable);
@@ -183,13 +185,17 @@ export function PayPlatformDialog({
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (inflight.current || !method) return;
-    const amount = readAmount();
     if (method === 'stripe') {
+      const amount = created ? created.payout.amount : readAmount();
       if (amount === undefined) return;
       void run(async () => {
-        const start = await apiPost<OwnerStripePayoutJson>(ownerPath(ownerId, '/platform-payouts/stripe'), { currency: balance.currency, amount });
-        // The pending card payout holds the amount back now.
-        onChanged();
+        let start = created;
+        if (!start) {
+          start = await apiPost<OwnerStripePayoutJson>(ownerPath(ownerId, '/platform-payouts/stripe'), { currency: balance.currency, amount });
+          setCreated(start);
+          // The pending card payout holds the amount back now.
+          onChanged();
+        }
         try {
           await stripeFor(start.publishableKey);
         } catch {
@@ -200,6 +206,7 @@ export function PayPlatformDialog({
       });
       return;
     }
+    const amount = readAmount();
     const trxId = normalizeTrxId(trx);
     const okSender = bdMobileDigits(sender) !== null;
     setTrxError(trxId ? undefined : t('payment.wallet.trxInvalid'));
@@ -262,7 +269,7 @@ export function PayPlatformDialog({
     const number = wallet ? formatBdMobile(wallet.number) : '';
     return (
       <form className={styles.form} onSubmit={onSubmit} noValidate>
-        <fieldset className={styles.fieldset}>
+        <fieldset className={styles.fieldset} disabled={created !== null}>
           <legend className={styles.legend}>{t('owner.platformFee.dialog.method')}</legend>
           <div className={styles.options}>
             {offered.map((m) => (
@@ -289,7 +296,8 @@ export function PayPlatformDialog({
           label={t('owner.platformFee.dialog.amount')}
           hint={t('owner.platformFee.dialog.amountHint', { max })}
           error={amountError}
-          value={amountText}
+          value={created ? forInput(created.payout.amount, created.payout.currency) : amountText}
+          readOnly={created !== null}
           onChange={(e) => setAmountText(e.target.value)}
           inputMode="decimal"
           autoComplete="off"

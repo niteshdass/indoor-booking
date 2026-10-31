@@ -99,7 +99,7 @@ function History({ payouts }: { payouts: PlatformPayoutJson[] }) {
                     <span className={styles.stack}>
                       <span>
                         <Badge tone={PAYOUT_TONE[shown]} className={styles.nowrap}>
-                          {t(`admin.payouts.status.${shown}`)}
+                          {t(shown === 'stale' ? 'admin.payouts.status.stale' : `owner.platformFee.status.${shown}`)}
                         </Badge>
                       </span>
                       {p.status === 'rejected' && reason && <span className={styles.sub}>{reason}</span>}
@@ -146,8 +146,8 @@ export function PlatformFeePage() {
   return (
     <div className={styles.page}>
       <div className={styles.intro}>
-        <p className={styles.muted}>{t(`owner.platformFee.intro.${data.payer}`)}</p>
-        {!data.feeActive && <p className={styles.muted}>{t('owner.platformFee.feeOff')}</p>}
+        {/* Free mode with a balance left: who pays no longer applies, only that the fee is off. */}
+        <p className={styles.muted}>{data.feeActive ? t(`owner.platformFee.intro.${data.payer}`) : t('owner.platformFee.feeOff')}</p>
       </div>
       {returned && <Alert tone="success">{t('owner.platformFee.dialog.received')}</Alert>}
       <section className={styles.balances} aria-label={t('owner.platformFee.balances')}>

@@ -30,6 +30,12 @@ function settings(over: Partial<AdminSettingsJson> = {}): AdminSettingsJson {
     google: { source: 'none', clientId: null },
     email: { source: 'none', smtp: null },
     sms: { source: 'none', twilio: null },
+    general: {
+      ownerApproval: 'manual',
+      fee: { mode: 'free', fixed: null, percent: null, payer: 'owner' },
+      payout: { bkash: null, nagad: null, stripe: null },
+      payoutWebhookUrl: 'http://localhost:4000/api/v1/webhooks/stripe/platform',
+    },
     secretsAvailable: true,
     updatedAt: null,
     updatedBy: null,

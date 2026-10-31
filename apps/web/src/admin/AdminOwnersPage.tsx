@@ -12,7 +12,7 @@ import { Tabs } from '../components/ui/Tabs';
 import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
 import { useAdminTitle } from './AdminShell';
-import { day, OwesCell, OwnerStatusBadge, SearchForm } from './parts';
+import { day, EmailText, OwesCell, OwnerStatusBadge, SearchForm } from './parts';
 import styles from './admin.module.css';
 
 type Filter = OwnerStatus | 'all';
@@ -104,7 +104,9 @@ export function AdminOwnersPage() {
                     {o.contact ? (
                       <span className={styles.stack}>
                         <span>{o.contact.name || '—'}</span>
-                        <span className={styles.sub}>{o.contact.email ?? o.contact.phone ?? ''}</span>
+                        <span className={o.contact.email ? `${styles.sub} ${styles.email}` : styles.sub}>
+                          {o.contact.email ? <EmailText value={o.contact.email} /> : (o.contact.phone ?? '')}
+                        </span>
                       </span>
                     ) : (
                       '—'

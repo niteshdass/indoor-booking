@@ -279,10 +279,11 @@ describe('admin payouts and balances', () => {
     await waitFor(() => expect(api.calls.find((c) => c.path === '/admin/payouts/p1/reject')?.body).toEqual({ reason: 'No such transfer' }));
   });
 
-  it('shows a friendly error when the payout was already reviewed', async () => {
+  it('shows a friendly error when the payout was already reviewed, and refreshes the queue', async () => {
     mockApi(
       adminRoutes([
-        { path: '/admin/payouts', body: { payouts: [payout()], nextBefore: null } },
+        // The second load sees what the other admin did.
+        { path: '/admin/payouts', body: (_c: unknown, n: number) => ({ payouts: [payout(n === 0 ? {} : { status: 'confirmed' })], nextBefore: null }) },
         { method: 'POST', path: '/admin/payouts/p1/confirm', status: 409, body: { error: { code: 'payout_not_pending', message: 'x' } } },
       ]),
     );
@@ -291,6 +292,46 @@ describe('admin payouts and balances', () => {
     const dialog = await screen.findByRole('dialog');
     await h.user.click(within(dialog).getByRole('button', { name: en.admin.payouts.confirm }));
     expect(await within(dialog).findByText(en.errors.payout_not_pending)).toBeInTheDocument();
+    expect(await screen.findByText(en.admin.payouts.empty.pending)).toBeInTheDocument();
+  });
+
+  it('tells an admin without platform.owners they cannot see payouts, with no retry', async () => {
+    mockApi([
+      { path: '/admin/me', body: { ...ME, permissions: ['platform.view'] } },
+      { path: '/admin/overview', body: overview() },
+      { path: '/admin/payouts', status: 403, body: { error: { code: 'forbidden', message: 'x' } } },
+    ]);
+    renderApp('/admin/payouts', { user: admin });
+    expect(await screen.findByText(en.errors.forbidden)).toBeInTheDocument();
+    expect(screen.queryByText(en.errors.generic)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: en.auth.retry })).not.toBeInTheDocument();
+  });
+
+  it('switching tabs puts the filter in the URL and refetches', async () => {
+    const api = mockApi(adminRoutes([{ path: '/admin/payouts', body: { payouts: [payout()], nextBefore: null } }]));
+    const h = renderApp('/admin/payouts', { user: admin });
+    expect(await screen.findByText('TRX12345')).toBeInTheDocument();
+    await h.user.click(screen.getByRole('tab', { name: en.admin.payouts.tab.all }));
+    await waitFor(() => expect(api.calls.filter((c) => c.path === '/admin/payouts').map((c) => c.query.get('status'))).toEqual(['pending', 'all']));
+    expect(h.location().search).toBe('?status=all');
+    await h.user.click(screen.getByRole('tab', { name: en.admin.payouts.tab.pending }));
+    expect(h.location().search).toBe('');
+    expect(screen.getByRole('tab', { name: en.admin.payouts.tab.pending })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('shows the empty state with Show more when every loaded payout was reviewed', async () => {
+    mockApi(
+      adminRoutes([
+        { path: '/admin/payouts', body: { payouts: [payout()], nextBefore: '2026-10-20T10:00:00.000Z' } },
+        { method: 'POST', path: '/admin/payouts/p1/confirm', body: { payout: payout({ status: 'confirmed' }) } },
+      ]),
+    );
+    const h = renderApp('/admin/payouts', { user: admin });
+    await h.user.click(await screen.findByRole('button', { name: en.admin.payouts.confirm }));
+    await h.user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: en.admin.payouts.confirm }));
+    expect(await screen.findByText(en.admin.payouts.empty.pending)).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: en.admin.loadMore })).toBeInTheDocument();
   });
 
   it('history labels stale card payouts and offers no actions on them', async () => {

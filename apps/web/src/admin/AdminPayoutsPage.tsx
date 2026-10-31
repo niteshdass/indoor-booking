@@ -9,7 +9,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Table } from '../components/ui/Table';
 import { Tabs } from '../components/ui/Tabs';
-import { apiPost } from '../lib/apiClient';
+import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
 import { ActionDialog } from './ActionDialog';
@@ -45,16 +45,27 @@ export function AdminPayoutsPage() {
 
   const settle = async (reason?: string) => {
     if (!pending) return;
-    const { payout } = await apiPost<{ payout: PlatformPayoutJson }>(
-      `/admin/payouts/${encodeURIComponent(pending.payout.id)}/${pending.action}`,
-      pending.action === 'reject' ? { reason } : {},
-    );
+    let payout: PlatformPayoutJson;
+    try {
+      ({ payout } = await apiPost<{ payout: PlatformPayoutJson }>(
+        `/admin/payouts/${encodeURIComponent(pending.payout.id)}/${pending.action}`,
+        pending.action === 'reject' ? { reason } : {},
+      ));
+    } catch (e) {
+      // Another admin got there first: refresh so the row shows what happened; the dialog still shows why.
+      if (e instanceof ApiError && e.code === 'payout_not_pending') list.reload();
+      throw e;
+    }
     list.replace(payout);
     setPending(null);
   };
 
   const body = () => {
     if (list.state.status === 'error') {
+      // A role without platform.owners deep-linked here: retrying won't help.
+      if (list.state.error instanceof ApiError && list.state.error.status === 403) {
+        return <Alert tone="warning">{t('errors.forbidden')}</Alert>;
+      }
       return (
         <Alert tone="danger">
           <p className={styles.muted}>{errorMessage(list.state.error, t)}</p>
@@ -65,7 +76,25 @@ export function AdminPayoutsPage() {
       );
     }
     if (list.state.status !== 'ready') return <Skeleton kind="table" label={t('common.loading')} />;
-    if (rows.length === 0 && !list.more) return <EmptyState sport="tennis" title={t(`admin.payouts.empty.${filter}`)} />;
+    const more = (
+      <>
+        {list.moreError && <Alert tone="danger">{list.moreError}</Alert>}
+        {list.more && (
+          <Button className={styles.more} variant="secondary" icon="chevronDown" loading={list.loading} onClick={() => void list.loadMore()}>
+            {t('admin.loadMore')}
+          </Button>
+        )}
+      </>
+    );
+    // Every loaded row may have been reviewed while older pages remain: say so, and still offer the next page.
+    if (rows.length === 0) {
+      return (
+        <>
+          <EmptyState sport="tennis" title={t(`admin.payouts.empty.${filter}`)} />
+          {more}
+        </>
+      );
+    }
     return (
       <>
         <Table caption={t('admin.nav.payouts')}>
@@ -121,7 +150,7 @@ export function AdminPayoutsPage() {
                   </td>
                   <td>
                     {p.status === 'pending' && isManual(p) && (
-                      <span className={`${styles.actions} ${styles.nowrap}`}>
+                      <span className={styles.actions}>
                         <Button size="sm" variant="primary" onClick={() => setPending({ payout: p, action: 'confirm' })}>
                           {t('admin.payouts.confirm')}
                         </Button>
@@ -136,12 +165,7 @@ export function AdminPayoutsPage() {
             })}
           </tbody>
         </Table>
-        {list.moreError && <Alert tone="danger">{list.moreError}</Alert>}
-        {list.more && (
-          <Button className={styles.more} variant="secondary" icon="chevronDown" loading={list.loading} onClick={() => void list.loadMore()}>
-            {t('admin.loadMore')}
-          </Button>
-        )}
+        {more}
       </>
     );
   };

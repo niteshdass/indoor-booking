@@ -19,6 +19,19 @@ export const dayTime = (iso: string, lang: string) => `${formatDate(iso, localZo
 export const earnedText = (earned: CurrencyAmount[], lang: string) =>
   earned.length === 0 ? '—' : earned.map((e) => money(e.amount, e.currency, lang)).join(' · ');
 
+/** An email with a break opportunity right after the @, so a narrow column wraps it there and not mid-name. */
+export function EmailText({ value }: { value: string }) {
+  const at = value.indexOf('@');
+  if (at < 0) return <>{value}</>;
+  return (
+    <>
+      {value.slice(0, at + 1)}
+      <wbr />
+      {value.slice(at + 1)}
+    </>
+  );
+}
+
 /**
  * An owner's platform-fee balance per currency: what is owed, or a neutral "Credit ৳X" badge (absolute value)
  * when the owner has paid ahead. A dash when nothing is owed either way.

@@ -211,7 +211,8 @@
     "delivery_failed": "The message could not be sent.",
     "delivery_unconfigured": "Message delivery is not set up yet. Ask the platform admin.",
     "payout_not_manual": "Card payouts are confirmed by Stripe, not by hand.",
-    "payout_not_pending": "This payout was already reviewed. Reload to see its status."
+    "payout_not_pending": "Someone already reviewed this payout. The list now shows its status.",
+    "forbidden": "You don't have permission to see this."
   },
   "myBookings": {
     "title": "My bookings",

@@ -139,6 +139,11 @@ thead th.end {
   overflow-wrap: anywhere;
 }
 
+/* Emails wrap only at the <wbr> after the @ (EmailText), never mid-name. */
+.sub.email {
+  overflow-wrap: normal;
+}
+
 /* Search box and filters above a list. */
 .toolbar {
   display: flex;

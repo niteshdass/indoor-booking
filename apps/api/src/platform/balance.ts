@@ -3,8 +3,6 @@ import { FEE_OWING_STATUSES, STRIPE_PAYOUT_HOLD_MS, type CurrencyAmount, type Pl
 import { Booking } from '../bookings/booking.model';
 import { PlatformPayout } from './payout.model';
 
-export { STRIPE_PAYOUT_HOLD_MS };
-
 const oids = (ids: readonly string[]) => ids.map((id) => new mongoose.Types.ObjectId(id));
 
 type Key = { ownerId: unknown; currency: string };

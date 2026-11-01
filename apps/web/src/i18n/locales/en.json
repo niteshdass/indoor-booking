@@ -107,6 +107,12 @@
     "page": "Page {{page}}",
     "position": "{{page}} / {{count}}"
   },
+  "crash": {
+    "title": "Something went wrong",
+    "body": "This page hit an error. Reload to try again.",
+    "reload": "Reload",
+    "home": "Back to home"
+  },
   "notFound": {
     "title": "Page not found",
     "body": "The page you're looking for doesn't exist.",

@@ -80,7 +80,7 @@
   min-width: var(--control-sm);
   text-align: center;
   font-size: var(--text-sm);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .position {

@@ -275,7 +275,7 @@
   /* Center each label on its grid line. */
   margin-block: calc(var(--text-2xs) * -0.6);
   font-size: var(--text-2xs);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -370,7 +370,7 @@
   display: flex;
   padding-top: var(--space-1);
   font-size: var(--text-2xs);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .xLabels span {
@@ -616,7 +616,7 @@
 .heatHour,
 .heatDay {
   font-size: var(--text-2xs);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -667,7 +667,7 @@
   align-items: center;
   gap: var(--chart-gap);
   font-size: var(--text-2xs);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .scale .heatCell {

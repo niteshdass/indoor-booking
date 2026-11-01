@@ -69,6 +69,8 @@ Idea: the look of a sports court. Hard-court blue, chalk lines, a little ball-ye
 | primary-soft | #e2e5ea | rgba(214,239,63,.13) |
 | overlay | rgba(18,22,27,.5) | rgba(0,0,0,.6) |
 
+`text-subtle` is about 3:1, so it is for icons, disabled controls and decorative strokes only, never for text; text that should recede uses `text-muted` (a test guards it).
+
 Status (fg / soft): success #0b7350 / #dcf5ea (dark #3ccf95 / 13%), warning #8f5200 / #fdf0d5 (dark #f5b83d / 13%), danger #b3261e / #fdeceb (dark #ff7b72 / 13%), info #1f5fd1 / #e7effd (dark #6ea8ff / 13%). Every light fg passes WCAG AA 4.5:1 on its soft bg and on white at `--text-xs` (success 5.1:1, warning 5.5:1, danger 5.7:1, info 5.0:1 on soft); darkened 2026-11-01 from #0f8a5f / #b86a00 / #d0312d, which were 3.6–4.4:1.
 Chart series (themed, fixed order, never cycled; validated with the dataviz palette checker on `--bg-surface`): `--chart-1` #2a78d6 (dark #3987e5), `--chart-2` #eb6834 (dark #d95926), `--chart-3` #1baf7a (dark #199e70). Light `--chart-3` is under 3:1 on white, so it only appears with a visible label beside it (legend rows with amounts). Status colors stay for statuses; chart text stays in text tokens.
 
@@ -197,7 +199,7 @@ Leaflet with OpenStreetMap tiles. Tiles are always light, so they are never inve
   - Booked: subtle bg, subtle text, no border, not clickable, strike-free.
   - Held (another player is checking out): warning soft bg + warning fg.
   - Blocked / maintenance: subtle bg with 45° stripes in border-subtle.
-  - Past: text-subtle, not clickable.
+  - Past: text-muted on a dashed border, not clickable.
 - **Schedule (owner)**: courts as columns, time as rows (30/60 min); booking blocks use status soft bg + 3px left border in status fg; current-time line in danger, drawn behind each cell's text row so it never strikes through a label.
 - **Booking summary card**: venue, court, date, time range, line items, total 20px/600 tabular, CTA full width.
 - **Ratings**: stars use `--star-filled` (amber, lighter in dark) for a solid ★ and `--star-empty` (grey, 3:1 or more on the surface in light and dark) for an outline ☆, so filled and empty differ by shape as well as colour; 16px (`--star-size-sm`) or 24px (`--star-size-md`), drawn to the nearest half. An average shows as stars plus the number. Input stars are a radio group (arrow keys, visible focus ring) with a 36px (`--control-md`) hit area; the glyph is decorative and the label text names the radio.

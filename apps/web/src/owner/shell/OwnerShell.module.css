@@ -126,7 +126,7 @@
   padding-inline: var(--space-3);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .icon {

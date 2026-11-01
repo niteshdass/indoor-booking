@@ -154,7 +154,7 @@
 
 .empty {
   font-size: var(--text-base);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 /* Owner portal: one tappable row card */

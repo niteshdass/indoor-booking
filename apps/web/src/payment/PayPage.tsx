@@ -16,6 +16,7 @@ import { useCountdown } from './useCountdown';
 import { BookingLine, HoldPill } from './BookingLine';
 import { WalletPayForm, type ManualOutcome } from './WalletPayForm';
 import styles from './PayPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 type State =
   | { status: 'loading' }
@@ -278,6 +279,7 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
 export function PayPage() {
   const { id = '' } = useParams();
   const { t } = useTranslation();
+  useDocumentTitle(t('payment.title'));
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
 

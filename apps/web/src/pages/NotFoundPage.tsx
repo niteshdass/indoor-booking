@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import styles from './NotFoundPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 type Props = {
   /** Where the way-out button goes: the site home by default, the portal home inside a portal. */
@@ -12,6 +13,7 @@ type Props = {
 /** Unknown address or a record that no longer exists. Renders inside a shell, so no `<main>` of its own. */
 export function NotFoundPage({ home = '/', homeLabel }: Props) {
   const { t } = useTranslation();
+  useDocumentTitle(t('notFound.title'));
   return (
     <div className={styles.page}>
       <EmptyState

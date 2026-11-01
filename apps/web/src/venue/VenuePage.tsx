@@ -12,6 +12,7 @@ import { errorMessage } from '../lib/errors';
 import { formatRating } from '../lib/format';
 import type { PublicVenue } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { DateStrip } from './DateStrip';
 import { ReviewsSection } from './ReviewsSection';
 import { SlotsPanel } from './SlotsPanel';
@@ -128,6 +129,7 @@ export function VenuePage() {
     next.delete('slot');
     setParams(next, { replace: true });
   }, [params, setParams]);
+  useDocumentTitle(state.status === 'ready' ? state.venue.name : null);
 
   if (state.status === 'not_found') return <NotFoundPage />;
   if (state.status === 'loading') {

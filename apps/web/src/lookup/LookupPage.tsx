@@ -15,6 +15,7 @@ import { apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { BookingJson, CancellationPreview, OtpSent, RefundJson } from '../lib/types';
 import styles from './LookupPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const CANCELLABLE = new Set(['pending', 'confirmed']);
 
@@ -27,6 +28,7 @@ type State =
 
 export function LookupPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('lookup.title'));
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const urlRef = (params.get('reference') ?? '').trim().toUpperCase();

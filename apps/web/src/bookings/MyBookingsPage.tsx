@@ -12,6 +12,7 @@ import type { PlayerSeries } from '../series/types';
 import { BookingRow } from './BookingRow';
 import { MySeries } from './MySeries';
 import styles from './MyBookingsPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const UPCOMING_STATUSES = new Set(['awaiting_payment', 'pending', 'confirmed']);
 const TABS = ['upcoming', 'past'] as const;
@@ -24,6 +25,7 @@ type State = { status: 'loading' } | { status: 'ready'; bookings: BookingJson[];
 
 export function MyBookingsPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('myBookings.title'));
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState<Tab>('upcoming');

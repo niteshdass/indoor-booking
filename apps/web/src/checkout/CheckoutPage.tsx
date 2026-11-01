@@ -18,6 +18,7 @@ import { GuestForm, type GuestInput } from './GuestForm';
 import { useSubmitBooking } from './useSubmitBooking';
 import { checkoutHref, readCheckout, type CheckoutItem } from './checkoutParams';
 import styles from './CheckoutPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const DEBOUNCE_MS = 250;
 
@@ -45,6 +46,7 @@ export function CheckoutPage() {
   const [params] = useSearchParams();
   const { pathname, search } = useLocation();
   const { t, i18n } = useTranslation();
+  useDocumentTitle(t('checkout.title'));
   const { status: auth } = useAuth();
   const navigate = useNavigate();
   const parsed = useMemo(() => readCheckout(params), [params]);

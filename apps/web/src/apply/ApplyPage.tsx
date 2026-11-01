@@ -10,12 +10,14 @@ import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { countryOptions, currencyOptions } from '../lib/regions';
 import styles from '../auth/auth.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const NAME_MAX = 100;
 
 /** `/list-your-venue`: a signed-in player applies to run a business; it starts pending until an admin approves it. */
 export function ApplyPage() {
   const { t, i18n } = useTranslation();
+  useDocumentTitle(t('apply.title'));
   const navigate = useNavigate();
   const lang: Locale = (LOCALES as readonly string[]).includes(i18n.language) ? (i18n.language as Locale) : 'en';
   const [name, setName] = useState('');

@@ -25,6 +25,7 @@ import { playerReviewsRouter } from './reviews/routes/player';
 import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
+import { seoRouter } from './seo/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
 import { normalizePhone } from './auth/normalize';
 
@@ -151,6 +152,8 @@ export function createApp(deps: AppDeps): express.Express {
 
   deps.extraRoutes?.(api);
   app.use('/api/v1', api);
+  // Crawler files live at the site root; the host routes these paths here (docs/seo.md).
+  app.use(seoRouter(deps.config, limited ? limiter('seo', 300) : undefined));
 
   app.use(notFound);
   app.use(errorHandler);

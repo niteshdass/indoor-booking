@@ -7,9 +7,11 @@ import { TextField } from '../components/ui/TextField';
 import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import styles from './auth.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 export function ResetPasswordPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('auth.reset.title'));
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get('token');

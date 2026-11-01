@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import type { Config } from './config';
 import type { AppServices } from './services';
@@ -28,6 +29,7 @@ import { publicImagesRouter } from './images/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
 import { normalizeEmail, normalizePhone } from './auth/normalize';
 import { jobsTickRouter } from './jobs/tick';
+import { requestLogger } from './requestLog';
 
 export type AppDeps = {
   config: Config;
@@ -109,6 +111,9 @@ export function createApp(deps: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
   if (deps.config.trustProxy !== undefined) app.set('trust proxy', deps.config.trustProxy);
+  app.use(requestLogger(deps.config));
+  // The web app runs on another origin and shows images served from here.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   // credentials: the web app sends the httpOnly refresh cookie cross-origin.
   app.use(cors({ origin: deps.config.corsOrigin, credentials: true }));
   // Signatures cover the exact bytes, so webhooks take the raw body: before express.json() and every rate limiter.

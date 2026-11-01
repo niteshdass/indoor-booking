@@ -46,6 +46,22 @@ describe('app', () => {
     expect(res.status).toBe(503);
     expect(res.body).toEqual({ status: 'degraded', db: 'down' });
   });
+  it('sends security headers, letting the web app on another origin load API images', async () => {
+    const res = await request(app).get('/api/v1/health');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['strict-transport-security']).toMatch(/max-age=/);
+    expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
+    expect(res.headers['cross-origin-resource-policy']).toBe('cross-origin');
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+  it('tags every response with a request id, keeping a sane incoming one', async () => {
+    const fresh = await request(app).get('/api/v1/health');
+    expect(fresh.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    const kept = await request(app).get('/api/v1/health').set('X-Request-Id', 'edge-abc123');
+    expect(kept.headers['x-request-id']).toBe('edge-abc123');
+    const junk = await request(app).get('/api/v1/health').set('X-Request-Id', 'x'.repeat(300));
+    expect(junk.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+  });
   it('unknown route → 404 not_found', async () => {
     const res = await request(app).get('/api/v1/nope');
     expect(res.status).toBe(404);

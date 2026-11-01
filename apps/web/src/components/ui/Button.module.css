@@ -109,3 +109,11 @@
 .ball:hover:not(:disabled) {
   filter: brightness(1.05);
 }
+
+/* Fingers need 44px: on touch screens every size gets the lg height. */
+@media (pointer: coarse) {
+  .sm,
+  .md {
+    min-height: var(--control-lg);
+  }
+}

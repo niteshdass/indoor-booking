@@ -38,3 +38,10 @@
 .danger:hover {
   background: var(--danger-soft);
 }
+
+@media (pointer: coarse) {
+  .trigger {
+    width: var(--control-lg);
+    height: var(--control-lg);
+  }
+}

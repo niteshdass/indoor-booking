@@ -451,3 +451,15 @@
   cursor: default;
   background: var(--bg-subtle);
 }
+
+/* Touch screens: nav rows and the sign-out button get a 44px target. */
+@media (pointer: coarse) {
+  .link {
+    min-height: var(--control-lg);
+  }
+
+  .signOut {
+    width: var(--control-lg);
+    height: var(--control-lg);
+  }
+}

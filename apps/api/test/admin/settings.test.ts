@@ -191,12 +191,14 @@ describe('admin general settings', () => {
     });
 
     // A corrupt sealed secret cannot break resolveGeneral (it opens nothing); only the secret read fails.
-    const stored = await PlatformSettings.findById('platform').lean();
+    const stored = (await PlatformSettings.findById('platform').lean()) as unknown as {
+      general: { payout: { stripe: { keys: { test: { credentialsEncrypted: string } } } } };
+    };
     await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { 'general.payout.stripe.keys.test.credentialsEncrypted': 'garbage' } });
     clearSettingsCache();
     expect((await resolveGeneral(ctx.config)).payout.stripe).toMatchObject({ mode: 'test' });
     expect(await resolvePayoutStripe(ctx.config)).toBeNull();
-    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { 'general.payout.stripe.keys.test.credentialsEncrypted': (stored as any).general.payout.stripe.keys.test.credentialsEncrypted } });
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { 'general.payout.stripe.keys.test.credentialsEncrypted': stored.general.payout.stripe.keys.test.credentialsEncrypted } });
     clearSettingsCache();
 
     expect((await put('/admin/settings/payout-stripe', { ...keys, mode: 'live' })).status).toBe(400);

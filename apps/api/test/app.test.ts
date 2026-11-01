@@ -40,6 +40,12 @@ describe('app', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok', db: 'up' });
   });
+  it('GET /api/v1/health is 503 while the db is down, so load balancers stop routing here', async () => {
+    const down = createApp({ config, dbState: () => 'down', services: makeTestServices() });
+    const res = await request(down).get('/api/v1/health');
+    expect(res.status).toBe(503);
+    expect(res.body).toEqual({ status: 'degraded', db: 'down' });
+  });
   it('unknown route → 404 not_found', async () => {
     const res = await request(app).get('/api/v1/nope');
     expect(res.status).toBe(404);

@@ -220,4 +220,21 @@ describe('rate limit', () => {
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('rate_limited');
   });
+  it('locks an account after 10 failed logins, whatever address they come from', async () => {
+    await register(body);
+    const limited = buildTestApp({ services: ctx.services, rateLimit: true, config: { trustProxy: 1 } });
+    let ip = 0;
+    const attempt = (email: string, password: string) =>
+      request(limited.app)
+        .post('/api/v1/auth/login')
+        .set('X-Forwarded-For', `203.0.113.${(ip += 1)}`)
+        .send({ email, password });
+    // Successful sign-ins do not count towards the lockout.
+    expect((await attempt('ana@x.com', body.password)).status).toBe(200);
+    for (let i = 0; i < 10; i++) expect((await attempt(i % 2 ? 'ana@x.com' : ' ANA@x.com', 'wrong-pass')).status).toBe(401);
+    const locked = await attempt('ana@x.com', body.password);
+    expect(locked.status).toBe(429);
+    expect(locked.body.error.code).toBe('rate_limited');
+    expect((await attempt('bob@x.com', 'wrong-pass')).status).toBe(401);
+  });
 });

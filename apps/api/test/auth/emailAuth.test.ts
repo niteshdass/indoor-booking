@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
@@ -177,6 +177,24 @@ describe('password reset', () => {
     const res = await forgot('ghost@x.com');
     expect(res.status).toBe(202);
     expect(ctx.services.email.sent).toHaveLength(0);
+  });
+  it('forgot answers before the email is sent, so a slow mailer does not reveal the account', async () => {
+    await register(body);
+    ctx.services.email.send = () => new Promise(() => {});
+    const res = await forgot('ana@x.com');
+    expect(res.status).toBe(202);
+    expect(await PasswordReset.countDocuments({})).toBe(1);
+  });
+  it('forgot still answers 202 when the mailer fails, and logs the failure', async () => {
+    await register(body);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    ctx.services.email.send = async () => {
+      throw new Error('smtp down');
+    };
+    const res = await forgot('ana@x.com');
+    await vi.waitFor(() => expect(spy).toHaveBeenCalled());
+    spy.mockRestore();
+    expect(res.status).toBe(202);
   });
   it('reset token older than 1 hour → 400 invalid_reset_token', async () => {
     await register(body);

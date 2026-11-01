@@ -22,7 +22,14 @@ void i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+function setDocumentLang(lng: string): void {
+  if (typeof document !== 'undefined') document.documentElement.lang = lng;
+}
+
+setDocumentLang(i18n.language);
+
 i18n.on('languageChanged', (lng) => {
+  setDocumentLang(lng);
   try {
     localStorage.setItem(STORAGE_KEY, lng);
   } catch {

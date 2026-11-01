@@ -176,7 +176,7 @@ export type AdminSettingsJson = {
 };
 
 /** Seeded accounts a visitor can sign in as on a demo deploy, one button each. */
-export const DEMO_ROLES = ['admin', 'owner', 'staff', 'player'] as const;
+export const DEMO_ROLES = ['admin', 'owner', 'player'] as const;
 export type DemoRole = (typeof DEMO_ROLES)[number];
 
 /** Public sign-in options for the login page. `demo` is true on a demo deploy (DEMO_MODE=true). */

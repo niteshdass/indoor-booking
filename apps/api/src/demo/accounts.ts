@@ -8,6 +8,5 @@ export const SEED_EMAIL_DOMAIN = 'seed.local';
 export const DEMO_ACCOUNTS: Record<DemoRole, string> = {
   admin: `admin@${SEED_EMAIL_DOMAIN}`,
   owner: `owner@${SEED_EMAIL_DOMAIN}`,
-  staff: `staff.owner@${SEED_EMAIL_DOMAIN}`,
   player: `player1@${SEED_EMAIL_DOMAIN}`,
 };

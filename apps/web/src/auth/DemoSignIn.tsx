@@ -10,7 +10,7 @@ import type { AuthResponse } from '../lib/types';
 import { authProviders } from './providers';
 import styles from './auth.module.css';
 
-const ICONS: Record<DemoRole, IconName> = { admin: 'key', owner: 'venue', staff: 'calendarCheck', player: 'person' };
+const ICONS: Record<DemoRole, IconName> = { admin: 'key', owner: 'venue', player: 'person' };
 
 /** One button per seeded role on a demo deploy (DEMO_MODE=true), with an "or" rule under it; renders nothing otherwise. */
 export function DemoSignIn({ onSignedIn }: { onSignedIn(res: AuthResponse): void }) {

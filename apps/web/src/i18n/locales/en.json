@@ -89,11 +89,10 @@
     },
     "demo": {
       "title": "Try the demo",
-      "lead": "Sign in as any role with one tap. API keys and account details are locked here.",
+      "lead": "Sign in as admin, owner or player with one tap. API keys and account details are locked here.",
       "roles": {
         "admin": "Admin",
         "owner": "Venue owner",
-        "staff": "Front desk",
         "player": "Player"
       }
     }

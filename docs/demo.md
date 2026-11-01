@@ -38,7 +38,6 @@ The seed creates these accounts, which the demo buttons sign into. Each has the 
 |-------------|--------------------------|
 | Admin       | `admin@seed.local`       |
 | Venue owner | `owner@seed.local`       |
-| Front desk  | `staff.owner@seed.local` |
 | Player      | `player1@seed.local`     |
 
 If the database has not been seeded, the buttons show "The demo data isn't loaded yet."

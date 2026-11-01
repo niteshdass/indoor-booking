@@ -116,7 +116,8 @@
   "notFound": {
     "title": "Page not found",
     "body": "The page you're looking for doesn't exist.",
-    "home": "Back to home"
+    "home": "Back to home",
+    "portal": "Back to the portal"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

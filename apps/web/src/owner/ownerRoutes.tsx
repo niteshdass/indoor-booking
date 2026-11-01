@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes, useParams } from 'react-router';
+import { useTranslation } from 'react-i18next';
+import { NotFoundPage } from '../pages/NotFoundPage';
 import { ActivityPage } from './activity/ActivityPage';
 import { AddonsPage } from './addons/AddonsPage';
 import { BookingsPage } from './bookings/BookingsPage';
@@ -45,6 +47,13 @@ function OwnerHome() {
   return <Navigate to={first?.to ?? 'today'} replace />;
 }
 
+/** Unknown page inside a team: stays in the portal shell and leads back to its home. */
+function OwnerNotFound() {
+  const { t } = useTranslation();
+  const { ownerId } = useParams();
+  return <NotFoundPage home={`/owner/${ownerId}`} homeLabel={t('notFound.portal')} />;
+}
+
 /** The `/owner/*` tree. */
 export function OwnerRoutes() {
   return (
@@ -81,6 +90,7 @@ export function OwnerRoutes() {
         <Route path="staff" element={<Guarded nav="staff"><StaffPage /></Guarded>} />
         <Route path="reviews" element={<Guarded nav="reviews"><ReviewsPage /></Guarded>} />
         <Route path="activity" element={<Guarded nav="activity"><ActivityPage /></Guarded>} />
+        <Route path="*" element={<OwnerNotFound />} />
       </Route>
     </Routes>
   );

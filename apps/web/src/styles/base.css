@@ -129,13 +129,13 @@ h2 {
       display var(--duration-fast) allow-discrete;
   }
 
-  ::picker(select):popover-open {
+  select:open::picker(select) {
     opacity: 1;
     translate: 0 0;
   }
 
   @starting-style {
-    ::picker(select):popover-open {
+    select:open::picker(select) {
       opacity: 0;
       translate: 0 calc(-1 * var(--space-1));
     }

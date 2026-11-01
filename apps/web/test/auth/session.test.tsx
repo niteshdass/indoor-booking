@@ -21,7 +21,7 @@ const user: PublicUser = {
   hasGoogle: false,
   platformAdmin: false,
 };
-const authRes = { user, accessToken: 'fresh-token', refreshToken: 'r' };
+const authRes = { user, accessToken: 'fresh-token' };
 
 function Probe() {
   const { status, user: u, signOut } = useAuth();

@@ -80,7 +80,7 @@ describe('GoogleButton', () => {
   });
 
   it('credential posts idToken and signs in', async () => {
-    const api = mockApi([providers, { method: 'POST', path: '/auth/google', body: { user, accessToken: 'tok', refreshToken: 'r' } }]);
+    const api = mockApi([providers, { method: 'POST', path: '/auth/google', body: { user, accessToken: 'tok' } }]);
     const h = renderApp('/register?next=%2Fme%2Fbookings');
     await waitFor(() => expect(init).not.toBeNull());
     await act(async () => init?.callback({ credential: 'tok' }));

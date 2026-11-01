@@ -14,7 +14,8 @@ export type PublicUser = {
   platformAdmin: boolean;
 };
 
-export type AuthResponse = { user: PublicUser; accessToken: string; refreshToken: string };
+/** The refresh token never appears here: it travels only in the httpOnly `rt` cookie. */
+export type AuthResponse = { user: PublicUser; accessToken: string };
 
 export type PublicTurf = { id: string; name: string; sports: Sport[]; indoor: boolean; slotLengthMin: number };
 

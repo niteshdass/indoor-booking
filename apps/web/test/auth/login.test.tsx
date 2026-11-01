@@ -17,7 +17,7 @@ const user: PublicUser = {
   hasGoogle: false,
   platformAdmin: false,
 };
-const authRes = { user, accessToken: 'tok', refreshToken: 'r' };
+const authRes = { user, accessToken: 'tok' };
 const otpSent = { expiresInSec: 300, resendInSec: 60 };
 
 beforeEach(async () => {

@@ -8,6 +8,7 @@ import { makeTestServices } from '../helpers/testServices';
 import { loadConfig } from '../../src/config';
 import { User } from '../../src/auth/user.model';
 import { RefreshToken } from '../../src/auth/refreshToken.model';
+import { refreshCookie } from '../helpers/refreshCookie';
 import { OtpCode } from '../../src/auth/otp.model';
 import { OtpThrottle } from '../../src/auth/otpThrottle.model';
 import { issueTokens, rotateRefreshToken } from '../../src/auth/tokens';
@@ -32,10 +33,10 @@ describe('C-1 refresh race', () => {
     const uid = (await User.create({ name: 'A' })).id as string;
     const t = await issueTokens(uid, ctx.services, ctx.config);
     const send = (rt: string) =>
-      request(ctx.app).post('/api/v1/auth/refresh').send({ refreshToken: rt });
+      request(ctx.app).post('/api/v1/auth/refresh').set('Cookie', `rt=${rt}`);
     const results = await Promise.all([send(t.refreshToken), send(t.refreshToken)]);
     for (const r of results.filter((r) => r.status === 200)) {
-      expect((await send(r.body.refreshToken)).status).toBe(401);
+      expect((await send(refreshCookie(r)!)).status).toBe(401);
     }
     expect(await RefreshToken.countDocuments({ revokedAt: { $exists: false } })).toBe(0);
   });
@@ -60,7 +61,7 @@ describe('C-1 refresh race', () => {
     const uid = (await User.create({ name: 'A' })).id as string;
     const t = await issueTokens(uid, ctx.services, ctx.config);
     const send = () =>
-      request(ctx.app).post('/api/v1/auth/refresh').send({ refreshToken: t.refreshToken });
+      request(ctx.app).post('/api/v1/auth/refresh').set('Cookie', `rt=${t.refreshToken}`);
     await send();
     await send();
     const third = await send();

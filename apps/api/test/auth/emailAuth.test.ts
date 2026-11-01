@@ -4,6 +4,7 @@ import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
 import { User } from '../../src/auth/user.model';
 import { RefreshToken } from '../../src/auth/refreshToken.model';
+import { refreshCookie } from '../helpers/refreshCookie';
 import { PasswordReset } from '../../src/auth/passwordReset.model';
 import { OtpCode } from '../../src/auth/otp.model';
 import { OtpThrottle } from '../../src/auth/otpThrottle.model';
@@ -62,7 +63,8 @@ describe('register', () => {
     });
     expect(res.body.user.passwordHash).toBeUndefined();
     expect(typeof res.body.accessToken).toBe('string');
-    expect(typeof res.body.refreshToken).toBe('string');
+    expect(res.body.refreshToken).toBeUndefined();
+    expect(typeof refreshCookie(res)).toBe('string');
     expect((await User.findOne({ email: 'ana@x.com' }))?.phoneVerified).toBe(true);
   });
   it('no phone or code → 400 validation_error', async () => {
@@ -165,7 +167,7 @@ describe('password reset', () => {
     expect((await login({ email: 'ana@x.com', password: 'newsecret1' })).status).toBe(200);
     const old = await request(ctx.app)
       .post('/api/v1/auth/refresh')
-      .send({ refreshToken: reg.body.refreshToken });
+      .set('Cookie', `rt=${refreshCookie(reg)}`);
     expect(old.status).toBe(401);
     const again = await reset(token, 'another12');
     expect(again.status).toBe(400);

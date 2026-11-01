@@ -125,6 +125,7 @@ export function sendAuthResponse(
   tokens: Tokens,
   config: Config,
 ): void {
+  // The refresh token lives only in the httpOnly cookie; a body copy would be readable by any injected script.
   setRefreshCookie(res, tokens.refreshToken, config);
-  res.status(status).json({ user: toPublicUser(user), ...tokens });
+  res.status(status).json({ user: toPublicUser(user), accessToken: tokens.accessToken });
 }

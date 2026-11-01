@@ -1,5 +1,4 @@
 import { Router, type Request } from 'express';
-import { z } from 'zod';
 import type { AuthDeps } from '../deps';
 import {
   REFRESH_COOKIE,
@@ -10,12 +9,10 @@ import {
 } from '../tokens';
 import { AppError } from '../../errors';
 
-const bodySchema = z.object({ refreshToken: z.string().min(1).optional() }).default({});
-
+/** The refresh token is read from the httpOnly cookie only; a token in the body is ignored. */
 function presentedToken(req: Request): string | undefined {
-  const fromBody = bodySchema.parse(req.body ?? {}).refreshToken;
   const fromCookie = (req.cookies as Record<string, unknown> | undefined)?.[REFRESH_COOKIE];
-  return fromBody ?? (typeof fromCookie === 'string' && fromCookie ? fromCookie : undefined);
+  return typeof fromCookie === 'string' && fromCookie ? fromCookie : undefined;
 }
 
 export function sessionRouter({ config, services }: AuthDeps): Router {

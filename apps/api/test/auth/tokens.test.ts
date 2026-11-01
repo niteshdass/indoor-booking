@@ -8,6 +8,7 @@ import { RefreshToken } from '../../src/auth/refreshToken.model';
 import { issueTokens } from '../../src/auth/tokens';
 import { requireAuth } from '../../src/auth/requireAuth';
 import { signAccessToken } from '../../src/auth/jwt';
+import { refreshCookie } from '../helpers/refreshCookie';
 
 beforeAll(async () => {
   await startTestDb();
@@ -34,26 +35,30 @@ beforeEach(async () => {
   uid = (await User.create({ name: 'A' })).id;
 });
 
-const refresh = (body: object) => request(ctx.app).post('/api/v1/auth/refresh').send(body);
+const refresh = (rt?: string) => {
+  const req = request(ctx.app).post('/api/v1/auth/refresh');
+  return rt === undefined ? req : req.set('Cookie', `rt=${rt}`);
+};
 
 describe('refresh tokens', () => {
   it('refresh rotates the token', async () => {
     const t = await issueTokens(uid, ctx.services, ctx.config);
-    const res = await refresh({ refreshToken: t.refreshToken });
+    const res = await refresh(t.refreshToken);
     expect(res.status).toBe(200);
     expect(res.body.user.id).toBe(uid);
     expect(typeof res.body.accessToken).toBe('string');
-    expect(res.body.refreshToken).not.toBe(t.refreshToken);
+    expect(res.body.refreshToken).toBeUndefined();
     expect(res.headers['set-cookie']?.[0]).toMatch(/^rt=.*HttpOnly/);
+    expect(refreshCookie(res)).not.toBe(t.refreshToken);
   });
 
   it('reusing a rotated token → 401 token_reused and kills the family', async () => {
     const t = await issueTokens(uid, ctx.services, ctx.config);
-    const r1 = await refresh({ refreshToken: t.refreshToken });
-    const r2 = await refresh({ refreshToken: t.refreshToken });
+    const r1 = await refresh(t.refreshToken);
+    const r2 = await refresh(t.refreshToken);
     expect(r2.status).toBe(401);
     expect(r2.body.error.code).toBe('token_reused');
-    const r3 = await refresh({ refreshToken: r1.body.refreshToken });
+    const r3 = await refresh(refreshCookie(r1));
     expect(r3.status).toBe(401);
     expect(r3.body.error.code).toBe('invalid_refresh_token');
   });
@@ -67,14 +72,21 @@ describe('refresh tokens', () => {
   });
 
   it('missing or unknown refresh token → 401 invalid_refresh_token', async () => {
-    expect((await refresh({})).body.error.code).toBe('invalid_refresh_token');
-    expect((await refresh({ refreshToken: 'nope' })).body.error.code).toBe('invalid_refresh_token');
+    expect((await refresh()).body.error.code).toBe('invalid_refresh_token');
+    expect((await refresh('nope')).body.error.code).toBe('invalid_refresh_token');
+  });
+
+  it('a refresh token in the body is ignored', async () => {
+    const t = await issueTokens(uid, ctx.services, ctx.config);
+    const res = await request(ctx.app).post('/api/v1/auth/refresh').send({ refreshToken: t.refreshToken });
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('invalid_refresh_token');
   });
 
   it('expired refresh token → 401 invalid_refresh_token', async () => {
     const t = await issueTokens(uid, ctx.services, ctx.config);
     ctx.services.clock.advance(31 * 24 * 3600_000);
-    const res = await refresh({ refreshToken: t.refreshToken });
+    const res = await refresh(t.refreshToken);
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('invalid_refresh_token');
   });
@@ -82,7 +94,7 @@ describe('refresh tokens', () => {
   it('refresh for a disabled user → 403 account_disabled', async () => {
     const t = await issueTokens(uid, ctx.services, ctx.config);
     await User.updateOne({ _id: uid }, { status: 'disabled' });
-    const res = await refresh({ refreshToken: t.refreshToken });
+    const res = await refresh(t.refreshToken);
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('account_disabled');
   });
@@ -91,10 +103,10 @@ describe('refresh tokens', () => {
     const t = await issueTokens(uid, ctx.services, ctx.config);
     const out = await request(ctx.app)
       .post('/api/v1/auth/logout')
-      .send({ refreshToken: t.refreshToken });
+      .set('Cookie', `rt=${t.refreshToken}`);
     expect(out.status).toBe(204);
     expect(out.headers['set-cookie']?.[0]).toMatch(/^rt=;/);
-    const res = await refresh({ refreshToken: t.refreshToken });
+    const res = await refresh(t.refreshToken);
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('invalid_refresh_token');
   });

@@ -181,9 +181,9 @@ describe('admin settings: General', () => {
     const fee = await card(g.fee.title);
     await h.user.click(within(fee).getByRole('radio', { name: g.mode.percent }));
     await h.user.type(within(fee).getByLabelText(g.fee.percent), '5');
-    expect(within(fee).getByText(/^Court .*1,000\.00 → player pays .*1,000\.00, owner owes you .*50\.00$/)).toBeInTheDocument();
+    expect(within(fee).getByText(/^Turf .*1,000\.00 → player pays .*1,000\.00, owner owes you .*50\.00$/)).toBeInTheDocument();
     await h.user.click(within(fee).getByRole('radio', { name: g.payer.player }));
-    expect(within(fee).getByText(/^Court .*1,000\.00 → player pays .*1,050\.00/)).toBeInTheDocument();
+    expect(within(fee).getByText(/^Turf .*1,000\.00 → player pays .*1,050\.00/)).toBeInTheDocument();
   });
 
   it('saves general', async () => {

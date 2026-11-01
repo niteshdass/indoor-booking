@@ -365,7 +365,7 @@ describe('VenuePage slots', () => {
     expect(screen.getByRole('tab', { name: /Court A/ })).toHaveAccessibleName(expect.stringContaining('1 slot picked'));
     await user.click(screen.getByRole('button', { name: /10:00/ }));
     const summary = screen.getByRole('complementary', { name: en.slots.summary });
-    expect(summary).toHaveTextContent('2 courts');
+    expect(summary).toHaveTextContent('2 turfs');
     const href = screen.getByRole('link', { name: en.slots.continue }).getAttribute('href')!;
     const q = new URL(href, 'http://x').searchParams;
     expect(q.get('turf')).toBe(venue.turfs[0]!.id);

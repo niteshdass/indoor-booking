@@ -118,7 +118,7 @@ export const docsEn: Docs = {
                 rows: [
                   ['Free', 'No fee. Nothing is owed, and no fee shows anywhere: not at checkout, not on bookings, not in the owner portal.'],
                   ['Fixed', 'The same amount on every booking, in that booking\'s own currency: 50 means ৳50 on a BDT venue and $50 on a USD one. Run a single-currency platform to keep this simple.'],
-                  ['Percent', 'A share of court time plus extras, above 0% and up to 50%, at most 2 decimals. It is rounded to the nearest poisha or cent.'],
+                  ['Percent', 'A share of turf time plus extras, above 0% and up to 50%, at most 2 decimals. It is rounded to the nearest poisha or cent.'],
                 ],
               },
             },
@@ -135,7 +135,7 @@ export const docsEn: Docs = {
           id: 'payer',
           title: 'Who pays the fee',
           blocks: [
-            { p: 'Either way the owner owes you the fee: the player pays the venue, never you. The choice only changes what the player is charged. Example with a fixed fee of 50 on a Court that costs 1,000:' },
+            { p: 'Either way the owner owes you the fee: the player pays the venue, never you. The choice only changes what the player is charged. Example with a fixed fee of 50 on a turf that costs 1,000:' },
             {
               table: {
                 head: ['Who pays', 'Player pays', 'Owner owes you'],
@@ -194,8 +194,8 @@ export const docsEn: Docs = {
           id: 'sports',
           title: 'Sports on offer',
           blocks: [
-            { p: 'Admin > Settings > Sports lists every sport. Ticked sports show as tiles on the home page and in the sport pickers of search and the court forms, in the order of the list; use the arrows to move one up or down, then Save sports.' },
-            { p: 'Switching a sport off hides it from new choices only. Courts that already have it keep it and still show in search for it. At least one sport stays on.' },
+            { p: 'Admin > Settings > Sports lists every sport. Ticked sports show as tiles on the home page and in the sport pickers of search and the turf forms, in the order of the list; use the arrows to move one up or down, then Save sports.' },
+            { p: 'Switching a sport off hides it from new choices only. Turfs that already have it keep it and still show in search for it. At least one sport stays on.' },
           ],
         },
         {

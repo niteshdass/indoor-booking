@@ -98,14 +98,14 @@ const CLASH_LABELS: Record<Locale, Record<SeriesClashReason, string>> = {
     closed: 'the venue is closed',
     past: 'already in the past',
     taken: 'already booked',
-    blocked: 'the court is blocked',
+    blocked: 'the turf is blocked',
     outside_hours: 'outside opening hours',
   },
   ru: {
     closed: 'площадка закрыта',
     past: 'время уже прошло',
     taken: 'уже занято',
-    blocked: 'корт недоступен',
+    blocked: 'поле недоступно',
     outside_hours: 'вне часов работы',
   },
 };
@@ -283,7 +283,7 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
     }),
     ru: ({ d, gameCount, firstGame }) => ({
       subject: `Новая заявка на регулярное бронирование (${d.reference})`,
-      lead: `${d.customerName ?? 'Клиент'} просит забронировать корт на регулярной основе: ${ruGames(gameCount)}. Примите или отклоните заявку.`,
+      lead: `${d.customerName ?? 'Клиент'} просит забронировать поле на регулярной основе: ${ruGames(gameCount)}. Примите или отклоните заявку.`,
       sms: `Заявка на регулярные игры от ${d.customerName ?? 'клиента'}: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
     }),
   },

@@ -68,7 +68,7 @@ describe('request weekly booking', () => {
     mockApi(baseRoutes());
     renderApp('/venues/arena-one?date=2026-10-26');
     await screen.findByRole('tab', { name: /Court A/ });
-    await screen.findByText(/10:00|Pick|slot/i);
+    expect((await screen.findAllByText(/10:00|Pick|slot/i)).length).toBeGreaterThan(0);
     expect(screen.queryByRole('link', { name: en.series.player.requestLink })).not.toBeInTheDocument();
   });
 

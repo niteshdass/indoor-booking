@@ -69,7 +69,7 @@ Idea: the look of a sports court. Hard-court blue, chalk lines, a little ball-ye
 | primary-soft | #e2e5ea | rgba(214,239,63,.13) |
 | overlay | rgba(18,22,27,.5) | rgba(0,0,0,.6) |
 
-Status (fg / soft): success #0f8a5f / #dcf5ea (dark #3ccf95 / 13%), warning #b86a00 / #fdf0d5 (dark #f5b83d / 13%), danger #d0312d / #fdeceb (dark #ff7b72 / 13%), info #1f5fd1 / #e7effd (dark #6ea8ff / 13%). Light warning was darkened from #d97706 to pass 4.5:1 on its soft bg.
+Status (fg / soft): success #0b7350 / #dcf5ea (dark #3ccf95 / 13%), warning #8f5200 / #fdf0d5 (dark #f5b83d / 13%), danger #b3261e / #fdeceb (dark #ff7b72 / 13%), info #1f5fd1 / #e7effd (dark #6ea8ff / 13%). Every light fg passes WCAG AA 4.5:1 on its soft bg and on white at `--text-xs` (success 5.1:1, warning 5.5:1, danger 5.7:1, info 5.0:1 on soft); darkened 2026-11-01 from #0f8a5f / #b86a00 / #d0312d, which were 3.6–4.4:1.
 Chart series (themed, fixed order, never cycled; validated with the dataviz palette checker on `--bg-surface`): `--chart-1` #2a78d6 (dark #3987e5), `--chart-2` #eb6834 (dark #d95926), `--chart-3` #1baf7a (dark #199e70). Light `--chart-3` is under 3:1 on white, so it only appears with a visible label beside it (legend rows with amounts). Status colors stay for statuses; chart text stays in text tokens.
 
 Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set, follow `prefers-color-scheme`. Dark is neutral graphite.

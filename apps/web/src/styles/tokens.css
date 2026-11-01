@@ -207,11 +207,11 @@
   --star-filled: #d27005;
   --overlay: rgba(18, 22, 27, 0.5);
 
-  --success: #0f8a5f;
+  --success: #0b7350;
   --success-soft: #dcf5ea;
-  --warning: #b86a00;
+  --warning: #8f5200;
   --warning-soft: #fdf0d5;
-  --danger: #d0312d;
+  --danger: #b3261e;
   --danger-soft: #fdeceb;
   --info: #1f5fd1;
   --info-soft: #e7effd;

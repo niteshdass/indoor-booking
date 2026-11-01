@@ -8,6 +8,7 @@
     "name": "BookaTurf"
   },
   "nav": {
+    "skip": "Skip to content",
     "label": "Main navigation",
     "lookup": "Find my booking",
     "signIn": "Sign in",

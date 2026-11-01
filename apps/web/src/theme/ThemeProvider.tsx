@@ -20,9 +20,22 @@ function readStored(): Theme {
   }
 }
 
+/** index.html ships one theme-color per colour scheme; a picked theme makes both show its page colour. */
+function syncThemeColor(theme: Theme) {
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg-page').trim();
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    meta.dataset.media ??= meta.getAttribute('media') ?? '';
+    meta.dataset.content ??= meta.getAttribute('content') ?? '';
+    const picked = theme !== 'system' && bg !== '';
+    meta.setAttribute('media', picked ? 'all' : meta.dataset.media);
+    meta.setAttribute('content', picked ? bg : meta.dataset.content);
+  }
+}
+
 function apply(theme: Theme) {
   if (theme === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = theme;
+  syncThemeColor(theme);
 }
 
 const ThemeContext = createContext<{ theme: Theme; setTheme: (t: Theme) => void } | null>(null);

@@ -74,7 +74,7 @@ Web and API run in one Vercel project on the Hobby plan. `scripts/vercel-build.m
 1. On Vercel, click **Add New > Project** and import the repo. Leave **Root Directory** at the repo root. `vercel.json` sets the install and build commands.
 2. Under **Settings > Git**, set the production branch to `demo`.
 3. Under **Settings > Environment Variables**, add the step 3 variables, with these changes:
-   - `APP_URL` and `CORS_ORIGIN`: the project URL, for example `https://slot-demo.vercel.app`.
+   - `APP_URL`, `CORS_ORIGIN` and `API_URL`: the project URL, for example `https://slot-demo.vercel.app`. `API_URL` builds photo and webhook links.
    - `TRUST_PROXY`: `1`.
    - `CRON_SECRET`: `openssl rand -hex 32`.
    - Don't set `VITE_API_URL`. The app calls `/api/v1` on its own domain.

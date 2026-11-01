@@ -74,24 +74,31 @@ Already solid (don't re-do): tenancy scoping at model level, booking transaction
 
 ## Phase 1 — Launch hardening (first week live)
 
-- [ ] **P1-01 Payment index.** Add `{bookingId:1, kind:1, status:1}` to `apps/api/src/bookings/payment.model.ts`; queries at `bookings/routes/public.ts:127`, `jobs/sweeps.ts:120,177` scan today.
-- [ ] **P1-02 Stripe refunds/disputes from dashboard.** Handle `charge.refunded`, `charge.dispute.created/closed` in `payments/stripe.ts:138-165`; sync refund rows, flag booking, notify owner.
-- [ ] **P1-03 Job cadence.** Vercel Hobby cron = daily; reminders can lag 24h. Use paid cron or external pinger every 1–5 min hitting `serverless.ts` (compare `CRON_SECRET` with `timingSafeEqual`).
-- [ ] **P1-04 Health check reflects DB.** `routes/health.ts` → 503 when DB down.
-- [ ] **P1-05 TTL on token tables.** `expireAfterSeconds: 0` on `expiresAt` for RefreshToken, OTP, PasswordReset.
-- [ ] **P1-06 Forgot-password enumeration.** `auth/routes/emailAuth.ts:86-103` — queue via outbox, always 200.
-- [ ] **P1-07 Per-account login lockout.** Limiter keyed on email in addition to IP.
-- [ ] **P1-08 Security headers + request logs.** `helmet()` + `pino-http` with request id in `app.ts`.
-- [ ] **P1-09 SEO + share previews.** Per-route `document.title`; OG/Twitter tags for `/venues/:slug` via Vercel edge rewrite or API-rendered HTML; `robots.txt`, `sitemap.xml`, meta description in `index.html`.
-- [ ] **P1-10 `<html lang>` follows language.** Set `document.documentElement.lang` in `i18n/index.ts:26` `languageChanged`.
-- [ ] **P1-11 Timeline status not by colour alone.** `owner/today/CourtTimeline.tsx:285-298` — add icon/pattern per kind (e.g. dashed for waiting).
-- [ ] **P1-12 Code-split.** `lazy()` Leaflet components (`VenueAbout`, `LocationPicker`) and `/owner/*`, `/admin/*` route trees. Target main chunk < 500 KB.
-- [ ] **P1-13 Catch-all routes + styled 404.** `path="*"` in `ownerRoutes.tsx`, `adminRoutes.tsx`; `pages/NotFoundPage.tsx` uses EmptyState.
-- [ ] **P1-14 Touch targets ≥ 44px on phones.** `(pointer: coarse)` → `min-height: var(--control-lg)` for buttons/nav (`Button.module.css`, `AppShell.module.css:59`).
-- [ ] **P1-15 `--text-subtle` used as text.** 3.0:1 — switch text uses to `--text-muted`.
-- [ ] **P1-16 Skip link, PWA manifest, theme-color, apple-touch-icon.**
-- [ ] **P1-17 Error reporting.** Sentry (web boundary + API error handler).
-- [ ] **P1-18 Brand leftover.** `admin/AdminSettingsPage.tsx:151` placeholder still says "Slots".
+- [x] **P1-01 Payment index.** Add `{bookingId:1, kind:1, status:1}` to `apps/api/src/bookings/payment.model.ts`; queries at `bookings/routes/public.ts:127`, `jobs/sweeps.ts:120,177` scan today.
+- [x] **P1-02 Stripe refunds/disputes from dashboard.** Handle `charge.refunded`, `charge.dispute.created/closed` in `payments/stripe.ts:138-165`; sync refund rows, flag booking, notify owner.
+- [x] **P1-03 Job cadence.** Vercel Hobby cron = daily; reminders can lag 24h. Use paid cron or external pinger every 1–5 min hitting `serverless.ts` (compare `CRON_SECRET` with `timingSafeEqual`).
+- [x] **P1-04 Health check reflects DB.** `routes/health.ts` → 503 when DB down.
+- [x] **P1-05 TTL on token tables.** `expireAfterSeconds: 0` on `expiresAt` for RefreshToken, OTP, PasswordReset.
+- [x] **P1-06 Forgot-password enumeration.** `auth/routes/emailAuth.ts:86-103` — queue via outbox, always 200.
+- [x] **P1-07 Per-account login lockout.** Limiter keyed on email in addition to IP.
+- [x] **P1-08 Security headers + request logs.** `helmet()` + `pino-http` with request id in `app.ts`.
+- [x] **P1-09 SEO + share previews.** Per-route `document.title`; OG/Twitter tags for `/venues/:slug` via Vercel edge rewrite or API-rendered HTML; `robots.txt`, `sitemap.xml`, meta description in `index.html`.
+- [x] **P1-10 `<html lang>` follows language.** Set `document.documentElement.lang` in `i18n/index.ts:26` `languageChanged`.
+- [x] **P1-11 Timeline status not by colour alone.** `owner/today/CourtTimeline.tsx:285-298` — add icon/pattern per kind (e.g. dashed for waiting).
+- [x] **P1-12 Code-split.** `lazy()` Leaflet components (`VenueAbout`, `LocationPicker`) and `/owner/*`, `/admin/*` route trees. Target main chunk < 500 KB.
+- [x] **P1-13 Catch-all routes + styled 404.** `path="*"` in `ownerRoutes.tsx`, `adminRoutes.tsx`; `pages/NotFoundPage.tsx` uses EmptyState.
+- [x] **P1-14 Touch targets ≥ 44px on phones.** `(pointer: coarse)` → `min-height: var(--control-lg)` for buttons/nav (`Button.module.css`, `AppShell.module.css:59`).
+- [x] **P1-15 `--text-subtle` used as text.** 3.0:1 — switch text uses to `--text-muted`.
+- [x] **P1-16 Skip link, PWA manifest, theme-color, apple-touch-icon.**
+- [x] **P1-17 Error reporting.** Sentry (web boundary + API error handler).
+- [x] **P1-18 Brand leftover.** `admin/AdminSettingsPage.tsx:151` placeholder still says "Slots".
+
+**Ops left after merge (code is done, these need accounts/hosting):**
+- P1-03: set `CRON_SECRET` and point a pinger (cron-job.org, every 1 min) at `GET /api/v1/jobs/tick` — `docs/jobs-cron.md`. On `demo`, drop the older tick route in `serverless.ts`; `createApp` now mounts one with `timingSafeEqual`.
+- P1-09: add the robots/sitemap/preview-bot routes to `scripts/vercel-build.mjs` on `demo` — `docs/seo.md`. Submit the sitemap in Search Console.
+- P1-17: create Sentry projects, set `SENTRY_DSN` (API) and `VITE_SENTRY_DSN` (web).
+
+**Gate (release/phase-1):** typecheck ✅ · lint ✅ · API 1012/1012 · web 867/867 · shared 153/153 · build ✅ (main chunk 361 KB / 108 KB gz, was 1.29 MB).
 
 ---
 

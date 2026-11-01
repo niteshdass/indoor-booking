@@ -95,6 +95,9 @@ const ruBooked = (n: number) => {
   return m10 === 1 && m100 !== 11 ? 'забронирована' : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? 'забронированы' : 'забронировано';
 };
 const enGames = (n: number) => `${n} ${n === 1 ? 'game' : 'games'}`;
+/** Counts in Bangla digits, matching the dates Intl writes for `bn`. */
+const bnNum = (n: number) => new Intl.NumberFormat('bn').format(n);
+const bnGames = (n: number) => `${bnNum(n)}টি খেলা`;
 
 const CLASH_LABELS: Record<Locale, Record<SeriesClashReason, string>> = {
   en: {
@@ -111,6 +114,13 @@ const CLASH_LABELS: Record<Locale, Record<SeriesClashReason, string>> = {
     blocked: 'поле недоступно',
     outside_hours: 'вне часов работы',
   },
+  bn: {
+    closed: 'ভেন্যু বন্ধ',
+    past: 'সময় পেরিয়ে গেছে',
+    taken: 'আগেই বুক করা',
+    blocked: 'মাঠ বন্ধ রাখা',
+    outside_hours: 'খোলার সময়ের বাইরে',
+  },
 };
 
 const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
@@ -125,6 +135,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       lead: 'Мы получили вашу заявку на бронирование. Площадка скоро её подтвердит.',
       sms: `Заявка получена, ждём подтверждения площадки. ${d.reference}`,
     }),
+    bn: ({ d }) => ({
+      subject: `বুকিং অনুরোধ পাওয়া গেছে (${d.reference})`,
+      lead: 'আমরা আপনার বুকিং অনুরোধ পেয়েছি। ভেন্যু শিগগিরই এটি নিশ্চিত করবে।',
+      sms: `অনুরোধ পাওয়া গেছে, ভেন্যুর নিশ্চিতকরণের অপেক্ষায়। ${d.reference}`,
+    }),
   },
   booking_confirmed: {
     en: ({ d, startsAt }) => ({
@@ -136,6 +151,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `Бронирование подтверждено (${d.reference})`,
       lead: 'Ваше бронирование подтверждено.',
       sms: `Бронирование подтверждено: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
+    }),
+    bn: ({ d, startsAt }) => ({
+      subject: `বুকিং নিশ্চিত (${d.reference})`,
+      lead: 'আপনার বুকিং নিশ্চিত হয়েছে।',
+      sms: `বুকিং নিশ্চিত: ${d.venueName}, ${d.turfName}, ${startsAt}। ${d.reference}`,
     }),
   },
   booking_rejected: {
@@ -165,6 +185,19 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
             extra: d.reason ? `Причина: ${d.reason}` : undefined,
             sms: `Площадка отклонила бронирование. ${d.reference}`,
           },
+    bn: ({ d }) =>
+      d.autoRejected
+        ? {
+            subject: `বুকিং অনুরোধ নিশ্চিত হয়নি (${d.reference})`,
+            lead: 'ভেন্যু সময়মতো আপনার অনুরোধ নিশ্চিত করেনি।',
+            sms: `ভেন্যু সময়মতো আপনার অনুরোধ নিশ্চিত করেনি। ${d.reference}`,
+          }
+        : {
+            subject: `বুকিং প্রত্যাখ্যাত (${d.reference})`,
+            lead: 'দুঃখিত, ভেন্যু আপনার বুকিং অনুরোধ প্রত্যাখ্যান করেছে।',
+            extra: d.reason ? `কারণ: ${d.reason}` : undefined,
+            sms: `ভেন্যু বুকিং প্রত্যাখ্যান করেছে। ${d.reference}`,
+          },
   },
   payment_received: {
     en: ({ d, startsAt }) => ({
@@ -177,6 +210,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       lead: 'Площадка получила вашу оплату. Ваше бронирование подтверждено.',
       sms: `Оплата получена, бронирование подтверждено: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
     }),
+    bn: ({ d, startsAt }) => ({
+      subject: `পেমেন্ট পাওয়া গেছে — আপনার বুকিং ${d.reference} নিশ্চিত`,
+      lead: 'ভেন্যু আপনার পেমেন্ট পেয়েছে। আপনার বুকিং নিশ্চিত।',
+      sms: `পেমেন্ট পাওয়া গেছে, বুকিং নিশ্চিত: ${d.venueName}, ${d.turfName}, ${startsAt}। ${d.reference}`,
+    }),
   },
   payment_not_found: {
     en: ({ d }) => ({
@@ -188,6 +226,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `Мы не нашли ваш платёж за бронирование ${d.reference}`,
       lead: 'Площадка не нашла ваш платёж, поэтому заявка на бронирование отклонена. Если оплата была, свяжитесь с площадкой.',
       sms: `Платёж не найден, бронирование отклонено. ${d.reference}`,
+    }),
+    bn: ({ d }) => ({
+      subject: `${d.reference}-এর পেমেন্ট খুঁজে পাওয়া যায়নি`,
+      lead: 'ভেন্যু আপনার পেমেন্ট খুঁজে পায়নি, তাই বুকিং অনুরোধ প্রত্যাখ্যাত হয়েছে। পেমেন্ট করে থাকলে ভেন্যুর সাথে যোগাযোগ করুন।',
+      sms: `পেমেন্ট পাওয়া যায়নি, বুকিং প্রত্যাখ্যাত। ${d.reference}`,
     }),
   },
   booking_cancelled: {
@@ -203,6 +246,12 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       extra: d.amount ? `Возврат: ${money}` : undefined,
       sms: `Бронирование отменено. ${d.reference}`,
     }),
+    bn: ({ d, money }) => ({
+      subject: `বুকিং বাতিল (${d.reference})`,
+      lead: 'আপনার বুকিং বাতিল হয়েছে।',
+      extra: d.amount ? `রিফান্ড: ${money}` : undefined,
+      sms: `বুকিং বাতিল। ${d.reference}`,
+    }),
   },
   refund_issued: {
     en: ({ d, money }) => ({
@@ -214,6 +263,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `Возврат средств выполнен (${d.reference})`,
       lead: `Возвращено ${money}.`,
       sms: `Возвращено ${money}. ${d.reference}`,
+    }),
+    bn: ({ d, money }) => ({
+      subject: `রিফান্ড দেওয়া হয়েছে (${d.reference})`,
+      lead: `${money} রিফান্ড করা হয়েছে।`,
+      sms: `${money} রিফান্ড হয়েছে। ${d.reference}`,
     }),
   },
   booking_reminder: {
@@ -227,6 +281,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       lead: `Ваша игра начинается в ${start}.`,
       sms: `Игра начинается в ${start}. ${d.reference}`,
     }),
+    bn: ({ d, start }) => ({
+      subject: `মনে করিয়ে দিচ্ছি: আপনার খেলা শিগগিরই (${d.reference})`,
+      lead: `আপনার খেলা শুরু ${start}-এ।`,
+      sms: `আপনার খেলা শুরু ${start}-এ। ${d.reference}`,
+    }),
   },
   hold_expiring: {
     en: ({ d, holdUntil }) => ({
@@ -238,6 +297,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `Оплатите, чтобы сохранить слот (${d.reference})`,
       lead: `Оплатите до ${holdUntil}, иначе слот будет освобождён.`,
       sms: `Оплатите до ${holdUntil}, иначе слот освободится. ${d.reference}`,
+    }),
+    bn: ({ d, holdUntil }) => ({
+      subject: `স্লট ধরে রাখতে দ্রুত পেমেন্ট করুন (${d.reference})`,
+      lead: `${holdUntil}-এর আগে পেমেন্ট করুন, নইলে স্লট ছেড়ে দেওয়া হবে।`,
+      sms: `${holdUntil}-এর আগে পেমেন্ট করুন, নইলে স্লট ছেড়ে দেওয়া হবে। ${d.reference}`,
     }),
   },
   staff_new_pending: {
@@ -251,6 +315,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       lead: `Новая заявка на бронирование от ${d.customerName ?? 'клиента'}, ожидает подтверждения.`,
       sms: `Новая заявка от ${d.customerName ?? 'клиента'}. ${d.reference}`,
     }),
+    bn: ({ d }) => ({
+      subject: `নতুন বুকিং অনুরোধ (${d.reference})`,
+      lead: `${d.customerName ?? 'একজন কাস্টমার'}-এর নতুন বুকিং অনুরোধ, নিশ্চিতকরণের অপেক্ষায়।`,
+      sms: `${d.customerName ?? 'একজন কাস্টমার'}-এর নতুন বুকিং অনুরোধ। ${d.reference}`,
+    }),
   },
   staff_refund_external: {
     en: ({ d, money }) => ({
@@ -263,6 +332,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       lead: `Возврат ${money} для ${d.customerName ?? 'клиента'} сделан в панели Stripe. Он записан в бронирование.`,
       sms: `Возврат ${money} через Stripe записан. ${d.reference}`,
     }),
+    bn: ({ d, money }) => ({
+      subject: `Stripe-এ রিফান্ড করা হয়েছে (${d.reference})`,
+      lead: `${d.customerName ?? 'কাস্টমার'}-কে ${money} রিফান্ড Stripe ড্যাশবোর্ডে করা হয়েছে। এটি এখন বুকিংয়ে লেখা আছে।`,
+      sms: `Stripe-এ করা ${money} রিফান্ড লেখা হয়েছে। ${d.reference}`,
+    }),
   },
   staff_dispute_opened: {
     en: ({ d, money }) => ({
@@ -274,6 +348,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `Платёж картой оспорен (${d.reference})`,
       lead: `Платёж картой на ${money} оспорен (клиент: ${d.customerName ?? 'не указан'}). Ответьте в панели Stripe до указанного срока.`,
       sms: `Платёж ${money} оспорен. Ответьте в Stripe. ${d.reference}`,
+    }),
+    bn: ({ d, money }) => ({
+      subject: `কার্ড পেমেন্টে আপত্তি (${d.reference})`,
+      lead: `${d.customerName ?? 'কাস্টমার'} ${money}-এর কার্ড পেমেন্টে আপত্তি করেছেন। সময়সীমার আগে Stripe ড্যাশবোর্ডে উত্তর দিন।`,
+      sms: `${money}-এর কার্ড পেমেন্টে আপত্তি। Stripe-এ উত্তর দিন। ${d.reference}`,
     }),
   },
   staff_dispute_closed: {
@@ -293,6 +372,14 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
           : `Спор по платежу ${money} решён в вашу пользу: деньги остаются у вас.`,
       sms: `${d.reason === 'lost' ? 'Спор проигран' : 'Спор выигран'}: ${money}. ${d.reference}`,
     }),
+    bn: ({ d, money }) => ({
+      subject: `${d.reason === 'lost' ? 'আপত্তিতে হার' : 'আপত্তিতে জয়'} (${d.reference})`,
+      lead:
+        d.reason === 'lost'
+          ? `${money}-এর আপত্তি কাস্টমারের পক্ষে নিষ্পত্তি হয়েছে: টাকা তাঁকে ফেরত গেছে।`
+          : `${money}-এর আপত্তি আপনার পক্ষে নিষ্পত্তি হয়েছে: টাকা আপনার কাছেই থাকছে।`,
+      sms: `${d.reason === 'lost' ? 'আপত্তিতে হার' : 'আপত্তিতে জয়'}: ${money}। ${d.reference}`,
+    }),
   },
   review_request: {
     en: ({ d }) => ({
@@ -304,6 +391,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `Как прошла игра? (${d.reference})`,
       lead: `Спасибо, что играли на площадке ${d.venueName}. Оцените её — это поможет другим игрокам с выбором.`,
       sms: `Как вам ${d.venueName}? Оцените игру:`,
+    }),
+    bn: ({ d }) => ({
+      subject: `খেলা কেমন হলো? (${d.reference})`,
+      lead: `${d.venueName}-এ খেলার জন্য ধন্যবাদ। ভেন্যুকে রেটিং দিন, অন্য খেলোয়াড়দের বাছাইয়ে সাহায্য হবে।`,
+      sms: `${d.venueName} কেমন লাগল? রেটিং দিন:`,
     }),
   },
   review_posted: {
@@ -319,6 +411,12 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       extra: d.comment ? `«${d.comment}»` : undefined,
       sms: `Новый отзыв ${d.stars}/5 о площадке ${d.venueName}. ${d.reference}`,
     }),
+    bn: ({ d }) => ({
+      subject: `নতুন রিভিউ: ৫-এ ${bnNum(d.stars ?? 0)} (${d.reference})`,
+      lead: `${d.customerName ?? 'একজন খেলোয়াড়'} ${d.venueName}-কে ৫-এ ${bnNum(d.stars ?? 0)} দিয়েছেন।`,
+      extra: d.comment ? `“${d.comment}”` : undefined,
+      sms: `${d.venueName}-এর নতুন রিভিউ ${bnNum(d.stars ?? 0)}/৫। ${d.reference}`,
+    }),
   },
   series_requested: {
     en: ({ d, gameCount, firstGame }) => ({
@@ -331,6 +429,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       lead: `${d.customerName ?? 'Клиент'} просит забронировать поле на регулярной основе: ${ruGames(gameCount)}. Примите или отклоните заявку.`,
       sms: `Заявка на регулярные игры от ${d.customerName ?? 'клиента'}: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
     }),
+    bn: ({ d, gameCount, firstGame }) => ({
+      subject: `নতুন নিয়মিত বুকিং অনুরোধ (${d.reference})`,
+      lead: `${d.customerName ?? 'একজন কাস্টমার'} নিয়মিত সময়সূচিতে ${bnGames(gameCount)} বুক করতে চান। গ্রহণ বা প্রত্যাখ্যান করুন।`,
+      sms: `${d.customerName ?? 'একজন কাস্টমার'}-এর নিয়মিত অনুরোধ: ${bnGames(gameCount)}, ${firstGame} থেকে। ${d.reference}`,
+    }),
   },
   series_accepted: {
     en: ({ d, gameCount, firstGame }) => ({
@@ -342,6 +445,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: 'Ваше регулярное бронирование подтверждено',
       lead: `Площадка приняла ваше регулярное бронирование: ${ruGames(gameCount)} ${ruBooked(gameCount)}.`,
       sms: `Регулярное бронирование подтверждено: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
+    }),
+    bn: ({ d, gameCount, firstGame }) => ({
+      subject: 'আপনার নিয়মিত বুকিং নিশ্চিত',
+      lead: `ভেন্যু আপনার নিয়মিত বুকিং গ্রহণ করেছে: ${bnGames(gameCount)} বুক করা হয়েছে।`,
+      sms: `নিয়মিত বুকিং নিশ্চিত: ${bnGames(gameCount)}, ${firstGame} থেকে। ${d.reference}`,
     }),
   },
   series_declined: {
@@ -371,6 +479,19 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
             extra: d.reason ? `Причина: ${d.reason}` : undefined,
             sms: `Площадка отклонила заявку на регулярное бронирование. ${d.reference}`,
           },
+    bn: ({ d }) =>
+      d.autoRejected
+        ? {
+            subject: 'আপনার নিয়মিত বুকিং অনুরোধের মেয়াদ শেষ',
+            lead: 'আপনার নিয়মিত বুকিং অনুরোধের সময়মতো উত্তর আসেনি, তাই এটি বন্ধ করা হয়েছে।',
+            sms: `উত্তর ছাড়াই আপনার নিয়মিত বুকিং অনুরোধের মেয়াদ শেষ। ${d.reference}`,
+          }
+        : {
+            subject: 'আপনার নিয়মিত বুকিং প্রত্যাখ্যাত',
+            lead: 'দুঃখিত, ভেন্যু আপনার নিয়মিত বুকিং অনুরোধ প্রত্যাখ্যান করেছে।',
+            extra: d.reason ? `কারণ: ${d.reason}` : undefined,
+            sms: `ভেন্যু আপনার নিয়মিত বুকিং অনুরোধ প্রত্যাখ্যান করেছে। ${d.reference}`,
+          },
   },
   series_created: {
     en: ({ d, gameCount, firstGame }) => ({
@@ -382,6 +503,11 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: 'Регулярное бронирование оформлено',
       lead: `${ruGames(gameCount)} ${ruBooked(gameCount)} для вас.`,
       sms: `Регулярное бронирование оформлено: ${ruGames(gameCount)}, с ${firstGame}. ${d.reference}`,
+    }),
+    bn: ({ d, gameCount, firstGame }) => ({
+      subject: 'আপনার নিয়মিত বুকিং তৈরি হয়েছে',
+      lead: `আপনার জন্য ${bnGames(gameCount)} বুক করা হয়েছে।`,
+      sms: `নিয়মিত বুকিং তৈরি: ${bnGames(gameCount)}, ${firstGame} থেকে। ${d.reference}`,
     }),
   },
   series_games_cancelled: {
@@ -401,6 +527,14 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       extra: d.reason ? `Причина: ${d.reason}` : undefined,
       sms: `Отменено: ${ruGames(gameCount)}, ${firstGame}. ${d.reference}`,
     }),
+    bn: ({ d, gameCount, firstGame }) => ({
+      subject: 'নিয়মিত বুকিংয়ের খেলা বাতিল',
+      lead: d.toStaff
+        ? `${d.customerName ?? 'একজন খেলোয়াড়'} নিয়মিত বুকিংয়ের ${bnGames(gameCount)} বাতিল করেছেন।`
+        : `আপনার নিয়মিত বুকিংয়ের ${bnGames(gameCount)} বাতিল হয়েছে।`,
+      extra: d.reason ? `কারণ: ${d.reason}` : undefined,
+      sms: `বাতিল: ${bnGames(gameCount)}, ${firstGame}। ${d.reference}`,
+    }),
   },
 };
 
@@ -411,6 +545,7 @@ export const STAFF_PAYMENT_EVENTS: readonly NoticeEvent[] = ['staff_refund_exter
 const LABELS: Record<Locale, { reference: string; link: string; more: (n: number) => string; skipped: string; kept: string }> = {
   en: { reference: 'Reference', link: 'Details', more: (n) => `+${n} more`, skipped: 'Skipped', kept: 'Still booked' },
   ru: { reference: 'Номер', link: 'Подробности', more: (n) => `ещё ${n}`, skipped: 'Пропущено', kept: 'Остаются в силе' },
+  bn: { reference: 'রেফারেন্স', link: 'বিস্তারিত', more: (n) => `আরও ${bnNum(n)}টি`, skipped: 'বাদ পড়েছে', kept: 'এখনও বুক করা' },
 };
 
 /** Renders one event for the recipient's locale. Pure: no DB, no clock, so it is safe to call at delivery time. */

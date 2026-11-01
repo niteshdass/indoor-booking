@@ -5,7 +5,7 @@ Product context and booking components are this project's.
 Source of truth in code: `apps/web/src/styles/tokens.css`. Every UI change uses these tokens — no hardcoded hex, px font sizes, radii or shadows outside that file.
 
 ## Product context
-Multi-vendor booking for indoor and outdoor sports venues (courts, pitches, lanes). Owners run one or more venues with staff; players find a venue, pick a slot and pay with Stripe. English and Russian.
+Multi-vendor booking for indoor and outdoor sports venues (courts, pitches, lanes). Owners run one or more venues with staff; players find a venue, pick a slot and pay with Stripe. English, Russian and Bangla.
 
 Surfaces:
 - **Owner portal** (React SPA): left sidebar nav + top bar; owner switcher (a user can belong to several owners); dashboard with booking/revenue stat cards; schedule/calendar per venue and court; data tables (bookings, members, staff, activity log); editors (venue, court, pricing, roles); settings forms.
@@ -17,7 +17,7 @@ JTBD: owners and staff see today's schedule and act on it fast and calmly; playe
 ## Visual identity v2 — "Hard court" (adopted 2026-10-26; graphite look 2026-10-31)
 
 **Look update, 2026-10-31.** Picked by the owner from the look preview:
-- Font: IBM Plex Sans, with IBM Plex Sans Condensed for headings.
+- Font: IBM Plex Sans, with IBM Plex Sans Condensed for headings; Noto Sans Bengali for Bangla text.
 - Main color: graphite + ball. Graphite in light mode, ball yellow in dark mode.
 - Corners: medium, unchanged.
 - Spacing: roomy.
@@ -35,7 +35,7 @@ Idea: the look of a sports court. Hard-court blue, chalk lines, a little ball-ye
 - **Ball yellow is the dark-mode primary.** In dark mode it marks primary buttons, active tab and nav, links and focus. In light mode it stays scarce: only the CTA on night surfaces and the hero ball. Never on light backgrounds.
 - **Owner brand color** (`--brand`) still only on public venue pages (CTA, active tab, selected slot). Never in portal chrome or on the marketing site.
 - **Motion lives on the landing, tied to the court.** Hero: court lines draw in and the slot card rises, then the card loops the booking story in four numbered steps (Find: a mini search bar types "Padel / Today" and a court turns up; Pick: 19:00 gets tapped; Book: summary and the Book button press; Done: the confirmation tick draws), about 10s a lap and only while on screen. The ball keeps a slow cross-court rally. These are the only two loops. Sport tiles re-chalk their court lines on hover or focus. The owners timeline fills its bookings in sequence when it scrolls into view. No generic fade-up on sections, nothing in the portal. `prefers-reduced-motion` shows end states (the card holds on Done) and a still ball.
-- **Russian fits.** Strings run 20–30% longer: no fixed-width buttons, tabs or nav items; headlines use `text-wrap: balance`; KPI numbers `nowrap` and shrink with `clamp`.
+- **Russian and Bangla fit.** Strings run up to 30% longer than English (a test holds Bangla to 1.3× overall): no fixed-width buttons, tabs or nav items; headlines use `text-wrap: balance`; KPI numbers `nowrap` and shrink with `clamp`.
 - Avoid: all-caps eyebrow labels, "→" in buttons, numbered markers on things that are not a sequence (the "how it works" steps are a real sequence, so they are numbered), identical card grids for every section.
 
 ### Palette anchors (not themed)
@@ -84,10 +84,10 @@ Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set,
 - **IBM Plex Sans** (400/500/600/700, `--font-sans`):
   - Used for all UI and body text.
   - Prices, times, tables and schedules use `font-variant-numeric: tabular-nums`.
-- Both fonts have full Cyrillic.
-- Load: `family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&subset=latin,cyrillic`. Replaces Onest and Unbounded.
+- Both fonts have full Cyrillic. Neither has Bengali, so both stacks fall through to **Noto Sans Bengali** (400/500/600/700) for Bangla characters only; Latin and digits in a Bangla page still draw in Plex.
+- Load: `family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&subset=latin,cyrillic,bengali`. Google serves Bengali by `unicode-range`, so English and Russian pages never download it. Replaces Onest and Unbounded.
 - Scale (px): 2xs 11 · xs 12 · sm 13 · base 14 · md 16 · lg 18 · xl 22 · 2xl 28 · 3xl 36 · 4xl 48 · display clamp(40, 7vw, 84).
-- Line height: body 1.55, headings 1.15, display 1.02.
+- Line height: body 1.55, headings 1.15, display 1.02. Bangla (`:root:lang(bn)`) re-points the same tokens to body 1.7, headings 1.35, display 1.25 (`--leading-*-bn`) and drops the display tracking to 0, so vowel signs and conjuncts never clip; components keep using `--leading-*`.
 
 ### Spacing, size, radius, shadow
 - Spacing (roomy):

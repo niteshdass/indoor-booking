@@ -2,6 +2,7 @@ import type {
   AddonPricingType,
   Amenity,
   AutoApplyRule,
+  Locale,
   OverrideRule,
   OverrideWhen,
   OwnerSettings,
@@ -49,7 +50,7 @@ export type OwnerInfo = {
   name: string;
   country: string;
   defaultCurrency: string;
-  defaultLocale: 'en' | 'ru';
+  defaultLocale: Locale;
   status: OwnerStatus;
 };
 

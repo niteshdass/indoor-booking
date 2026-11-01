@@ -2,7 +2,8 @@
   "language": {
     "label": "Language",
     "en": "English",
-    "ru": "Русский"
+    "ru": "Русский",
+    "bn": "বাংলা"
   },
   "app": {
     "name": "BookaTurf"
@@ -2471,7 +2472,8 @@
     "language": "Language for your team",
     "locale": {
       "en": "English",
-      "ru": "Русский"
+      "ru": "Русский",
+      "bn": "বাংলা"
     },
     "choose": "Choose…",
     "submit": "Send application",

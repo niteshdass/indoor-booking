@@ -6,6 +6,8 @@ import { Booking } from '../bookings/booking.model';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { SlotLock } from '../bookings/slotLock.model';
 import type { AppServices } from '../services';
+import { User } from '../auth/user.model';
+import { effectiveForVenue } from '../venues/effective';
 import { Venue } from '../venues/venue.model';
 import { GatewayError } from './gateway';
 import { loadGateway, type GatewayMode } from './gateway.model';
@@ -60,15 +62,57 @@ export async function pendingCardPayment(
   }
 }
 
+export type CheckoutStart = { payment: PaymentDoc; amount: number } & (
+  | { gateway: 'stripe'; clientSecret: string; publishableKey: string }
+  | { gateway: 'sslcommerz'; url: string }
+);
+
+const paymentInProgress = () =>
+  new AppError(409, 'payment_in_progress', 'A payment for this booking is already in progress; finish it or wait for it to expire');
+
 /**
- * Creates (or re-reads) the PaymentIntent for the booking's outstanding advance. A booking of a
- * multi-day group pays for every held day of the group at once: one intent for the sum, one
- * pending payment per booking, the intent's metadata naming the first.
+ * A pending card payment of the hold made on another gateway is retired before a new one starts:
+ * cancelled there first, so it can no longer take money. A gateway that cannot promise that (a
+ * hosted session may still be paid) keeps the payment, and the player is told to finish it.
  */
-export async function startIntent(
+async function retireOtherGateway(held: BookingDoc[], key: string, ctx: { config: Config; services: AppServices }): Promise<void> {
+  const ownerId = String(held[0]!.ownerId);
+  const others = await Payment.find({
+    ownerId,
+    bookingId: { $in: held.map((b) => b._id) },
+    method: 'card',
+    kind: 'intent',
+    status: 'pending',
+    gateway: { $ne: key },
+  });
+  const cancelled = new Set<string>();
+  for (const p of others) {
+    const loaded = await loadGateway(ownerId, p.gateway ?? '', ctx.config, ctx.services, { mode: p.gatewayMode as GatewayMode | null });
+    if (!loaded || loaded.gateway.hosted) throw paymentInProgress();
+    const ref = p.gatewayRef ?? '';
+    if (!cancelled.has(ref)) {
+      try {
+        await loaded.gateway.cancelPayment(loaded.creds, { kind: 'intent', paymentId: String(p._id), gatewayRef: p.gatewayRef ?? null, linkRef: p.linkRef ?? null });
+      } catch {
+        throw paymentInProgress();
+      }
+      cancelled.add(ref);
+    }
+    await Payment.updateOne({ ownerId, _id: p._id, status: 'pending' }, { $set: { status: 'failed', failureCode: 'superseded' } });
+  }
+}
+
+/**
+ * Starts (or re-reads) the online payment of the booking's outstanding advance on gateway `key`:
+ * a Stripe PaymentIntent for the in-app element, or an SSLCommerz session to send the player to.
+ * A booking of a multi-day group pays for every held day of the group at once: one gateway payment
+ * for the sum, one pending payment per booking, the gateway's reference naming the first.
+ */
+export async function startCheckout(
   booking: BookingDoc,
+  key: 'stripe' | 'sslcommerz',
   ctx: { config: Config; services: AppServices },
-): Promise<{ payment: PaymentDoc; amount: number; clientSecret: string; publishableKey: string }> {
+): Promise<CheckoutStart> {
   const { config, services } = ctx;
   const ownerId = String(booking.ownerId);
   const now = services.now();
@@ -81,12 +125,15 @@ export async function startIntent(
     throw new AppError(409, 'hold_expired', 'This hold has expired');
   }
 
-  const loaded = await loadGateway(ownerId, 'stripe', config, services);
+  const loaded = await loadGateway(ownerId, key, config, services);
   const venue = await Venue.findOne({ ownerId, _id: booking.venueId });
-  if (!venue || !gatewayUsable(loaded, venue.country, booking.currency)) {
+  // The venue's own switch counts too: an owner can offer a gateway at one venue and not another.
+  const offered = venue ? (await effectiveForVenue(ownerId, venue)).paymentMethods.gateways.includes(key) : false;
+  if (!venue || !offered || !gatewayUsable(loaded, venue.country, booking.currency)) {
     throw paymentsUnavailable();
   }
   const { creds, gateway } = loaded;
+  await retireOtherGateway(held, key, ctx);
 
   const owing = held.filter((b) => b.advanceRequired - b.amountPaid >= 1);
   if (owing.length === 0) throw paymentsUnavailable();
@@ -102,32 +149,63 @@ export async function startIntent(
       }),
     );
   }
+  // A row from another gateway that slipped in between the retire and the insert.
+  if (payments.some((p) => p.gateway !== gateway.key)) throw paymentInProgress();
   const lead = payments[0]!;
   const leadBooking = owing[0]!;
   const amount = payments.reduce((n, p) => n + p.amount, 0);
+  const description =
+    owing.length > 1 ? `Bookings ${owing.map((b) => b.reference).join(', ')}` : `Booking ${leadBooking.reference}`;
+  const metadata = {
+    paymentId: String(lead._id),
+    bookingId: String(leadBooking._id),
+    ownerId,
+    reference: leadBooking.reference,
+    ...(leadBooking.groupId ? { groupId: String(leadBooking.groupId) } : {}),
+  };
+
+  if (gateway.key === 'sslcommerz') {
+    // The open session is reused, so two tabs cannot pay twice; after a failed attempt a new one is opened.
+    if (lead.linkUrl && !lead.failureCode) return { gateway: 'sslcommerz', payment: lead, amount, url: lead.linkUrl };
+    const player = booking.playerId ? await User.findById(booking.playerId) : null;
+    const created = await gateway.createPayment(creds, {
+      kind: 'intent',
+      amount,
+      currency: lead.currency,
+      metadata,
+      description,
+      idempotencyKey: `intent_${lead._id}`,
+      returnUrl: `${config.apiUrl}/api/v1/webhooks/sslcommerz/${ownerId}/return?booking=${encodeURIComponent(String(booking._id))}`,
+      notifyUrl: `${config.apiUrl}/api/v1/webhooks/sslcommerz/${ownerId}`,
+      customer: {
+        name: player?.name || booking.guest?.name || 'Customer',
+        email: player?.email ?? null,
+        phone: player?.phone ?? booking.guest?.phone ?? null,
+      },
+    });
+    if (!created.url || !created.linkRef) throw new GatewayError('gateway_error');
+    await Payment.updateMany(
+      { ownerId, _id: { $in: payments.map((p) => p._id) }, status: 'pending' },
+      { $set: { linkRef: created.linkRef, linkUrl: created.url, linkOpenedAt: now, failureCode: null } },
+    );
+    return { gateway: 'sslcommerz', payment: lead, amount, url: created.url };
+  }
 
   const created = await gateway.createPayment(creds, {
     kind: 'intent',
     amount,
     currency: lead.currency,
-    metadata: {
-      paymentId: String(lead._id),
-      bookingId: String(leadBooking._id),
-      ownerId,
-      reference: leadBooking.reference,
-      ...(leadBooking.groupId ? { groupId: String(leadBooking.groupId) } : {}),
-    },
-    description:
-      owing.length > 1 ? `Bookings ${owing.map((b) => b.reference).join(', ')}` : `Booking ${leadBooking.reference}`,
+    metadata,
+    description,
     idempotencyKey: `intent_${lead._id}`,
   });
-  if (!created.clientSecret || !created.gatewayRef) throw new GatewayError('gateway_error');
+  if (!created.clientSecret || !created.gatewayRef || !loaded.publishableKey) throw new GatewayError('gateway_error');
   const unset = payments.filter((p) => p.gatewayRef !== created.gatewayRef);
   if (unset.length > 0) {
     await Payment.updateMany({ ownerId, _id: { $in: unset.map((p) => p._id) } }, { $set: { gatewayRef: created.gatewayRef } });
     for (const p of unset) p.gatewayRef = created.gatewayRef;
   }
-  return { payment: lead, amount, clientSecret: created.clientSecret, publishableKey: loaded.publishableKey };
+  return { gateway: 'stripe', payment: lead, amount, clientSecret: created.clientSecret, publishableKey: loaded.publishableKey };
 }
 
 /**

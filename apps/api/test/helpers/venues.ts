@@ -30,7 +30,8 @@ export async function seedVenue(
     timezone: over.timezone ?? 'Asia/Dhaka',
     location: { type: 'Point', coordinates: over.location ?? [90.41, 23.81] },
     published: over.published ?? false,
-    settings: over.settings ?? {},
+    // Stripe on, like every venue the gateway-modes migration found; a test's own paymentMethods wins.
+    settings: { paymentMethods: { manualWallets: [], gateways: ['stripe'] }, ...over.settings },
   });
 }
 

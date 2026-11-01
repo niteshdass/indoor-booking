@@ -162,3 +162,83 @@ describe('StripeGatewayCard', () => {
     expect(document.body.textContent).not.toContain('sk_test_abc');
   });
 });
+
+describe('SslcommerzGatewayCard', () => {
+  const SC = en.owner.sslcommerz;
+  const routes = (gw: unknown[], extra: Parameters<typeof mockApi>[0] = []) => [
+    ...extra,
+    { path: GW, body: gw },
+    { path: `/owners/${OWNER_ID}/settings`, body: { settings: DEFAULTS } },
+    ...ownerRoutes({ permissions: ['booking.view', 'settings.edit'] }),
+  ];
+  const ssl = (over: Record<string, unknown> = {}) =>
+    view({
+      gateway: 'sslcommerz',
+      accounts: { test: { accountId: 'turf_sandbox', publishableKey: null }, live: null },
+      webhookUrl: 'https://api.example.com/api/v1/webhooks/sslcommerz/o1',
+      webhookEvents: [],
+      ...over,
+    });
+  const unconnected = () => ssl({ connected: false, enabled: false, mode: null, accounts: { test: null, live: null } });
+  const URL_ = `/owner/${OWNER_ID}/settings?section=sslcommerz`;
+
+  it('opens from the section link and shows the store, IPN url and whitelist hint', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi(
+      routes([view(), ssl()], [{ method: 'PATCH', path: `${GW}/sslcommerz`, body: { gateway: ssl({ enabled: false }) } }]),
+    );
+    renderApp(URL_, { user: staffUser });
+    expect(await screen.findByText('turf_sandbox')).toBeTruthy();
+    expect(screen.getAllByText(SC.mode.test).length).toBeGreaterThan(0);
+    expect(screen.getByDisplayValue('https://api.example.com/api/v1/webhooks/sslcommerz/o1')).toBeTruthy();
+    expect(screen.getByText(SC.whitelistHint)).toBeTruthy();
+    expect(screen.getByText(SC.addLiveHint)).toBeTruthy();
+    await user.click(screen.getByLabelText(SC.enabled));
+    await waitFor(() => expect((screen.getByLabelText(SC.enabled) as HTMLInputElement).checked).toBe(false));
+    expect(calls.find((c) => c.method === 'PATCH' && c.path === `${GW}/sslcommerz`)!.body).toEqual({ enabled: false });
+  });
+
+  it('checks the store id before posting', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi(routes([unconnected()]));
+    renderApp(URL_, { user: staffUser });
+    await user.type(await screen.findByLabelText(SC.storeId), 'bad id!');
+    await user.type(screen.getByLabelText(SC.storePassword), 'secret');
+    await user.click(screen.getByRole('button', { name: SC.save.test }));
+    expect(await screen.findByText(SC.errors.storeId)).toBeTruthy();
+    expect(calls.some((c) => c.method === 'PUT')).toBe(false);
+  });
+
+  it('saves the live store with its mode and never shows the password back', async () => {
+    const user = userEvent.setup();
+    const saved = ssl({
+      accounts: { test: { accountId: 'turf_sandbox', publishableKey: null }, live: { accountId: 'turf_live', publishableKey: null } },
+    });
+    const { calls } = mockApi(routes([ssl()], [{ method: 'PUT', path: `${GW}/sslcommerz`, body: { gateway: saved } }]));
+    renderApp(URL_, { user: staffUser });
+    await user.click(await screen.findByRole('tab', { name: SC.mode.live }));
+    expect(screen.getByText(SC.noStore.live)).toBeTruthy();
+    const pw = screen.getByLabelText(SC.storePassword) as HTMLInputElement;
+    expect(pw.type).toBe('password');
+    await user.type(screen.getByLabelText(SC.storeId), 'turf_live');
+    await user.type(pw, 's3cret@pw');
+    await user.click(screen.getByRole('button', { name: SC.save.live }));
+    expect(await screen.findByText('turf_live')).toBeTruthy();
+    expect(calls.find((c) => c.method === 'PUT')!.body).toEqual({ storeId: 'turf_live', storePassword: 's3cret@pw', mode: 'live' });
+    expect(document.body.textContent).not.toContain('s3cret@pw');
+    // Both modes have a store now, so the active mode can be switched.
+    expect(screen.getAllByRole('option', { name: SC.mode.live }).length).toBeGreaterThan(0);
+  });
+
+  it('says when SSLCommerz rejects the store', async () => {
+    const user = userEvent.setup();
+    mockApi(
+      routes([unconnected()], [{ method: 'PUT', path: `${GW}/sslcommerz`, status: 400, body: { error: { code: 'invalid_credentials', message: 'x' } } }]),
+    );
+    renderApp(URL_, { user: staffUser });
+    await user.type(await screen.findByLabelText(SC.storeId), 'turf_sandbox');
+    await user.type(screen.getByLabelText(SC.storePassword), 'wrong');
+    await user.click(screen.getByRole('button', { name: SC.save.test }));
+    expect(await screen.findByText(SC.errors.invalidCreds)).toBeTruthy();
+  });
+});

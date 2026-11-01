@@ -243,24 +243,42 @@ describe('payment methods', () => {
   });
 
   it('shows the connect hint only when it can help', () => {
-    renderForm('owner', { canConnectStripe: false }, 'payments');
-    expect(screen.queryByText(PM.connectStripe)).toBeNull();
+    renderForm('owner', { canConnectGateways: false }, 'payments');
+    expect(screen.queryByText(PM.connect.stripe)).toBeNull();
+    expect(screen.queryByText(PM.connect.sslcommerz)).toBeNull();
     cleanup();
     renderForm('owner', { effective: { ...DEFAULTS, paymentMethods: { manualWallets: [], gateways: ['stripe'] } } }, 'payments');
-    expect(screen.queryByText(PM.connectStripe)).toBeNull();
+    expect(screen.queryByText(PM.connect.stripe)).toBeNull();
+    expect(screen.getByText(PM.connect.sslcommerz)).toBeTruthy();
   });
 
   it('card is disabled until Stripe is connected', async () => {
     const user = userEvent.setup();
     renderForm('owner', {}, 'payments');
-    const card = screen.getByLabelText(PM.card) as HTMLInputElement;
+    const card = screen.getByLabelText(PM.gateway.stripe) as HTMLInputElement;
     expect(card.disabled).toBe(true);
-    expect(screen.getByText(PM.connectStripe)).toBeTruthy();
+    expect(screen.getByText(PM.connect.stripe)).toBeTruthy();
     cleanup();
-    const onSave = renderForm('owner', { stripeReady: true }, 'payments');
-    await user.click(screen.getByLabelText(PM.card));
+    const onSave = renderForm('owner', { readyGateways: ['stripe'] }, 'payments');
+    await user.click(screen.getByLabelText(PM.gateway.stripe));
     await user.click(screen.getByRole('button', { name: S.save }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ paymentMethods: { manualWallets: [], gateways: ['stripe'] } }));
+  });
+
+  it('online checkout is disabled until SSLCommerz is connected, and links to its section', async () => {
+    const user = userEvent.setup();
+    renderForm('owner', { readyGateways: ['stripe'] }, 'payments');
+    const online = screen.getByLabelText(PM.gateway.sslcommerz) as HTMLInputElement;
+    expect(online.disabled).toBe(true);
+    expect(screen.getByRole('link', { name: PM.connect.sslcommerz }).getAttribute('href')).toBe(
+      `/owner/${OWNER_ID}/settings?section=sslcommerz`,
+    );
+    cleanup();
+    const onSave = renderForm('owner', { readyGateways: ['sslcommerz'] }, 'payments');
+    expect(screen.queryByText(PM.connect.sslcommerz)).toBeNull();
+    await user.click(screen.getByLabelText(PM.gateway.sslcommerz));
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ paymentMethods: { manualWallets: [], gateways: ['sslcommerz'] } }));
   });
 });
 

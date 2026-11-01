@@ -1,7 +1,18 @@
 import type { AppServices } from '../services';
+import { sslcommerzGateway } from './sslcommerz';
 import { stripeGateway } from './stripe';
 
-export type GatewayCredentials = { secretKey: string; webhookSecret: string };
+export const GATEWAY_KEYS = ['stripe', 'sslcommerz'] as const;
+export type GatewayKey = (typeof GATEWAY_KEYS)[number];
+
+export type StripeCredentials = { secretKey: string; webhookSecret: string };
+/** `live` picks the endpoints: false is the SSLCommerz sandbox. */
+export type SslcommerzCredentials = { storeId: string; storePassword: string; live: boolean };
+/** Sealed per gateway; each adapter reads its own shape. */
+export type GatewayCredentials = StripeCredentials | SslcommerzCredentials;
+
+/** What a webhook delivery carries: the raw body (signatures cover the exact bytes) and its headers. */
+export type WebhookDelivery = { rawBody: Buffer; header(name: string): string | undefined };
 
 /** A refund as the gateway reports it; `refundRef` is null when it refused before creating one. */
 export type GatewayRefund = { refundRef: string | null; status: 'pending' | 'succeeded' | 'failed'; failureCode: string | null };
@@ -38,7 +49,9 @@ export type GatewayEvent = {
 );
 
 export interface PaymentGateway {
-  key: 'stripe';
+  key: GatewayKey;
+  /** Whether the player is sent to the gateway's own page (no in-app element, no client secret). */
+  hosted: boolean;
   /** Whether this gateway can charge `currency` exactly (country is the account's concern). */
   supports(country: string, currency: string): boolean;
   verifyCredentials(c: GatewayCredentials): Promise<{ accountId: string }>;
@@ -53,14 +66,30 @@ export interface PaymentGateway {
       idempotencyKey: string;
       expiresAt?: Date;
       successUrl?: string;
+      /** Hosted gateways: where the player's browser comes back to (`result` is added) and where notices go. */
+      returnUrl?: string;
+      notifyUrl?: string;
+      customer?: { name: string; email: string | null; phone: string | null };
     },
   ): Promise<{ gatewayRef: string | null; linkRef: string | null; clientSecret: string | null; url: string | null }>;
-  /** Verifies the signature and normalizes the event; throws GatewayError('invalid_signature'). */
-  handleWebhook(c: GatewayCredentials, rawBody: Buffer, signature: string | undefined): GatewayEvent;
-  /** Cancels an open intent or expires an open link; no call when it never reached the gateway. */
+  /**
+   * Verifies the delivery (a signature, or a call back to the gateway) and normalizes the event;
+   * throws GatewayError('invalid_signature') when these credentials cannot vouch for it.
+   */
+  handleWebhook(c: GatewayCredentials, delivery: WebhookDelivery): Promise<GatewayEvent>;
+  /**
+   * Asks the gateway what became of payment `paymentId` (for a missed notification): a `succeeded`
+   * event when it was paid, `closed` when it never will be, null while it may still be. Only gateways
+   * that can lose notifications implement it.
+   */
+  lookupPayment?(c: GatewayCredentials, input: { paymentId: string; currency: string }): Promise<GatewayEvent | null>;
+  /**
+   * Cancels an open intent or expires an open link; no call when it never reached the gateway.
+   * Throws GatewayError when the payment cannot be stopped (already paid).
+   */
   cancelPayment(
     c: GatewayCredentials,
-    input: { kind: 'intent' | 'link'; gatewayRef: string | null; linkRef: string | null },
+    input: { kind: 'intent' | 'link'; paymentId: string; gatewayRef: string | null; linkRef: string | null },
   ): Promise<void>;
   /**
    * A refusal that will not change on retry comes back as a failed refund with its code; anything
@@ -68,10 +97,13 @@ export interface PaymentGateway {
    */
   refund(
     c: GatewayCredentials,
-    input: { gatewayRef: string; amount: number; idempotencyKey: string; refundId: string },
+    input: { gatewayRef: string; amount: number; currency: string; idempotencyKey: string; refundId: string },
   ): Promise<GatewayRefund>;
-  /** The refund made for `refundId`, if the gateway has one (a call that timed out may still have landed). */
-  findRefund(c: GatewayCredentials, input: { gatewayRef: string; refundId: string }): Promise<GatewayRefund | null>;
+  /**
+   * The refund made for `refundId`, if the gateway has one (a call that timed out may still have landed).
+   * `refundRef` is the gateway's id for it once known.
+   */
+  findRefund(c: GatewayCredentials, input: { gatewayRef: string; refundId: string; refundRef: string | null }): Promise<GatewayRefund | null>;
 }
 
 export type GatewayErrorCode = 'invalid_credentials' | 'invalid_signature' | 'gateway_error';
@@ -91,5 +123,7 @@ export class GatewayError extends Error {
 }
 
 export function gatewayFor(services: AppServices, key: string): PaymentGateway | null {
-  return key === 'stripe' ? stripeGateway(services.stripe) : null;
+  if (key === 'stripe') return stripeGateway(services.stripe);
+  if (key === 'sslcommerz') return sslcommerzGateway(services.sslcommerz);
+  return null;
 }

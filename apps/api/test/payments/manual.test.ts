@@ -268,6 +268,7 @@ describe('GET /bookings/:id/payment-options', () => {
     expect(res.body).toEqual({
       wallets: [BKASH],
       card: false,
+      sslcommerz: false,
       amount: 600,
       currency: 'BDT',
       holdExpiresAt: booking.holdExpiresAt,

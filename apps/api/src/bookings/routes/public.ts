@@ -28,7 +28,7 @@ import { Booking, type BookingDoc } from '../booking.model';
 import { Payment } from '../payment.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
-import { startIntent } from '../../payments/intent';
+import { startCheckout } from '../../payments/intent';
 import { offeredMethods } from '../../payments/methods';
 import { payableGroup, submitManualPayment } from '../../payments/manual';
 import { invalidTransition } from '../transition';
@@ -208,7 +208,13 @@ const quoteJson = (q: BookingQuote, currency: string) => ({
 });
 
 /** Provider names only; the numbers are shown once the player has a booking to pay for. */
-const methodsJson = (m: Awaited<ReturnType<typeof offeredMethods>>) => ({ wallets: m.wallets.map((w) => w.provider), card: m.card });
+const methodsJson = (m: Awaited<ReturnType<typeof offeredMethods>>) => ({
+  wallets: m.wallets.map((w) => w.provider),
+  card: m.card,
+  sslcommerz: m.sslcommerz,
+});
+
+const paymentStartSchema = z.object({ gateway: z.enum(['stripe', 'sslcommerz']).default('stripe') });
 
 /** Player-facing booking routes. The app rate-limits the code-sending and lookup routes. */
 export function publicBookingsRouter(config: Config, services: AppServices): Router {
@@ -449,6 +455,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     res.json({
       wallets: methods.wallets,
       card: methods.card,
+      sslcommerz: methods.sslcommerz,
       amount,
       currency: booking.currency,
       holdExpiresAt: booking.holdExpiresAt ? booking.holdExpiresAt.toISOString() : null,
@@ -470,16 +477,14 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       : null;
     if (!booking) throw bookingNotFound();
     if (booking.status !== 'awaiting_payment') throw invalidTransition(booking.status);
-    const { payment, amount, clientSecret, publishableKey } = await startIntent(booking, { config, services });
+    const { gateway } = paymentStartSchema.parse(req.body ?? {});
+    const start = await startCheckout(booking, gateway, { config, services });
+    const base = { id: String(start.payment._id), amount: start.amount, currency: start.payment.currency };
     res.json({
-      payment: {
-        id: String(payment._id),
-        amount,
-        currency: payment.currency,
-        gateway: 'stripe',
-        clientSecret,
-        publishableKey,
-      },
+      payment:
+        start.gateway === 'stripe'
+          ? { ...base, gateway: 'stripe', clientSecret: start.clientSecret, publishableKey: start.publishableKey }
+          : { ...base, gateway: 'sslcommerz', url: start.url },
       holdExpiresAt: booking.holdExpiresAt!.toISOString(),
     });
   });

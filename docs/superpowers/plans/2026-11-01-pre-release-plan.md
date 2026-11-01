@@ -108,7 +108,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 
 | # | Feature | Why (who has it) | Notes |
 |---|---|---|---|
-| [ ] P2-01 | **Automatic bKash / Nagad checkout** via SSLCommerz or EPS | Turfly, TurfHub, Turffin, TurfBook | Today wallets are manual TrxID entry. Implement as a `PaymentGateway` (roadmap #20); keep manual as fallback. |
+| [x] P2-01 | **Automatic bKash / Nagad checkout** via SSLCommerz or EPS | Turfly, TurfHub, Turffin, TurfBook | Done with SSLCommerz (`payments/sslcommerz.ts`): hosted checkout per owner store, notices checked with the Validation / transaction APIs, return route + 5-min reconcile sweep, refunds by `bank_tran_id`. Manual TrxID stays as fallback; walk-in links stay Stripe. |
 | [ ] P2-02 | **Local BD SMS gateway** (confirm, reminder, OTP) | TurfBook (metered SMS), all | Current SMS is Twilio — expensive/unreliable in BD. Add SSL Wireless / BulkSMSBD / Alpha SMS notifier; metered SMS credit per owner. |
 | [ ] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Staff at the desk need Bangla. Add `bn.json`, Bangla digits/dates via Intl, check 30% length rule. |
 | [ ] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Roadmap #15, not built. Percent/fixed, validity, caps, per-venue, applied in `quoteBooking()`. |
@@ -117,6 +117,12 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 | [ ] P2-07 | **Deposit / partial payment with dues tracking** surfaced to owners | TurfBook, Turffin | Partial advance exists in settings; make "due at desk" visible on Today and in reports. |
 | [ ] P2-08 | **Player conveniences:** add to calendar (.ics), book again, saved venues | Turfly (one-tap rebook), Playo | Cheap, high retention. |
 | [ ] P2-09 | **Weekly payouts / commission** (if marketplace collects) | Playo, TurfHub | Roadmap #19. Only needed if we collect money; owners currently use their own gateways. |
+
+**Ops left for P2-01 (code is done):**
+- Each owner needs an SSLCommerz merchant store (sandbox first) and enters its store ID + password under Settings → SSLCommerz, then switches it on per venue.
+- `API_URL` must be public over HTTPS: SSLCommerz posts the IPN to `/api/v1/webhooks/sslcommerz/:ownerId` and sends players back through `/…/return`. Give owners the IPN URL shown on the card to set in their merchant panel.
+- The refund API only answers whitelisted IPs: ask SSLCommerz to whitelist the API server's outbound IP for every live store (serverless needs a static egress IP).
+- `PAYMENTS_ENCRYPTION_KEY` must be set (store passwords are sealed with it).
 
 ---
 

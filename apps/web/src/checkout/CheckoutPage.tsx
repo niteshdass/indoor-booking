@@ -238,7 +238,7 @@ export function CheckoutPage() {
 
   const addonErr = failed && isAddonError(quote.error);
   const pm = data?.paymentMethods;
-  const noMethods = !!pm && !pm.card && pm.wallets.length === 0;
+  const noMethods = !!pm && !pm.card && !pm.sslcommerz && pm.wallets.length === 0;
   const submitBusy = quote.busy || submitter.pending || addonErr;
   const many = data?.items && data.items.length > 1 ? data.items : null;
   const due = many ? (data?.advanceRequired ?? 0) : (q?.advanceRequired ?? 0);

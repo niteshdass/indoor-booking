@@ -100,6 +100,7 @@ async function closeOpenPayment(booking: BookingDoc, deps: { config: Config; ser
     }
     await loaded.gateway.cancelPayment(loaded.creds, {
       kind: (payment.kind as 'intent' | 'link' | null) ?? 'intent',
+      paymentId: String(payment._id),
       gatewayRef: payment.gatewayRef ?? null,
       linkRef: payment.linkRef ?? null,
     });

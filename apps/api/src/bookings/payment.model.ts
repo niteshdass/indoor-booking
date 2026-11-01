@@ -24,8 +24,12 @@ const paymentSchema = new mongoose.Schema(
      * customer made outside the app and staff check by hand (`manual`); null for cash.
      */
     kind: { type: String, enum: ['intent', 'link', 'manual', null], default: null },
-    /** Checkout Session id for link payments. */
+    /** Checkout Session id for link payments; the SSLCommerz tran_id its sessions share. */
     linkRef: { type: String, default: null },
+    /** A hosted gateway's checkout page for the open session, so a second click reuses it instead of opening another. */
+    linkUrl: { type: String, default: null },
+    /** When that session was opened (services clock); the hosted reconcile sweep goes by it. */
+    linkOpenedAt: { type: Date, default: null },
     failureCode: { type: String, default: null },
     /** Sum of this payment's non-failed refunds, pending included (a reservation). */
     refundedAmount: { type: Number, default: 0, min: 0 },
@@ -68,6 +72,8 @@ paymentSchema.index(
   { ownerId: 1, provider: 1, trxId: 1 },
   { unique: true, partialFilterExpression: { trxId: { $type: 'string' }, status: { $in: ['pending', 'succeeded'] } } },
 );
+// Hosted checkouts whose notice is late, for the reconcile sweep (cross-tenant).
+paymentSchema.index({ linkOpenedAt: 1 }, { partialFilterExpression: { gateway: 'sslcommerz', status: 'pending' } });
 // Wallet payments waiting for staff, for the bookings list's "Payment to check" view.
 paymentSchema.index({ ownerId: 1, venueId: 1 }, { partialFilterExpression: { kind: 'manual', status: 'pending' } });
 paymentSchema.plugin(tenantScoped);

@@ -1,7 +1,7 @@
 import mongoose, { type ClientSession } from 'mongoose';
 import type { Config } from '../config';
 import { tenantScoped } from '../tenancy/tenantScoped.plugin';
-import { gatewayFor, type GatewayCredentials, type PaymentGateway } from './gateway';
+import { GATEWAY_KEYS, gatewayFor, type GatewayCredentials, type PaymentGateway } from './gateway';
 import { open } from './secretBox';
 import type { AppServices } from '../services';
 
@@ -10,13 +10,13 @@ const { ObjectId } = mongoose.Schema.Types;
 export const GATEWAY_MODES = ['test', 'live'] as const;
 export type GatewayMode = (typeof GATEWAY_MODES)[number];
 
-/** One mode's keys. Test and live keys of one Stripe account share its account id. */
+/** One mode's keys. Test and live keys of one Stripe account share its account id; an SSLCommerz store id is its account. */
 const keySetSchema = new mongoose.Schema(
   {
-    /** Sealed JSON `{ secretKey, webhookSecret }`; never returned by the API. */
+    /** Sealed JSON of the gateway's credentials (e.g. `{ secretKey, webhookSecret }`); never returned by the API. */
     credentialsEncrypted: { type: String, required: true },
-    /** Public by design: the web Payment Element needs it. */
-    publishableKey: { type: String, required: true },
+    /** Stripe only, public by design: the web Payment Element needs it. Null for hosted gateways. */
+    publishableKey: { type: String, default: null },
     accountId: { type: String, required: true },
   },
   { _id: false },
@@ -25,7 +25,7 @@ const keySetSchema = new mongoose.Schema(
 const gatewaySchema = new mongoose.Schema(
   {
     ownerId: { type: ObjectId, ref: 'Owner', required: true },
-    gateway: { type: String, enum: ['stripe'], required: true },
+    gateway: { type: String, enum: GATEWAY_KEYS, required: true },
     keys: {
       test: { type: keySetSchema, default: null },
       live: { type: keySetSchema, default: null },
@@ -48,7 +48,7 @@ export type LoadedGateway = {
   row: PaymentGatewayAccountDoc;
   mode: GatewayMode;
   accountId: string;
-  publishableKey: string;
+  publishableKey: string | null;
   creds: GatewayCredentials;
   gateway: PaymentGateway;
 };
@@ -58,7 +58,7 @@ export function unsealMode(row: PaymentGatewayAccountDoc, mode: GatewayMode, con
   const set = row.keys?.[mode];
   if (!set || !config.paymentsKey) return null;
   const creds = JSON.parse(open(set.credentialsEncrypted, config.paymentsKey, credentialsAad(String(row.ownerId), gateway.key))) as GatewayCredentials;
-  return { row, mode, accountId: set.accountId, publishableKey: set.publishableKey, creds, gateway };
+  return { row, mode, accountId: set.accountId, publishableKey: set.publishableKey ?? null, creds, gateway };
 }
 
 /**

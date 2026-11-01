@@ -9,7 +9,8 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useResource } from '../useResource';
 import { SettingsForm } from './SettingsForm';
-import { useStripeReady } from './PaymentMethodsFields';
+import { useReadyGateways } from './PaymentMethodsFields';
+import { SslcommerzGatewayCard } from './SslcommerzGatewayCard';
 import { StripeGatewayCard } from './StripeGatewayCard';
 import styles from './settings.module.css';
 
@@ -19,7 +20,7 @@ export function SettingsPage() {
   const { ownerId, owner, can } = useOwner();
   useOwnerTitle(t('owner.nav.settings'));
   const path = ownerPath(ownerId, '/settings');
-  const stripe = useStripeReady();
+  const gateways = useReadyGateways();
   const res = useResource<{ settings: OwnerSettings }>(path);
 
   if (res.state.status === 'error') return <Alert tone="danger">{errorMessage(res.state.error, t)}</Alert>;
@@ -41,9 +42,10 @@ export function SettingsPage() {
         currency={owner.defaultCurrency}
         onSave={save}
         disabled={!can('settings.edit')}
-        stripeReady={stripe.ready}
-        canConnectStripe={stripe.canConnect}
+        readyGateways={gateways.ready}
+        canConnectGateways={gateways.canConnect}
         stripe={can('settings.edit') ? <StripeGatewayCard /> : undefined}
+        sslcommerz={can('settings.edit') ? <SslcommerzGatewayCard /> : undefined}
       />
     </div>
   );

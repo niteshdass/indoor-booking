@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import type { AddonLine, WalletProvider } from '@booking/shared';
+import type { AddonLine } from '@booking/shared';
 import { PROVIDER_NAMES } from '../lib/wallets';
 import { formatDate, formatTime, money } from '../lib/format';
 import { playerFee } from '../lib/platformFee';
-import type { PublicTurf, PublicVenue, QuoteJson } from '../lib/types';
+import type { OfferedMethods, PublicTurf, PublicVenue, QuoteJson } from '../lib/types';
 import styles from './BookingSummary.module.css';
 
 function duration(minutes: number, t: TFunction): string {
@@ -23,9 +23,13 @@ function addonLabel(a: AddonLine, t: TFunction): string {
 }
 
 /** "Pay ৳500.00 now by bKash or card · rest at venue", or why nothing can be paid online. */
-function HowToPay({ due, currency, methods }: { due: number; currency: string; methods: { wallets: WalletProvider[]; card: boolean } }) {
+function HowToPay({ due, currency, methods }: { due: number; currency: string; methods: OfferedMethods }) {
   const { t, i18n } = useTranslation();
-  const names = [...methods.wallets.map((w) => PROVIDER_NAMES[w]), ...(methods.card ? [t('checkout.card')] : [])];
+  const names = [
+    ...(methods.sslcommerz ? [t('checkout.online')] : []),
+    ...methods.wallets.map((w) => PROVIDER_NAMES[w]),
+    ...(methods.card ? [t('checkout.card')] : []),
+  ];
   if (names.length === 0) return <p className={styles.howToPay}>{t('checkout.noMethods')}</p>;
   const list = new Intl.ListFormat(i18n.language, { type: 'disjunction' }).format(names);
   return <p className={styles.howToPay}>{t('checkout.payBy', { amount: money(due, currency, i18n.language), methods: list, interpolation: { escapeValue: false } })}</p>;
@@ -56,7 +60,7 @@ type Props = {
   groupDue?: number;
   busy?: boolean;
   /** What the venue takes online; absent when the quote did not say. */
-  paymentMethods?: { wallets: WalletProvider[]; card: boolean };
+  paymentMethods?: OfferedMethods;
   children?: ReactNode;
 };
 

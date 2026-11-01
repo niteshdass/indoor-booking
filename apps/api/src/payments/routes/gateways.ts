@@ -9,7 +9,7 @@ import { Booking } from '../../bookings/booking.model';
 import { Payment } from '../../bookings/payment.model';
 import { logActivity } from '../../tenancy/activityLog.model';
 import { requirePermission, tenantOf } from '../../tenancy/context';
-import { gatewayFor } from '../gateway';
+import { GATEWAY_KEYS, gatewayFor, type GatewayCredentials, type GatewayKey } from '../gateway';
 import { STRIPE_WEBHOOK_EVENTS } from '../stripe';
 import {
   GATEWAY_MODES,
@@ -22,7 +22,6 @@ import {
 } from '../gateway.model';
 import { seal } from '../secretBox';
 
-const GATEWAYS = ['stripe'] as const;
 
 export const stripeKeyFields = {
   secretKey: z.string().regex(/^(sk|rk)_(test|live)_\S+$/, 'Expected a Stripe secret or restricted key'),
@@ -36,10 +35,38 @@ export const sameKeyMode = {
   issue: { path: ['publishableKey'], message: 'Secret and publishable keys must be for the same mode' },
 };
 
-const putSchema = z
+const stripePutSchema = z
   .object({ ...stripeKeyFields, enabled: z.boolean().optional() })
   .strict()
   .refine(sameKeyMode.check, sameKeyMode.issue);
+
+/** SSLCommerz keys do not say their mode, so the owner picks it: test is the sandbox. */
+const sslcommerzPutSchema = z
+  .object({
+    storeId: z.string().trim().regex(/^[A-Za-z0-9_-]{1,64}$/, 'Expected an SSLCommerz store ID'),
+    storePassword: z.string().regex(/^\S{1,128}$/, 'Expected an SSLCommerz store password'),
+    mode: z.enum(GATEWAY_MODES),
+    enabled: z.boolean().optional(),
+  })
+  .strict();
+
+/** The keys a PUT brings, in the shape each gateway seals them. */
+function parseKeys(
+  key: GatewayKey,
+  body: unknown,
+): { creds: GatewayCredentials; mode: GatewayMode; publishableKey: string | null; enabled: boolean | undefined } {
+  if (key === 'sslcommerz') {
+    const b = sslcommerzPutSchema.parse(body);
+    return { creds: { storeId: b.storeId, storePassword: b.storePassword, live: b.mode === 'live' }, mode: b.mode, publishableKey: null, enabled: b.enabled };
+  }
+  const b = stripePutSchema.parse(body);
+  return {
+    creds: { secretKey: b.secretKey, webhookSecret: b.webhookSecret },
+    mode: b.secretKey.split('_')[1] as GatewayMode,
+    publishableKey: b.publishableKey,
+    enabled: b.enabled,
+  };
+}
 
 const patchSchema = z
   .object({ enabled: z.boolean().optional(), mode: z.enum(GATEWAY_MODES).optional() })
@@ -50,9 +77,9 @@ const accountsOf = (row: PaymentGatewayAccountDoc | null) =>
   Object.fromEntries(
     GATEWAY_MODES.map((m) => {
       const set = row?.keys?.[m];
-      return [m, set ? { accountId: set.accountId, publishableKey: set.publishableKey } : null];
+      return [m, set ? { accountId: set.accountId, publishableKey: set.publishableKey ?? null } : null];
     }),
-  ) as Record<GatewayMode, { accountId: string; publishableKey: string } | null>;
+  ) as Record<GatewayMode, { accountId: string; publishableKey: string | null } | null>;
 
 function view(ownerId: string, config: Config, gateway: string, row: PaymentGatewayAccountDoc | null) {
   return {
@@ -63,7 +90,8 @@ function view(ownerId: string, config: Config, gateway: string, row: PaymentGate
     mode: (row?.mode as GatewayMode | undefined) ?? null,
     accounts: accountsOf(row),
     webhookUrl: `${config.apiUrl}/api/v1/webhooks/${gateway}/${ownerId}`,
-    webhookEvents: STRIPE_WEBHOOK_EVENTS,
+    /** SSLCommerz takes no subscription: each session names its own notification URL. */
+    webhookEvents: gateway === 'stripe' ? STRIPE_WEBHOOK_EVENTS : [],
     updatedAt: row ? (row as unknown as { updatedAt: Date }).updatedAt : null,
   };
 }
@@ -125,6 +153,7 @@ async function releaseAccount(ownerId: string, old: LoadedGateway, now: Date): P
     try {
       if (!p.gatewayRef || !cancelled.has(p.gatewayRef)) await old.gateway.cancelPayment(old.creds, {
         kind: (p.kind as 'intent' | 'link' | null) ?? 'intent',
+        paymentId: String(p._id),
         gatewayRef: p.gatewayRef ?? null,
         linkRef: p.linkRef ?? null,
       });
@@ -146,18 +175,17 @@ export function gatewaysRouter(config: Config, services: AppServices): Router {
   router.get('/payment-gateways', requirePermission('settings.edit'), async (req, res) => {
     const { ownerId } = tenantOf(req);
     const rows = await PaymentGatewayAccount.find({ ownerId });
-    res.json(GATEWAYS.map((g) => view(ownerId, config, g, rows.find((r) => r.gateway === g) ?? null)));
+    res.json(GATEWAY_KEYS.map((g) => view(ownerId, config, g, rows.find((r) => r.gateway === g) ?? null)));
   });
 
   router.put('/payment-gateways/:gateway', requirePermission('settings.edit'), async (req, res) => {
     const t = tenantOf(req);
     const gateway = gatewayFor(services, String(req.params.gateway));
     if (!gateway) throw new AppError(404, 'not_found', 'Payment gateway not found');
-    const body = putSchema.parse(req.body);
+    const body = parseKeys(gateway.key, req.body);
     if (!config.paymentsKey) throw new AppError(503, 'payments_unconfigured', 'Payments are not configured on this server');
-    const creds = { secretKey: body.secretKey, webhookSecret: body.webhookSecret };
+    const { creds, mode } = body;
     const { accountId } = await gateway.verifyCredentials(creds);
-    const mode = body.secretKey.split('_')[1] as GatewayMode;
     const sealed = seal(JSON.stringify(creds), config.paymentsKey, credentialsAad(t.ownerId, gateway.key));
     const old = await loadGateway(t.ownerId, gateway.key, config, services, { mode });
     if (old && old.accountId !== accountId) await releaseAccount(t.ownerId, old, services.now());

@@ -210,12 +210,13 @@ export type ActivityItem = {
 export type ActivityPage = { items: ActivityItem[]; nextBefore: string | null };
 
 export type GatewayView = {
-  gateway: 'stripe';
+  gateway: 'stripe' | 'sslcommerz';
   connected: boolean;
   enabled: boolean;
   /** The active mode: new payments use its keys. */
   mode: 'test' | 'live' | null;
-  accounts: Record<'test' | 'live', { accountId: string; publishableKey: string } | null>;
+  /** `publishableKey` is null for SSLCommerz, whose account id is the store id. */
+  accounts: Record<'test' | 'live', { accountId: string; publishableKey: string | null } | null>;
   webhookUrl: string;
   webhookEvents: string[];
   updatedAt: string | null;

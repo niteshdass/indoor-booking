@@ -277,7 +277,7 @@ export async function dispatchRefund(
   if (refund.dispatchedAt) {
     // An earlier call may have landed (or its idempotency key expired): adopt what the gateway has.
     try {
-      const found = await gateway.findRefund(creds, { gatewayRef, refundId: String(refund._id) });
+      const found = await gateway.findRefund(creds, { gatewayRef, refundId: String(refund._id), refundRef: refund.gatewayRef ?? null });
       if (found) {
         await settle({ status: found.status, gatewayRef: found.refundRef, failureCode: found.failureCode });
         return true;
@@ -295,6 +295,7 @@ export async function dispatchRefund(
     const result = await gateway.refund(creds, {
       gatewayRef,
       amount: refund.amount,
+      currency: refund.currency,
       idempotencyKey: `refund_${String(refund._id)}`,
       refundId: String(refund._id),
     });

@@ -1,30 +1,33 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import mongoose, { type ClientSession } from 'mongoose';
 import { payoutStripeWebhookCreds } from '../../admin/settings';
 import type { Config } from '../../config';
-import { isDuplicateKeyError, runInTransaction } from '../../db';
+import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
 import type { AppServices } from '../../services';
-import { applyEvent } from '../apply';
+import { Booking } from '../../bookings/booking.model';
 import { PlatformPayout } from '../../platform/payout.model';
 import { PlatformWebhookEvent } from '../../platform/webhookEvent.model';
-import { GatewayError, gatewayFor, type GatewayCredentials, type GatewayEvent, type PaymentGateway } from '../gateway';
+import {
+  GatewayError,
+  gatewayFor,
+  type GatewayCredentials,
+  type GatewayEvent,
+  type PaymentGateway,
+  type WebhookDelivery,
+} from '../gateway';
 import { GATEWAY_MODES, PaymentGatewayAccount, unsealMode } from '../gateway.model';
-import { dispatchRefund } from '../refunds';
-import { WebhookEvent, type WebhookOutcome } from '../webhookEvent.model';
-
-/** Only a repeat of this event; any other unique violation is a failed effect that Stripe must retry. */
-const isDuplicateEvent = (err: unknown) =>
-  isDuplicateKeyError(err) && Object.hasOwn((err as { keyPattern?: object }).keyPattern ?? {}, 'eventId');
+import { ingestEvent, isDuplicateEvent } from '../ingest';
+import type { WebhookOutcome } from '../webhookEvent.model';
 
 const endpointNotFound = () => new AppError(404, 'not_found', 'Webhook endpoint not found');
 
-/** Test and live deliveries share a URL; each is signed with its own mode's secret. */
-function verifyEvent(gateway: PaymentGateway, creds: GatewayCredentials[], rawBody: Buffer, signature: string | undefined): GatewayEvent {
+/** Test and live deliveries share a URL; each verifies only with its own mode's credentials. */
+async function verifyEvent(gateway: PaymentGateway, creds: GatewayCredentials[], delivery: WebhookDelivery): Promise<GatewayEvent> {
   let lastError: unknown;
   for (const c of creds) {
     try {
-      return gateway.handleWebhook(c, rawBody, signature);
+      return await gateway.handleWebhook(c, delivery);
     } catch (err) {
       if (!(err instanceof GatewayError && err.code === 'invalid_signature')) throw err;
       lastError = err;
@@ -33,7 +36,22 @@ function verifyEvent(gateway: PaymentGateway, creds: GatewayCredentials[], rawBo
   throw lastError;
 }
 
-const rawBodyOf = (body: unknown) => (Buffer.isBuffer(body) ? body : Buffer.alloc(0));
+const deliveryOf = (req: Request): WebhookDelivery => ({
+  rawBody: Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0),
+  header: (name) => req.get(name),
+});
+
+/** The owner's gateway and the credentials of each mode it has keys for; 404 when there are none. */
+async function ownerGateway(key: string, ownerId: string, config: Config, services: AppServices) {
+  if (!mongoose.isValidObjectId(ownerId)) throw endpointNotFound();
+  const gateway = gatewayFor(services, key);
+  const row = gateway && config.paymentsKey ? await PaymentGatewayAccount.findOne({ ownerId, gateway: key }) : null;
+  const modes = row && gateway ? GATEWAY_MODES.map((m) => unsealMode(row, m, config, gateway)).filter((m) => m !== null) : [];
+  if (!gateway || modes.length === 0) throw endpointNotFound();
+  return { gateway, creds: modes.map((m) => m.creds) };
+}
+
+const RETURN_RESULTS = ['success', 'fail', 'cancel'] as const;
 
 /**
  * Settles an owner's Stripe payout to the platform. Platform work, so no tenant: reads and writes are
@@ -78,7 +96,7 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
     const gateway = gatewayFor(services, 'stripe');
     const creds = gateway ? await payoutStripeWebhookCreds(config) : [];
     if (!gateway || creds.length === 0) throw endpointNotFound();
-    const event = verifyEvent(gateway, creds, rawBodyOf(req.body), req.get('stripe-signature'));
+    const event = await verifyEvent(gateway, creds, deliveryOf(req));
     const now = services.now();
     try {
       await runInTransaction(async (session) => {
@@ -93,45 +111,43 @@ export function webhooksRouter(config: Config, services: AppServices): Router {
     res.json({ received: true });
   });
 
-  router.post('/:gateway/:ownerId', async (req, res) => {
-    const { gateway: key, ownerId } = req.params;
-    if (!mongoose.isValidObjectId(ownerId)) throw endpointNotFound();
-    const gateway = gatewayFor(services, key);
-    const row = gateway && config.paymentsKey ? await PaymentGatewayAccount.findOne({ ownerId, gateway: key }) : null;
-    const modes = row && gateway ? GATEWAY_MODES.map((m) => unsealMode(row, m, config, gateway)).filter((m) => m !== null) : [];
-    if (!gateway || modes.length === 0) throw endpointNotFound();
-
-    const event = verifyEvent(
-      gateway,
-      modes.map((m) => m.creds),
-      rawBodyOf(req.body),
-      req.get('stripe-signature'),
-    );
-
-    const now = services.now();
-    let refundIds: string[] = [];
+  /**
+   * Where SSLCommerz sends the player's browser back to, as a form post carrying the same fields as
+   * its notice. Applied like one (the notice may come later, or never), then the browser goes on to
+   * the app. Before '/:gateway/:ownerId'. Trouble here never strands the player: it only logs.
+   */
+  router.post('/sslcommerz/:ownerId/return', async (req, res) => {
+    const { ownerId } = req.params;
+    const bookingId = String(req.query.booking ?? '');
+    const result = RETURN_RESULTS.find((r) => r === req.query.result) ?? 'fail';
+    let paid = false;
     try {
-      refundIds = await runInTransaction(async (session) => {
-        const [row] = await WebhookEvent.create(
-          [{ ownerId, gateway: gateway.key, eventId: event.id, type: event.type, at: now }],
-          { session },
-        );
-        const { outcome, refundIds } = await applyEvent(ownerId, event, { now }, session);
-        await WebhookEvent.updateOne({ ownerId, _id: row!._id }, { $set: { outcome } }, { session });
-        return refundIds;
-      });
+      const { gateway, creds } = await ownerGateway('sslcommerz', ownerId, config, services);
+      const event = await verifyEvent(gateway, creds, deliveryOf(req));
+      await ingestEvent(ownerId, gateway.key, event, { config, services });
+      paid = event.kind === 'succeeded';
     } catch (err) {
-      // Already processed: the first delivery's transaction committed the event row.
-      if (!isDuplicateEvent(err)) throw err;
-    }
-    // Committed: send the refunds now. A gateway outage leaves them pending for reconcile, never for Stripe's retry.
-    for (const id of refundIds) {
-      try {
-        await dispatchRefund(id, ownerId, { config, services });
-      } catch (err) {
-        console.error(`[refunds] dispatch of ${id} failed`, err);
+      if (!(err instanceof GatewayError && err.code === 'invalid_signature') && !(err instanceof AppError)) {
+        console.error(`[payments] SSLCommerz return for owner ${ownerId} could not be applied`, err);
       }
     }
+    // Only an id of this owner's booking goes into the redirect.
+    const known =
+      mongoose.isValidObjectId(bookingId) && mongoose.isValidObjectId(ownerId) && !!(await Booking.exists({ ownerId, _id: bookingId }));
+    if (!known) {
+      res.redirect(303, `${config.appUrl}/me/bookings`);
+      return;
+    }
+    const base = `${config.appUrl}/me/bookings/${bookingId}`;
+    if (paid || result === 'success') res.redirect(303, `${base}?paid=1`);
+    else res.redirect(303, `${base}/pay?payment=${result === 'cancel' ? 'cancelled' : 'failed'}`);
+  });
+
+  router.post('/:gateway/:ownerId', async (req, res) => {
+    const { gateway: key, ownerId } = req.params;
+    const { gateway, creds } = await ownerGateway(key, ownerId, config, services);
+    const event = await verifyEvent(gateway, creds, deliveryOf(req));
+    await ingestEvent(ownerId, gateway.key, event, { config, services });
     res.json({ received: true });
   });
 

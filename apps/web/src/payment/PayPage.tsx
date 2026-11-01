@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { Alert } from '../components/ui/Alert';
@@ -9,8 +9,9 @@ import { Tabs } from '../components/ui/Tabs';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
-import type { BookingJson, PaymentOptions, PaymentStart } from '../lib/types';
+import type { BookingJson, PaymentOptions, PaymentStart, StripePaymentStart } from '../lib/types';
 import { PROVIDER_NAMES } from '../lib/wallets';
+import { leaveTo } from './redirect';
 import { elementsOptions, stripeFor } from './stripe';
 import { useCountdown } from './useCountdown';
 import { BookingLine, HoldPill } from './BookingLine';
@@ -35,7 +36,7 @@ function PayForm({
 }: {
   id: string;
   booking: BookingJson;
-  start: PaymentStart;
+  start: StripePaymentStart;
   msLeft: number;
   expired: boolean;
   onConfirming(v: boolean): void;
@@ -125,7 +126,7 @@ function Expired({ slug }: { slug: string | null }) {
 
 type CardState =
   | { status: 'loading' }
-  | { status: 'ready'; start: PaymentStart }
+  | { status: 'ready'; start: StripePaymentStart }
   | { status: 'redirect' }
   | { status: 'error'; error: unknown; loadFailed?: boolean };
 
@@ -153,14 +154,15 @@ function CardPane({
     setState({ status: 'loading' });
     (async () => {
       try {
-        const start = await apiPost<PaymentStart>(`/bookings/${encodeURIComponent(id)}/payment`, {});
+        const start = await apiPost<PaymentStart>(`/bookings/${encodeURIComponent(id)}/payment`, { gateway: 'stripe' });
+        if (start.payment.gateway !== 'stripe') throw new Error('Unexpected gateway');
         try {
           await stripeFor(start.payment.publishableKey);
         } catch (error) {
           if (live) setState({ status: 'error', error, loadFailed: true });
           return;
         }
-        if (live) setState({ status: 'ready', start });
+        if (live) setState({ status: 'ready', start: start as StripePaymentStart });
       } catch (error) {
         if (!live) return;
         if (error instanceof ApiError && (error.code === 'already_paid' || error.code === 'invalid_transition')) setState({ status: 'redirect' });
@@ -189,6 +191,70 @@ function CardPane({
   return <CardElements id={id} booking={booking} start={state.start} msLeft={msLeft} expired={expired} onConfirming={onConfirming} lang={i18n.resolvedLanguage} />;
 }
 
+/** Sends the player to the gateway's hosted page (bKash, Nagad, Rocket or card); they come back to the booking. */
+function OnlinePane({
+  id,
+  booking,
+  amount,
+  currency,
+  msLeft,
+  expired,
+  onConfirming,
+  onHoldExpired,
+}: {
+  id: string;
+  booking: BookingJson;
+  amount: number;
+  currency: string;
+  msLeft: number;
+  expired: boolean;
+  onConfirming(v: boolean): void;
+  onHoldExpired(): void;
+}) {
+  const { t, i18n } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const [paid, setPaid] = useState(false);
+
+  const go = async () => {
+    if (busy || expired) return;
+    setBusy(true);
+    setError(null);
+    onConfirming(true);
+    try {
+      const start = await apiPost<PaymentStart>(`/bookings/${encodeURIComponent(id)}/payment`, { gateway: 'sslcommerz' });
+      if (start.payment.gateway !== 'sslcommerz') throw new Error('Unexpected gateway');
+      // Leaving the app: keep `busy` and `confirming` so nothing swaps under the player meanwhile.
+      leaveTo(start.payment.url);
+      return;
+    } catch (err) {
+      if (err instanceof ApiError && (err.code === 'already_paid' || err.code === 'invalid_transition')) setPaid(true);
+      else if (err instanceof ApiError && err.code === 'hold_expired') onHoldExpired();
+      else setError(err);
+    }
+    setBusy(false);
+    onConfirming(false);
+  };
+
+  if (paid) return <Navigate to={`/me/bookings/${encodeURIComponent(id)}`} replace />;
+  return (
+    <div className={styles.card}>
+      <div className={styles.head}>
+        <div className={styles.headTop}>
+          <p className={styles.amount}>{t('payment.payNow', { amount: money(amount, currency, i18n.language) })}</p>
+          <HoldPill msLeft={msLeft} />
+        </div>
+        <BookingLine booking={booking} />
+      </div>
+      <p className={styles.note}>{t('payment.online.body')}</p>
+      {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+      <Button size="lg" icon="arrowRight" block loading={busy} disabled={busy} onClick={() => void go()}>
+        {t('payment.online.continue')}
+      </Button>
+    </div>
+  );
+}
+
 function CardElements({
   id,
   booking,
@@ -200,7 +266,7 @@ function CardElements({
 }: {
   id: string;
   booking: BookingJson;
-  start: PaymentStart;
+  start: StripePaymentStart;
   msLeft: number;
   expired: boolean;
   onConfirming(v: boolean): void;
@@ -228,9 +294,10 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
   const [confirming, setConfirming] = useState(false);
   const [lapsed, setLapsed] = useState(false);
   const onHoldExpired = useCallback(() => setLapsed(true), []);
-  const ids = [...(options.card ? ['card'] : []), ...options.wallets.map((w) => w.provider)];
-  // Wallets open first when offered, so a card intent is never started unasked.
-  const [tab, setTab] = useState<string>(options.wallets[0]?.provider ?? 'card');
+  const ids = [...(options.sslcommerz ? ['online'] : []), ...(options.card ? ['card'] : []), ...options.wallets.map((w) => w.provider)];
+  // Online checkout opens first when offered (it starts nothing until pressed); otherwise wallets, so a
+  // card intent is never started unasked.
+  const [tab, setTab] = useState<string>(options.sslcommerz ? 'online' : (options.wallets[0]?.provider ?? 'card'));
   const [cardSeen, setCardSeen] = useState(tab === 'card');
   const choose = (next: string) => {
     setTab(next);
@@ -239,6 +306,8 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
 
   if (ids.length === 0) return <Alert tone="warning">{t('checkout.noMethods')}</Alert>;
   const cardOver = (holdEnded && !confirming) || lapsed;
+  const tabLabel = (x: string) =>
+    x === 'online' ? t('payment.online.tab') : x === 'card' ? t('payment.wallet.card') : PROVIDER_NAMES[x as keyof typeof PROVIDER_NAMES];
 
   const wallet = options.wallets.find((w) => w.provider === tab);
   const done = (outcome: ManualOutcome) =>
@@ -249,12 +318,24 @@ function PayMethods({ id, booking, options }: { id: string; booking: BookingJson
       {ids.length > 1 && (
         <Tabs
           label={t('payment.wallet.tabs')}
-          tabs={ids.map((x) => ({ id: x, label: x === 'card' ? t('payment.wallet.card') : PROVIDER_NAMES[x as keyof typeof PROVIDER_NAMES] }))}
+          tabs={ids.map((x) => ({ id: x, label: tabLabel(x) }))}
           value={tab}
           onChange={choose}
         />
       )}
-      {tab === 'card' && cardOver && <Expired slug={booking.venue?.slug ?? null} />}
+      {(tab === 'card' || tab === 'online') && cardOver && <Expired slug={booking.venue?.slug ?? null} />}
+      {tab === 'online' && !cardOver && (
+        <OnlinePane
+          id={id}
+          booking={booking}
+          amount={options.amount}
+          currency={options.currency}
+          msLeft={msLeft}
+          expired={expired}
+          onConfirming={setConfirming}
+          onHoldExpired={onHoldExpired}
+        />
+      )}
       {cardSeen && !cardOver && (
         <div hidden={tab !== 'card'}>
           <CardPane id={id} booking={booking} msLeft={msLeft} expired={expired} onConfirming={setConfirming} onHoldExpired={onHoldExpired} />
@@ -282,6 +363,18 @@ export function PayPage() {
   useDocumentTitle(t('payment.title'));
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [params, setParams] = useSearchParams();
+  // Back from the gateway without paying: say so once, then drop the flag so a reload is clean.
+  const [returned] = useState(() => {
+    const v = params.get('payment');
+    return v === 'failed' || v === 'cancelled' ? v : null;
+  });
+  useEffect(() => {
+    if (!params.has('payment')) return;
+    const next = new URLSearchParams(params);
+    next.delete('payment');
+    setParams(next, { replace: true });
+  }, [params, setParams]);
 
   const load = useCallback(() => setAttempt((n) => n + 1), []);
 
@@ -319,6 +412,7 @@ export function PayPage() {
   return (
     <main className={styles.page}>
       <h1 className={styles.title}>{t('payment.title')}</h1>
+      {returned && state.status === 'ready' && <Alert tone={returned === 'failed' ? 'danger' : 'warning'}>{t(`payment.returned.${returned}`)}</Alert>}
       {state.status === 'loading' && <Skeleton kind="detail" label={t('common.loading')} />}
       {state.status === 'error' && (
         <Alert tone="danger" className={styles.alert}>

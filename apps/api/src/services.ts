@@ -3,6 +3,7 @@ import { resolveEmail, resolveGoogleClientId, resolveSms } from './admin/setting
 import { createGoogleVerifier } from './auth/google';
 import { AppError } from './errors';
 import { smtpEmailSender, twilioSmsSender } from './notifications/senders';
+import { realSslcommerz, type SslcommerzHttp } from './payments/sslcommerz';
 import { realStripe, type StripeFactory } from './payments/stripe';
 
 export interface SmsSender {
@@ -30,6 +31,8 @@ export type AppServices = {
   otpCode?: () => string;
   /** Builds a Stripe client for an owner's secret key. */
   stripe: StripeFactory;
+  /** HTTP to SSLCommerz; credentials go in each request. */
+  sslcommerz: SslcommerzHttp;
 };
 
 /**
@@ -63,5 +66,6 @@ export function defaultServices(config: Config): AppServices {
     },
     google: createGoogleVerifier(() => resolveGoogleClientId(config)),
     stripe: realStripe,
+    sslcommerz: realSslcommerz,
   };
 }

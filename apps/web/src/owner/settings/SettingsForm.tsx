@@ -18,7 +18,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { PaymentMethodsFields } from './PaymentMethodsFields';
+import { PaymentMethodsFields, type GatewayKey } from './PaymentMethodsFields';
 import { HoursEditor, weekdayNames } from './HoursEditor';
 import { settingsErrors, settingsPatch, type Draft, type SettingsError, type SettingsLevel, type StoredSettings } from './settingsPatch';
 import styles from './settings.module.css';
@@ -35,15 +35,20 @@ type Props = {
   currency: string;
   onSave(patch: Record<string, unknown>): Promise<void>;
   disabled?: boolean;
-  /** The owner's Stripe account is connected and on; the card switch stays off until then. */
-  stripeReady?: boolean;
-  canConnectStripe?: boolean;
+  /** The owner's gateways that are connected and on; a gateway's switch stays off until then. */
+  readyGateways?: GatewayKey[];
+  canConnectGateways?: boolean;
   /** Content for the Stripe tab (outside the form); the tab only shows when given. */
   stripe?: ReactNode;
+  /** Content for the SSLCommerz tab (outside the form); the tab only shows when given. */
+  sslcommerz?: ReactNode;
 };
 
-const SECTIONS = ['hours', 'booking', 'payments', 'refunds', 'stripe'] as const;
+const SECTIONS = ['hours', 'booking', 'payments', 'refunds', 'sslcommerz', 'stripe'] as const;
 type SettingsSection = (typeof SECTIONS)[number];
+/** Tabs that hold a gateway card instead of form fields. */
+type GatewaySection = 'stripe' | 'sslcommerz';
+const isGatewaySection = (x: SettingsSection): x is GatewaySection => x === 'stripe' || x === 'sslcommerz';
 
 /** The tab that holds the field each validation error belongs to. */
 const ERROR_SECTION: Record<SettingsError, SettingsSection> = {
@@ -97,10 +102,23 @@ function Section({
 }
 
 /** Owner- or venue-level settings editor; Task 13 mounts it with `level="venue"`. */
-export function SettingsForm({ level, stored, effective, inherited, currency, onSave, disabled, stripeReady = false, canConnectStripe = true, stripe }: Props) {
+export function SettingsForm({
+  level,
+  stored,
+  effective,
+  inherited,
+  currency,
+  onSave,
+  disabled,
+  readyGateways = [],
+  canConnectGateways = true,
+  stripe,
+  sslcommerz,
+}: Props) {
   const { t, i18n } = useTranslation();
   const venue = level === 'venue';
-  const sections = SECTIONS.filter((x) => x !== 'stripe' || stripe !== undefined);
+  const gatewayTabs: Record<GatewaySection, ReactNode> = { stripe, sslcommerz };
+  const sections = SECTIONS.filter((x) => !isGatewaySection(x) || gatewayTabs[x] !== undefined);
   // `section`, not `tab`: the venue editor already keeps its own tab in `tab`.
   const [params, setParams] = useSearchParams();
   const requested = params.get('section');
@@ -384,8 +402,8 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
           <PaymentMethodsFields
             value={methods}
             disabled={locked('paymentMethods')}
-            stripeReady={stripeReady}
-            canConnectStripe={canConnectStripe}
+            readyGateways={readyGateways}
+            canConnectGateways={canConnectGateways}
             onChange={(v) => edit({ ...draft, paymentMethods: v })}
           />
           {walletsBad && <p className={styles.error}>{t('owner.settings.errors.wallet')}</p>}
@@ -442,7 +460,7 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
         </>,
   );
 
-  const panels: Record<Exclude<SettingsSection, 'stripe'>, ReactNode> = {
+  const panels: Record<Exclude<SettingsSection, GatewaySection>, ReactNode> = {
     hours: hoursPanel,
     booking: bookingPanel,
     payments: paymentsPanel,
@@ -457,9 +475,9 @@ export function SettingsForm({ level, stored, effective, inherited, currency, on
         value={tab}
         onChange={setTab}
       />
-      {tab === 'stripe' ? (
-        <div role="tabpanel" aria-label={t('owner.settings.tab.stripe')}>
-          {stripe}
+      {isGatewaySection(tab) ? (
+        <div role="tabpanel" aria-label={t(`owner.settings.tab.${tab}`)}>
+          {gatewayTabs[tab]}
         </div>
       ) : (
         <form className={styles.stack} onSubmit={submit} noValidate>

@@ -17,6 +17,7 @@ import { Booking } from '../../src/bookings/booking.model';
 import { PlatformPayout } from '../../src/platform/payout.model';
 import { Review } from '../../src/reviews/review.model';
 import { PlatformLog } from '../../src/admin/platformLog.model';
+import { Notification } from '../../src/notifications/notification.model';
 import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
 
 beforeAll(async () => {
@@ -42,7 +43,7 @@ beforeEach(async () => {
     PlatformLog.deleteMany({}),
     PlatformSettings.deleteMany({}),
     RefreshToken.deleteMany({}),
-    ...[Membership, ActivityLog, Venue, Turf, Booking, Review].map((m) => (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true })),
+    ...[Membership, ActivityLog, Venue, Turf, Booking, Review, Notification].map((m) => (m as typeof Venue).deleteMany({}).setOptions({ crossTenant: true })),
   ]);
   clearSettingsCache();
   ctx = buildTestApp();
@@ -213,6 +214,49 @@ describe('overview and owner detail', () => {
     expect(detail.body.venues).toEqual([expect.objectContaining({ name: 'Alpha', published: true })]);
     expect(detail.body.recent.bookings).toBe(2);
     expect(detail.body.contacts.map((c: { name: string }) => c.name)).toEqual(['Owner User']);
+  });
+});
+
+describe('SMS credits', () => {
+  it('an admin grants and takes back credits, never below zero, and it is logged', async () => {
+    const grant = (body: object) => post(`/admin/owners/${a.ownerId}/sms-credits`, body);
+    expect((await grant({ amount: 0 })).status).toBe(400);
+    expect((await grant({ amount: 1.5 })).status).toBe(400);
+    const res = await grant({ amount: 500, note: 'Paid by bKash' });
+    expect(res.status).toBe(200);
+    expect(res.body.sms).toEqual({ credits: 500, thisMonth: { messages: 0, segments: 0 } });
+    expect((await grant({ amount: -501 })).body.error.code).toBe('insufficient_sms_credits');
+    expect((await grant({ amount: -200 })).body.sms.credits).toBe(300);
+    expect((await post(`/admin/owners/${oid()}/sms-credits`, { amount: 5 })).status).toBe(404);
+
+    const detail = await get(`/admin/owners/${a.ownerId}`);
+    expect(detail.body.sms).toEqual({ credits: 300, thisMonth: { messages: 0, segments: 0 } });
+    expect(detail.body.history.slice(0, 2).map((h: { amount: number }) => h.amount)).toEqual([-200, 500]);
+    const log = await PlatformLog.find({ action: 'owner.sms_credits_granted' }).sort({ _id: 1 }).lean();
+    expect(log.map((l) => [l.amount, l.reason])).toEqual([[500, 'Paid by bKash'], [-200, null]]);
+  });
+
+  it('the owner sees its balance and this month\'s use', async () => {
+    const usage = () => request(ctx.app).get(api(`/owners/${a.ownerId}/sms-usage`)).set(...bearer(a.token));
+    expect((await usage()).body).toEqual({ metered: false, credits: 0, thisMonth: { messages: 0, segments: 0 } });
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { smsMetered: true } }, { upsert: true });
+    clearSettingsCache();
+    await Owner.updateOne({ _id: a.ownerId }, { $set: { smsCredits: 40 } });
+    const now = ctx.services.now();
+    const row = (over: object) => ({
+      ownerId: a.ownerId, event: 'booking_confirmed', channel: 'sms', to: '+8801711111111', locale: 'en', data: {},
+      nextAttemptAt: now, dedupeKey: `k${(seq += 1)}`, status: 'sent', sentAt: now, smsSegments: 2, ...over,
+    });
+    await Notification.create([
+      row({}),
+      row({ smsSegments: 1 }),
+      row({ status: 'failed', sentAt: null, smsSegments: null }),
+      row({ sentAt: new Date(now.getTime() - 40 * 86_400_000) }),
+    ]);
+    expect((await usage()).body).toEqual({ metered: true, credits: 40, thisMonth: { messages: 2, segments: 3 } });
+    // Settings access only.
+    const staff = await addMember(ctx.services, a.ownerId, { roleKey: 'staff' });
+    expect((await request(ctx.app).get(api(`/owners/${a.ownerId}/sms-usage`)).set(...bearer(staff.token))).status).toBe(403);
   });
 });
 

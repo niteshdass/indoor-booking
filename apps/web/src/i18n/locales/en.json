@@ -1228,7 +1228,8 @@
         "payments": "Payments",
         "refunds": "Refunds",
         "stripe": "Stripe",
-        "sslcommerz": "SSLCommerz"
+        "sslcommerz": "SSLCommerz",
+        "sms": "SMS"
       }
     },
     "gateway": {
@@ -1783,6 +1784,15 @@
       "notReceivedConfirm": "Yes, not received",
       "back": "Back",
       "lateHint": "These times were taken, so everything received will be listed to send back."
+    },
+    "sms": {
+      "title": "Booking texts",
+      "included": "Booking texts to your customers are included in your plan.",
+      "metered": "Each booking text uses credits, one per SMS part. Verification codes are free.",
+      "credits": "Credits left",
+      "messages": "Texts this month",
+      "segments": "Parts this month",
+      "empty": "You have no SMS credits, so customers are not getting booking texts. Contact the platform to add more."
     }
   },
   "reviews": {
@@ -2120,7 +2130,19 @@
       "suspendTitle": "Suspend {{name}}?",
       "suspendBody": "Its venues leave search, new bookings stop and its team loses access to the owner portal. Existing bookings stay as they are. The reason is kept in the history.",
       "reactivateTitle": "Reactivate {{name}}?",
-      "reactivateBody": "Its published venues come back to search and its team can work again."
+      "reactivateBody": "Its published venues come back to search and its team can work again.",
+      "sms": {
+        "title": "SMS credits",
+        "credits": "Balance",
+        "messages": "Texts this month",
+        "segments": "Parts this month",
+        "amount": "Credits",
+        "amountHint": "Negative to take credits back",
+        "note": "Note",
+        "apply": "Apply",
+        "applied": "Credits updated.",
+        "insufficient": "The owner has fewer credits than that."
+      }
     },
     "payouts": {
       "filter": "Payout status",
@@ -2235,7 +2257,8 @@
           "approved": "Approved {{target}}",
           "auto_approved": "Auto-approved {{target}}",
           "suspended": "Suspended {{target}}",
-          "reactivated": "Reactivated {{target}}"
+          "reactivated": "Reactivated {{target}}",
+          "sms_credits_granted": "Changed SMS credits of {{target}} by {{amount}}"
         },
         "user": {
           "disabled": "Disabled {{target}}",
@@ -2247,7 +2270,9 @@
         },
         "settings": {
           "general_updated": "Updated platform settings",
-          "sports_updated": "Updated the sports list"
+          "sports_updated": "Updated the sports list",
+          "sms_metering_on": "Turned SMS metering on",
+          "sms_metering_off": "Turned SMS metering off"
         },
         "payout": {
           "confirmed": "Confirmed a payout from {{target}}",
@@ -2303,7 +2328,7 @@
       },
       "sms": {
         "title": "SMS (Twilio)",
-        "intro": "Sends phone verification codes and booking texts.",
+        "intro": "Sends phone verification codes and booking texts. Bangladeshi numbers go through the Bangladesh provider when one is set.",
         "accountSid": "Account SID",
         "authToken": "Auth token",
         "from": "From number",
@@ -2402,6 +2427,23 @@
         "down": "Move {{sport}} down",
         "none": "Keep at least one sport on.",
         "save": "Save sports"
+      },
+      "smsBd": {
+        "title": "Bangladesh SMS",
+        "intro": "Sends texts to Bangladeshi mobile numbers (+8801…) through a local gateway. Other numbers still go through Twilio.",
+        "provider": "Provider",
+        "providers": {
+          "ssl_wireless": "SSL Wireless",
+          "bulksmsbd": "BulkSMSBD"
+        },
+        "apiKey": "API key",
+        "senderId": "Sender ID",
+        "senderIdHint": "The masking name or number your provider approved"
+      },
+      "smsMetering": {
+        "title": "SMS credits",
+        "intro": "When on, each owner pays for booking texts from their SMS credits. Credits count SMS parts: a long or Bangla text uses more than one. Verification codes are never charged. Owners with no credits stop getting booking texts.",
+        "on": "Charge owners SMS credits"
       }
     },
     "docs": {

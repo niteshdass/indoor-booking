@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
-import type { AdminSettingsJson, SettingSource } from '@booking/shared';
+import { BD_SMS_PROVIDERS, type AdminSettingsJson, type BdSmsProvider, type SettingSource } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
 import { Checkbox } from '../components/ui/Checkbox';
+import { Select } from '../components/ui/Select';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Tabs } from '../components/ui/Tabs';
 import { TextField } from '../components/ui/TextField';
@@ -187,6 +188,66 @@ function SmsCard({ data, store, secrets }: { data: AdminSettingsJson['sms']; sto
   );
 }
 
+/** The Bangladesh provider: +8801 numbers go through it when set, everything else stays on Twilio. */
+function SmsBdCard({ data, store, secrets }: { data: AdminSettingsJson['sms']['bd']; store: Store; secrets: boolean }) {
+  const { t } = useTranslation();
+  const s = useSection('sms-bd', store);
+  const [provider, setProvider] = useState<BdSmsProvider>(data.provider ?? 'ssl_wireless');
+  const [apiKey, setApiKey] = useState('');
+  const [senderId, setSenderId] = useState(data.senderId ?? '');
+  // A saved key carries over only while the provider stays the same.
+  const keeps = data.apiKeySet && data.provider === provider;
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void s.save({ provider, apiKey: apiKey.trim(), senderId: senderId.trim() }).then((ok) => ok && setApiKey(''));
+  };
+  return (
+    <Card title={t('admin.settings.smsBd.title')} intro={t('admin.settings.smsBd.intro')} source={data.source}>
+      <form className={styles.stack} onSubmit={submit} noValidate>
+        <Select
+          icon="send"
+          layout="stacked"
+          label={t('admin.settings.smsBd.provider')}
+          value={provider}
+          options={BD_SMS_PROVIDERS.map((p) => ({ value: p, label: t(`admin.settings.smsBd.providers.${p}`) }))}
+          onChange={(e) => setProvider(e.target.value as BdSmsProvider)}
+        />
+        <TextField
+          icon="lock"
+          label={t('admin.settings.smsBd.apiKey')}
+          hint={keeps ? t('admin.settings.keepSecret') : undefined}
+          type="password"
+          autoComplete="new-password"
+          disabled={!secrets}
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <TextField
+          icon="at"
+          label={t('admin.settings.smsBd.senderId')}
+          hint={t('admin.settings.smsBd.senderIdHint')}
+          autoComplete="off"
+          value={senderId}
+          onChange={(e) => setSenderId(e.target.value)}
+        />
+        <Footer s={s} source={data.source} label={t('admin.settings.save')} />
+      </form>
+    </Card>
+  );
+}
+
+/** Whether owners' booking SMS is charged against their credits; saves on change. */
+function SmsMeteringCard({ metered, store }: { metered: boolean; store: Store }) {
+  const { t } = useTranslation();
+  const s = useSection('sms-metering', store);
+  return (
+    <Card title={t('admin.settings.smsMetering.title')} intro={t('admin.settings.smsMetering.intro')}>
+      <Checkbox label={t('admin.settings.smsMetering.on')} checked={metered} disabled={s.busy} onChange={(on) => void s.save({ metered: on })} />
+      {s.error && <Alert tone="danger">{s.error}</Alert>}
+    </Card>
+  );
+}
+
 /** Where to get a Google client ID, with this site's origin to allow. */
 function GoogleSteps() {
   const { t } = useTranslation();
@@ -270,6 +331,8 @@ export function AdminSettingsPage() {
         {tab === 'sms' && (
           <>
             <SmsCard data={data.sms} store={res.set} secrets={data.secretsAvailable} />
+            <SmsBdCard data={data.sms.bd} store={res.set} secrets={data.secretsAvailable} />
+            <SmsMeteringCard metered={data.sms.metered} store={res.set} />
             <TestSend channel="sms" />
           </>
         )}

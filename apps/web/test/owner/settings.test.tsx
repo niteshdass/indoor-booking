@@ -302,4 +302,30 @@ describe('SettingsPage', () => {
     expect(await screen.findByText(S.saved)).toBeTruthy();
     expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({ bookingWindowDays: 60 });
   });
+
+  it('SMS tab shows the credit balance while SMS is metered', async () => {
+    mockApi([
+      { path: `/owners/${OWNER_ID}/sms-usage`, body: { metered: true, credits: 0, thisMonth: { messages: 12, segments: 15 } } },
+      { path: `/owners/${OWNER_ID}/settings`, body: { settings: DEFAULTS } },
+      ...ownerRoutes({ permissions: ['booking.view', 'settings.edit'] }),
+    ]);
+    renderApp(`/owner/${OWNER_ID}/settings?section=sms`, { user: staffUser });
+    const card = await screen.findByRole('region', { name: en.owner.sms.title });
+    expect(await within(card).findByText(en.owner.sms.credits)).toBeInTheDocument();
+    expect(within(card).getByText('15')).toBeInTheDocument();
+    expect(within(card).getByText(en.owner.sms.empty)).toBeInTheDocument();
+  });
+
+  it('SMS tab says texts are included and hides the balance when not metered', async () => {
+    mockApi([
+      { path: `/owners/${OWNER_ID}/sms-usage`, body: { metered: false, credits: 0, thisMonth: { messages: 2, segments: 2 } } },
+      { path: `/owners/${OWNER_ID}/settings`, body: { settings: DEFAULTS } },
+      ...ownerRoutes({ permissions: ['booking.view', 'settings.edit'] }),
+    ]);
+    renderApp(`/owner/${OWNER_ID}/settings?section=sms`, { user: staffUser });
+    const card = await screen.findByRole('region', { name: en.owner.sms.title });
+    expect(await within(card).findByText(en.owner.sms.included)).toBeInTheDocument();
+    expect(within(card).queryByText(en.owner.sms.credits)).not.toBeInTheDocument();
+    expect(within(card).queryByText(en.owner.sms.empty)).not.toBeInTheDocument();
+  });
 });

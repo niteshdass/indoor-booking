@@ -69,6 +69,7 @@ function detail(status: AdminOwnerDetailJson['owner']['status'] = 'pending_appro
     venues: [{ id: 'v1', name: 'Main Hall', slug: 'main-hall', city: 'Dhaka', published: true, courts: 4, rating: { average: 4.5, count: 12 } }],
     recent: { bookings: 5, earned: [] },
     history: [],
+    sms: { credits: 40, thisMonth: { messages: 3, segments: 5 } },
   };
 }
 
@@ -183,6 +184,42 @@ describe('admin portal', () => {
     );
   });
 
+  it('grants SMS credits and explains a take-back larger than the balance', async () => {
+    const o = en.admin.owner.sms;
+    let credits = 40;
+    const api = mockApi(
+      adminRoutes([
+        { path: '/admin/owners/o1', body: () => ({ ...detail('active'), sms: { credits, thisMonth: { messages: 3, segments: 5 } } }) },
+        {
+          method: 'POST',
+          path: '/admin/owners/o1/sms-credits',
+          body: (_c: unknown, n: number) =>
+            n === 0
+              ? { sms: { credits: (credits = 140), thisMonth: { messages: 3, segments: 5 } } }
+              : { status: 409, body: { error: { code: 'insufficient_sms_credits', message: 'x' } } },
+        },
+      ]),
+    );
+    const h = renderApp('/admin/owners/o1', { user: admin });
+    const panel = await screen.findByRole('region', { name: o.title });
+    expect(within(panel).getByText('40')).toBeInTheDocument();
+    const apply = within(panel).getByRole('button', { name: o.apply });
+    expect(apply).toBeDisabled();
+    await h.user.type(within(panel).getByLabelText(o.amount), '0');
+    expect(apply).toBeDisabled();
+    await h.user.clear(within(panel).getByLabelText(o.amount));
+    await h.user.type(within(panel).getByLabelText(o.amount), '100');
+    await h.user.type(within(panel).getByLabelText(o.note), ' Launch bonus ');
+    await h.user.click(apply);
+    expect(await within(panel).findByText(o.applied)).toBeInTheDocument();
+    expect(within(panel).getByText('140')).toBeInTheDocument();
+    expect(api.calls.find((c) => c.path === '/admin/owners/o1/sms-credits')?.body).toEqual({ amount: 100, note: 'Launch bonus' });
+
+    await h.user.type(within(panel).getByLabelText(o.amount), '-500');
+    await h.user.click(apply);
+    expect(await within(panel).findByText(o.insufficient)).toBeInTheDocument();
+  });
+
   it('disables a user but offers no action on another admin', async () => {
     const users: AdminUserJson[] = [
       { id: 'u2', name: 'Pat Player', email: 'pat@example.com', phone: null, status: 'active', platformAdmin: false, teams: 0, createdAt: '2026-09-01T00:00:00.000Z' },
@@ -241,6 +278,7 @@ describe('admin portal', () => {
       target: 'Arena One',
       ownerId: 'o1',
       reason: 'Fake venue',
+      amount: null,
       at: '2026-10-21T00:00:00.000Z',
     };
     mockApi(adminRoutes([{ path: '/admin/activity', body: { entries: [entry], nextBefore: null } }]));

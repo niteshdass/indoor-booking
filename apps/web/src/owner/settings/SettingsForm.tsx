@@ -42,13 +42,15 @@ type Props = {
   stripe?: ReactNode;
   /** Content for the SSLCommerz tab (outside the form); the tab only shows when given. */
   sslcommerz?: ReactNode;
+  /** Content for the SMS tab (outside the form); the tab only shows when given. */
+  sms?: ReactNode;
 };
 
-const SECTIONS = ['hours', 'booking', 'payments', 'refunds', 'sslcommerz', 'stripe'] as const;
+const SECTIONS = ['hours', 'booking', 'payments', 'refunds', 'sslcommerz', 'stripe', 'sms'] as const;
 type SettingsSection = (typeof SECTIONS)[number];
-/** Tabs that hold a gateway card instead of form fields. */
-type GatewaySection = 'stripe' | 'sslcommerz';
-const isGatewaySection = (x: SettingsSection): x is GatewaySection => x === 'stripe' || x === 'sslcommerz';
+/** Tabs that hold a card of their own (a gateway, SMS use) instead of form fields. */
+type CardSection = 'stripe' | 'sslcommerz' | 'sms';
+const isCardSection = (x: SettingsSection): x is CardSection => x === 'stripe' || x === 'sslcommerz' || x === 'sms';
 
 /** The tab that holds the field each validation error belongs to. */
 const ERROR_SECTION: Record<SettingsError, SettingsSection> = {
@@ -114,11 +116,12 @@ export function SettingsForm({
   canConnectGateways = true,
   stripe,
   sslcommerz,
+  sms,
 }: Props) {
   const { t, i18n } = useTranslation();
   const venue = level === 'venue';
-  const gatewayTabs: Record<GatewaySection, ReactNode> = { stripe, sslcommerz };
-  const sections = SECTIONS.filter((x) => !isGatewaySection(x) || gatewayTabs[x] !== undefined);
+  const cardTabs: Record<CardSection, ReactNode> = { stripe, sslcommerz, sms };
+  const sections = SECTIONS.filter((x) => !isCardSection(x) || cardTabs[x] !== undefined);
   // `section`, not `tab`: the venue editor already keeps its own tab in `tab`.
   const [params, setParams] = useSearchParams();
   const requested = params.get('section');
@@ -460,7 +463,7 @@ export function SettingsForm({
         </>,
   );
 
-  const panels: Record<Exclude<SettingsSection, GatewaySection>, ReactNode> = {
+  const panels: Record<Exclude<SettingsSection, CardSection>, ReactNode> = {
     hours: hoursPanel,
     booking: bookingPanel,
     payments: paymentsPanel,
@@ -475,9 +478,9 @@ export function SettingsForm({
         value={tab}
         onChange={setTab}
       />
-      {isGatewaySection(tab) ? (
+      {isCardSection(tab) ? (
         <div role="tabpanel" aria-label={t(`owner.settings.tab.${tab}`)}>
-          {gatewayTabs[tab]}
+          {cardTabs[tab]}
         </div>
       ) : (
         <form className={styles.stack} onSubmit={submit} noValidate>

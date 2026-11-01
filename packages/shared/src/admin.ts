@@ -2,6 +2,7 @@ import type { OwnerApprovalMode, PlatformFeeSettings } from './platformFee';
 import type { PlatformPermission, PlatformRoleKey } from './permissions';
 import type { RatingSummary } from './reviews';
 import type { OwnerStatus } from './statuses';
+import type { BdSmsProvider } from './sms';
 import type { SportSetting } from './venues';
 import type { ManualWallet } from './wallets';
 
@@ -26,6 +27,9 @@ export const PLATFORM_ACTIONS = [
   'settings.sports_updated',
   'payout.confirmed',
   'payout.rejected',
+  'owner.sms_credits_granted',
+  'settings.sms_metering_on',
+  'settings.sms_metering_off',
 ] as const;
 export type PlatformAction = (typeof PLATFORM_ACTIONS)[number];
 
@@ -99,6 +103,8 @@ export type PlatformLogJson = {
   target: string | null;
   ownerId: string | null;
   reason: string | null;
+  /** Payouts: the amount in minor units; SMS credit changes: the credits added (negative: taken back). */
+  amount: number | null;
   at: string;
 };
 
@@ -117,6 +123,8 @@ export type AdminOwnerDetailJson = {
   venues: AdminVenueJson[];
   recent: { bookings: number; earned: CurrencyAmount[] };
   history: PlatformLogJson[];
+  /** SMS credits (in parts) and what this owner's SMS used since the start of the month (UTC). */
+  sms: { credits: number; thisMonth: { messages: number; segments: number } };
 };
 
 export type AdminUserJson = AdminPersonJson & {
@@ -155,7 +163,14 @@ export type AdminSettingsJson = {
     source: SettingSource;
     smtp: { host: string; port: number; secure: boolean; user: string | null; from: string; passwordSet: boolean } | null;
   };
-  sms: { source: SettingSource; twilio: { accountSid: string; from: string; authTokenSet: boolean } | null };
+  sms: {
+    source: SettingSource;
+    twilio: { accountSid: string; from: string; authTokenSet: boolean } | null;
+    /** The Bangladesh provider for +8801 numbers; `provider`/`senderId` null when it comes from the server env. */
+    bd: { source: SettingSource; provider: BdSmsProvider | null; senderId: string | null; apiKeySet: boolean };
+    /** Owners' booking SMS is charged against their credits. */
+    metered: boolean;
+  };
   /** False when the server has no encryption key, so passwords and tokens cannot be saved. */
   secretsAvailable: boolean;
   general: {

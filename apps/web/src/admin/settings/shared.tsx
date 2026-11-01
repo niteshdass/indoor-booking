@@ -9,7 +9,7 @@ import styles from '../../owner/settings/settings.module.css';
 /** The tabs of Admin > Settings. */
 export type SettingsTab = 'general' | 'payments' | 'sports' | 'google' | 'email' | 'sms';
 /** Each PUT/DELETE path under /admin/settings. */
-export type Section = SettingsTab | 'payout-stripe';
+export type Section = SettingsTab | 'payout-stripe' | 'sms-bd' | 'sms-metering';
 export type Store = (next: AdminSettingsJson) => void;
 
 const SOURCE_TONE: Record<SettingSource, Tone> = { admin: 'success', server: 'info', none: 'warning' };

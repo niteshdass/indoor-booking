@@ -17,3 +17,4 @@ export * from './series';
 export * from './admin';
 export * from './platformFee';
 export * from './platformPayouts';
+export * from './sms';

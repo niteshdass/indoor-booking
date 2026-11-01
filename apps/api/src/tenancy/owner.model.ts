@@ -14,6 +14,8 @@ const ownerSchema = new mongoose.Schema(
     settings: { type: mongoose.Schema.Types.Mixed, default: {} },
     /** Written by each platform payout submit, so two at once conflict and one retries. */
     payoutLockAt: { type: Date, default: null },
+    /** Prepaid SMS parts, spent by booking SMS while the platform meters SMS. */
+    smsCredits: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true, minimize: false },
 );

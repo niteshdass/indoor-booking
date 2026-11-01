@@ -22,12 +22,16 @@ const notificationSchema = new mongoose.Schema(
     nextAttemptAt: { type: Date, required: true },
     lastError: { type: String, default: null },
     sentAt: { type: Date, default: null },
+    /** SMS parts the sent message took (whether or not they were charged); null for email and unsent rows. */
+    smsSegments: { type: Number, default: null },
     /** event:bookingId:refundId:channel:to, so a repeated event never queues the same message twice. */
     dedupeKey: { type: String, required: true, unique: true },
   },
   { timestamps: true, minimize: false },
 );
 notificationSchema.index({ status: 1, nextAttemptAt: 1 });
+// An owner's SMS use per month.
+notificationSchema.index({ ownerId: 1, sentAt: 1 }, { partialFilterExpression: { channel: 'sms', status: 'sent' } });
 notificationSchema.plugin(tenantScoped);
 
 export type NotificationDoc = HydratedDocument<InferSchemaType<typeof notificationSchema>>;

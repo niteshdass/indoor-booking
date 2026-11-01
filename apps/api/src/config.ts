@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { BdSmsProvider } from '@booking/shared';
 
 export type Config = {
   nodeEnv: 'development' | 'test' | 'production';
@@ -26,6 +27,8 @@ export type Config = {
   email?: { smtpUrl: string; from: string };
   /** Twilio delivery from the env; the admin dashboard's setting wins. Unset everywhere: console in dev, refused in production. */
   sms?: { accountSid: string; authToken: string; from: string };
+  /** A Bangladesh SMS provider from the env, for +8801 numbers; the admin's setting wins. Others still go by Twilio. */
+  smsBd?: { provider: BdSmsProvider; apiKey: string; senderId: string };
 };
 
 export class ConfigError extends Error {
@@ -60,6 +63,10 @@ const envSchema = z
     TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
     TWILIO_AUTH_TOKEN: z.string().min(1).optional(),
     TWILIO_FROM: z.string().min(1).optional(),
+    SSL_WIRELESS_API_TOKEN: z.string().min(1).optional(),
+    SSL_WIRELESS_SID: z.string().min(1).optional(),
+    BULKSMSBD_API_KEY: z.string().min(1).optional(),
+    BULKSMSBD_SENDER_ID: z.string().min(1).optional(),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && !e.PAYMENTS_ENCRYPTION_KEY) {
@@ -81,6 +88,8 @@ const envSchema = z
     const groups = [
       ['SMTP_URL', 'EMAIL_FROM'],
       ['TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM'],
+      ['SSL_WIRELESS_API_TOKEN', 'SSL_WIRELESS_SID'],
+      ['BULKSMSBD_API_KEY', 'BULKSMSBD_SENDER_ID'],
     ] as const;
     for (const keys of groups) {
       if (!keys.some((k) => e[k])) continue;
@@ -132,6 +141,12 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
       authToken: e.TWILIO_AUTH_TOKEN,
       from: e.TWILIO_FROM,
     };
+  }
+  // SSL Wireless first when both are set.
+  if (e.SSL_WIRELESS_API_TOKEN && e.SSL_WIRELESS_SID) {
+    config.smsBd = { provider: 'ssl_wireless', apiKey: e.SSL_WIRELESS_API_TOKEN, senderId: e.SSL_WIRELESS_SID };
+  } else if (e.BULKSMSBD_API_KEY && e.BULKSMSBD_SENDER_ID) {
+    config.smsBd = { provider: 'bulksmsbd', apiKey: e.BULKSMSBD_API_KEY, senderId: e.BULKSMSBD_SENDER_ID };
   }
   if (e.TRUST_PROXY) config.trustProxy = parseTrustProxy(e.TRUST_PROXY);
   return config;

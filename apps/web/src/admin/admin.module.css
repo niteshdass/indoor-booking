@@ -152,6 +152,11 @@ thead th.end {
   gap: var(--space-3);
 }
 
+/* SMS credit grant: amount and note fields, the button beside them. */
+.grantField {
+  flex: 1 1 var(--field-min);
+}
+
 .search {
   display: flex;
   flex: 1 1 var(--filter-search-min);

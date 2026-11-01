@@ -66,7 +66,7 @@ export function OwnerStatusBadge({ status }: { status: OwnerStatus }) {
 
 /** The platform log line for one entry, e.g. "Approved Arena". */
 export const logLabel = (e: PlatformLogJson, t: TFunction) =>
-  t(`admin.activity.action.${e.action}`, { target: e.target ?? t('admin.activity.removed') });
+  t(`admin.activity.action.${e.action}`, { target: e.target ?? t('admin.activity.removed'), amount: e.amount !== null && e.amount > 0 ? `+${e.amount}` : e.amount });
 
 /** Search box that only searches on submit, so typing does not refetch on every key. */
 export function SearchForm({ label, value, onSearch }: { label: string; value: string; onSearch(q: string): void }) {

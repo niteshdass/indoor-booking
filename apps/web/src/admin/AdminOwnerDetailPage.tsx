@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ADMIN_PERIOD_DAYS, SUSPEND_REASON_MAX, type AdminOwnerDetailJson } from '@booking/shared';
@@ -7,7 +7,8 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { Table } from '../components/ui/Table';
-import { apiPost } from '../lib/apiClient';
+import { TextField } from '../components/ui/TextField';
+import { ApiError, apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { formatRating } from '../lib/format';
 import { useResource } from '../owner/useResource';
@@ -17,12 +18,97 @@ import { day, dayTime, earnedText, logLabel, OwnerStatusBadge } from './parts';
 import styles from './admin.module.css';
 
 type Action = 'approve' | 'suspend' | 'reactivate';
+type Sms = AdminOwnerDetailJson['sms'];
+
+/** SMS balance and this month's use, with a form to add credits (or take some back with a negative amount). */
+function SmsCreditsPanel({ ownerId, sms, onChange }: { ownerId: string; sms: Sms; onChange(next: Sms): void }) {
+  const { t, i18n } = useTranslation();
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const n = (v: number) => v.toLocaleString(i18n.language);
+  const value = Number(amount);
+  const valid = /^-?\d+$/.test(amount) && value !== 0;
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (busy || !valid) return;
+    setBusy(true);
+    setError(null);
+    setDone(false);
+    try {
+      const res = await apiPost<{ sms: Sms }>(`/admin/owners/${encodeURIComponent(ownerId)}/sms-credits`, {
+        amount: value,
+        ...(note.trim() ? { note: note.trim() } : {}),
+      });
+      setAmount('');
+      setNote('');
+      setDone(true);
+      onChange(res.sms);
+    } catch (err) {
+      setError(err instanceof ApiError && err.code === 'insufficient_sms_credits' ? t('admin.owner.sms.insufficient') : errorMessage(err, t));
+    }
+    setBusy(false);
+  };
+  return (
+    <section className={styles.panel} aria-labelledby="owner-sms">
+      <div className={styles.panelHead}>
+        <h2 id="owner-sms" className={styles.heading}>
+          {t('admin.owner.sms.title')}
+        </h2>
+      </div>
+      <dl className={styles.facts}>
+        <div>
+          <dt>{t('admin.owner.sms.credits')}</dt>
+          <dd>{n(sms.credits)}</dd>
+        </div>
+        <div>
+          <dt>{t('admin.owner.sms.messages')}</dt>
+          <dd>{n(sms.thisMonth.messages)}</dd>
+        </div>
+        <div>
+          <dt>{t('admin.owner.sms.segments')}</dt>
+          <dd>{n(sms.thisMonth.segments)}</dd>
+        </div>
+      </dl>
+      <form className={styles.toolbar} onSubmit={(e) => void submit(e)} noValidate>
+        <TextField
+          className={styles.grantField}
+          icon="hash"
+          label={t('admin.owner.sms.amount')}
+          hint={t('admin.owner.sms.amountHint')}
+          inputMode="numeric"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value.replace(/[^\d-]/g, ''))}
+        />
+        <TextField
+          className={styles.grantField}
+          icon="note"
+          label={t('admin.owner.sms.note')}
+          maxLength={SUSPEND_REASON_MAX}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+        <Button type="submit" icon="check" loading={busy} disabled={!valid}>
+          {t('admin.owner.sms.apply')}
+        </Button>
+      </form>
+      {error && <Alert tone="danger">{error}</Alert>}
+      {done && (
+        <p className={styles.muted} role="status">
+          {t('admin.owner.sms.applied')}
+        </p>
+      )}
+    </section>
+  );
+}
 
 /** One business: who runs it, its venues and recent trade, its platform history, and the status actions. */
 export function AdminOwnerDetailPage() {
   const { t, i18n } = useTranslation();
   const { ownerId = '' } = useParams();
-  const { state, reload } = useResource<AdminOwnerDetailJson>(`/admin/owners/${encodeURIComponent(ownerId)}`);
+  const { state, reload, set } = useResource<AdminOwnerDetailJson>(`/admin/owners/${encodeURIComponent(ownerId)}`);
   const [action, setAction] = useState<Action | null>(null);
   useAdminTitle(state.status === 'ready' ? state.data.owner.name : t('admin.nav.owners'));
 
@@ -172,6 +258,15 @@ export function AdminOwnerDetailPage() {
               </ul>
             )}
           </section>
+          <SmsCreditsPanel
+            ownerId={owner.id}
+            sms={state.data.sms}
+            onChange={(sms) => {
+              set({ ...state.data, sms });
+              // The grant shows in History.
+              reload();
+            }}
+          />
           <section className={styles.panel} aria-labelledby="owner-history">
             <div className={styles.panelHead}>
               <h2 id="owner-history" className={styles.heading}>

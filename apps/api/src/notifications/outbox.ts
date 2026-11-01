@@ -1,5 +1,6 @@
 import type { ClientSession } from 'mongoose';
-import { reviewerName, type Locale, type SeriesClashReason } from '@booking/shared';
+import { reviewerName, smsSegments, type Locale, type SeriesClashReason } from '@booking/shared';
+import { smsMetered } from '../admin/settings';
 import type { Config } from '../config';
 import { User } from '../auth/user.model';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
@@ -196,6 +197,7 @@ export async function deliverNotifications(
         { new: true },
       );
       if (!claimed) continue;
+      let charged = 0;
       try {
         if (row.bookingId && (await isStale(row.event, row.ownerId, row.bookingId))) {
           await Notification.updateOne(mine, { $set: { status: 'failed', lastError: 'stale' } });
@@ -203,11 +205,29 @@ export async function deliverNotifications(
           continue;
         }
         const msg = renderNotice(row.event, row.locale, row.data as NoticeData, deps.config.appUrl);
-        if (row.channel === 'email') await deps.services.email.send({ to: row.to, subject: msg.subject, text: msg.text });
-        else await deps.services.sms.send(row.to, msg.sms);
-        await Notification.updateOne(mine, { $set: { status: 'sent', sentAt: claimNow, lastError: null } });
+        if (row.channel === 'email') {
+          await deps.services.email.send({ to: row.to, subject: msg.subject, text: msg.text });
+          await Notification.updateOne(mine, { $set: { status: 'sent', sentAt: claimNow, lastError: null } });
+        } else {
+          const segments = smsSegments(msg.sms);
+          // Charged before sending, only while metered; a failed send gives the parts back for the retry to charge again.
+          charged = (await smsMetered()) ? segments : 0;
+          if (charged > 0) {
+            const paid = await Owner.updateOne({ _id: row.ownerId, smsCredits: { $gte: charged } }, { $inc: { smsCredits: -charged } });
+            if (paid.modifiedCount !== 1) {
+              charged = 0;
+              await Notification.updateOne(mine, { $set: { status: 'failed', lastError: 'no_sms_credit' } });
+              result.dropped += 1;
+              continue;
+            }
+          }
+          await deps.services.sms.send(row.to, msg.sms);
+          charged = 0;
+          await Notification.updateOne(mine, { $set: { status: 'sent', sentAt: claimNow, lastError: null, smsSegments: segments } });
+        }
         result.sent += 1;
       } catch (err) {
+        if (charged > 0) await Owner.updateOne({ _id: row.ownerId }, { $inc: { smsCredits: charged } });
         const final = claimed.attempts >= MAX_NOTICE_ATTEMPTS;
         await Notification.updateOne(mine, {
           $set: { lastError: err instanceof Error ? err.message : String(err), ...(final ? { status: 'failed' } : {}) },

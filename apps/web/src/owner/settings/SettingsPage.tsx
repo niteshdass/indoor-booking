@@ -11,6 +11,7 @@ import { useResource } from '../useResource';
 import { SettingsForm } from './SettingsForm';
 import { useReadyGateways } from './PaymentMethodsFields';
 import { SslcommerzGatewayCard } from './SslcommerzGatewayCard';
+import { SmsUsageCard } from './SmsUsageCard';
 import { StripeGatewayCard } from './StripeGatewayCard';
 import styles from './settings.module.css';
 
@@ -46,6 +47,7 @@ export function SettingsPage() {
         canConnectGateways={gateways.canConnect}
         stripe={can('settings.edit') ? <StripeGatewayCard /> : undefined}
         sslcommerz={can('settings.edit') ? <SslcommerzGatewayCard /> : undefined}
+        sms={can('settings.edit') ? <SmsUsageCard /> : undefined}
       />
     </div>
   );

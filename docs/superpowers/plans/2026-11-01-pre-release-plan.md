@@ -109,7 +109,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 | # | Feature | Why (who has it) | Notes |
 |---|---|---|---|
 | [x] P2-01 | **Automatic bKash / Nagad checkout** via SSLCommerz or EPS | Turfly, TurfHub, Turffin, TurfBook | Done with SSLCommerz (`payments/sslcommerz.ts`): hosted checkout per owner store, notices checked with the Validation / transaction APIs, return route + 5-min reconcile sweep, refunds by `bank_tran_id`. Manual TrxID stays as fallback; walk-in links stay Stripe. |
-| [ ] P2-02 | **Local BD SMS gateway** (confirm, reminder, OTP) | TurfBook (metered SMS), all | Current SMS is Twilio — expensive/unreliable in BD. Add SSL Wireless / BulkSMSBD / Alpha SMS notifier; metered SMS credit per owner. |
+| [x] P2-02 | **Local BD SMS gateway** (confirm, reminder, OTP) | TurfBook (metered SMS), all | Done with SSL Wireless and BulkSMSBD (`notifications/senders.ts`): +8801 numbers go by the BD provider when one is set, everything else by Twilio. Optional metering: owners' booking SMS is charged in SMS parts against admin-granted credits (refunded on a failed send); OTPs are never charged. Alpha SMS not added. |
 | [ ] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Staff at the desk need Bangla. Add `bn.json`, Bangla digits/dates via Intl, check 30% length rule. |
 | [ ] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Roadmap #15, not built. Percent/fixed, validity, caps, per-venue, applied in `quoteBooking()`. |
 | [ ] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Not present anywhere. Reuse slot lock in one transaction; keep payments attached. |
@@ -123,6 +123,14 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 - `API_URL` must be public over HTTPS: SSLCommerz posts the IPN to `/api/v1/webhooks/sslcommerz/:ownerId` and sends players back through `/…/return`. Give owners the IPN URL shown on the card to set in their merchant panel.
 - The refund API only answers whitelisted IPs: ask SSLCommerz to whitelist the API server's outbound IP for every live store (serverless needs a static egress IP).
 - `PAYMENTS_ENCRYPTION_KEY` must be set (store passwords are sealed with it).
+
+**Ops left for P2-02 (code is done):**
+- Open an SSL Wireless (SMS Plus) or BulkSMSBD account and get a sender ID or masking name approved (BTRC rules apply to masking). Enter the API key and sender ID under Admin → Settings → Bangladesh SMS, or set `SSL_WIRELESS_API_TOKEN` + `SSL_WIRELESS_SID` / `BULKSMSBD_API_KEY` + `BULKSMSBD_SENDER_ID`.
+- Send a test SMS to a +8801 number from the admin settings page before going live.
+- BulkSMSBD may need the API server's outbound IP whitelisted in its panel.
+- Metering is off by default. Before turning it on (Admin → Settings), grant every owner credits on Admin → Owners, or their booking SMS stops.
+
+**Gate (release/p2-02-bd-sms):** typecheck ✅ · lint ✅ · API 1053/1053 · web 885/885 · shared 158/158 · build ✅
 
 ---
 

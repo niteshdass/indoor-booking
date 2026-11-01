@@ -15,6 +15,8 @@ import { Notification } from '../../src/notifications/notification.model';
 import { DELIVER_BUDGET_MS, deliverNotifications, noticeBooking } from '../../src/notifications/outbox';
 import { runInTransaction } from '../../src/db';
 import type { NoticeEvent } from '../../src/notifications/templates';
+import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
+import { smsSegments } from '@booking/shared';
 
 beforeAll(async () => {
   await startTestDb();
@@ -292,5 +294,61 @@ describe('deliverNotifications', () => {
     await notice('hold_expiring', booking);
     await Booking.updateOne({ ownerId: owner.ownerId, _id: booking._id }, { $set: { status: 'confirmed' } });
     expect(await deliver()).toEqual({ sent: 0, failed: 0, dropped: 1 });
+  });
+});
+
+describe('SMS metering', () => {
+  const meter = async (on: boolean) => {
+    await PlatformSettings.updateOne({ _id: 'platform' }, { $set: { smsMetered: on } }, { upsert: true });
+    clearSettingsCache();
+  };
+  const credits = async () => (await Owner.findById(owner.ownerId).lean())!.smsCredits;
+  const guestNotice = async (phone = '+8801811111111') => notice('booking_confirmed', await seedBooking({ guest: { name: 'Gus', phone } }));
+
+  beforeEach(async () => {
+    await PlatformSettings.deleteMany({});
+    clearSettingsCache();
+  });
+
+  it('off by default: sends without credits and records the parts', async () => {
+    await guestNotice();
+    expect(await deliver()).toEqual({ sent: 1, failed: 0, dropped: 0 });
+    const [row] = await rows();
+    expect(row!.smsSegments).toBe(smsSegments(services.sms.sent[0]!.text));
+    expect(await credits()).toBe(0);
+  });
+
+  it('charges the parts each message takes', async () => {
+    await meter(true);
+    await Owner.updateOne({ _id: owner.ownerId }, { $set: { smsCredits: 10 } });
+    await guestNotice();
+    expect(await deliver()).toEqual({ sent: 1, failed: 0, dropped: 0 });
+    const parts = smsSegments(services.sms.sent[0]!.text);
+    expect(parts).toBeGreaterThan(0);
+    expect(await credits()).toBe(10 - parts);
+  });
+
+  it('drops a message the owner has no credit for, and sends nothing', async () => {
+    await meter(true);
+    await guestNotice();
+    expect(await deliver()).toEqual({ sent: 0, failed: 0, dropped: 1 });
+    expect(services.sms.sent).toHaveLength(0);
+    expect((await rows())[0]).toMatchObject({ status: 'failed', lastError: 'no_sms_credit' });
+    // Email is never metered.
+    const p = await player({ phoneVerified: false });
+    await notice('booking_confirmed', await seedBooking({ playerId: p._id }));
+    expect(await deliver()).toEqual({ sent: 1, failed: 0, dropped: 0 });
+  });
+
+  it('gives the credits back when the send fails', async () => {
+    await meter(true);
+    await Owner.updateOne({ _id: owner.ownerId }, { $set: { smsCredits: 10 } });
+    await guestNotice();
+    services.sms.send = async () => {
+      throw new Error('provider down');
+    };
+    expect(await deliver()).toEqual({ sent: 0, failed: 1, dropped: 0 });
+    expect(await credits()).toBe(10);
+    expect((await rows())[0]).toMatchObject({ status: 'pending', smsSegments: null });
   });
 });

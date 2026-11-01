@@ -12,6 +12,7 @@ type LogLean = {
   entityId: unknown;
   ownerId?: unknown;
   reason?: string | null;
+  amount?: number | null;
   at: Date;
 };
 
@@ -44,6 +45,7 @@ export async function platformLogJson(rows: LogLean[]): Promise<PlatformLogJson[
     target: names.get(String(r.entityId)) ?? null,
     ownerId: r.ownerId ? String(r.ownerId) : null,
     reason: r.reason ?? null,
+    amount: r.amount ?? null,
     at: r.at.toISOString(),
   }));
 }

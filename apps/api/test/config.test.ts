@@ -124,6 +124,15 @@ describe('loadConfig', () => {
       expect(loadConfig({ ...prod, ...email }).sms).toBeUndefined();
       expect(loadConfig({ ...prod, ...email, ...sms }).nodeEnv).toBe('production');
     });
+    it('reads a Bangladesh SMS provider, SSL Wireless first', () => {
+      expect(() => loadConfig({ ...base, SSL_WIRELESS_API_TOKEN: 't' })).toThrow(/SSL_WIRELESS_SID/);
+      expect(() => loadConfig({ ...base, BULKSMSBD_SENDER_ID: 's' })).toThrow(/BULKSMSBD_API_KEY/);
+      const bulk = { BULKSMSBD_API_KEY: 'k', BULKSMSBD_SENDER_ID: '8809' };
+      expect(loadConfig({ ...base, ...bulk }).smsBd).toEqual({ provider: 'bulksmsbd', apiKey: 'k', senderId: '8809' });
+      const ssl = { SSL_WIRELESS_API_TOKEN: 't', SSL_WIRELESS_SID: 'TURF' };
+      expect(loadConfig({ ...base, ...bulk, ...ssl }).smsBd).toEqual({ provider: 'ssl_wireless', apiKey: 't', senderId: 'TURF' });
+      expect(loadConfig(base).smsBd).toBeUndefined();
+    });
     it('parses both groups when set', () => {
       const c = loadConfig({ ...base, ...email, ...sms });
       expect(c.email).toEqual({ smtpUrl: 'smtp://mail.example:587', from: 'no-reply@example.com' });

@@ -29,7 +29,7 @@ function settings(over: Partial<AdminSettingsJson> = {}): AdminSettingsJson {
   return {
     google: { source: 'none', clientId: null },
     email: { source: 'none', smtp: null },
-    sms: { source: 'none', twilio: null },
+    sms: { source: 'none', twilio: null, bd: { source: 'none', provider: null, senderId: null, apiKeySet: false }, metered: false },
     general: {
       ownerApproval: 'manual',
       fee: { mode: 'free', fixed: null, percent: null, payer: 'owner' },
@@ -84,7 +84,7 @@ describe('admin settings', () => {
   });
 
   it('keeps a saved Twilio token when the field is left blank, and can fall back to the server', async () => {
-    const saved = settings({ sms: { source: 'admin', twilio: { accountSid: SID, from: '+15550001111', authTokenSet: true } } });
+    const saved = settings({ sms: { source: 'admin', twilio: { accountSid: SID, from: '+15550001111', authTokenSet: true }, bd: { source: 'none', provider: null, senderId: null, apiKeySet: false }, metered: false } });
     const api = mockApi(
       routes(
         [
@@ -122,6 +122,36 @@ describe('admin settings', () => {
     expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({ to: 'ops@example.com' });
     await h.user.click(within(email).getByRole('button', { name: s.sendTest }));
     expect(await within(email).findByText('The provider refused the message: 535 Auth failed')).toBeInTheDocument();
+  });
+
+  it('saves the Bangladesh provider, keeping the key only while the provider stays', async () => {
+    const bd = { source: 'admin', provider: 'ssl_wireless', senderId: 'BookaTurf', apiKeySet: true } as const;
+    const saved = settings({ sms: { ...settings().sms, bd } });
+    const api = mockApi(routes([{ method: 'PUT', path: '/admin/settings/sms-bd', body: saved }], saved));
+    const h = renderApp('/admin/settings?section=sms', { user: admin });
+    const card_ = await card(s.smsBd.title);
+    expect(within(card_).getByText(s.keepSecret)).toBeInTheDocument();
+    await h.user.selectOptions(within(card_).getByLabelText(s.smsBd.provider), 'bulksmsbd');
+    expect(within(card_).queryByText(s.keepSecret)).not.toBeInTheDocument();
+    await h.user.selectOptions(within(card_).getByLabelText(s.smsBd.provider), 'ssl_wireless');
+    await h.user.clear(within(card_).getByLabelText(s.smsBd.senderId));
+    await h.user.type(within(card_).getByLabelText(s.smsBd.senderId), ' Arena ');
+    await h.user.click(within(card_).getByRole('button', { name: s.save }));
+    await waitFor(() =>
+      expect(api.calls.find((c) => c.method === 'PUT')?.body).toEqual({ provider: 'ssl_wireless', apiKey: '', senderId: 'Arena' }),
+    );
+  });
+
+  it('turns SMS metering on', async () => {
+    const api = mockApi(
+      routes([{ method: 'PUT', path: '/admin/settings/sms-metering', body: settings({ sms: { ...settings().sms, metered: true } }) }]),
+    );
+    const h = renderApp('/admin/settings?section=sms', { user: admin });
+    const box = within(await card(s.smsMetering.title)).getByRole('checkbox', { name: s.smsMetering.on });
+    expect(box).not.toBeChecked();
+    await h.user.click(box);
+    await waitFor(() => expect(box).toBeChecked());
+    expect(api.calls.find((c) => c.method === 'PUT')?.body).toEqual({ metered: true });
   });
 
   it('warns and locks secret fields when the server has no encryption key', async () => {

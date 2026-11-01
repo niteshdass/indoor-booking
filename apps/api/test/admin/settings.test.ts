@@ -6,9 +6,9 @@ import { bearer, seedUser } from '../helpers/tenancy';
 import { User } from '../../src/auth/user.model';
 import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
 import { PlatformLog } from '../../src/admin/platformLog.model';
-import { defaultServices } from '../../src/services';
+import { defaultServices, defaultSmsSender } from '../../src/services';
 import { SPORTS } from '@booking/shared';
-import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGeneral, resolveGoogleClientId, resolvePayoutStripe, resolveSms } from '../../src/admin/settings';
+import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGeneral, resolveGoogleClientId, resolvePayoutStripe, resolveSms, resolveSmsBd } from '../../src/admin/settings';
 
 const CLIENT_ID = '1234-abc.apps.googleusercontent.com';
 const SID = 'AC' + 'a'.repeat(32);
@@ -72,7 +72,7 @@ describe('admin settings', () => {
       smtp: { host: smtp.host, port: 587, secure: false, user: 'mailer', from: smtp.from, passwordSet: true },
     });
     const s = await put('/admin/settings/sms', twilio);
-    expect(s.body.sms).toEqual({ source: 'admin', twilio: { accountSid: SID, from: twilio.from, authTokenSet: true } });
+    expect(s.body.sms).toMatchObject({ source: 'admin', twilio: { accountSid: SID, from: twilio.from, authTokenSet: true } });
     expect(JSON.stringify(s.body)).not.toMatch(/pw-1|tok-1/);
 
     const doc = await PlatformSettings.findById('platform').lean();
@@ -95,7 +95,7 @@ describe('admin settings', () => {
     ctx = buildTestApp({ config: { sms: { accountSid: 'ACenv', authToken: 'envtok', from: '+15550002222' } } });
     await put('/admin/settings/sms', twilio);
     const res = await request(ctx.app).delete(api('/admin/settings/sms')).set(...bearer(admin.token));
-    expect(res.body.sms).toEqual({ source: 'server', twilio: null });
+    expect(res.body.sms).toMatchObject({ source: 'server', twilio: null });
     expect(await resolveSms(ctx.config)).toEqual({ accountSid: 'ACenv', authToken: 'envtok', from: '+15550002222' });
   });
 
@@ -116,6 +116,56 @@ describe('admin settings', () => {
     const failed = await post('/admin/settings/sms/test', { to: '+8801712345678' });
     expect(failed.status).toBe(502);
     expect(failed.body.error).toMatchObject({ code: 'delivery_failed', message: 'Twilio 401: Authenticate' });
+  });
+});
+
+describe('Bangladesh SMS provider', () => {
+  const bd = { provider: 'ssl_wireless', apiKey: 'bd-key-1', senderId: 'TURFBOOK' };
+  const del = (path: string) => request(ctx.app).delete(api(path)).set(...bearer(admin.token));
+
+  it('seals the API key, keeps it on a blank save, and needs a new one for a new provider', async () => {
+    const res = await put('/admin/settings/sms-bd', bd);
+    expect(res.status).toBe(200);
+    expect(res.body.sms.bd).toEqual({ source: 'admin', provider: 'ssl_wireless', senderId: 'TURFBOOK', apiKeySet: true });
+    expect(JSON.stringify(await PlatformSettings.findById('platform').lean())).not.toContain('bd-key-1');
+    expect(await resolveSmsBd(testConfig)).toEqual({ provider: 'ssl_wireless', apiKey: 'bd-key-1', senderId: 'TURFBOOK' });
+
+    expect((await put('/admin/settings/sms-bd', { ...bd, apiKey: '', senderId: 'OTHER' })).status).toBe(200);
+    expect(await resolveSmsBd(testConfig)).toMatchObject({ apiKey: 'bd-key-1', senderId: 'OTHER' });
+    expect((await put('/admin/settings/sms-bd', { ...bd, provider: 'bulksmsbd', apiKey: '' })).body.error.code).toBe('secret_required');
+    expect((await put('/admin/settings/sms-bd', { ...bd, provider: 'other' })).status).toBe(400);
+    expect((await put('/admin/settings/sms-bd', { ...bd, senderId: 'bad;id' })).status).toBe(400);
+
+    expect((await del('/admin/settings/sms-bd')).body.sms.bd).toEqual({ source: 'none', provider: null, senderId: null, apiKeySet: false });
+    expect(await resolveSmsBd(testConfig)).toBeNull();
+  });
+
+  it('reports a provider from the server env', async () => {
+    ctx = buildTestApp({ config: { smsBd: { provider: 'bulksmsbd', apiKey: 'k', senderId: '8809' } } });
+    expect((await get('/admin/settings')).body.sms).toMatchObject({ bd: { source: 'server', apiKeySet: false }, metered: false });
+  });
+
+  it('turns metering on and off, and logs it', async () => {
+    expect((await put('/admin/settings/sms-metering', { metered: 'yes' })).status).toBe(400);
+    expect((await put('/admin/settings/sms-metering', { metered: true })).body.sms.metered).toBe(true);
+    expect((await put('/admin/settings/sms-metering', { metered: false })).body.sms.metered).toBe(false);
+    const log = await PlatformLog.find({ action: /^settings\.sms_metering/ }).sort({ _id: 1 }).lean();
+    expect(log.map((l) => l.action)).toEqual(['settings.sms_metering_on', 'settings.sms_metering_off']);
+  });
+
+  it('sends Bangladeshi mobiles by the BD provider and the rest by Twilio', async () => {
+    await put('/admin/settings/sms', twilio);
+    const ok = () => new Response(JSON.stringify({ status: 'SUCCESS', status_code: 200, sid: 'SM1' }), { status: 200 });
+    const fetchFn = vi.fn(async () => ok());
+    const sender = defaultSmsSender(testConfig, fetchFn as unknown as typeof fetch);
+    const hosts = () => fetchFn.mock.calls.map((c) => new URL((c as unknown as [string])[0]).host);
+
+    // No BD provider yet: Twilio carries everything.
+    await sender.send('+8801712345678', 'a');
+    await put('/admin/settings/sms-bd', bd);
+    await sender.send('+8801712345678', 'b');
+    await sender.send('+15552223333', 'c');
+    expect(hosts()).toEqual(['api.twilio.com', 'smsplus.sslwireless.com', 'api.twilio.com']);
   });
 });
 

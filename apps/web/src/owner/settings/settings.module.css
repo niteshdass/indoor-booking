@@ -388,3 +388,32 @@
   flex: none;
   gap: var(--space-1);
 }
+
+/* SMS usage: balance and this month's figures. */
+.smsFacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--fact-min), 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.smsFacts div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.smsFacts dt {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.smsFacts dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}

@@ -1,8 +1,9 @@
 import type { Config } from './config';
-import { resolveEmail, resolveGoogleClientId, resolveSms } from './admin/settings';
+import { isBdNumber } from '@booking/shared';
+import { resolveEmail, resolveGoogleClientId, resolveSms, resolveSmsBd } from './admin/settings';
 import { createGoogleVerifier } from './auth/google';
 import { AppError } from './errors';
-import { smtpEmailSender, twilioSmsSender } from './notifications/senders';
+import { bdSmsSender, smtpEmailSender, twilioSmsSender } from './notifications/senders';
 import { realSslcommerz, type SslcommerzHttp } from './payments/sslcommerz';
 import { realStripe, type StripeFactory } from './payments/stripe';
 
@@ -40,27 +41,35 @@ export type AppServices = {
  * applies without a restart (admin values first, then the server env). With nothing configured, development
  * prints messages to the console and production refuses to send.
  */
-export function defaultServices(config: Config): AppServices {
-  const unconfigured = (channel: 'email' | 'sms') => {
-    if (config.nodeEnv === 'production') {
-      throw new AppError(503, 'delivery_unconfigured', `${channel === 'email' ? 'Email' : 'SMS'} delivery is not configured`);
-    }
+const unconfigured = (config: Config, channel: 'email' | 'sms') => {
+  if (config.nodeEnv === 'production') {
+    throw new AppError(503, 'delivery_unconfigured', `${channel === 'email' ? 'Email' : 'SMS'} delivery is not configured`);
+  }
+};
+
+/** Bangladeshi mobiles go by the Bangladesh provider when one is set; everything else, and they without one, by Twilio. */
+export function defaultSmsSender(config: Config, fetchFn?: typeof fetch): SmsSender {
+  return {
+    async send(to, text) {
+      const bd = isBdNumber(to) ? await resolveSmsBd(config) : null;
+      if (bd) return bdSmsSender(bd, fetchFn).send(to, text);
+      const sms = await resolveSms(config);
+      if (sms) return twilioSmsSender(sms, fetchFn).send(to, text);
+      unconfigured(config, 'sms');
+      console.log(`[sms] to=${to}: ${text}`);
+    },
   };
+}
+
+export function defaultServices(config: Config): AppServices {
   return {
     now: () => new Date(),
-    sms: {
-      async send(to, text) {
-        const sms = await resolveSms(config);
-        if (sms) return twilioSmsSender(sms).send(to, text);
-        unconfigured('sms');
-        console.log(`[sms] to=${to}: ${text}`);
-      },
-    },
+    sms: defaultSmsSender(config),
     email: {
       async send(msg) {
         const email = await resolveEmail(config);
         if (email) return smtpEmailSender(email).send(msg);
-        unconfigured('email');
+        unconfigured(config, 'email');
         console.log(`[email] to=${msg.to} subject="${msg.subject}"\n${msg.text}`);
       },
     },

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { DEFAULT_PLATFORM_FEE, OWNER_APPROVAL_MODES, FEE_PAYERS, PLATFORM_FEE_MAX_PERCENT, PLATFORM_FEE_MODES, SPORTS, mergeSportSettings } from '@booking/shared';
-import type { AdminSettingsJson, SettingSource } from '@booking/shared';
+import { BD_SMS_PROVIDERS, DEFAULT_PLATFORM_FEE, OWNER_APPROVAL_MODES, FEE_PAYERS, PLATFORM_FEE_MAX_PERCENT, PLATFORM_FEE_MODES, SPORTS, mergeSportSettings } from '@booking/shared';
+import type { AdminSettingsJson, BdSmsProvider, SettingSource } from '@booking/shared';
 import { User } from '../../auth/user.model';
 import type { Config } from '../../config';
 import { AppError } from '../../errors';
@@ -41,6 +41,17 @@ const smsBody = z
     from: z.string().trim().regex(E164_RE, 'Must be a phone number in international format, e.g. +15550001111'),
   })
   .strict();
+
+/** A blank API key keeps the saved one while the provider stays the same. */
+const smsBdBody = z
+  .object({
+    provider: z.enum(BD_SMS_PROVIDERS),
+    apiKey: z.string().trim().max(256).optional(),
+    senderId: z.string().trim().regex(/^[\w .+-]{1,32}$/, 'Must be the sender ID or masking name your provider approved'),
+  })
+  .strict();
+
+const smsMeteringBody = z.object({ metered: z.boolean() }).strict();
 
 /** At most two decimals: money amounts are stored in major units but charged in minor ones. */
 const twoDecimals = (n: number) => Math.abs(n * 100 - Math.round(n * 100)) < 1e-6;
@@ -126,6 +137,13 @@ async function settingsJson(config: Config, doc: PlatformSettingsDoc | null): Pr
     sms: {
       source: source(doc?.sms, config.sms),
       twilio: doc?.sms ? { accountSid: doc.sms.accountSid, from: doc.sms.from, authTokenSet: true } : null,
+      bd: {
+        source: source(doc?.smsBd, config.smsBd),
+        provider: (doc?.smsBd?.provider as BdSmsProvider | undefined) ?? null,
+        senderId: doc?.smsBd?.senderId ?? null,
+        apiKeySet: Boolean(doc?.smsBd),
+      },
+      metered: doc?.smsMetered === true,
     },
     general: {
       ownerApproval: doc?.general?.ownerApproval ?? 'manual',
@@ -215,6 +233,31 @@ export function adminSettingsRouter(config: Config, services: AppServices): Rout
     else throw new AppError(400, 'secret_required', 'Enter the Twilio auth token');
     const sms = { accountSid: body.accountSid, authTokenSealed, from: body.from };
     res.json(await settingsJson(config, await save(platformOf(req).userId, { sms })));
+  });
+
+  router.put('/settings/sms-bd', async (req, res) => {
+    const body = smsBdBody.parse(req.body);
+    const key = config.paymentsKey;
+    if (!key) throw noKey();
+    const saved = (await current())?.smsBd;
+    let apiKeySealed: string;
+    if (body.apiKey) apiKeySealed = seal(body.apiKey, key, secretAad('smsBd.apiKey'));
+    else if (saved && saved.provider === body.provider) apiKeySealed = saved.apiKeySealed;
+    else throw new AppError(400, 'secret_required', 'Enter the API key');
+    const smsBd = { provider: body.provider, apiKeySealed, senderId: body.senderId };
+    res.json(await settingsJson(config, await save(platformOf(req).userId, { smsBd })));
+  });
+
+  router.delete('/settings/sms-bd', async (req, res) => {
+    res.json(await settingsJson(config, await save(platformOf(req).userId, { smsBd: null })));
+  });
+
+  router.put('/settings/sms-metering', async (req, res) => {
+    const { metered } = smsMeteringBody.parse(req.body);
+    const actorId = platformOf(req).userId;
+    const doc = await save(actorId, { smsMetered: metered });
+    await logPlatform(actorId, { action: metered ? 'settings.sms_metering_on' : 'settings.sms_metering_off', entity: 'user', entityId: actorId }, services.now());
+    res.json(await settingsJson(config, doc));
   });
 
   /** Replaces part of the general settings, keeping the rest (the payout Stripe keys live beside the fee). */

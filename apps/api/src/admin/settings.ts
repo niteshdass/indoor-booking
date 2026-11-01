@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { DEFAULT_PLATFORM_FEE, FEE_PAYERS, OWNER_APPROVAL_MODES, PLATFORM_FEE_MODES, SPORTS, WALLET_PROVIDERS, mergeSportSettings } from '@booking/shared';
-import type { ManualWallet, OwnerApprovalMode, PlatformFeeSettings, Sport, SportSetting } from '@booking/shared';
+import { BD_SMS_PROVIDERS, DEFAULT_PLATFORM_FEE, FEE_PAYERS, OWNER_APPROVAL_MODES, PLATFORM_FEE_MODES, SPORTS, WALLET_PROVIDERS, mergeSportSettings } from '@booking/shared';
+import type { BdSmsProvider, ManualWallet, OwnerApprovalMode, PlatformFeeSettings, Sport, SportSetting } from '@booking/shared';
 import type { Config } from '../config';
 import type { GatewayCredentials } from '../payments/gateway';
 import { open } from '../payments/secretBox';
@@ -95,6 +95,18 @@ const platformSettingsSchema = new mongoose.Schema(
       default: null,
       _id: false,
     },
+    /** A Bangladesh provider for +8801 numbers; others still go by Twilio. */
+    smsBd: {
+      type: {
+        provider: { type: String, enum: BD_SMS_PROVIDERS, required: true },
+        apiKeySealed: { type: String, required: true },
+        senderId: { type: String, required: true },
+      },
+      default: null,
+      _id: false,
+    },
+    /** When on, each owner's booking SMS is charged against its credits; OTPs never are. */
+    smsMetered: { type: Boolean, default: false },
     general: { type: generalSchema, default: null },
     /** The sport catalog's order and switches; null until an admin saves it. */
     sports: { type: [sportSettingSchema], default: null },
@@ -109,7 +121,7 @@ export type PlatformSettingsDoc = mongoose.InferSchemaType<typeof platformSettin
 
 export const SETTINGS_ID = 'platform';
 /** Sealed secrets are bound to their field, so one cannot be swapped for another. */
-export const secretAad = (field: 'smtp.password' | 'twilio.authToken' | 'payout.stripe') => `platform-settings:${field}`;
+export const secretAad = (field: 'smtp.password' | 'twilio.authToken' | 'smsBd.apiKey' | 'payout.stripe') => `platform-settings:${field}`;
 
 /** Every server re-reads within this window after another one saves. */
 const CACHE_MS = 15_000;
@@ -129,6 +141,7 @@ export async function loadSettings(): Promise<PlatformSettingsDoc | null> {
 export type SmtpSettings = { host: string; port: number; secure: boolean; user: string | null; password: string | null };
 export type EmailSettings = { from: string } & ({ url: string } | { smtp: SmtpSettings });
 export type SmsSettings = { accountSid: string; authToken: string; from: string };
+export type SmsBdSettings = { provider: BdSmsProvider; apiKey: string; senderId: string };
 
 /** The sport catalog with the admin's order and switches. */
 export async function resolveSportSettings(): Promise<SportSetting[]> {
@@ -162,6 +175,20 @@ export async function resolveSms(config: Config): Promise<SmsSettings | null> {
     return { accountSid: s.accountSid, from: s.from, authToken: open(s.authTokenSealed, config.paymentsKey, secretAad('twilio.authToken')) };
   }
   return config.sms ?? null;
+}
+
+/** The admin's Bangladesh provider, else the server's; null means +8801 numbers go by Twilio too. */
+export async function resolveSmsBd(config: Config): Promise<SmsBdSettings | null> {
+  const s = (await loadSettings())?.smsBd;
+  if (s && config.paymentsKey) {
+    return { provider: s.provider as BdSmsProvider, senderId: s.senderId, apiKey: open(s.apiKeySealed, config.paymentsKey, secretAad('smsBd.apiKey')) };
+  }
+  return config.smsBd ?? null;
+}
+
+/** Whether owners' SMS is charged against their credits right now. */
+export async function smsMetered(): Promise<boolean> {
+  return (await loadSettings())?.smsMetered === true;
 }
 
 /** A saved wallet as the API shapes it: no `note` key when there is none. */

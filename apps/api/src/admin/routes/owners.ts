@@ -17,6 +17,7 @@ import { AppError } from '../../errors';
 import { ratingJson } from '../../reviews/rating';
 import { Review } from '../../reviews/review.model';
 import type { AppServices } from '../../services';
+import { smsUsageThisMonth } from '../../notifications/smsUsage';
 import { Membership } from '../../tenancy/membership.model';
 import { Owner } from '../../tenancy/owner.model';
 import { systemRole } from '../../tenancy/role.model';
@@ -36,6 +37,12 @@ const listQuery = z
   .partial()
   .strict();
 const suspendSchema = z.object({ reason: z.string().trim().min(1).max(SUSPEND_REASON_MAX) });
+const smsCreditsSchema = z
+  .object({
+    amount: z.number().int().refine((n) => n !== 0, 'Enter a number other than 0').refine((n) => Math.abs(n) <= 1_000_000, 'At most 1,000,000 at a time'),
+    note: z.string().trim().max(SUSPEND_REASON_MAX).optional(),
+  })
+  .strict();
 
 const ownerNotFound = () => new AppError(404, 'not_found', 'Owner not found');
 
@@ -141,6 +148,7 @@ export function adminOwnersRouter(services: AppServices): Router {
       earnedByCurrency(periodStart(now), now, ownerId),
       PlatformLog.find({ ownerId }).sort({ _id: -1 }).limit(20).lean(),
     ]);
+    const smsMonth = await smsUsageThisMonth(ownerId, now);
     const courts = new Map(turfCounts.map((r) => [String(r._id), r.n]));
     const body: AdminOwnerDetailJson = {
       owner: {
@@ -165,8 +173,28 @@ export function adminOwnersRouter(services: AppServices): Router {
       })),
       recent: { bookings: sum(bookings), earned },
       history: await platformLogJson(log),
+      sms: { credits: owner.smsCredits ?? 0, thisMonth: smsMonth },
     };
     res.json(body);
+  });
+
+  /** Adds (or, negative, takes back) SMS credits; never below zero. */
+  router.post('/owners/:id/sms-credits', async (req, res) => {
+    const { amount, note } = smsCreditsSchema.parse(req.body ?? {});
+    const owner = await loadOwner(req.params.id);
+    const updated = await Owner.findOneAndUpdate(
+      { _id: owner._id, ...(amount < 0 ? { smsCredits: { $gte: -amount } } : {}) },
+      { $inc: { smsCredits: amount } },
+      { new: true },
+    );
+    if (!updated) throw new AppError(409, 'insufficient_sms_credits', 'This business has fewer credits than that');
+    const ownerId = owner.id as string;
+    await logPlatform(
+      platformOf(req).userId,
+      { action: 'owner.sms_credits_granted', entity: 'owner', entityId: ownerId, ownerId, amount, reason: note || null },
+      services.now(),
+    );
+    res.json({ sms: { credits: updated.smsCredits, thisMonth: await smsUsageThisMonth(ownerId, services.now()) } });
   });
 
   /** Moves the owner from one of `from` to `to` and logs `action`; anything else is a 409. */

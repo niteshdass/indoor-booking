@@ -7,9 +7,11 @@ import { TextField } from '../components/ui/TextField';
 import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import styles from './auth.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 export function ForgotPasswordPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('auth.forgot.title'));
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);

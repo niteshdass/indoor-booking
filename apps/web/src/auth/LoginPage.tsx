@@ -15,6 +15,7 @@ import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
 import { useCooldown } from './useCooldown';
 import styles from './auth.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 type Method = 'phone' | 'email';
 const asMethod = (v: string | null): Method | null => (v === 'phone' || v === 'email' ? v : null);
@@ -22,6 +23,7 @@ const asMethod = (v: string | null): Method | null => (v === 'phone' || v === 'e
 /** Two steps: pick a way in (Google, phone or email), then the chosen form. `?method=` keeps the step so Back works. */
 export function LoginPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('auth.login.title'));
   const { status, signIn } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@booking/shared": "workspace:^",
+    "@sentry/react": "^10.78.0",
     "@stripe/react-stripe-js": "^7.0.0",
     "@stripe/stripe-js": "^10.1.0",
     "heic-to": "1.6.6",

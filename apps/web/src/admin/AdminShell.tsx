@@ -12,6 +12,7 @@ import { useResource } from '../owner/useResource';
 import { ThemeMenu } from '../theme/ThemeToggle';
 import { useAdmin } from './AdminProvider';
 import { ADMIN_NAV } from './nav';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const TitleContext = createContext<(title: string) => void>(() => {});
 
@@ -50,6 +51,7 @@ export function AdminShell() {
   const { pathname } = useLocation();
   const counts = useCounts(pathname);
   const [title, setTitle] = useState('');
+  useDocumentTitle(title || t('admin.portal'));
   const [open, setOpen] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);

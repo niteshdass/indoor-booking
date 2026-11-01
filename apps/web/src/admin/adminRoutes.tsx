@@ -1,4 +1,6 @@
 import { Route, Routes } from 'react-router';
+import { useTranslation } from 'react-i18next';
+import { NotFoundPage } from '../pages/NotFoundPage';
 import { AdminActivityPage } from './AdminActivityPage';
 import { AdminDocsPage } from './docs/AdminDocsPage';
 import { AdminOverviewPage } from './AdminOverviewPage';
@@ -10,6 +12,11 @@ import { AdminReviewsPage } from './AdminReviewsPage';
 import { AdminShell } from './AdminShell';
 import { AdminSettingsPage } from './AdminSettingsPage';
 import { AdminUsersPage } from './AdminUsersPage';
+
+function AdminNotFound() {
+  const { t } = useTranslation();
+  return <NotFoundPage home="/admin" homeLabel={t('notFound.portal')} />;
+}
 
 /** The `/admin/*` tree: platform admins only (the provider shows a notice to anyone else). */
 export function AdminRoutes() {
@@ -25,6 +32,7 @@ export function AdminRoutes() {
           <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="activity" element={<AdminActivityPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="*" element={<AdminNotFound />} />
         </Route>
         <Route path="docs/:topic?" element={<AdminDocsPage />} />
       </Routes>

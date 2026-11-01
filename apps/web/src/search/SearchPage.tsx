@@ -12,6 +12,7 @@ import { SearchForm } from './SearchForm';
 import { criteriaFromParams, criteriaToParams, type Bbox, type Criteria } from './searchParams';
 import { useSearch } from './useSearch';
 import styles from './SearchPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const ResultsMap = lazy(() => import('./ResultsMap').then((m) => ({ default: m.ResultsMap })));
 
@@ -60,6 +61,7 @@ function useIsWide(): boolean {
 
 export function SearchPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('search.title'));
   const [params, setParams] = useSearchParams();
   const criteria = useMemo(() => criteriaFromParams(params), [params]);
   const { results, status, error, hasMore, loadMore, retry } = useSearch(criteria);

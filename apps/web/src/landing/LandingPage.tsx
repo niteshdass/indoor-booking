@@ -8,6 +8,7 @@ import { EMPTY_CRITERIA, criteriaToParams } from '../search/searchParams';
 import { SportCourt } from './SportCourt';
 import { useSports } from '../lib/sports';
 import styles from './LandingPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 /** Demo prices in BDT minor units, formatted in the reader's language. */
 const DEMO_SLOTS = [
@@ -405,6 +406,7 @@ function PortalPreview() {
 
 export function LandingPage() {
   const { t } = useTranslation();
+  useDocumentTitle();
   const steps = ['pick', 'pay', 'play'] as const;
   const features = ['weekly', 'map', 'lookup', 'reviews'] as const;
   const points = ['point1', 'point2', 'point3', 'point4'] as const;

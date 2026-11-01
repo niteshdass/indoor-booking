@@ -3,6 +3,7 @@ import { useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
+import { reportError } from '../lib/errorReporting';
 import styles from './ErrorBoundary.module.css';
 
 /** What a crashed page shows instead of a blank screen: a short apology and Reload. */
@@ -41,6 +42,7 @@ class Boundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Render error', error, info.componentStack);
+    void reportError(error, info.componentStack);
   }
 
   componentDidUpdate(prev: Props) {

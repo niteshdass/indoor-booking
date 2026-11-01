@@ -14,6 +14,7 @@ import type { OwnerMembership } from '../owner/types';
 import { SignOutDialog } from './SignOutDialog';
 import { useAuth } from './useAuth';
 import styles from './ProfilePage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 /** One label-and-value line in the contact card. */
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
@@ -27,6 +28,7 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
 
 export function ProfilePage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('profile.title'));
   const { user, setUser } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
   const [busy, setBusy] = useState(false);

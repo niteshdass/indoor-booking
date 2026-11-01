@@ -147,3 +147,9 @@
     padding-inline: var(--space-8);
   }
 }
+
+@media (pointer: coarse) {
+  .nav a {
+    min-height: var(--control-lg);
+  }
+}

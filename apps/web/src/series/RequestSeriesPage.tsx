@@ -17,11 +17,13 @@ import { SeriesForm } from './SeriesForm';
 import { SeriesPreviewList } from './SeriesPreviewList';
 import type { SeriesJson, SeriesPattern, SeriesPreview } from './types';
 import styles from './RequestSeriesPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 /** Player: ask a venue for a weekly booking after checking which dates are free. */
 export function RequestSeriesPage() {
   const { slug = '' } = useParams();
   const { t } = useTranslation();
+  useDocumentTitle(t('series.player.requestTitle'));
   const venue = useResource<{ venue: PublicVenue }>(`/venues/${encodeURIComponent(slug)}`);
 
   let body;

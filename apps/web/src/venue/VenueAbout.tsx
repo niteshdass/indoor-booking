@@ -1,11 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import type { Amenity } from '@booking/shared';
 import type { PublicVenue } from '../lib/types';
 import styles from './VenueAbout.module.css';
-import { MAP_TILES } from '../lib/mapTiles';
 
 /** 24px stroke icons, one per amenity. */
 const AMENITY_ICONS: Record<Amenity, string> = {
@@ -23,28 +20,8 @@ const AMENITY_ICONS: Record<Amenity, string> = {
   prayer_room: 'M12 3v2M5 21v-9a7 7 0 0 1 14 0v9zM10 21v-4a2 2 0 0 1 4 0v4',
 };
 
-
-function LocationMap({ lat, lng, name }: { lat: number; lng: number; name: string }) {
-  const { t } = useTranslation();
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const m = L.map(el, { scrollWheelZoom: false, dragging: !L.Browser.mobile, zoomControl: true }).setView([lat, lng], 15);
-    L.tileLayer(MAP_TILES.url, { attribution: MAP_TILES.attribution, maxZoom: MAP_TILES.maxZoom }).addTo(m);
-    const pin = document.createElement('span');
-    pin.className = styles.pin!;
-    L.marker([lat, lng], {
-      icon: L.divIcon({ html: pin, className: styles.pinWrap, iconSize: [0, 0] }),
-      keyboard: false,
-      title: name,
-    }).addTo(m);
-    return () => {
-      m.remove();
-    };
-  }, [lat, lng, name]);
-  return <div ref={ref} className={styles.map} role="region" aria-label={t('venue.mapLabel', { name })} />;
-}
+// Leaflet is big; it loads only when a venue page shows its map.
+const LocationMap = lazy(() => import('./LocationMap').then((m) => ({ default: m.LocationMap })));
 
 export function VenueAbout({ venue }: { venue: PublicVenue }) {
   const { t } = useTranslation();
@@ -73,7 +50,9 @@ export function VenueAbout({ venue }: { venue: PublicVenue }) {
         <h2 id="venue-location-heading" className={styles.heading}>
           {t('venue.location')}
         </h2>
-        <LocationMap lat={lat} lng={lng} name={venue.name} />
+        <Suspense fallback={<div className={styles.map} />}>
+          <LocationMap lat={lat} lng={lng} name={venue.name} />
+        </Suspense>
         <div className={styles.place}>
           <p className={styles.address}>
             {venue.address}, {venue.city}

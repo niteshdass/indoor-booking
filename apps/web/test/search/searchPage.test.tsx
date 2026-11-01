@@ -204,6 +204,7 @@ describe('SearchPage', () => {
   });
 
   it('ru plural forms for count and countMore', async () => {
+    await i18n.loadLanguages('ru');
     const t = (k: string, count: number) => i18n.t(k, { count, lng: 'ru' });
     expect([1, 2, 5, 21].map((n) => t('search.count', n))).toEqual(['1 площадка', '2 площадки', '5 площадок', '21 площадка']);
     expect([20, 22, 21].map((n) => t('search.countMore', n))).toEqual(['20+ площадок', '22+ площадки', '21+ площадка']);

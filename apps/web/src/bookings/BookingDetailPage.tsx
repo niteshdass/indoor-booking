@@ -22,6 +22,7 @@ import { Receipt } from './Receipt';
 import { downloadReceiptPdf } from './receiptPdf';
 import { RefundList } from './RefundList';
 import styles from './BookingDetailPage.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const CANCELLABLE = new Set(['awaiting_payment', 'pending', 'confirmed']);
 const POLL_MS = 2000;
@@ -44,6 +45,7 @@ type State =
 export function BookingDetailPage() {
   const { id = '' } = useParams();
   const { t } = useTranslation();
+  useDocumentTitle(t('booking.title'));
   const { user } = useAuth();
   const [params] = useSearchParams();
   const isNew = params.get('new') === '1';

@@ -49,6 +49,16 @@ describe('owner nav', () => {
   });
 });
 
+describe('unknown owner page', () => {
+  it('shows not found inside the portal, linking to the team home', async () => {
+    mockApi(ownerRoutes({ permissions: ['booking.view'] }));
+    renderApp(`/owner/${OWNER_ID}/nope`, { user: staffUser });
+    expect(await screen.findByRole('heading', { name: en.notFound.title })).toBeInTheDocument();
+    expect(nav()).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.notFound.portal })).toHaveAttribute('href', `/owner/${OWNER_ID}`);
+  });
+});
+
 describe('top bar and nav counts', () => {
   it('series nav shows how many weekly requests wait for a reply', async () => {
     mockApi([

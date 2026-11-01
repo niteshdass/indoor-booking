@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useCallback, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AMENITIES } from '@booking/shared';
@@ -13,10 +13,12 @@ import { countryOptions, currencyOptions, localTimeZone, timeZoneOptions } from 
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerVenue } from '../types';
-import { LocationPicker } from './LocationPicker';
 import { PhotoUploader } from './PhotoUploader';
 import { draftFromVenue, parseCoord, validateVenue, venueBody, type VenueDraft } from './venueForm';
 import styles from './venues.module.css';
+
+// Leaflet loads only when the form shows its map.
+const LocationPicker = lazy(() => import('./LocationPicker').then((m) => ({ default: m.LocationPicker })));
 
 /** Create (`venue` null) or edit form for the venue's own fields; read-only when `readOnly`. */
 export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readOnly: boolean }) {
@@ -161,14 +163,16 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
         </div>
         <div className={styles.location}>
           {!readOnly && (
-            <LocationPicker
-              lat={lat}
-              lng={lng}
-              onChange={(a, b) => {
-                setDone(false);
-                setDraft((d) => ({ ...d, lat: String(a), lng: String(b) }));
-              }}
-            />
+            <Suspense fallback={<div className={styles.mapFrame} />}>
+              <LocationPicker
+                lat={lat}
+                lng={lng}
+                onChange={(a, b) => {
+                  setDone(false);
+                  setDraft((d) => ({ ...d, lat: String(a), lng: String(b) }));
+                }}
+              />
+            </Suspense>
           )}
           <div className={styles.coords}>
             <TextField

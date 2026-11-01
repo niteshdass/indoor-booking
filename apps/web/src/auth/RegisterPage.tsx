@@ -15,6 +15,7 @@ import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
 import { useCooldown } from './useCooldown';
 import styles from './auth.module.css';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 /** Which existing account an error points to, so the alert can offer to sign in instead. */
 type InUse = 'email' | 'phone' | null;
@@ -28,6 +29,7 @@ const inUseOf = (err: unknown): InUse =>
  */
 export function RegisterPage() {
   const { t } = useTranslation();
+  useDocumentTitle(t('auth.register.title'));
   const { status, signIn } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();

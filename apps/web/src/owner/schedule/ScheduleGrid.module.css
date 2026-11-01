@@ -156,12 +156,12 @@ button.slot:hover {
   --cell-bg: var(--bg-subtle);
   background: var(--bg-subtle);
   border-color: transparent;
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .slot_booked .state,
 .slot_past .state {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .slot_pending {
@@ -178,11 +178,11 @@ button.slot:hover {
 .slot_blocked {
   --cell-bg: var(--bg-subtle);
   background: repeating-linear-gradient(45deg, var(--bg-subtle) 0 var(--space-1), var(--bg-surface) var(--space-1) var(--space-2));
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .slot_blocked .state {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .closed {

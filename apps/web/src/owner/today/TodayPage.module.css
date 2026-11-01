@@ -143,7 +143,7 @@
   font-size: var(--text-md);
   font-weight: var(--weight-regular);
   line-height: var(--leading-heading);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -251,13 +251,17 @@
   background: none;
 }
 
+/* Each swatch is a tiny block: same tint and the same border pattern, so the key works without colour */
 .legend li::before {
   content: '';
   flex: none;
+  box-sizing: border-box;
   width: var(--swatch);
   height: var(--swatch);
+  border: 1px var(--legend-line, solid) var(--legend-fill);
+  border-inline-start-width: var(--legend-bar, 1px);
   border-radius: var(--radius-mark);
-  background: var(--legend-fill);
+  background: var(--legend-soft, var(--legend-fill));
 }
 
 .timelineScroll {
@@ -276,7 +280,7 @@
   height: var(--space-5);
   margin-inline-start: calc(var(--timeline-label) + var(--space-3));
   font-size: var(--text-2xs);
-  color: var(--text-subtle);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -406,15 +410,20 @@
   white-space: nowrap;
 }
 
+/* Status is told by colour and by border shape: confirmed solid, waiting dashed, walk-in a thick start bar. */
 .ok {
   --legend-fill: var(--success);
+  --legend-soft: var(--success-soft);
   border-color: var(--success);
   background: var(--success-soft);
 }
 
 .wait {
   --legend-fill: var(--warning);
+  --legend-soft: var(--warning-soft);
+  --legend-line: dashed;
   border-color: var(--warning);
+  border-style: dashed;
   background: var(--warning-soft);
 }
 
@@ -424,7 +433,10 @@
 
 .walk {
   --legend-fill: var(--primary);
+  --legend-soft: var(--primary-soft);
+  --legend-bar: var(--status-bar);
   border-color: var(--primary);
+  border-inline-start-width: var(--status-bar);
   background: var(--primary-soft);
 }
 

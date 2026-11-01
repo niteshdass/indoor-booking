@@ -97,6 +97,13 @@ const adminRoutes = (extra: Route[] = []): Route[] => [
 ];
 
 describe('admin portal', () => {
+  it('unknown admin page shows not found inside the shell, with a way back', async () => {
+    mockApi(adminRoutes());
+    renderApp('/admin/nope', { user: admin });
+    expect(await screen.findByRole('heading', { name: en.notFound.title })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: en.notFound.portal })).toHaveAttribute('href', '/admin');
+  });
+
   it('tells a non-admin the area is not for them', async () => {
     mockApi([{ path: '/admin/me', status: 403, body: { error: { code: 'forbidden', message: 'x' } } }]);
     renderApp('/admin', { user: staffUser });

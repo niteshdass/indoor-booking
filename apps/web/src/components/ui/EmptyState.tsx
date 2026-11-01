@@ -14,17 +14,20 @@ export type EmptyStateProps = {
   size?: 'md' | 'sm';
   /** Drop the surface card when the empty state already sits inside one. */
   bare?: boolean;
+  /** Render the title as a heading when the empty state is the whole page (404). */
+  headingLevel?: 1 | 2;
   className?: string;
 };
 
 /** Stands in for an empty table or list: a court drawing in chalk lines, a title, an optional hint and action. */
-export function EmptyState({ title, description, action, sport = 'tennis', size = 'md', bare = false, className }: EmptyStateProps) {
+export function EmptyState({ title, description, action, sport = 'tennis', size = 'md', bare = false, headingLevel, className }: EmptyStateProps) {
+  const Title = headingLevel ? (`h${headingLevel}` as const) : 'p';
   return (
     <div className={[styles.empty, styles[size], bare ? styles.bare : '', className].filter(Boolean).join(' ')}>
       <span className={styles.art} aria-hidden="true">
         <SportCourt sport={sport} className={styles.court} />
       </span>
-      <p className={styles.title}>{title}</p>
+      <Title className={styles.title}>{title}</Title>
       {description && <p className={styles.description}>{description}</p>}
       {action && <div className={styles.action}>{action}</div>}
     </div>

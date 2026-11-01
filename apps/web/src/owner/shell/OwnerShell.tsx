@@ -17,6 +17,7 @@ import { NAV, NAV_GROUPS } from './nav';
 import { NavIcon } from './NavIcon';
 import { OwnerSwitcher } from './OwnerSwitcher';
 import styles from './OwnerShell.module.css';
+import { useDocumentTitle } from '../../lib/useDocumentTitle';
 
 const TitleContext = createContext<(title: string) => void>(() => {});
 
@@ -66,6 +67,7 @@ export function OwnerShell() {
   const requests = useOpenRequests(can('booking.view'), pathname);
   const feeNav = usePlatformFeeNav(can('settings.edit'));
   const [title, setTitle] = useState('');
+  useDocumentTitle(title || t('owner.portal'));
   const [open, setOpen] = useState(false);
   const [confirmOut, setConfirmOut] = useState(false);
   const menu = useRef<HTMLButtonElement>(null);

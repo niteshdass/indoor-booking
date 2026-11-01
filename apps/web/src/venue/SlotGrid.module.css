@@ -132,13 +132,13 @@
 .unavailable {
   background: var(--bg-subtle);
   border-color: transparent;
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .booked .price,
 .unavailable .price,
 .past .price {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .pending {
@@ -154,18 +154,18 @@
 .blocked {
   background: repeating-linear-gradient(45deg, var(--bg-subtle) 0 var(--space-1), var(--bg-surface) var(--space-1) var(--space-2));
   border-color: var(--border-default);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .blocked .price {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .past {
   background: transparent;
   border-style: dashed;
   border-color: var(--border-subtle);
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -62,7 +62,7 @@
 }
 
 .searchInput::placeholder {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .searchInput:focus-visible {
@@ -283,7 +283,7 @@ tr > .num {
 }
 
 .list tbody .zero {
-  color: var(--text-subtle);
+  color: var(--text-muted);
 }
 
 .badges {

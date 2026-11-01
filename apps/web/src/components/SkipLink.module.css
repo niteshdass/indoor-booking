@@ -1,0 +1,27 @@
+/* Off screen until it gets keyboard focus, then a raised pill at the top start corner */
+.skip {
+  position: fixed;
+  inset-block-start: var(--space-2);
+  inset-inline-start: var(--space-2);
+  z-index: 1100; /* above Leaflet controls (1000) */
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-lg);
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  box-shadow: var(--shadow-md);
+  color: var(--primary-fg);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  translate: 0 calc(-100% - var(--space-4));
+}
+
+.skip:focus-visible {
+  translate: none;
+}
+
+/* The page's <main> takes focus programmatically; it needs no ring of its own. */
+:global(main[tabindex='-1']:focus) {
+  outline: none;
+}

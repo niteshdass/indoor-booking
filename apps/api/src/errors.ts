@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { GatewayError } from './payments/gateway';
+import { reportError } from './monitoring';
 import { AddonQuoteError, BookingQuoteError, InvalidMoneyError } from '@booking/shared';
 
 export class AppError extends Error {
@@ -43,7 +44,7 @@ const CLIENT_ERROR_CODES: Readonly<Record<number, [code: string, message: string
   415: ['unsupported_media_type', 'Unsupported request encoding or charset'],
 };
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
     const body: Record<string, unknown> = { code: err.code, message: err.message };
     if (err.details !== undefined) body.details = err.details;
@@ -84,5 +85,6 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
   console.error(err);
+  reportError(err, req.id === undefined ? undefined : String(req.id));
   res.status(500).json({ error: { code: 'internal_error', message: 'Internal server error' } });
 };

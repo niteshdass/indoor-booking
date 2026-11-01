@@ -3,6 +3,7 @@ import { ConfigError, loadConfig, type Config } from './config';
 import { connectDb, dbState } from './db';
 import { startJobs } from './jobs/runner';
 import { runMigrations } from './migrations';
+import { initMonitoring } from './monitoring';
 import { defaultServices } from './services';
 import { ensureSystemRoles } from './tenancy/role.model';
 
@@ -19,6 +20,7 @@ function readConfig(): Config {
 }
 
 const config = readConfig();
+initMonitoring(config);
 await connectDb(config.mongodbUri);
 await ensureSystemRoles();
 const services = defaultServices(config);

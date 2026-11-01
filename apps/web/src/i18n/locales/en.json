@@ -258,6 +258,7 @@
     "locationSet": "Using your location",
     "clearLocation": "Clear location",
     "locationDenied": "We couldn't get your location. Allow location access in your browser, or search without it.",
+    "locationUnavailable": "We couldn't find your location right now. Check that location services are on for your browser, then try again.",
     "radius": "Distance",
     "anyDistance": "Any distance",
     "km_one": "{{count}} km",

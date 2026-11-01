@@ -26,6 +26,7 @@ import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
+import { normalizePhone } from './auth/normalize';
 
 export type AppDeps = {
   config: Config;
@@ -50,13 +51,37 @@ const CODE_SEND_PATHS = [
   '/bookings/lookup/otp',
 ];
 
+/** Routes that write a booking, a payment claim or a review: each one lands in front of venue staff. */
+const BOOKING_WRITE_PATHS = [
+  '/venues/:slug/turfs/:turfId/bookings',
+  '/venues/:slug/turfs/:turfId/series',
+  '/venues/:slug/turfs/:turfId/series/preview',
+  '/bookings/:bookingId/payments/manual',
+  '/bookings/:bookingId/payment',
+  '/me/bookings/:bookingId/review',
+];
+
+/** The guest phone a booking request books for, normalized so spacing tricks share one bucket. */
+function guestPhoneOf(req: express.Request): string | undefined {
+  const phone = (req.body as { guest?: { phone?: unknown } } | undefined)?.guest?.phone;
+  if (typeof phone !== 'string' || !phone.trim()) return undefined;
+  try {
+    return normalizePhone(phone);
+  } catch {
+    return phone.trim();
+  }
+}
+
+type LimiterKey = { keyGenerator(req: express.Request): string; skip(req: express.Request): boolean };
+
 function makeLimiter(shared: boolean) {
-  return (name: string, limit: number, windowMs = WINDOW_MS): express.RequestHandler =>
+  return (name: string, limit: number, windowMs = WINDOW_MS, key?: LimiterKey): express.RequestHandler =>
     rateLimit({
       windowMs,
       limit,
       standardHeaders: 'draft-8',
       legacyHeaders: false,
+      ...key,
       ...(shared ? { store: new MongoRateLimitStore(name) } : {}),
       handler: (_req, _res, next) => {
         next(new AppError(429, 'rate_limited', 'Too many requests; try again later'));
@@ -82,10 +107,23 @@ export function createApp(deps: AppDeps): express.Express {
   const auth = express.Router();
   const limited = deps.rateLimit ?? deps.config.nodeEnv !== 'test';
   const limiter = makeLimiter(deps.sharedRateLimits ?? deps.config.nodeEnv !== 'test');
+  // Loose enough for many players behind one carrier NAT address.
+  const writeLimit = limiter('booking-write', 60);
   if (limited) {
     api.post(CODE_SEND_PATHS, limiter('code-send', 10, 60 * 60_000));
     // Reference and phone are the only secret here, so guessing them is throttled like a sign-in.
     api.use('/bookings/lookup', limiter('lookup', 30));
+    // Quotes follow every slot pick, so they get a looser bucket than the writes they lead to.
+    api.post('/venues/:slug/turfs/:turfId/quote', limiter('quote', 300));
+    api.use(BOOKING_WRITE_PATHS, (req, res, next) => (req.method === 'GET' ? next() : writeLimit(req, res, next)));
+    // A guest booking also counts against its phone, so rotating addresses cannot flood one number's venue.
+    api.post(
+      '/venues/:slug/turfs/:turfId/bookings',
+      limiter('guest-phone', 10, 60 * 60_000, {
+        keyGenerator: (req) => `phone:${guestPhoneOf(req)}`,
+        skip: (req) => guestPhoneOf(req) === undefined,
+      }),
+    );
   }
   // Refresh runs on every page load and token expiry, so it gets its own, looser bucket.
   if (limited) auth.use('/refresh', limiter('refresh', 120));

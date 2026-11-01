@@ -304,6 +304,39 @@ describe('guest OTP rate limit', () => {
   });
 });
 
+describe('booking write rate limits', () => {
+  it('a guest phone gets 10 booking attempts an hour, however it is written', async () => {
+    ctx = buildTestApp({ services: ctx.services, rateLimit: true });
+    const codes: string[] = [];
+    for (let i = 0; i < 11; i++) {
+      // Alternate spellings of one number share the bucket.
+      const phone = i % 2 ? PHONE : '+880 1711-111111';
+      const res = await post(`${base()}/bookings`, guestBody({ guest: { name: 'Ana', phone, otpCode: '000000' } }));
+      codes.push(res.body.error?.code ?? 'ok');
+    }
+    expect(codes.slice(0, 10)).not.toContain('rate_limited');
+    expect(codes[10]).toBe('rate_limited');
+    // Another phone from the same address still gets through.
+    const other = await post(`${base()}/bookings`, guestBody({ guest: { name: 'Bo', phone: '+8801722222222', otpCode: '000000' } }));
+    expect(other.body.error?.code).not.toBe('rate_limited');
+  });
+
+  it('one address gets 60 booking, payment and review writes per window', async () => {
+    ctx = buildTestApp({ services: ctx.services, rateLimit: true });
+    const writes = [
+      () => post(`${base()}/bookings`, { extra: 1 }),
+      () => post('/api/v1/bookings/nope/payments/manual', {}),
+      () => post('/api/v1/me/bookings/nope/review', {}),
+    ];
+    const statuses: number[] = [];
+    for (let i = 0; i < 61; i++) statuses.push((await writes[i % writes.length]!()).status);
+    expect(statuses.slice(0, 60)).not.toContain(429);
+    expect(statuses[60]).toBe(429);
+    // Quotes keep their own bucket.
+    expect((await post(`${base()}/quote`, { date: D, startAts: [at('18:00')] })).status).not.toBe(429);
+  });
+});
+
 describe('hold caps', () => {
   it('a player with MAX_OPEN_HOLDS live unpaid holds cannot hold another until they lapse', async () => {
     const { userId, token } = await newPlayer();

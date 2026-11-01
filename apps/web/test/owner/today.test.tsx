@@ -107,14 +107,14 @@ describe('Today page', () => {
 
   it('Today links to the Overview trends only with reports.view', async () => {
     mockApi([...ownerRoutes({ permissions: ['booking.view', 'reports.view'] }), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
-    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/today`, { user: staffUser });
     const link = await screen.findByRole('link', { name: new RegExp(en.owner.today.trends) });
     expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/overview?venue=v1`);
   });
 
   it('Today trends link has no arrow', async () => {
     mockApi([...ownerRoutes({ permissions: ['booking.view', 'reports.view'] }), { path: `/owners/${OWNER_ID}/bookings`, body: { bookings: [] } }]);
-    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/today`, { user: staffUser });
     const link = await screen.findByRole('link', { name: new RegExp(en.owner.today.trends) });
     expect(link.textContent).toBe(en.owner.today.trends);
   });

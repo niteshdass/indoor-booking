@@ -63,7 +63,7 @@ export function Attention({
   const tz = venue.timezone;
   const at = now.getTime();
   const nameOf = (b: OwnerBooking) => b.customer?.name ?? b.reference;
-  const bookingTo = (b: OwnerBooking) => `bookings/${encodeURIComponent(b.id)}`;
+  const bookingTo = (b: OwnerBooking) => `../bookings/${encodeURIComponent(b.id)}`;
 
   const submittedAt = (b: OwnerBooking) => Date.parse(b.manualPayment?.submittedAt ?? b.createdAt);
   const toVerify = bookings.filter(awaitsVerification);
@@ -96,7 +96,7 @@ export function Attention({
             icon: 'clock',
             booking: verifyNext,
             primary: 'verify' as const,
-            more: { to: `bookings?tab=to_verify&venue=${encodeURIComponent(venue.id)}`, label: t('owner.today.verifyAll') },
+            more: { to: `../bookings?tab=to_verify&venue=${encodeURIComponent(venue.id)}`, label: t('owner.today.verifyAll') },
           },
         ]
       : []),
@@ -146,7 +146,7 @@ export function Attention({
       key: `s${s.id}`,
       title: t('owner.today.seriesRequest', { name: s.player?.name ?? s.guest?.name ?? t('owner.today.aPlayer') }),
       detail: s.respondBy ? t('owner.today.seriesReplyBy', { time: formatDateTime(s.respondBy, tz, lang) }) : '',
-      to: `series/${encodeURIComponent(s.id)}`,
+      to: `../series/${encodeURIComponent(s.id)}`,
       tone: 'info' as const,
       icon: 'owner.nav.series',
     })),
@@ -156,7 +156,7 @@ export function Attention({
         key: `b${b.id}`,
         title: t('owner.today.holdExpiring', { name: b.customer?.name ?? b.reference }),
         detail: t('owner.today.holdUntil', { time: formatTime(b.holdExpiresAt!, tz, lang) }),
-        to: `bookings/${encodeURIComponent(b.id)}`,
+        to: `../bookings/${encodeURIComponent(b.id)}`,
         tone: 'warning' as const,
         icon: 'clock',
       })),
@@ -164,7 +164,7 @@ export function Attention({
       key: `r${r.id}`,
       title: t('owner.today.lowReview', { stars: r.stars }),
       detail: r.comment ?? t('owner.today.lowReviewHint'),
-      to: `reviews?venue=${encodeURIComponent(venue.id)}&stars=${r.stars}`,
+      to: `../reviews?venue=${encodeURIComponent(venue.id)}&stars=${r.stars}`,
       tone: 'danger' as const,
       icon: 'owner.nav.reviews',
     })),

@@ -105,7 +105,7 @@ describe('owner switcher', () => {
 describe('drawer', () => {
   it('drawer opens from the menu button and closes on Escape returning focus', async () => {
     mockApi(ownerRoutes());
-    const h = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const h = renderApp(`/owner/${OWNER_ID}/today`, { user: staffUser });
     const menu = await screen.findByRole('button', { name: en.owner.menu });
     expect(menu).toHaveAttribute('aria-expanded', 'false');
     await h.user.click(menu);
@@ -117,7 +117,7 @@ describe('drawer', () => {
 
   it('closes when navigating', async () => {
     mockApi(ownerRoutes());
-    const h = renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const h = renderApp(`/owner/${OWNER_ID}/today`, { user: staffUser });
     const menu = await screen.findByRole('button', { name: en.owner.menu });
     await h.user.click(menu);
     await h.user.click(screen.getByRole('link', { name: en.owner.nav.bookings }));

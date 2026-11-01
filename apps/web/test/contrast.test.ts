@@ -47,4 +47,8 @@ describe.each(Object.entries(themes))('%s theme contrast', (_name, t) => {
     const bg = over(parse(t[`--${tone}-soft`]!), surface);
     expect(ratio(parse(t[`--${tone}`]!), bg)).toBeGreaterThanOrEqual(4.5);
   });
+
+  it.each(['--bg-page', '--bg-surface', '--bg-surface-raised'])('focus ring stands out 3:1 against %s', (bg) => {
+    expect(ratio(parse(t['--primary']!), parse(t[bg]!))).toBeGreaterThanOrEqual(3);
+  });
 });

@@ -140,6 +140,7 @@
   --skeleton-panel: 16rem;
   --skeleton-item: 4.5rem;
   --focus-width: 2px;
+  --focus-offset: 2px; /* gap between a control and its focus ring */
   --star-size-sm: 1rem;
   --star-size-md: 1.5rem;
   --star-empty: #7c8493;
@@ -203,7 +204,7 @@
   --control-fill: #e6e9e8;
   --control-fill-hover: #dce1e0;
   --check-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --focus-ring: 0 0 0 3px rgba(35, 42, 53, 0.28);
+  --focus-ring: 0 0 0 var(--focus-offset) var(--bg-page), 0 0 0 calc(var(--focus-offset) + var(--focus-width)) var(--primary); /* solid primary ring outside a page-colour gap */
   --star-filled: #d27005;
   --overlay: rgba(18, 22, 27, 0.5);
 
@@ -256,7 +257,7 @@
   --control-fill: #2a323b;
   --control-fill-hover: #333c46;
   --check-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%231b2400' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --focus-ring: 0 0 0 3px rgba(214, 239, 63, 0.3);
+  --focus-ring: 0 0 0 var(--focus-offset) var(--bg-page), 0 0 0 calc(var(--focus-offset) + var(--focus-width)) var(--primary); /* solid primary ring outside a page-colour gap */
   --star-filled: #fbbf24;
   --overlay: rgba(0, 0, 0, 0.6);
   --shadow-xs: none;
@@ -301,7 +302,7 @@
     --control-fill: #2a323b;
     --control-fill-hover: #333c46;
     --check-glyph: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%231b2400' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    --focus-ring: 0 0 0 3px rgba(214, 239, 63, 0.3);
+    --focus-ring: 0 0 0 var(--focus-offset) var(--bg-page), 0 0 0 calc(var(--focus-offset) + var(--focus-width)) var(--primary); /* solid primary ring outside a page-colour gap */
     --star-filled: #fbbf24;
     --overlay: rgba(0, 0, 0, 0.6);
     --shadow-xs: none;

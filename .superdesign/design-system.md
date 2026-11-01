@@ -96,7 +96,7 @@ Dark mode switch: `data-theme="dark"` / `"light"` on `<html>`; with neither set,
 - Controls (compact, 2026-10-31): buttons sm 32, md 36, lg 44 (all public CTAs and touch targets are lg); text fields, selects and OTP boxes `--input-height` 40; checkbox and radio `--check-size` 18. Table row 60. Topbar 56. Sidebar 15rem. Container 76rem; text column 40rem.
 - Radius by hierarchy: sm 4 tag/checkbox · md 8 button/input/slot · lg 12 card · xl 20 hero panel, search bar, modal, closing band · full chip/badge/avatar.
 - Shadows: xs and sm are none (flat cards). md: popovers and the hero search bar. lg: modals and the hero slot card.
-- Focus ring `0 0 0 3px` primary at 28% (light) / 30% (dark). Always visible on keyboard focus.
+- Focus: a solid `--focus-width` (2px) `--primary` outline at `--focus-offset` (2px) on every `:focus-visible` (`base.css`). Components that draw their own ring use `--focus-ring`, the same thing as a box-shadow: a `--focus-offset` gap in `--bg-page`, then `--focus-width` of `--primary` (at least 3:1 on page, surface and raised surface in both themes; a contrast test guards it). Inside a tight control (add-on stepper) the ring is an inset 2px primary line. In forced colors every focused element gets a `Highlight` outline, since box-shadows are dropped there. Always visible on keyboard focus.
 
 ### Component layout tokens (unchanged from v1)
 Container width tokens: `--container-narrow` 28rem (auth/form cards), `--container-checkout` 64rem (checkout page), `--container-detail` 42rem (booking detail and payment pages), `--receipt-width` 794px (PDF receipt, A4 at 96dpi); not themed.
@@ -117,7 +117,7 @@ Status and payment tokens (not themed): `--status-bar` 3px (left border on sched
 Review token: `--reply-rule` 2px (left rule beside an owner reply in the portal and My bookings; the public venue page uses a tinted block instead; not themed).
 Venue page tokens (not themed): `--gallery-height` 26rem (desktop photo mosaic), `--gallery-tile` 85% (phone photo strip tile width), `--court-thumb` 3.5rem (court drawing in a court tab), `--venue-map-height` 15rem (location map; also the owner venue form's map), `--photo-thumb` 5rem (photo thumbnail in the owner venue form), `--avatar-sm` 2rem (reviewer initial disc), `--slot-min` 6rem (narrowest slot cell), `--slot-label` 7rem (time-of-day label column).
 Empty state tokens (not themed): `--empty-court` 7.5rem (court drawing in a full-list `EmptyState`), `--empty-court-sm` 4.5rem (in a section `EmptyState`).
-Focus outline width token: `--focus-width` 2px, used with `--text-strong` for a solid outline where the soft focus ring is too faint (map pins). Not themed.
+Focus tokens: `--focus-width` 2px (outline and ring width; map pins use it with `--text-strong`), `--focus-offset` 2px (gap between a control and its ring). Not themed.
 Disabled and busy token: `--opacity-muted` 0.55 (disabled buttons, a summary that is re-quoting; not themed). Motion token: `--duration-fast` 150ms (short opacity transitions; not themed).
 
 ### v2 implementation tokens

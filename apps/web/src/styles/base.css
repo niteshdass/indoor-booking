@@ -41,8 +41,16 @@ h2 {
 }
 
 :focus-visible {
-  outline: none;
-  box-shadow: var(--focus-ring);
+  outline: var(--focus-width) solid var(--primary);
+  outline-offset: var(--focus-offset);
+}
+
+/* Box-shadow rings vanish in forced colors; components that swap the outline for a ring get a system-colour outline back. */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: var(--focus-width) solid Highlight !important;
+    outline-offset: var(--focus-offset) !important;
+  }
 }
 
 /* Checkboxes and radios match the filled inputs: grey box, primary fill when checked.

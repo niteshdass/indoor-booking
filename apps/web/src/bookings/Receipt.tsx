@@ -99,6 +99,12 @@ export function Receipt({ booking, holder }: Props) {
               <td>{fmt(a.total)}</td>
             </tr>
           ))}
+          {booking.coupon && booking.coupon.discount > 0 && (
+            <tr>
+              <td>{t('checkout.promo.discount', { code: booking.coupon.code })}</td>
+              <td>{fmt(-booking.coupon.discount)}</td>
+            </tr>
+          )}
           {fee > 0 && (
             <tr>
               <td>{t('checkout.platformFee')}</td>

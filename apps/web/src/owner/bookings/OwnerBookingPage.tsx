@@ -265,6 +265,7 @@ export function OwnerBookingPage() {
           <dl className={[styles.rows, styles.totals].join(' ')}>
             <Row label={t('owner.bookings.subtotal')} value={fmt(b.subtotal)} />
             {b.addonsTotal > 0 && <Row label={t('owner.bookings.addons')} value={fmt(b.addonsTotal)} />}
+            {b.coupon && b.coupon.discount > 0 && <Row label={t('owner.bookings.discount', { code: b.coupon.code })} value={fmt(-b.coupon.discount)} />}
             {/* A player-paid fee is part of the total, so it sits above it. */}
             {playerFee(b.platformFee) > 0 && (
               <Row label={t('owner.bookings.platformFee', { payer: t('owner.bookings.feePayer.player') })} value={fmt(playerFee(b.platformFee))} />

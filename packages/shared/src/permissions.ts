@@ -12,6 +12,7 @@ export const PERMISSIONS = [
   'payment.verify',
   'refund.issue',
   'addon.manage',
+  'coupon.manage',
   'staff.manage',
   'settings.edit',
   'reports.view',

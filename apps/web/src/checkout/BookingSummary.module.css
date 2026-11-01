@@ -127,3 +127,8 @@
   font-size: var(--text-sm);
   color: var(--text-default);
 }
+
+/* A promo code's saving: a minus amount in the success colour, so it reads as money off. */
+.discount dd {
+  color: var(--success);
+}

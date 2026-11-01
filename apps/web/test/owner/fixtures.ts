@@ -148,6 +148,7 @@ export function ownerBooking(over: Partial<OwnerBooking> = {}): OwnerBooking {
     customer: { name: 'Ada Player', phone: '+8801712345678', email: 'ada@example.com' },
     turf: { name: 'Pitch A' },
     manualPayment: null,
+    coupon: null,
     ...over,
   };
 }

@@ -34,6 +34,7 @@ function qr(over: Partial<QuoteResponse> = {}, advance = 0): QuoteResponse {
       addons: [],
       subtotal: 2000,
       addonsTotal: 0,
+      discount: 0,
       total: 2000,
       advanceRequired: advance,
       platformFee: null,
@@ -270,5 +271,56 @@ describe('placing a booking', () => {
     expect(screen.getByLabelText(en.checkout.guestName)).toHaveValue('Ana');
     expect(screen.getByLabelText(en.auth.phone.number)).toHaveValue('1712345678');
     expect(screen.getByRole('button', { name: en.checkout.book })).toBeDisabled();
+  });
+});
+
+describe('promo code', () => {
+  const P = en.checkout.promo;
+  const withCode = (c: Call) => (c.body as { couponCode?: string }).couponCode;
+  const discounted = () => {
+    const base = qr();
+    return { ...base, quote: { ...base.quote, discount: 200, total: 1800 }, coupon: { code: 'EID10', type: 'percent' as const, value: 10, discount: 200 } };
+  };
+
+  async function apply(user: ReturnType<typeof renderApp>['user'], code: string) {
+    await user.click(await screen.findByRole('button', { name: P.toggle }));
+    await user.type(screen.getByLabelText(P.label), code);
+    await user.click(screen.getByRole('button', { name: P.apply }));
+  }
+
+  it('applies a code, shows the discount and books with it', async () => {
+    const { calls } = api(qr(), { quoteBody: (c: Call) => (withCode(c) === 'EID10' ? discounted() : qr()) });
+    const { user, location } = renderApp(PATH, { user: player });
+    await apply(user, 'eid10');
+    expect(await screen.findByText(P.discount.replace('{{code}}', 'EID10'))).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: P.removeLabel.replace('{{code}}', 'EID10') })).toBeInTheDocument();
+    expect(screen.getByText(P.applied)).toBeInTheDocument();
+    expect(calls.filter((c) => c.path.endsWith('/quote')).map(withCode)).toEqual([undefined, 'EID10']);
+    await user.click(screen.getByRole('button', { name: en.checkout.book }));
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'));
+    expect(createCalls(calls)[0]!.body).toEqual({ date: '2026-01-01', startAts: [START], addons: [], couponCode: 'EID10' });
+  });
+
+  it('a refused code shows under the field and the checkout carries on without it', async () => {
+    const refused = { status: 400, body: { error: { code: 'coupon_invalid', message: 'x' } } };
+    const { calls } = api(qr(), { quoteBody: (c: Call) => (withCode(c) ? refused : qr()) });
+    const { user, location } = renderApp(PATH, { user: player });
+    await apply(user, 'NOPE10');
+    expect(await screen.findByRole('alert', {}, { timeout: 3000 })).toHaveTextContent(en.errors.coupon_invalid);
+    expect(screen.getByLabelText(P.label)).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByText(P.discount.replace('{{code}}', 'NOPE10'))).toBeNull();
+    // The quote without the code is still on screen and bookable; the re-quote may re-render the button.
+    await waitFor(() => expect(screen.getByRole('button', { name: en.checkout.book })).toBeEnabled(), { timeout: 3000 });
+    await user.click(screen.getByRole('button', { name: en.checkout.book }));
+    await waitFor(() => expect(location().pathname).toBe('/me/bookings/b1'), { timeout: 3000 });
+    expect(createCalls(calls)[0]!.body).toEqual({ date: '2026-01-01', startAts: [START], addons: [] });
+  });
+
+  it('a code that cannot be a code is refused without a request', async () => {
+    const { calls } = api(qr());
+    const { user } = renderApp(PATH, { user: player });
+    await apply(user, 'X!');
+    expect(await screen.findByRole('alert')).toHaveTextContent(en.errors.coupon_invalid);
+    expect(calls.filter((c) => c.path.endsWith('/quote')).every((c) => withCode(c) === undefined)).toBe(true);
   });
 });

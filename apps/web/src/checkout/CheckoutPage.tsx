@@ -15,6 +15,7 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { AddonPicker } from './AddonPicker';
 import { BookingSummary } from './BookingSummary';
 import { GuestForm, type GuestInput } from './GuestForm';
+import { isCouponError, PromoCode } from './PromoCode';
 import { useSubmitBooking } from './useSubmitBooking';
 import { checkoutHref, readCheckout, type CheckoutItem } from './checkoutParams';
 import styles from './CheckoutPage.module.css';
@@ -58,6 +59,9 @@ export function CheckoutPage() {
   const [quote, setQuote] = useState<QuoteState>({ data: null, error: null, busy: true });
   const quotedKey = useRef<string | null>(null);
   const [addonsFailed, setAddonsFailed] = useState(false);
+  /** The promo code to quote with; a refused one is dropped again and its reason kept for the field. */
+  const [code, setCode] = useState<string | null>(null);
+  const [promoError, setPromoError] = useState<unknown>(null);
 
   const submitter = useSubmitBooking(slug, parsed?.turfId ?? '');
   const [submitError, setSubmitError] = useState<unknown>(null);
@@ -109,13 +113,14 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!turfId || !date || !startKey) return;
     let live = true;
-    const key = `${turfId}|${date}|${startKey}|${moreKey}`;
+    const key = `${turfId}|${date}|${startKey}|${moreKey}|${code ?? ''}`;
     setQuote((q) => ({ ...q, busy: true }));
     const body = {
       date,
       startAts: startKey.split(','),
       addons: selection.filter((s) => (s.quantity ?? 1) > 0),
       ...(moreKey ? { more: JSON.parse(moreKey) as CheckoutItem[] } : {}),
+      ...(code ? { couponCode: code } : {}),
     };
     const run = () =>
       apiPost<QuoteResponse>(`/venues/${encodeURIComponent(slug)}/turfs/${encodeURIComponent(turfId)}/quote`, body).then(
@@ -124,8 +129,18 @@ export function CheckoutPage() {
           quotedKey.current = key;
           setQuote({ data, error: null, busy: false });
         },
-        (error: unknown) =>
-          live && setQuote((q) => ({ data: isAddonError(error) ? q.data : null, error, busy: false })),
+        (error: unknown) => {
+          if (!live) return;
+          if (isCouponError(error)) {
+            // Only the code was refused: keep the last quote and quote again without it, still busy
+            // until that quote lands so Book cannot go out on a code-less request mid-way.
+            setQuote((q) => ({ ...q, error: null, busy: true }));
+            setPromoError(error);
+            setCode(null);
+            return;
+          }
+          setQuote((q) => ({ data: isAddonError(error) ? q.data : null, error, busy: false }));
+        },
       );
     // Debounce only add-on edits; with no quote yet for this key (first mount, remount, new slots) go straight away.
     const timer = setTimeout(() => void run(), quotedKey.current === key ? DEBOUNCE_MS : 0);
@@ -133,7 +148,7 @@ export function CheckoutPage() {
       live = false;
       clearTimeout(timer);
     };
-  }, [slug, turfId, date, startKey, moreKey, selection]);
+  }, [slug, turfId, date, startKey, moreKey, selection, code]);
 
   const venueHref = `/venues/${encodeURIComponent(slug)}`;
 
@@ -148,6 +163,7 @@ export function CheckoutPage() {
         addons: selection.filter((s) => (s.quantity ?? 1) > 0),
         ...(parsed.more.length > 0 ? { more: parsed.more } : {}),
         ...(guest ? { guest } : {}),
+        ...(quote.data?.coupon ? { couponCode: quote.data.coupon.code } : {}),
       });
       if (!mounted.current) return;
       if (guest) {
@@ -159,6 +175,12 @@ export function CheckoutPage() {
       }
     } catch (err) {
       if (!mounted.current) return;
+      // The code ran out between quote and booking: say so at the field and quote again without it.
+      if (isCouponError(err)) {
+        setPromoError(err);
+        setCode(null);
+        return;
+      }
       // A clash on one of several bookings stays here, so that one can be dropped.
       if (failedItem(err, items)) {
         setSubmitError(err);
@@ -357,7 +379,22 @@ export function CheckoutPage() {
               groupDue={many ? due : undefined}
               busy={quote.busy}
               paymentMethods={pm}
+              coupon={data?.coupon ?? null}
             >
+              <PromoCode
+                applied={data?.coupon ?? null}
+                currency={q.currency}
+                pending={quote.busy && code !== null && code !== (data?.coupon?.code ?? null)}
+                error={promoError}
+                onApply={(c) => {
+                  setPromoError(null);
+                  setCode(c);
+                }}
+                onRemove={() => {
+                  setPromoError(null);
+                  setCode(null);
+                }}
+              />
               {submitError != null &&
                 (itemAlert(submitError, 'danger') ?? <Alert tone="danger">{errorMessage(submitError, t)}</Alert>)}
               {cta}

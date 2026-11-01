@@ -236,7 +236,14 @@
     "method_unavailable": "This way to pay is not available now. Pick another one.",
     "forbidden": "You don't have permission to see this.",
     "demo_locked": "This is turned off in the demo.",
-    "demo_not_seeded": "The demo data isn't loaded yet. Try again later."
+    "demo_not_seeded": "The demo data isn't loaded yet. Try again later.",
+    "coupon_invalid": "This promo code isn't valid.",
+    "coupon_not_started": "This promo code isn't active yet.",
+    "coupon_expired": "This promo code has expired.",
+    "coupon_used_up": "This promo code has been used up.",
+    "coupon_limit_reached": "You've already used this promo code as many times as allowed.",
+    "coupon_min_subtotal": "Your booking is below the minimum for this promo code.",
+    "coupon_code_taken": "A coupon with this code already exists."
   },
   "myBookings": {
     "title": "My bookings",
@@ -489,7 +496,17 @@
     "payBy": "Pay {{amount}} now by {{methods}} · rest at venue",
     "card": "card",
     "online": "online checkout",
-    "noMethods": "Online payment isn't set up at this venue yet"
+    "noMethods": "Online payment isn't set up at this venue yet",
+    "promo": {
+      "toggle": "Have a promo code?",
+      "label": "Promo code",
+      "apply": "Apply",
+      "remove": "Remove",
+      "removeLabel": "Remove promo code {{code}}",
+      "applied": "Code applied",
+      "discount": "Discount ({{code}})",
+      "minSubtotal": "This code needs a booking of at least {{amount}}."
+    }
   },
   "payment": {
     "redirectFailed": "The payment didn't go through. Your slots are still held, so you can try again.",
@@ -681,7 +698,8 @@
         "daily": "Day to day",
         "setup": "Setup",
         "team": "Team and players"
-      }
+      },
+      "coupons": "Coupons"
     },
     "platformFee": {
       "intro": {
@@ -1000,7 +1018,8 @@
         "back": "Back",
         "recorded": "Reason"
       },
-      "emptySearchHint": "Nothing matches. Check the spelling or try the phone number."
+      "emptySearchHint": "Nothing matches. Check the spelling or try the phone number.",
+      "discount": "Discount ({{code}})"
     },
     "cancel": {
       "refund": "Customer refund ({{percent}}%)",
@@ -1649,7 +1668,8 @@
       "staff_manage": "Manage staff and roles",
       "settings_edit": "Edit settings",
       "reports_view": "View reports",
-      "review_manage": "Manage reviews"
+      "review_manage": "Manage reviews",
+      "coupon_manage": "Manage coupons"
     },
     "activity": {
       "title": "Activity",
@@ -1805,6 +1825,84 @@
       "messages": "Texts this month",
       "segments": "Parts this month",
       "empty": "You have no SMS credits, so customers are not getting booking texts. Contact the platform to add more."
+    },
+    "coupons": {
+      "title": "Coupons",
+      "intro": "Promo codes players enter at checkout for money off. Set the discount, the dates and how often a code can be used.",
+      "add": "New coupon",
+      "empty": "No coupons yet.",
+      "emptyHint": "Create a code to run a promotion.",
+      "ownerWideOnly": "Only members with access to every venue can change coupons.",
+      "col": {
+        "code": "Code",
+        "discount": "Discount",
+        "venues": "Venues",
+        "valid": "Valid",
+        "uses": "Uses",
+        "status": "Status"
+      },
+      "type": {
+        "percent": "Percent off",
+        "fixed": "Fixed amount off"
+      },
+      "fixedOff": "{{amount}} off",
+      "percentMax": "{{percent}} · max {{amount}}",
+      "minSpend": "Min. {{amount}}",
+      "perCustomer": "{{limit}} per customer",
+      "from": "From {{date}}",
+      "until": "Until {{date}}",
+      "always": "No end date",
+      "allVenues": "All venues",
+      "state": {
+        "active": "Active",
+        "off": "Off",
+        "expired": "Expired",
+        "usedUp": "Used up",
+        "scheduled": "Scheduled"
+      },
+      "edit": "Edit",
+      "delete": "Delete",
+      "activate": "Turn on",
+      "deactivate": "Turn off",
+      "activateLabel": "Turn on {{code}}",
+      "deactivateLabel": "Turn off {{code}}",
+      "formTitleNew": "New coupon",
+      "formTitleEdit": "Edit coupon",
+      "field": {
+        "code": "Code",
+        "codeHint": "3–24 letters, digits, - or _. Players type it at checkout.",
+        "type": "Discount type",
+        "percent": "Percent off (%)",
+        "amount": "Amount off ({{currency}})",
+        "maxDiscount": "Max discount ({{currency}})",
+        "blankNoCap": "Leave blank for no cap.",
+        "minSubtotal": "Minimum booking ({{currency}})",
+        "blankNoMin": "Leave blank for no minimum.",
+        "validFrom": "Valid from",
+        "validUntil": "Valid until",
+        "blankAnyDate": "Leave blank to start now.",
+        "untilHint": "Includes this day. Blank: no end.",
+        "maxUses": "Total uses",
+        "maxUsesPerCustomer": "Uses per customer",
+        "blankUnlimited": "Leave blank for unlimited.",
+        "venues": "Venues",
+        "active": "On",
+        "activeHint": "Players can use the code only while it is on."
+      },
+      "save": "Save",
+      "deleteTitle": "Delete {{code}}?",
+      "deleteBody": "Players can no longer use it. Bookings that used it keep their discount.",
+      "deleteConfirm": "Delete coupon",
+      "err": {
+        "code": "Use 3 to 24 letters, digits, - or _.",
+        "percent": "Enter a percent from 0.01 to 100.",
+        "amount": "Enter an amount such as 300.00.",
+        "amountOrBlank": "Enter an amount such as 500.00, or leave blank.",
+        "dates": "The end date must be after the start date.",
+        "maxUses": "Enter a whole number of 1 or more, or leave blank.",
+        "maxUsesPerCustomer": "Enter a whole number from 1 to 1000, or leave blank.",
+        "venues": "Choose at least one venue."
+      }
     }
   },
   "reviews": {

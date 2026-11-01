@@ -111,7 +111,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 | [x] P2-01 | **Automatic bKash / Nagad checkout** via SSLCommerz or EPS | Turfly, TurfHub, Turffin, TurfBook | Done with SSLCommerz (`payments/sslcommerz.ts`): hosted checkout per owner store, notices checked with the Validation / transaction APIs, return route + 5-min reconcile sweep, refunds by `bank_tran_id`. Manual TrxID stays as fallback; walk-in links stay Stripe. |
 | [x] P2-02 | **Local BD SMS gateway** (confirm, reminder, OTP) | TurfBook (metered SMS), all | Done with SSL Wireless and BulkSMSBD (`notifications/senders.ts`): +8801 numbers go by the BD provider when one is set, everything else by Twilio. Optional metering: owners' booking SMS is charged in SMS parts against admin-granted credits (refunded on a failed send); OTPs are never charged. Alpha SMS not added. |
 | [x] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Done: `bn` in shared `LOCALES` and the language menu, full `bn.json` (lazy, ~31 kB gzip), Bangla email/SMS templates, Bangla digits and dates via Intl. Noto Sans Bengali joins both font stacks; `:lang(bn)` raises line heights. Bangla runs 1.01× English overall (test caps it at 1.3×). |
-| [ ] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Roadmap #15, not built. Percent/fixed, validity, caps, per-venue, applied in `quoteBooking()`. |
+| [x] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Done: owner coupons (percent with optional cap, or fixed), validity window, total and per-customer use caps, minimum spend, per-venue or all venues, new `coupon.manage` permission. `quoteBooking()` takes the discount off slots + add-ons before the platform fee and advance; a group splits one discount across its bookings and counts as one use. Uses are counted from live bookings, so expired, rejected and cancelled ones free theirs. Bookings keep a `{code, discount}` snapshot. Promo field at checkout; Coupons page in the owner dashboard. |
 | [ ] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Not present anywhere. Reuse slot lock in one transaction; keep payments attached. |
 | [ ] P2-06 | **CSV export** of bookings & payments | TurfBook reports, roadmap #16 | Not present. Owner reports page + bookings list. |
 | [ ] P2-07 | **Deposit / partial payment with dues tracking** surfaced to owners | TurfBook, Turffin | Partial advance exists in settings; make "due at desk" visible on Today and in reports. |
@@ -140,6 +140,14 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 - The landing FAQ still answers "Is it in Russian?". Consider changing it to ask about Bangla.
 
 **Gate (release/p2-03-bangla):** typecheck ✅ · lint ✅ · API 1055/1055 · web 892/892 · shared 158/158 · build ✅
+
+**Ops left for P2-04 (code is done):**
+- Deploy builds the new indexes: `coupons {ownerId, code}` unique and `bookings {ownerId, coupon.couponId}` partial.
+- Online checkout only: walk-ins and recurring series take no coupon yet.
+- Brute-forcing codes is slowed only by the existing quote rate limit (300 per window); watch `coupon_invalid` volume after launch.
+- A fixed coupon is in the owner's default currency and is refused at a venue priced in another.
+
+**Gate (release/p2-04-coupons):** typecheck ✅ · lint ✅ · API 1091/1091 · web 906/906 · shared 168/168 · build ✅
 
 ---
 

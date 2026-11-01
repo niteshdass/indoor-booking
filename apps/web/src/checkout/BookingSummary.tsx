@@ -5,7 +5,7 @@ import type { AddonLine } from '@booking/shared';
 import { PROVIDER_NAMES } from '../lib/wallets';
 import { formatDate, formatTime, money } from '../lib/format';
 import { playerFee } from '../lib/platformFee';
-import type { OfferedMethods, PublicTurf, PublicVenue, QuoteJson } from '../lib/types';
+import type { OfferedMethods, PublicTurf, PublicVenue, QuoteCoupon, QuoteJson } from '../lib/types';
 import styles from './BookingSummary.module.css';
 
 function duration(minutes: number, t: TFunction): string {
@@ -61,10 +61,12 @@ type Props = {
   busy?: boolean;
   /** What the venue takes online; absent when the quote did not say. */
   paymentMethods?: OfferedMethods;
+  /** The promo code the quote applied; its discount covers every booking of the checkout. */
+  coupon?: QuoteCoupon | null;
   children?: ReactNode;
 };
 
-export function BookingSummary({ venue, turf, date, quote, items, groupTotal, groupDue, busy = false, paymentMethods, children }: Props) {
+export function BookingSummary({ venue, turf, date, quote, items, groupTotal, groupDue, busy = false, paymentMethods, coupon, children }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const fmt = (n: number) => money(n, quote.currency, lang);
@@ -78,6 +80,16 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
       <div className={[styles.row, className].filter(Boolean).join(' ')}>
         <dt>{t('checkout.platformFee')}</dt>
         <dd>{fmt(fee)}</dd>
+      </div>
+    );
+  // Already taken off each quote's total, like the fee is added in.
+  const discount = coupon ? (multi ? coupon.discount : quote.discount) : 0;
+  const discountRow = (className?: string) =>
+    coupon &&
+    discount > 0 && (
+      <div className={[styles.row, styles.discount, className].filter(Boolean).join(' ')}>
+        <dt>{t('checkout.promo.discount', { code: coupon.code })}</dt>
+        <dd>{fmt(-discount)}</dd>
       </div>
     );
   const span = (q: QuoteJson) => {
@@ -128,8 +140,9 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
               <dd>{fmt(multi.reduce((n, d) => n + (d.quote.addons.find((x) => x.addonId === a.addonId && x.auto === a.auto)?.total ?? 0), 0))}</dd>
             </div>
           ))}
-          {feeRow(styles.sep)}
-          <div className={[styles.row, styles.total, fee > 0 ? '' : styles.sep].filter(Boolean).join(' ')}>
+          {discountRow(styles.sep)}
+          {feeRow(discount > 0 ? undefined : styles.sep)}
+          <div className={[styles.row, styles.total, fee > 0 || discount > 0 ? '' : styles.sep].filter(Boolean).join(' ')}>
             <dt>{t('checkout.total')}</dt>
             <dd>{fmt(total)}</dd>
           </div>
@@ -187,6 +200,7 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
           <dt>{t('checkout.addonsTotal')}</dt>
           <dd>{fmt(quote.addonsTotal)}</dd>
         </div>
+        {discountRow()}
         {feeRow()}
         <div className={[styles.row, styles.total].join(' ')}>
           <dt>{t('checkout.total')}</dt>

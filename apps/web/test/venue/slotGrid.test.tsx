@@ -273,7 +273,7 @@ describe('VenuePage slots', () => {
     const r = ru.slots as Record<string, string>;
     for (const k of ['repeat', 'repeatHint', 'showDay', 'clearDay', 'slotsOnDays', 'picked_few', 'picked_many', 'full_many']) expect(r[k]).toBeTruthy();
     expect((ru.venue as Record<string, string>).days).toBeTruthy();
-    const c = ru.checkout as Record<string, string>;
+    const c = ru.checkout as unknown as Record<string, string>;
     for (const f of ['one', 'few', 'many', 'other']) expect(c[`bookingCount_${f}`]).toBeTruthy();
   });
 

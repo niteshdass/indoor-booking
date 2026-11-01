@@ -28,6 +28,7 @@ import { Booking, type BookingDoc } from '../booking.model';
 import { Payment } from '../payment.model';
 import { playerBookingJson, playerBookingsJson } from '../playerJson';
 import { createBooking, createBookingGroup, quoteFor, quoteGroup, type GroupItem } from '../create';
+import type { AppliedCoupon } from '../../coupons/uses';
 import { startCheckout } from '../../payments/intent';
 import { offeredMethods } from '../../payments/methods';
 import { payableGroup, submitManualPayment } from '../../payments/manual';
@@ -83,8 +84,11 @@ export async function groupItems(
   return items.sort((a, b) => rank(a).localeCompare(rank(b)) || a.startAts[0]!.getTime() - b.startAts[0]!.getTime());
 }
 
+/** Any text: an unknown code is answered with coupon_invalid, not a validation error. */
+export const couponCodeSchema = z.string().trim().min(1).max(32).optional();
+
 const quoteSchema = z
-  .object({ date: isoDateSchema, startAts: startAtsSchema, addons: addonsSchema, more: moreSchema })
+  .object({ date: isoDateSchema, startAts: startAtsSchema, addons: addonsSchema, more: moreSchema, couponCode: couponCodeSchema })
   .strict();
 
 const createSchema = z
@@ -93,6 +97,7 @@ const createSchema = z
     startAts: startAtsSchema,
     addons: addonsSchema,
     more: moreSchema,
+    couponCode: couponCodeSchema,
     guest: z.object({ name: nameSchema, phone: z.string().max(32), otpCode: otpCodeSchema.optional() }).strict().optional(),
   })
   .strict();
@@ -202,10 +207,14 @@ const quoteJson = (q: BookingQuote, currency: string) => ({
   addons: q.addons,
   subtotal: q.subtotal,
   addonsTotal: q.addonsTotal,
+  discount: q.discount,
   total: q.total,
   advanceRequired: q.advanceRequired,
   platformFee: q.platformFee,
 });
+
+/** The code applied and what it takes off the whole checkout. */
+const couponJson = (c: AppliedCoupon | null) => (c ? { code: c.code, type: c.type, value: c.value, discount: c.discount } : null);
 
 /** Provider names only; the numbers are shown once the player has a booking to pay for. */
 const methodsJson = (m: Awaited<ReturnType<typeof offeredMethods>>) => ({
@@ -220,11 +229,14 @@ const paymentStartSchema = z.object({ gateway: z.enum(['stripe', 'sslcommerz']).
 export function publicBookingsRouter(config: Config, services: AppServices): Router {
   const router = Router();
 
-  router.post('/venues/:slug/turfs/:turfId/quote', async (req, res) => {
+  // Signed in, a coupon's per-customer limit is checked on the quote too.
+  router.post('/venues/:slug/turfs/:turfId/quote', optionalAuth(config, services), async (req, res) => {
     const input = quoteSchema.parse(req.body);
-    const { venue, turf } = await publicTurf(req.params.slug, req.params.turfId);
+    const { venue, turf } = await publicTurf(req.params.slug as string, req.params.turfId as string);
+    const customer = req.auth ? { playerId: req.auth.userId } : undefined;
+    const coupon = { couponCode: input.couponCode, customer };
     if (input.more.length > 0) {
-      const { items, settings } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now(), config });
+      const { items, settings, coupon: applied } = await quoteGroup({ venue, items: await groupItems(venue, turf, input), selection: input.addons, now: services.now(), config, ...coupon });
       const methods = await offeredMethods(String(venue.ownerId), venue, settings, { config, services });
       const sum = (key: 'total' | 'advanceRequired') => items.reduce((n, d) => n + d.quote[key], 0);
       res.json({
@@ -232,6 +244,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
         items: items.map((d) => ({ turfId: d.turfId, date: d.date, quote: quoteJson(d.quote, venue.currency) })),
         total: sum('total'),
         advanceRequired: sum('advanceRequired'),
+        coupon: couponJson(applied),
         // Several bookings at once are for signed-in players only.
         guestAllowed: false,
         guestOtpRequired: false,
@@ -239,7 +252,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       });
       return;
     }
-    const { quote, settings } = await quoteFor({
+    const { quote, settings, coupon: applied } = await quoteFor({
       venue,
       turf,
       date: input.date,
@@ -248,10 +261,12 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       source: 'online',
       now: services.now(),
       config,
+      ...coupon,
     });
     const methods = await offeredMethods(String(venue.ownerId), venue, settings, { config, services });
     res.json({
       quote: quoteJson(quote, venue.currency),
+      coupon: couponJson(applied),
       guestAllowed: guestsAllowed(settings) && quote.advanceRequired === 0,
       guestOtpRequired: settings.guestBooking.requireOtp,
       paymentMethods: methodsJson(methods),
@@ -286,7 +301,17 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
       if (!userId && !input.guest) throw new AppError(401, 'unauthenticated', 'Sign in required');
       const { venue, turf } = await publicTurf(req.params.slug as string, req.params.turfId as string);
       const now = services.now();
-      const base = { venue, turf, date: input.date, startAts: input.startAts, selection: input.addons, source: 'online' as const, now, config };
+      const base = {
+        venue,
+        turf,
+        date: input.date,
+        startAts: input.startAts,
+        selection: input.addons,
+        source: 'online' as const,
+        now,
+        config,
+        couponCode: input.couponCode,
+      };
       const header = req.get('Idempotency-Key');
       const guestPhone = input.guest ? normalizePhone(input.guest.phone) : null;
       const requestKey = requestKeyOf(header, userId ? { playerId: userId } : { phone: guestPhone! });
@@ -327,6 +352,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
             selection: input.addons,
             now,
             config,
+            couponCode: input.couponCode,
             requestKey,
             holdMinutes,
             who: { playerId: userId, guest: null, createdBy: userId },
@@ -340,7 +366,7 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
 
         const g = input.guest!;
         const phone = guestPhone!;
-        const { quote, settings } = await quoteFor(base);
+        const { quote, settings } = await quoteFor({ ...base, customer: { phone } });
         // Disabled first, so a venue that refuses guests never consumes a code.
         if (!guestsAllowed(settings) || quote.advanceRequired > 0) throw guestDisabled();
         // Before the code too, so a refused booking never consumes one.

@@ -16,6 +16,7 @@ import { overridesRouter } from '../../schedule/routes/overrides';
 import { slotsRouter } from '../../schedule/routes/slots';
 import { catalogueRouter } from '../../addons/routes/catalogue';
 import { assignmentsRouter } from '../../addons/routes/assignments';
+import { ownerCouponsRouter } from '../../coupons/routes/owner';
 import { ownerBookingsRouter } from '../../bookings/routes/owner';
 import { ownerSeriesRouter } from '../../series/routes/owner';
 import { gatewaysRouter } from '../../payments/routes/gateways';
@@ -68,6 +69,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(slotsRouter(services));
   router.use(catalogueRouter(services));
   router.use(assignmentsRouter(services));
+  router.use(ownerCouponsRouter(services));
   router.use(ownerBookingsRouter(config, services));
   router.use(ownerSeriesRouter(config, services));
   router.use(gatewaysRouter(config, services));

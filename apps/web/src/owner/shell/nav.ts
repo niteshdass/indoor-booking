@@ -16,6 +16,7 @@ export const NAV: NavItem[] = [
   { to: 'venues', key: 'owner.nav.venues', group: 'setup', perms: [] },
   { to: 'closures', key: 'owner.nav.closures', group: 'setup', perms: ['slot.override', 'settings.edit'], any: true },
   { to: 'addons', key: 'owner.nav.addons', group: 'setup', perms: ['addon.manage'] },
+  { to: 'coupons', key: 'owner.nav.coupons', group: 'setup', perms: ['coupon.manage'] },
   { to: 'settings', key: 'owner.nav.settings', group: 'setup', perms: ['settings.edit'] },
   // Shown only while a platform fee applies or a balance is left (`OwnerShell`).
   { to: 'platform-fee', key: 'owner.nav.platformFee', group: 'setup', perms: ['settings.edit'] },

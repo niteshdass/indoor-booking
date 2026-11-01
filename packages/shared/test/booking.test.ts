@@ -163,6 +163,15 @@ describe('quoteBooking', () => {
   it('walk-in has no advance', () => {
     expect(quoteBooking({ ...base, paymentPolicy: null }).advanceRequired).toBe(0);
   });
+  it('takes a discount off before the advance and the fee', () => {
+    const q = quoteBooking({ ...base, paymentPolicy: { type: 'partial_percent', percent: 20 }, discount: 800 });
+    expect(q).toMatchObject({ subtotal: 3500, addonsTotal: 300, discount: 800, total: 3000, advanceRequired: 600 });
+    expect(quoteBooking({ ...base, paymentPolicy: null }).discount).toBe(0);
+  });
+  it('caps a discount at the slots and add-ons', () => {
+    const q = quoteBooking({ ...base, paymentPolicy: { type: 'full' }, discount: 99_999 });
+    expect(q).toMatchObject({ discount: 3800, total: 0, advanceRequired: 0 });
+  });
   it('rejects a null-priced slot', () => {
     const e = codeOf(() =>
       quoteBooking({ ...base, slots: [slotAt(18, { price: null })], paymentPolicy: null }),

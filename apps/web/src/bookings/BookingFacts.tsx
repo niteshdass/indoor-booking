@@ -116,6 +116,12 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
             <dd>{fmt(a.total)}</dd>
           </div>
         ))}
+        {booking.coupon && booking.coupon.discount > 0 && (
+          <div className={styles.row}>
+            <dt>{t('checkout.promo.discount', { code: booking.coupon.code })}</dt>
+            <dd>{fmt(-booking.coupon.discount)}</dd>
+          </div>
+        )}
         {fee > 0 && (
           <div className={styles.row}>
             <dt>{t('checkout.platformFee')}</dt>

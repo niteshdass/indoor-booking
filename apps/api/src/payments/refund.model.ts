@@ -3,7 +3,8 @@ import { tenantScoped } from '../tenancy/tenantScoped.plugin';
 
 const { ObjectId } = mongoose.Schema.Types;
 
-export const REFUND_REASONS = ['late_payment', 'duplicate_payment', 'amount_mismatch', 'cancellation', 'overpayment'] as const;
+/** `external`: made outside the app, in the gateway's dashboard, and recorded from its webhook. */
+export const REFUND_REASONS = ['late_payment', 'duplicate_payment', 'amount_mismatch', 'cancellation', 'overpayment', 'external'] as const;
 export type RefundReason = (typeof REFUND_REASONS)[number];
 
 export const REFUND_METHODS = ['card', 'cash', 'wallet'] as const;

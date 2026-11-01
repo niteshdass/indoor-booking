@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { TOKEN_TTL_GRACE_SEC } from './ttl';
 
 export const OTP_PURPOSES = ['login', 'link', 'guest_booking', 'guest_cancel', 'register', 'verify_email'] as const;
 
@@ -15,5 +16,7 @@ const otpCodeSchema = new mongoose.Schema({
 });
 otpCodeSchema.index({ phone: 1, purpose: 1, createdAt: -1 });
 otpCodeSchema.index({ phone: 1, createdAt: -1 });
+// Mongo drops rows a day after expiry; the grace keeps the 'expired' answers and reuse checks working meanwhile.
+otpCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: TOKEN_TTL_GRACE_SEC });
 
 export const OtpCode = mongoose.model('OtpCode', otpCodeSchema);

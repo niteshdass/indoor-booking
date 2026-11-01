@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
 import { buildTestApp } from '../helpers/testApp';
@@ -178,6 +178,24 @@ describe('password reset', () => {
     expect(res.status).toBe(202);
     expect(ctx.services.email.sent).toHaveLength(0);
   });
+  it('forgot answers before the email is sent, so a slow mailer does not reveal the account', async () => {
+    await register(body);
+    ctx.services.email.send = () => new Promise(() => {});
+    const res = await forgot('ana@x.com');
+    expect(res.status).toBe(202);
+    expect(await PasswordReset.countDocuments({})).toBe(1);
+  });
+  it('forgot still answers 202 when the mailer fails, and logs the failure', async () => {
+    await register(body);
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    ctx.services.email.send = async () => {
+      throw new Error('smtp down');
+    };
+    const res = await forgot('ana@x.com');
+    await vi.waitFor(() => expect(spy).toHaveBeenCalled());
+    spy.mockRestore();
+    expect(res.status).toBe(202);
+  });
   it('reset token older than 1 hour → 400 invalid_reset_token', async () => {
     await register(body);
     await forgot('ana@x.com');
@@ -201,5 +219,22 @@ describe('rate limit', () => {
     const res = await request(limited.app).post('/api/v1/auth/login').send({});
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('rate_limited');
+  });
+  it('locks an account after 10 failed logins, whatever address they come from', async () => {
+    await register(body);
+    const limited = buildTestApp({ services: ctx.services, rateLimit: true, config: { trustProxy: 1 } });
+    let ip = 0;
+    const attempt = (email: string, password: string) =>
+      request(limited.app)
+        .post('/api/v1/auth/login')
+        .set('X-Forwarded-For', `203.0.113.${(ip += 1)}`)
+        .send({ email, password });
+    // Successful sign-ins do not count towards the lockout.
+    expect((await attempt('ana@x.com', body.password)).status).toBe(200);
+    for (let i = 0; i < 10; i++) expect((await attempt(i % 2 ? 'ana@x.com' : ' ANA@x.com', 'wrong-pass')).status).toBe(401);
+    const locked = await attempt('ana@x.com', body.password);
+    expect(locked.status).toBe(429);
+    expect(locked.body.error.code).toBe('rate_limited');
+    expect((await attempt('bob@x.com', 'wrong-pass')).status).toBe(401);
   });
 });

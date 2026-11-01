@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import type { Config } from './config';
 import type { AppServices } from './services';
@@ -26,7 +27,9 @@ import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
-import { normalizePhone } from './auth/normalize';
+import { normalizeEmail, normalizePhone } from './auth/normalize';
+import { jobsTickRouter } from './jobs/tick';
+import { requestLogger } from './requestLog';
 
 export type AppDeps = {
   config: Config;
@@ -72,7 +75,22 @@ function guestPhoneOf(req: express.Request): string | undefined {
   }
 }
 
-type LimiterKey = { keyGenerator(req: express.Request): string; skip(req: express.Request): boolean };
+/** The email a sign-in names, normalized so case and spacing tricks share one bucket. */
+function loginEmailOf(req: express.Request): string | undefined {
+  const email = (req.body as { email?: unknown } | undefined)?.email;
+  if (typeof email !== 'string' || !email.trim()) return undefined;
+  try {
+    return normalizeEmail(email);
+  } catch {
+    return email.trim().toLowerCase();
+  }
+}
+
+type LimiterKey = {
+  keyGenerator(req: express.Request): string;
+  skip(req: express.Request): boolean;
+  skipSuccessfulRequests?: boolean;
+};
 
 function makeLimiter(shared: boolean) {
   return (name: string, limit: number, windowMs = WINDOW_MS, key?: LimiterKey): express.RequestHandler =>
@@ -93,6 +111,9 @@ export function createApp(deps: AppDeps): express.Express {
   const app = express();
   app.disable('x-powered-by');
   if (deps.config.trustProxy !== undefined) app.set('trust proxy', deps.config.trustProxy);
+  app.use(requestLogger(deps.config));
+  // The web app runs on another origin and shows images served from here.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   // credentials: the web app sends the httpOnly refresh cookie cross-origin.
   app.use(cors({ origin: deps.config.corsOrigin, credentials: true }));
   // Signatures cover the exact bytes, so webhooks take the raw body: before express.json() and every rate limiter.
@@ -102,6 +123,8 @@ export function createApp(deps: AppDeps): express.Express {
 
   const api = express.Router();
   api.use(healthRouter(deps.dbState));
+  const { cronSecret } = deps.config;
+  if (cronSecret) api.use(jobsTickRouter({ config: deps.config, services: deps.services, cronSecret }));
 
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();
@@ -129,7 +152,18 @@ export function createApp(deps: AppDeps): express.Express {
   if (limited) auth.use('/refresh', limiter('refresh', 120));
   auth.use(sessionRouter(authDeps));
   auth.use(authProvidersRouter(authDeps));
-  if (limited) auth.use(limiter('auth', 20));
+  if (limited) {
+    auth.use(limiter('auth', 20));
+    // Failed sign-ins also count against the account, so spreading guesses over many addresses does not help.
+    auth.post(
+      '/login',
+      limiter('login-account', 10, WINDOW_MS, {
+        keyGenerator: (req) => `email:${loginEmailOf(req)}`,
+        skip: (req) => loginEmailOf(req) === undefined,
+        skipSuccessfulRequests: true,
+      }),
+    );
+  }
   auth.use(emailAuthRouter(authDeps));
   auth.use(phoneAuthRouter(authDeps));
   auth.use(googleAuthRouter(authDeps));

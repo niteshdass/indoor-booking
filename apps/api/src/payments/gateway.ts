@@ -6,6 +6,10 @@ export type GatewayCredentials = { secretKey: string; webhookSecret: string };
 /** A refund as the gateway reports it; `refundRef` is null when it refused before creating one. */
 export type GatewayRefund = { refundRef: string | null; status: 'pending' | 'succeeded' | 'failed'; failureCode: string | null };
 
+/** `won` also covers an inquiry that closed without becoming a dispute: the money stayed. */
+export const DISPUTE_STATUSES = ['open', 'won', 'lost'] as const;
+export type DisputeStatus = (typeof DISPUTE_STATUSES)[number];
+
 /** A gateway webhook reduced to what the booking flow cares about. */
 export type GatewayEvent = {
   id: string;
@@ -18,6 +22,18 @@ export type GatewayEvent = {
   | { kind: 'attempt_failed'; paymentId: string | null; gatewayRef: string | null; failureCode: string | null }
   | { kind: 'closed'; paymentId: string | null; gatewayRef: string | null }
   | { kind: 'refund_updated'; refundRef: string; status: GatewayRefund['status']; failureCode: string | null }
+  /** The charge behind PaymentIntent `gatewayRef` now has `amountRefunded` refunded in all, ours and any made at the gateway. */
+  | { kind: 'charge_refunded'; gatewayRef: string | null; amountRefunded: number; currency: string }
+  /** A cardholder disputed the charge behind PaymentIntent `gatewayRef`, or the dispute closed. */
+  | {
+      kind: 'dispute';
+      disputeRef: string;
+      gatewayRef: string | null;
+      status: DisputeStatus;
+      amount: number;
+      currency: string;
+      reason: string | null;
+    }
   | { kind: 'ignored' }
 );
 

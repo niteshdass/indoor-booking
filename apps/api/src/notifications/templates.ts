@@ -11,6 +11,9 @@ export const NOTICE_EVENTS = [
   'booking_reminder',
   'hold_expiring',
   'staff_new_pending',
+  'staff_refund_external',
+  'staff_dispute_opened',
+  'staff_dispute_closed',
   'review_request',
   'review_posted',
   'series_requested',
@@ -249,6 +252,48 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       sms: `Новая заявка от ${d.customerName ?? 'клиента'}. ${d.reference}`,
     }),
   },
+  staff_refund_external: {
+    en: ({ d, money }) => ({
+      subject: `Refund made in Stripe (${d.reference})`,
+      lead: `A refund of ${money} to ${d.customerName ?? 'the customer'} was made in the Stripe dashboard. It is now recorded on the booking.`,
+      sms: `Refund of ${money} made in Stripe is recorded. ${d.reference}`,
+    }),
+    ru: ({ d, money }) => ({
+      subject: `Возврат через Stripe (${d.reference})`,
+      lead: `Возврат ${money} для ${d.customerName ?? 'клиента'} сделан в панели Stripe. Он записан в бронирование.`,
+      sms: `Возврат ${money} через Stripe записан. ${d.reference}`,
+    }),
+  },
+  staff_dispute_opened: {
+    en: ({ d, money }) => ({
+      subject: `Card payment disputed (${d.reference})`,
+      lead: `${d.customerName ?? 'The customer'} disputed a card payment of ${money}. Respond in the Stripe dashboard before its deadline.`,
+      sms: `Card payment of ${money} disputed. Respond in Stripe. ${d.reference}`,
+    }),
+    ru: ({ d, money }) => ({
+      subject: `Платёж картой оспорен (${d.reference})`,
+      lead: `Платёж картой на ${money} оспорен (клиент: ${d.customerName ?? 'не указан'}). Ответьте в панели Stripe до указанного срока.`,
+      sms: `Платёж ${money} оспорен. Ответьте в Stripe. ${d.reference}`,
+    }),
+  },
+  staff_dispute_closed: {
+    en: ({ d, money }) => ({
+      subject: `${d.reason === 'lost' ? 'Dispute lost' : 'Dispute won'} (${d.reference})`,
+      lead:
+        d.reason === 'lost'
+          ? `The dispute over ${money} closed in the customer's favour: the money went back to them.`
+          : `The dispute over ${money} closed in your favour: the money stays with you.`,
+      sms: `${d.reason === 'lost' ? 'Dispute lost' : 'Dispute won'}: ${money}. ${d.reference}`,
+    }),
+    ru: ({ d, money }) => ({
+      subject: `${d.reason === 'lost' ? 'Спор проигран' : 'Спор выигран'} (${d.reference})`,
+      lead:
+        d.reason === 'lost'
+          ? `Спор по платежу ${money} решён в пользу клиента: деньги возвращены клиенту.`
+          : `Спор по платежу ${money} решён в вашу пользу: деньги остаются у вас.`,
+      sms: `${d.reason === 'lost' ? 'Спор проигран' : 'Спор выигран'}: ${money}. ${d.reference}`,
+    }),
+  },
   review_request: {
     en: ({ d }) => ({
       subject: `How was your game? (${d.reference})`,
@@ -360,6 +405,8 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
 };
 
 const SERIES_EVENTS: readonly NoticeEvent[] = NOTICE_EVENTS.filter((e) => e.startsWith('series_'));
+/** Money staff should know about that moved outside the app: they go to members who can issue refunds. */
+export const STAFF_PAYMENT_EVENTS: readonly NoticeEvent[] = ['staff_refund_external', 'staff_dispute_opened', 'staff_dispute_closed'];
 
 const LABELS: Record<Locale, { reference: string; link: string; more: (n: number) => string; skipped: string; kept: string }> = {
   en: { reference: 'Reference', link: 'Details', more: (n) => `+${n} more`, skipped: 'Skipped', kept: 'Still booked' },
@@ -395,7 +442,9 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
         ? `${appUrl}/me/bookings/${d.bookingId}?review=1`
         : event === 'review_posted'
           ? `${appUrl}/owner/${d.ownerId}/reviews`
-          : `${appUrl}/b/${d.reference}`;
+          : STAFF_PAYMENT_EVENTS.includes(event)
+            ? `${appUrl}/owner/${d.ownerId}/bookings/${d.bookingId}`
+            : `${appUrl}/b/${d.reference}`;
   const ctx: Ctx = {
     d,
     when: `${d.venueName}, ${d.turfName}\n${dateTime(d.startAt)} - ${time(d.endAt)}`,

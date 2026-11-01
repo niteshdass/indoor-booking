@@ -10,7 +10,7 @@ import { Role } from '../tenancy/role.model';
 import { Turf } from '../venues/turf.model';
 import { Venue } from '../venues/venue.model';
 import { Notification } from './notification.model';
-import { renderNotice, type NoticeData, type NoticeEvent } from './templates';
+import { STAFF_PAYMENT_EVENTS, renderNotice, type NoticeData, type NoticeEvent } from './templates';
 
 export const MAX_NOTICE_ATTEMPTS = 5;
 const DELIVER_BATCH = 100;
@@ -67,7 +67,10 @@ export async function noticeBooking(
   now: Date,
   session: ClientSession,
   extra: {
-    amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string; stars?: number; comment?: string | null;
+    amount?: number; reason?: string | null; autoRejected?: boolean; refundId?: string;
+    /** Tells apart repeats of an event on one booking that are not refunds (a second dispute). */
+    disputeRef?: string;
+    stars?: number; comment?: string | null;
     seriesId?: string;
     games?: string[];
     skipped?: { date: string; reason: SeriesClashReason }[];
@@ -98,7 +101,7 @@ export async function noticeBooking(
     ...(extra.autoRejected ? { autoRejected: true } : {}),
     customerName:
       event === 'review_posted' ? (reviewerName(player?.name) ?? undefined) : (booking.guest?.name ?? player?.name ?? undefined),
-    ...(event === 'review_posted' ? { ownerId } : {}),
+    ...(event === 'review_posted' || STAFF_PAYMENT_EVENTS.includes(event) ? { ownerId } : {}),
     ...(extra.stars === undefined ? {} : { stars: extra.stars }),
     ...(extra.comment ? { comment: clip(extra.comment) } : {}),
     ...(isSeriesEvent(event)
@@ -120,12 +123,13 @@ export async function noticeBooking(
     recipients = await staffRecipients(booking, 'booking.confirm', session);
   } else if (event === 'staff_new_pending') recipients = await staffRecipients(booking, 'booking.confirm', session);
   else if (event === 'review_posted') recipients = await staffRecipients(booking, 'review.manage', session);
+  else if (STAFF_PAYMENT_EVENTS.includes(event)) recipients = await staffRecipients(booking, 'refund.issue', session);
   else if (player) recipients = contactsOf(player);
   else recipients = booking.guest ? [{ channel: 'sms', to: booking.guest.phone }] : [];
 
   let inserted = 0;
   for (const r of recipients) {
-    const dedupeKey = [event, String(booking._id), extra.refundId ?? '', r.channel, r.to].join(':');
+    const dedupeKey = [event, String(booking._id), extra.refundId ?? extra.disputeRef ?? '', r.channel, r.to].join(':');
     const res = await Notification.updateOne(
       { ownerId, dedupeKey },
       {

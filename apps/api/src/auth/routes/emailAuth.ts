@@ -83,24 +83,29 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
     sendAuthResponse(res, 200, user, await issueTokens(user.id, services, config), config);
   });
 
+  // Answers 202 before mailing, whether or not the account exists, so neither the status nor the
+  // mail server's latency tells a caller which emails have accounts.
   router.post('/password/forgot', async (req, res) => {
     const email = normalizeEmail(forgotSchema.parse(req.body).email);
     const user = await User.findOne({ email, status: 'active' });
+    const token = randomToken();
     if (user) {
-      const token = randomToken();
       await PasswordReset.create({
         userId: user._id,
         tokenHash: sha256(token),
         expiresAt: new Date(services.now().getTime() + RESET_TTL_MS),
       });
-      const link = `${config.appUrl}/reset-password?token=${token}`;
-      await services.email.send({
+    }
+    res.status(202).json({});
+    if (!user) return;
+    const link = `${config.appUrl}/reset-password?token=${token}`;
+    await services.email
+      .send({
         to: email,
         subject: 'Reset your password',
         text: `Reset your password: ${link}\nThis link expires in 1 hour. If you did not ask for this, ignore this email.`,
-      });
-    }
-    res.status(202).json({});
+      })
+      .catch((err: unknown) => console.error('password reset email failed', err));
   });
 
   router.post('/password/reset', async (req, res) => {

@@ -140,6 +140,31 @@ describe('handleWebhook', () => {
     }
   });
 
+  it('normalizes charge refunds and disputes, expanded or not', () => {
+    const cases: [string, object, object][] = [
+      [
+        'charge.refunded',
+        { id: 'ch_1', payment_intent: 'pi_1', amount_refunded: 250, currency: 'bdt' },
+        { kind: 'charge_refunded', gatewayRef: 'pi_1', amountRefunded: 250, currency: 'BDT' },
+      ],
+      [
+        'charge.dispute.created',
+        { id: 'dp_1', payment_intent: { id: 'pi_2' }, amount: 600, currency: 'bdt', reason: 'fraudulent', status: 'needs_response' },
+        { kind: 'dispute', disputeRef: 'dp_1', gatewayRef: 'pi_2', status: 'open', amount: 600, currency: 'BDT', reason: 'fraudulent' },
+      ],
+      [
+        'charge.dispute.closed',
+        { id: 'dp_1', payment_intent: 'pi_2', amount: 600, currency: 'bdt', status: 'lost' },
+        { kind: 'dispute', status: 'lost', reason: null },
+      ],
+      ['charge.dispute.closed', { id: 'dp_3', payment_intent: null, amount: 600, currency: 'bdt', status: 'warning_closed' }, { status: 'won', gatewayRef: null }],
+    ];
+    for (const [type, object, expected] of cases) {
+      const { body, signature } = signedEvent(creds.webhookSecret, evt(type, object));
+      expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({ type, ...expected });
+    }
+  });
+
   it('gives null paymentId / failureCode when absent', () => {
     const { body, signature } = signedEvent(creds.webhookSecret, evt('payment_intent.payment_failed', { id: 'pi_1', metadata: {} }));
     expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({

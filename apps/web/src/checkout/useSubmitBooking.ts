@@ -11,6 +11,8 @@ export type SubmitInput = {
   /** More bookings at their own days and times; a signed-in player only. */
   more?: CheckoutItem[];
   guest?: { name: string; phone: string; otpCode?: string };
+  /** The promo code the shown quote applied. */
+  couponCode?: string;
 };
 
 /**

@@ -9,6 +9,7 @@ import {
   paymentStatusFor,
   pickSlots,
   quoteBooking,
+  splitDiscount,
   type AddonLine,
   type AddonSelection,
   type BookingQuote,
@@ -28,6 +29,8 @@ import { lockTurf } from '../venues/guards';
 import type { TurfDoc } from '../venues/turf.model';
 import type { VenueDoc } from '../venues/venue.model';
 import { noticeBooking } from '../notifications/outbox';
+import { applyCoupon, assertCouponRoom, lockCoupon, type AppliedCoupon, type CouponCustomer } from '../coupons/uses';
+import type { CouponDoc } from '../coupons/coupon.model';
 import { Booking, holdingFilter, type BookingDoc } from './booking.model';
 import { Payment, type PaymentDoc } from './payment.model';
 import { newReference } from './reference';
@@ -43,6 +46,10 @@ type QuoteInput = {
   now: Date;
   /** Reads the platform fee in force; only online bookings carry one. */
   config: Config;
+  /** A promo code the player typed; online checkouts only. */
+  couponCode?: string;
+  /** Who is checking out, for a coupon's per-customer limit; unknown on an anonymous quote. */
+  customer?: CouponCustomer;
 };
 
 export type CreateBookingInput = QuoteInput & {
@@ -176,16 +183,46 @@ async function prepare(input: QuoteInput, feeSettings?: PlatformFeeSettings | nu
   // Read once here, so the price quoted is the price the transaction books.
   const settingsNow = feeSettings === undefined ? await feeSettingsFor(config, source) : feeSettings;
   const fee = settingsNow ? { settings: settingsNow, currency: venue.currency } : null;
-  const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee });
-  return { ownerId, settings, picked, offered, paymentPolicy, fee, quote };
+  const price = (discount = 0) =>
+    quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee, discount });
+  return { ownerId, settings, picked, offered, paymentPolicy, fee, quote: price(), price, discount: 0 };
 }
 
+/** The slots and add-ons of a quote, before any discount. */
+const grossOf = (q: BookingQuote) => q.subtotal + q.addonsTotal;
+
+type CouponHold = { doc: CouponDoc; applied: AppliedCoupon };
+
+/** prepare, with the coupon's discount taken off when a code is given. */
+async function prepareSingle(input: QuoteInput) {
+  const prepared = await prepare(input);
+  if (input.couponCode === undefined) return { ...prepared, coupon: null as CouponHold | null };
+  const { coupon, applied } = await applyCoupon({
+    venue: input.venue,
+    code: input.couponCode,
+    gross: grossOf(prepared.quote),
+    now: input.now,
+    customer: input.customer,
+  });
+  return { ...prepared, quote: prepared.price(applied.discount), discount: applied.discount, coupon: { doc: coupon, applied } as CouponHold | null };
+}
+
+/** The booker, for a coupon's per-customer limit. */
+const customerOf = (who: CreateBookingInput['who']): CouponCustomer | undefined =>
+  who.playerId ? { playerId: who.playerId } : who.guest ? { phone: who.guest.phone } : undefined;
+
+const bookingCoupon = (coupon: CouponHold | null, discount: number) =>
+  coupon ? { couponId: coupon.doc._id, code: coupon.applied.code, discount } : null;
+
 /** Prices a booking against the live grid. Stock in use is read outside a transaction: a preview only. */
-export async function quoteFor(
-  input: QuoteInput,
-): Promise<{ quote: BookingQuote; settings: EffectiveSettings; picked: ComputedSlot[] }> {
-  const { quote, settings, picked } = await prepare(input);
-  return { quote, settings, picked };
+export async function quoteFor(input: QuoteInput): Promise<{
+  quote: BookingQuote;
+  settings: EffectiveSettings;
+  picked: ComputedSlot[];
+  coupon: AppliedCoupon | null;
+}> {
+  const { quote, settings, picked, coupon } = await prepareSingle(input);
+  return { quote, settings, picked, coupon: coupon?.applied ?? null };
 }
 
 /**
@@ -195,9 +232,10 @@ export async function quoteFor(
  */
 export async function createBooking(input: CreateBookingInput): Promise<BookingDoc> {
   const { venue, turf, selection, source, now, who, cash, card, requestKey, holdMinutes, afterInsert } = input;
-  let prepared: Awaited<ReturnType<typeof prepare>>;
+  const customer = input.customer ?? customerOf(who);
+  let prepared: Awaited<ReturnType<typeof prepareSingle>>;
   try {
-    prepared = await prepare(input);
+    prepared = await prepareSingle({ ...input, customer });
   } catch (err) {
     // A slot someone else holds is "just booked", whether we see it here or inside the transaction.
     if (err instanceof BookingQuoteError && err.code === 'slot_unavailable' && err.startAt) {
@@ -207,13 +245,17 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
     }
     throw err;
   }
-  const { ownerId, settings, picked, offered, paymentPolicy, fee } = prepared;
+  const { ownerId, settings, picked, offered, paymentPolicy, fee, discount, coupon } = prepared;
   const range = rangeOf(picked);
   const lockOwner = { ownerId };
 
   const attempt = (reference: string) =>
     runInTransaction(async (session) => {
       await lockTurf(lockOwner, turf.id as string, now, session);
+      if (coupon) {
+        await lockCoupon(coupon.doc, now, session);
+        await assertCouponRoom(coupon.doc, now, session, customer);
+      }
 
       await expireStaleHolds(ownerId, turf._id, range, now, session);
       const turfRange = { ownerId, turfId: turf._id, ...overlapping(range) };
@@ -223,7 +265,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
       const stocked = [...new Set(limited(offered, selection))].sort();
       for (const addonId of stocked) await lockAddon(lockOwner, addonId, now, session);
       const inUse = await stockInUse(ownerId, venue, stocked, range, now, session);
-      const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee });
+      const quote = quoteBooking({ slots: picked, offered, indoor: turf.indoor, selection, inUse, paymentPolicy, fee, discount });
 
       const status = card
         ? 'awaiting_payment'
@@ -256,6 +298,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             currency: venue.currency,
             subtotal: quote.subtotal,
             addonsTotal: quote.addonsTotal,
+            coupon: bookingCoupon(coupon, quote.discount),
             total: quote.total,
             advanceRequired: quote.advanceRequired,
             platformFee: quote.platformFee,
@@ -346,7 +389,10 @@ const offeredOn = async (ownerId: string, input: GroupInput, turf: TurfDoc, many
   return input.selection.filter((s) => offered.some((o) => o.addonId === s.addonId && !o.autoApply));
 };
 
-/** Prepares every item of a group in order; the first failure names its item. */
+/**
+ * Prepares every item of a group in order; the first failure names its item. A coupon applies to
+ * the checkout as a whole, its discount split across the items in proportion to their prices.
+ */
 async function prepareGroup(input: GroupInput) {
   const ownerId = String(input.venue.ownerId);
   const many = new Set(input.items.map((i) => String(i.turf._id))).size > 1;
@@ -368,15 +414,32 @@ async function prepareGroup(input: GroupInput) {
       throw itemError(item, err);
     }
   }
-  return items;
+  if (input.couponCode === undefined) return { items, coupon: null as CouponHold | null };
+  const gross = items.map((d) => grossOf(d.quote));
+  const { coupon, applied } = await applyCoupon({
+    venue: input.venue,
+    code: input.couponCode,
+    gross: gross.reduce((n, g) => n + g, 0),
+    now: input.now,
+    customer: input.customer,
+  });
+  const shares = splitDiscount(applied.discount, gross);
+  const priced = items.map((d, i) => ({ ...d, quote: d.price(shares[i]!), discount: shares[i]! }));
+  return { items: priced, coupon: { doc: coupon, applied } as CouponHold | null };
 }
 
 /** Prices each item of a group against the live grid; a preview, as quoteFor. */
-export async function quoteGroup(
-  input: GroupInput,
-): Promise<{ items: { turfId: string; date: string; quote: BookingQuote }[]; settings: EffectiveSettings }> {
-  const items = await prepareGroup(input);
-  return { items: items.map((d) => ({ turfId: String(d.item.turf._id), date: d.item.date, quote: d.quote })), settings: items[0]!.settings };
+export async function quoteGroup(input: GroupInput): Promise<{
+  items: { turfId: string; date: string; quote: BookingQuote }[];
+  settings: EffectiveSettings;
+  coupon: AppliedCoupon | null;
+}> {
+  const { items, coupon } = await prepareGroup(input);
+  return {
+    items: items.map((d) => ({ turfId: String(d.item.turf._id), date: d.item.date, quote: d.quote })),
+    settings: items[0]!.settings,
+    coupon: coupon?.applied ?? null,
+  };
 }
 
 export type CreateGroupInput = GroupInput & {
@@ -404,7 +467,8 @@ export type CreateGroupInput = GroupInput & {
 export async function createBookingGroup(input: CreateGroupInput): Promise<BookingDoc[]> {
   const { venue, now, who, cash, card, requestKey, holdMinutes, afterInsert } = input;
   const source = input.source ?? 'online';
-  const days = await prepareGroup(input);
+  const customer = input.customer ?? customerOf(who);
+  const { items: days, coupon } = await prepareGroup({ ...input, customer });
   const { ownerId } = days[0]!;
   const lockOwner = { ownerId };
   // Always the same order, so two groups sharing turfs cannot each hold one the other waits on.
@@ -413,6 +477,10 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
   const attempt = () =>
     runInTransaction(async (session) => {
       for (const id of turfIds) await lockTurf(lockOwner, id, now, session);
+      if (coupon) {
+        await lockCoupon(coupon.doc, now, session);
+        await assertCouponRoom(coupon.doc, now, session, customer);
+      }
       for (const d of days) {
         const range = rangeOf(d.picked);
         const turfId = d.item.turf._id;
@@ -433,7 +501,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
         let quote: BookingQuote;
         try {
           const inUse = await stockInUse(ownerId, venue, limited(d.offered, d.selection), range, now, session);
-          quote = quoteBooking({ slots: d.picked, offered: d.offered, indoor: turf.indoor, selection: d.selection, inUse, paymentPolicy: d.paymentPolicy, fee: d.fee });
+          quote = quoteBooking({ slots: d.picked, offered: d.offered, indoor: turf.indoor, selection: d.selection, inUse, paymentPolicy: d.paymentPolicy, fee: d.fee, discount: d.discount });
         } catch (err) {
           throw itemError(d.item, err);
         }
@@ -458,6 +526,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
               currency: venue.currency,
               subtotal: quote.subtotal,
               addonsTotal: quote.addonsTotal,
+              coupon: bookingCoupon(coupon, quote.discount),
               total: quote.total,
               advanceRequired: quote.advanceRequired,
               platformFee: quote.platformFee,

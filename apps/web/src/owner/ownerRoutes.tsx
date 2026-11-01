@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ActivityPage } from './activity/ActivityPage';
 import { AddonsPage } from './addons/AddonsPage';
+import { CouponsPage } from './coupons/CouponsPage';
 import { BookingsPage } from './bookings/BookingsPage';
 import { OwnerBookingPage } from './bookings/OwnerBookingPage';
 import { OwnerGroupPage } from './bookings/OwnerGroupPage';
@@ -85,6 +86,7 @@ export function OwnerRoutes() {
         <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><TurfEditorPage /></Guarded>} />
         <Route path="closures" element={<Guarded nav="closures"><ClosuresPage /></Guarded>} />
         <Route path="addons" element={<Guarded nav="addons"><AddonsPage /></Guarded>} />
+        <Route path="coupons" element={<Guarded nav="coupons"><CouponsPage /></Guarded>} />
         <Route path="settings" element={<Guarded nav="settings"><SettingsPage /></Guarded>} />
         <Route path="platform-fee" element={<Guarded nav="platform-fee"><PlatformFeePage /></Guarded>} />
         <Route path="staff" element={<Guarded nav="staff"><StaffPage /></Guarded>} />

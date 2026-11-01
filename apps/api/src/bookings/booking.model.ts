@@ -1,5 +1,5 @@
 import mongoose, { type HydratedDocument, type InferSchemaType } from 'mongoose';
-import { BOOKING_STATUSES, PAYMENT_STATUSES, SLOT_HOLDING_STATUSES, type PlatformFeeSnapshot } from '@booking/shared';
+import { BOOKING_STATUSES, PAYMENT_STATUSES, SLOT_HOLDING_STATUSES, type BookingCoupon, type PlatformFeeSnapshot } from '@booking/shared';
 import { tenantScoped } from '../tenancy/tenantScoped.plugin';
 
 const { ObjectId, Mixed } = mongoose.Schema.Types;
@@ -41,6 +41,19 @@ const bookingSchema = new mongoose.Schema(
     /** Minor units of `currency`. */
     subtotal: { type: Number, required: true, min: 0 },
     addonsTotal: { type: Number, required: true, min: 0 },
+    /** The promo code used and this booking's share of its discount; `total` is already net of it. */
+    coupon: {
+      type: new mongoose.Schema(
+        {
+          couponId: { type: ObjectId, ref: 'Coupon', required: true },
+          code: { type: String, required: true },
+          /** Minor units of `currency`. */
+          discount: { type: Number, required: true, min: 0 },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     total: { type: Number, required: true, min: 0 },
     advanceRequired: { type: Number, required: true, min: 0 },
     amountPaid: { type: Number, default: 0, min: 0 },
@@ -110,6 +123,8 @@ bookingSchema.index({ ownerId: 1, seriesId: 1, startAt: 1 });
 // Guest lookup, and the cap on a guest phone's pending bookings.
 bookingSchema.index({ 'guest.phone': 1, status: 1, endAt: 1 });
 bookingSchema.index({ ownerId: 1, groupId: 1 }, { partialFilterExpression: { groupId: { $type: 'objectId' } } });
+// Coupon use counts.
+bookingSchema.index({ ownerId: 1, 'coupon.couponId': 1 }, { partialFilterExpression: { 'coupon.couponId': { $type: 'objectId' } } });
 bookingSchema.index({ requestKey: 1 }, { unique: true, partialFilterExpression: { requestKey: { $type: 'string' } } });
 // Cross-tenant lifecycle sweeps (jobs/sweeps.ts), paged on (time, _id).
 bookingSchema.index({ status: 1, holdExpiresAt: 1, _id: 1 });
@@ -144,6 +159,7 @@ export function bookingJson(b: BookingDoc) {
     currency: b.currency,
     subtotal: b.subtotal,
     addonsTotal: b.addonsTotal,
+    coupon: (b.coupon ? { couponId: String(b.coupon.couponId), code: b.coupon.code, discount: b.coupon.discount } : null) as BookingCoupon | null,
     total: b.total,
     advanceRequired: b.advanceRequired,
     platformFee: (b.platformFee ?? null) as PlatformFeeSnapshot | null,

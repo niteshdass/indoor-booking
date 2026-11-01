@@ -1,4 +1,4 @@
-import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingStatus, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingCoupon, BookingStatus, CouponType, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
 
 export type { SearchResult, SearchResponse } from '@booking/shared';
 
@@ -65,11 +65,16 @@ export type QuoteJson = {
   addons: AddonLine[];
   subtotal: number;
   addonsTotal: number;
+  /** Minor units a promo code takes off the slots and add-ons; 0 without one. Already out of `total`. */
+  discount: number;
   total: number;
   advanceRequired: number;
   /** Frozen at booking time; null when no fee applies. A player-paid fee is already in `total`. */
   platformFee: PlatformFeeSnapshot | null;
 };
+
+/** The promo code a quote applied; `discount` is for the whole checkout (each item's quote holds its share). */
+export type QuoteCoupon = { code: string; type: CouponType; value: number; discount: number };
 
 /** Ways to pay online at a venue: manual wallet providers, card (Stripe), online checkout (SSLCommerz). */
 export type OfferedMethods = { wallets: WalletProvider[]; card: boolean; sslcommerz?: boolean };
@@ -84,6 +89,8 @@ export type QuoteResponse = {
   items?: { turfId: string; date: string; quote: QuoteJson }[];
   total?: number;
   advanceRequired?: number;
+  /** Null (or absent) without a promo code. */
+  coupon?: QuoteCoupon | null;
 };
 
 /** Venue summary on player booking responses. */
@@ -103,6 +110,8 @@ export type BookingJson = {
   addonsTotal: number;
   total: number;
   advanceRequired: number;
+  /** The promo code used and this booking's share of its discount; `total` is already net of it. */
+  coupon: BookingCoupon | null;
   /** Null for walk-ins, Free mode, or a fee that rounds to nothing. A player-paid fee is already in `total`. */
   platformFee: PlatformFeeSnapshot | null;
   amountPaid: number;

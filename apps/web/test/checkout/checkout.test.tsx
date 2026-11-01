@@ -44,6 +44,7 @@ function quote(over: Partial<QuoteJson> = {}): QuoteJson {
     addons: [],
     subtotal: 2000,
     addonsTotal: 0,
+    discount: 0,
     total: 2000,
     advanceRequired: 0,
     platformFee: null,

@@ -110,6 +110,8 @@ export type BookingQuote = {
   addons: AddonLine[];
   subtotal: number;
   addonsTotal: number;
+  /** Minor units a coupon takes off the slots and add-ons; 0 without one. */
+  discount: number;
   total: number;
   advanceRequired: number;
   platformFee: PlatformFeeSnapshot | null;
@@ -125,6 +127,8 @@ export function quoteBooking(input: {
   paymentPolicy: PaymentPolicy | null;
   /** Omitted or null: no platform fee (e.g. walk-ins). */
   fee?: { settings: PlatformFeeSettings; currency: string } | null;
+  /** Minor units off the slots and add-ons (a coupon); capped at their sum. The fee and advance are on what is left. */
+  discount?: number;
 }): BookingQuote {
   const slots = input.slots.map((s) => {
     if (s.price === null) throw new BookingQuoteError('slot_unavailable', s.startAt.toISOString());
@@ -138,8 +142,11 @@ export function quoteBooking(input: {
     selection: input.selection,
     inUse: input.inUse,
   });
-  const base = subtotal + addonsTotal;
-  assertMinor(base);
+  const gross = subtotal + addonsTotal;
+  assertMinor(gross);
+  const discount = Math.min(input.discount ?? 0, gross);
+  assertMinor(discount);
+  const base = gross - discount;
   const platformFee = input.fee ? platformFeeFor(input.fee.settings, base, input.fee.currency) : null;
   const playerFee = platformFee?.payer === 'player' ? platformFee.amount : 0;
   const total = base + playerFee;
@@ -150,6 +157,7 @@ export function quoteBooking(input: {
     addons: lines,
     subtotal,
     addonsTotal,
+    discount,
     total,
     advanceRequired: baseAdvance > 0 ? Math.min(total, baseAdvance + playerFee) : 0,
     platformFee,

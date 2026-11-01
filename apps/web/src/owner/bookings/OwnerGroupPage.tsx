@@ -78,6 +78,7 @@ export function OwnerGroupPage() {
   const venue = venues.find((v) => v.id === first.venueId);
   const tz = venue?.timezone ?? 'UTC';
   const fmt = (n: number) => money(n, first.currency, lang);
+  const couponCode = sum(bookings, (b) => b.coupon?.discount ?? 0) > 0 ? bookings.find((b) => b.coupon)?.coupon?.code : undefined;
   const range = (b: OwnerBooking) => {
     const s = b.slots.map((x) => x.startAt).sort();
     const e = b.slots.map((x) => x.endAt).sort();
@@ -192,6 +193,8 @@ export function OwnerGroupPage() {
           <dl className={page.rows}>
             <Row label={t('owner.bookings.subtotal')} value={fmt(sum(bookings, (b) => b.subtotal))} />
             {sum(bookings, (b) => b.addonsTotal) > 0 && <Row label={t('owner.bookings.addons')} value={fmt(sum(bookings, (b) => b.addonsTotal))} />}
+            {/* One code covers the whole group; each booking holds its share of the discount. */}
+            {couponCode && <Row label={t('owner.bookings.discount', { code: couponCode })} value={fmt(-sum(bookings, (b) => b.coupon?.discount ?? 0))} />}
             {/* Player-paid fees are part of the total, so Subtotal + Add-ons + fee adds up to it. */}
             {sum(bookings, (b) => playerFee(b.platformFee)) > 0 && (
               <Row

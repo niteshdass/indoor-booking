@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { connectDb, disconnectDb } from '../../src/db';
 
@@ -27,6 +28,9 @@ export async function createReplSet(port?: number): Promise<MongoMemoryReplSet> 
 export async function startTestDb(): Promise<void> {
   replSet = await createReplSet();
   await connectDb(replSet.getUri());
+  // Tests run on a fake 2026-01-01 clock, so every token row is already past expiresAt in real time.
+  // Without this, the TTL monitor could delete rows mid-test.
+  await mongoose.connection.db!.admin().command({ setParameter: 1, ttlMonitorEnabled: false });
 }
 
 export async function stopTestDb(): Promise<void> {

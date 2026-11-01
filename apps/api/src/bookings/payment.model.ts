@@ -50,6 +50,8 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true },
 );
 paymentSchema.index({ ownerId: 1, bookingId: 1 });
+// Cross-tenant checks by booking (hold room, auto-reject, expiring-hold warnings) have no ownerId to lead with.
+paymentSchema.index({ bookingId: 1, kind: 1, status: 1 });
 paymentSchema.index({ ownerId: 1, groupId: 1, status: 1 }, { partialFilterExpression: { groupId: { $type: 'objectId' } } });
 // At most one in-flight card payment per booking.
 paymentSchema.index(

@@ -66,6 +66,11 @@ const envSchema = z
     if (e.NODE_ENV === 'production' && !e.APP_URL) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['APP_URL'], message: 'is required in production' });
     }
+    // Behind a proxy without it, every client shares the proxy's address and so one rate-limit bucket.
+    // Set it to false to state there is no proxy.
+    if (e.NODE_ENV === 'production' && !e.TRUST_PROXY) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['TRUST_PROXY'], message: 'is required in production' });
+    }
     // Each provider group is all-or-nothing. Both are optional: the admin dashboard can set them instead.
     const groups = [
       ['SMTP_URL', 'EMAIL_FROM'],

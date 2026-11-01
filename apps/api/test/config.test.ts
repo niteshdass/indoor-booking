@@ -70,11 +70,26 @@ describe('loadConfig', () => {
         TWILIO_ACCOUNT_SID: 'AC1',
         TWILIO_AUTH_TOKEN: 'tok',
         TWILIO_FROM: '+15550001111',
+        TRUST_PROXY: '1',
       };
       expect(() => loadConfig(prod)).toThrow(ConfigError);
       expect(() => loadConfig(prod)).toThrow(/APP_URL: is required in production/);
       expect(loadConfig({ ...prod, APP_URL: 'https://app.example' }).appUrl).toBe('https://app.example');
       expect(loadConfig(base).appUrl).toBe('http://localhost:5173');
+    });
+    it('requires TRUST_PROXY in production only', () => {
+      const prod = {
+        ...base,
+        NODE_ENV: 'production',
+        PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+        APP_URL: 'https://app.example',
+      };
+      expect(() => loadConfig(prod)).toThrow(/TRUST_PROXY: is required in production/);
+      expect(() => loadConfig({ ...prod, TRUST_PROXY: '' })).toThrow(/TRUST_PROXY/);
+      expect(loadConfig({ ...prod, TRUST_PROXY: '1' }).trustProxy).toBe(1);
+      // An explicit false says nothing sits in front of the API.
+      expect(loadConfig({ ...prod, TRUST_PROXY: 'false' }).trustProxy).toBe(false);
+      expect(loadConfig(base).trustProxy).toBeUndefined();
     });
     it('defaults and reads API_URL', () => {
       expect(loadConfig(base).apiUrl).toBe('http://localhost:4000');
@@ -103,6 +118,7 @@ describe('loadConfig', () => {
         NODE_ENV: 'production',
         PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
         APP_URL: 'https://app.example',
+        TRUST_PROXY: '1',
       };
       expect(loadConfig(prod).email).toBeUndefined();
       expect(loadConfig({ ...prod, ...email }).sms).toBeUndefined();

@@ -44,7 +44,7 @@ const bookingSchema = new mongoose.Schema(
     total: { type: Number, required: true, min: 0 },
     advanceRequired: { type: Number, required: true, min: 0 },
     amountPaid: { type: Number, default: 0, min: 0 },
-    /** Sum of this booking's cancellation refunds, pending included. */
+    /** Sum of this booking's cancellation refunds, pending included, and of refunds made in the gateway's dashboard. */
     amountRefunded: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: BOOKING_STATUSES, required: true },
     paymentStatus: { type: String, enum: PAYMENT_STATUSES, required: true },
@@ -75,6 +75,24 @@ const bookingSchema = new mongoose.Schema(
     cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
     cancelReason: { type: String, default: null },
     completedAt: { type: Date, default: null },
+    /** The latest card dispute on the booking's payment, staff only; null when there has been none. */
+    dispute: {
+      type: new mongoose.Schema(
+        {
+          /** The gateway's dispute id. */
+          ref: { type: String, required: true },
+          status: { type: String, enum: ['open', 'won', 'lost'], required: true },
+          /** Minor units of `currency`: the whole disputed charge, shared by a group's bookings. */
+          amount: { type: Number, required: true },
+          currency: { type: String, required: true },
+          reason: { type: String, default: null },
+          openedAt: { type: Date, default: null },
+          closedAt: { type: Date, default: null },
+        },
+        { _id: false },
+      ),
+      default: null,
+    },
     // Set once when a review is posted; never cleared.
     reviewedAt: { type: Date, default: null },
     // Set when the review-prompt sweep handles the booking.

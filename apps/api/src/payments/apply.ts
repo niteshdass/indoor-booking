@@ -1,5 +1,5 @@
 import mongoose, { type ClientSession } from 'mongoose';
-import { paymentStatusFor, type AddonLine } from '@booking/shared';
+import { bookingPaymentStatus, paymentStatusFor, type AddonLine } from '@booking/shared';
 import { lockAddon } from '../addons/guards';
 import { offeredAddons } from '../addons/offered';
 import { Booking, holdingFilter, type BookingDoc } from '../bookings/booking.model';
@@ -37,6 +37,8 @@ export async function applyEvent(
 ): Promise<ApplyResult> {
   if (event.kind === 'ignored') return done('ignored');
   if (event.kind === 'refund_updated') return done(await refundUpdated(ownerId, event, ctx, session));
+  if (event.kind === 'charge_refunded') return done(await chargeRefunded(ownerId, event, ctx, session));
+  if (event.kind === 'dispute') return done(await disputeChanged(ownerId, event, ctx, session));
   const payment =
     event.paymentId && mongoose.isValidObjectId(event.paymentId)
       ? await Payment.findOne({ ownerId, _id: event.paymentId }).session(session)
@@ -192,6 +194,131 @@ async function refundUpdated(
     ctx.now,
     session,
   );
+  return changed ? 'applied' : 'ignored';
+}
+
+/**
+ * The card payments that took PaymentIntent `gatewayRef` (a multi-day group's rows share one), newest
+ * first; none when the intent is not this owner's or came from the other mode.
+ */
+async function paymentsOfIntent(ownerId: string, gatewayRef: string | null, livemode: boolean, session: ClientSession) {
+  if (!gatewayRef) return [];
+  const rows = await Payment.find({ ownerId, gatewayRef, method: 'card', status: 'succeeded' }).sort({ _id: -1 }).session(session);
+  const mode = livemode ? 'live' : 'test';
+  return rows.some((p) => p.gatewayMode != null && p.gatewayMode !== mode) ? [] : rows;
+}
+
+/**
+ * Records refunds made in the gateway's dashboard. The charge reports its refunded total, and every
+ * refund the app makes is reserved on its payment before the gateway hears of it, so whatever the
+ * total holds beyond the payments' reservations was refunded outside the app. It is split over the
+ * payments newest first and recorded as settled `external` refunds, which also count on the booking.
+ */
+async function chargeRefunded(
+  ownerId: string,
+  event: Extract<GatewayEvent, { kind: 'charge_refunded' }>,
+  ctx: ApplyContext,
+  session: ClientSession,
+): Promise<WebhookOutcome> {
+  const payments = await paymentsOfIntent(ownerId, event.gatewayRef, event.livemode, session);
+  if (payments.length === 0) return 'unmatched';
+  if (payments.some((p) => p.currency !== event.currency)) return 'mismatch';
+  let left = event.amountRefunded - payments.reduce((n, p) => n + p.refundedAmount, 0);
+  if (left <= 0) return 'ignored';
+  for (const payment of payments) {
+    const take = Math.min(left, payment.amount - payment.refundedAmount);
+    if (take <= 0) continue;
+    left -= take;
+    const booking = await Booking.findOne({ ownerId, _id: payment.bookingId }).session(session);
+    if (!booking) throw changedUnderneath();
+    const [row] = await reserveRefunds(
+      { booking, parts: [{ paymentId: payment._id, method: 'card', amount: take }], reason: 'external', ruleApplied: null, by: null, now: ctx.now },
+      session,
+    );
+    // Settled in the same transaction, so no dispatcher ever sees it pending and sends it again.
+    if (!(await settleRefund(ownerId, row!._id, { status: 'succeeded' }, ctx.now, session))) throw changedUnderneath();
+    // An excess payment was never in amountPaid, so its refund is not taken off the booking either.
+    if (!payment.excess) {
+      const fresh = await Booking.findOneAndUpdate(
+        { ownerId, _id: booking._id },
+        { $inc: { amountRefunded: take } },
+        { session, new: true },
+      );
+      await Booking.updateOne(
+        { ownerId, _id: booking._id },
+        { $set: { paymentStatus: bookingPaymentStatus(fresh!.amountPaid, fresh!.amountRefunded, fresh!.total) } },
+        { session },
+      );
+    }
+    await noticeBooking('staff_refund_external', booking, ctx.now, session, { amount: take, refundId: String(row!._id) });
+  }
+  // More than the payments took (a mismatched charge's extra): nothing left to hang it on.
+  if (left > 0) console.error(`[refunds] ${left} refunded at the gateway on ${event.gatewayRef} beyond what its payments took`);
+  return 'applied';
+}
+
+/** Flags the bookings a disputed charge paid for and tells staff when a dispute opens or closes. */
+async function disputeChanged(
+  ownerId: string,
+  event: Extract<GatewayEvent, { kind: 'dispute' }>,
+  ctx: ApplyContext,
+  session: ClientSession,
+): Promise<WebhookOutcome> {
+  const payments = await paymentsOfIntent(ownerId, event.gatewayRef, event.livemode, session);
+  if (payments.length === 0) return 'unmatched';
+  const fields = { ref: event.disputeRef, amount: event.amount, currency: event.currency, reason: event.reason };
+  let changed = false;
+  for (const bookingId of [...new Set(payments.map((p) => String(p.bookingId)))]) {
+    const res =
+      event.status === 'open'
+        ? // A repeat of this dispute's opening changes nothing; a new dispute replaces a closed one.
+          await Booking.updateOne(
+            { ownerId, _id: bookingId, 'dispute.ref': { $ne: event.disputeRef } },
+            { $set: { dispute: { ...fields, status: 'open', openedAt: ctx.now, closedAt: null } } },
+            { session },
+          )
+        : // Closes the open one; a close whose opening never arrived records the dispute as closed.
+          await Booking.updateOne(
+            {
+              ownerId,
+              _id: bookingId,
+              $or: [{ dispute: null }, { 'dispute.ref': event.disputeRef, 'dispute.status': 'open' }],
+            },
+            [
+              {
+                $set: {
+                  dispute: {
+                    ...fields,
+                    status: event.status,
+                    openedAt: { $cond: [{ $eq: ['$dispute.ref', event.disputeRef] }, '$dispute.openedAt', null] },
+                    closedAt: ctx.now,
+                  },
+                },
+              },
+            ],
+            { session },
+          );
+    if (res.modifiedCount !== 1) continue;
+    changed = true;
+    const booking = (await Booking.findOne({ ownerId, _id: bookingId }).session(session))!;
+    await logSystemActivity(
+      ownerId,
+      {
+        action: event.status === 'open' ? 'booking.dispute_opened' : 'booking.dispute_closed',
+        entity: 'booking',
+        entityId: bookingId,
+        venueId: String(booking.venueId),
+        after: { disputeRef: event.disputeRef, status: event.status, amount: event.amount, reason: event.reason },
+      },
+      ctx.now,
+      session,
+    );
+    await noticeBooking(event.status === 'open' ? 'staff_dispute_opened' : 'staff_dispute_closed', booking, ctx.now, session, {
+      amount: event.amount,
+      ...(event.status === 'open' ? {} : { reason: event.status }),
+      disputeRef: event.disputeRef,
+    });
+  }
   return changed ? 'applied' : 'ignored';
 }
 

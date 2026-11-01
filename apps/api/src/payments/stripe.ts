@@ -47,6 +47,10 @@ export const STRIPE_WEBHOOK_EVENTS = [
   'checkout.session.expired',
   'refund.updated',
   'refund.failed',
+  // Refunds and disputes made from the Stripe dashboard, which the app did not start.
+  'charge.refunded',
+  'charge.dispute.created',
+  'charge.dispute.closed',
 ] as const;
 
 /** Exponent 0 in ISO but Stripe takes them in two-decimal form; we would charge 1/100. */
@@ -66,6 +70,9 @@ function supportsCurrency(currency: string): boolean {
 function paymentIdOf(obj: { metadata?: Record<string, string> | null }): string | null {
   return obj.metadata?.paymentId ?? obj.metadata?.payoutId ?? null;
 }
+
+/** An expandable Stripe reference: the id, whether or not it came expanded. */
+const idOf = (ref: string | { id: string } | null): string | null => (typeof ref === 'string' ? ref : (ref?.id ?? null));
 
 function toGatewayRefund(r: { id: string; status: string | null; failure_reason?: string | null }): GatewayRefund {
   const status = r.status === 'succeeded' ? 'succeeded' : r.status === 'failed' || r.status === 'canceled' ? 'failed' : 'pending';
@@ -159,6 +166,31 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
         case 'refund.failed': {
           const r = toGatewayRefund(event.data.object);
           return { ...base, kind: 'refund_updated', refundRef: event.data.object.id, status: r.status, failureCode: r.failureCode };
+        }
+        case 'charge.refunded': {
+          const ch = event.data.object;
+          return {
+            ...base,
+            kind: 'charge_refunded',
+            gatewayRef: idOf(ch.payment_intent),
+            amountRefunded: ch.amount_refunded,
+            currency: ch.currency.toUpperCase(),
+          };
+        }
+        case 'charge.dispute.created':
+        case 'charge.dispute.closed': {
+          const d = event.data.object;
+          const status = event.type === 'charge.dispute.created' ? 'open' : d.status === 'lost' ? 'lost' : 'won';
+          return {
+            ...base,
+            kind: 'dispute',
+            disputeRef: d.id,
+            gatewayRef: idOf(d.payment_intent),
+            status,
+            amount: d.amount,
+            currency: d.currency.toUpperCase(),
+            reason: d.reason ?? null,
+          };
         }
         default:
           return { ...base, kind: 'ignored' };

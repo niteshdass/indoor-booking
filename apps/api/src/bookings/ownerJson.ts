@@ -8,6 +8,18 @@ export type OwnerBooking = ReturnType<typeof bookingJson> & {
   customer: { name: string; phone: string | null; email: string | null } | null;
   turf: { name: string } | null;
   manualPayment: OwnerManualPayment | null;
+  dispute: OwnerDispute | null;
+};
+
+/** The latest card dispute on the booking's payment. Staff only. */
+export type OwnerDispute = {
+  ref: string;
+  status: 'open' | 'won' | 'lost';
+  amount: number;
+  currency: string;
+  reason: string | null;
+  openedAt: string | null;
+  closedAt: string | null;
 };
 
 /** The latest wallet transfer submitted for the booking or its group. Staff only: it carries the sender number. */
@@ -60,7 +72,7 @@ export async function ownerBookingsJson(bookings: BookingDoc[]): Promise<OwnerBo
       ? u ? { name: u.name, phone: u.phone ?? null, email: u.email ?? null } : null
       : b.guest ? { name: b.guest.name, phone: b.guest.phone, email: null } : null;
     const m = leads.find((p) => String(p.bookingId) === String(b._id) || (b.groupId && String(p.groupId) === String(b.groupId)));
-    return { ...bookingJson(b), customer, turf: t ? { name: t.name } : null, manualPayment: m ? manualPaymentJson(m, amountOf(m)) : null };
+    return { ...bookingJson(b), customer, turf: t ? { name: t.name } : null, manualPayment: m ? manualPaymentJson(m, amountOf(m)) : null, dispute: disputeJson(b) };
   });
 }
 
@@ -77,3 +89,16 @@ const manualPaymentJson = (p: PaymentDoc, amount: number): OwnerManualPayment =>
   status: p.status as OwnerManualPayment['status'],
   submittedAt: p.createdAt.toISOString(),
 });
+
+const disputeJson = (b: BookingDoc): OwnerDispute | null =>
+  b.dispute
+    ? {
+        ref: b.dispute.ref,
+        status: b.dispute.status as OwnerDispute['status'],
+        amount: b.dispute.amount,
+        currency: b.dispute.currency,
+        reason: b.dispute.reason ?? null,
+        openedAt: b.dispute.openedAt ? b.dispute.openedAt.toISOString() : null,
+        closedAt: b.dispute.closedAt ? b.dispute.closedAt.toISOString() : null,
+      }
+    : null;

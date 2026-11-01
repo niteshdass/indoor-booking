@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import styles from './venues.module.css';
+import { MAP_TILES } from '../../lib/mapTiles';
 
 export type LocationPickerProps = {
   lat: number | null;
@@ -10,8 +11,6 @@ export type LocationPickerProps = {
   onChange(lat: number, lng: number): void;
 };
 
-const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION = '© OpenStreetMap contributors';
 const EMPTY_ZOOM = 2;
 const PIN_ZOOM = 15;
 
@@ -50,7 +49,7 @@ export function LocationPicker({ lat, lng, onChange }: LocationPickerProps) {
     const el = host.current;
     if (!el) return;
     const m = L.map(el, { worldCopyJump: true }).setView([0, 0], EMPTY_ZOOM);
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(m);
+    L.tileLayer(MAP_TILES.url, { attribution: MAP_TILES.attribution, maxZoom: MAP_TILES.maxZoom }).addTo(m);
     m.on('click', (e: L.LeafletMouseEvent) => report(e.latlng.lat, e.latlng.lng));
     map.current = m;
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => m.invalidateSize());

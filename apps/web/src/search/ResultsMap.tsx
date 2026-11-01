@@ -8,6 +8,7 @@ import { Checkbox } from '../components/ui/Checkbox';
 import { moneyShort } from '../lib/format';
 import { toBbox, type Bbox } from './searchParams';
 import styles from './ResultsMap.module.css';
+import { MAP_TILES } from '../lib/mapTiles';
 
 export type LatLng = { lat: number; lng: number };
 export type ResultsMapProps = {
@@ -26,8 +27,6 @@ export type ResultsMapProps = {
   fitKey?: string;
 };
 
-const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION = '© OpenStreetMap contributors';
 const CENTER_ZOOM = 12;
 const FIT_MAX_ZOOM = 15;
 const AT_CENTER = 0.0001; // degrees
@@ -159,7 +158,7 @@ export function ResultsMap({
     const el = host.current;
     if (!el) return;
     const m = L.map(el, { worldCopyJump: true }).setView(START.center, START.zoom);
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(m);
+    L.tileLayer(MAP_TILES.url, { attribution: MAP_TILES.attribution, maxZoom: MAP_TILES.maxZoom }).addTo(m);
     layer.current = L.layerGroup().addTo(m);
     map.current = m;
     m.on('moveend', () => {

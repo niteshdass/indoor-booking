@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import type { Amenity } from '@booking/shared';
 import type { PublicVenue } from '../lib/types';
 import styles from './VenueAbout.module.css';
+import { MAP_TILES } from '../lib/mapTiles';
 
 /** 24px stroke icons, one per amenity. */
 const AMENITY_ICONS: Record<Amenity, string> = {
@@ -22,8 +23,6 @@ const AMENITY_ICONS: Record<Amenity, string> = {
   prayer_room: 'M12 3v2M5 21v-9a7 7 0 0 1 14 0v9zM10 21v-4a2 2 0 0 1 4 0v4',
 };
 
-const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 function LocationMap({ lat, lng, name }: { lat: number; lng: number; name: string }) {
   const { t } = useTranslation();
@@ -32,7 +31,7 @@ function LocationMap({ lat, lng, name }: { lat: number; lng: number; name: strin
     const el = ref.current;
     if (!el) return;
     const m = L.map(el, { scrollWheelZoom: false, dragging: !L.Browser.mobile, zoomControl: true }).setView([lat, lng], 15);
-    L.tileLayer(TILES, { attribution: ATTRIBUTION, maxZoom: 19 }).addTo(m);
+    L.tileLayer(MAP_TILES.url, { attribution: MAP_TILES.attribution, maxZoom: MAP_TILES.maxZoom }).addTo(m);
     const pin = document.createElement('span');
     pin.className = styles.pin!;
     L.marker([lat, lng], {

@@ -4,6 +4,7 @@ import type { Config } from '../config';
 import type { AppServices } from '../services';
 import { deliverNotifications } from '../notifications/outbox';
 import { sweepPendingImages } from '../images/attach';
+import { reconcileHostedPayments } from '../payments/hosted';
 import { reconcileRefunds } from '../payments/refunds';
 import { JobRun } from './jobRun.model';
 import { autoCompleteBookings, autoDeclineSeries, autoRejectPending, endSeries, expireHolds, sendReminders, sendReviewRequests, warnExpiringHolds } from './sweeps';
@@ -27,6 +28,7 @@ export const JOBS: Job[] = [
   { name: 'series-end', everyMs: 300_000, run: (now) => endSeries(now) },
   { name: 'deliver-notifications', everyMs: 15_000, run: (now, deps) => deliverNotifications(now, deps) },
   { name: 'reconcile-refunds', everyMs: 300_000, run: (now, deps) => reconcileRefunds(now, deps) },
+  { name: 'reconcile-hosted-payments', everyMs: 300_000, run: (now, deps) => reconcileHostedPayments(now, deps) },
   { name: 'pending-images', everyMs: 3_600_000, run: (now) => sweepPendingImages(now) },
 ];
 

@@ -14,8 +14,10 @@ const h = vi.hoisted(() => ({
   loadStripe: vi.fn(),
   confirmPayment: vi.fn(),
   options: [] as unknown[],
+  leaveTo: vi.fn(),
 }));
 
+vi.mock('../../src/payment/redirect', () => ({ leaveTo: h.leaveTo }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: h.loadStripe }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children, options }: { children: ReactNode; options: unknown }) => {
@@ -50,7 +52,7 @@ function start(holdMs = 600_000, key = 'pk_owner'): PaymentStart {
   };
 }
 
-type Options = { wallets: unknown[]; card: boolean; amount: number; currency: string; holdExpiresAt: string | null };
+type Options = { wallets: unknown[]; card: boolean; sslcommerz?: boolean; amount: number; currency: string; holdExpiresAt: string | null };
 const BKASH = { provider: 'bkash', number: '+8801712345678', accountType: 'personal', note: 'Pay before 9pm' };
 
 function options(over: Partial<Options> = {}, pay?: unknown): Options {
@@ -72,6 +74,7 @@ beforeEach(() => {
   h.loadStripe.mockReset().mockResolvedValue({});
   h.confirmPayment.mockReset().mockResolvedValue({});
   h.options.length = 0;
+  h.leaveTo.mockReset();
   return i18n.changeLanguage('en');
 });
 afterEach(() => {
@@ -88,6 +91,13 @@ describe('pay page', () => {
     expect(await screen.findByTestId('payment-element')).toBeInTheDocument();
     expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === i18n.t('payment.payNow', { amount: money(1150, 'BDT', 'en') }))).toBeInTheDocument();
     expect((h.options.at(-1) as { clientSecret: string }).clientSecret).toBe('cs_1');
+  });
+
+  it('the card intent names the stripe gateway', async () => {
+    const { calls } = api();
+    renderApp(PATH, { user: player });
+    await screen.findByTestId('payment-element');
+    expect(calls.find((c) => c.method === 'POST' && c.path === '/bookings/b1/payment')!.body).toEqual({ gateway: 'stripe' });
   });
 
   it("loadStripe called with owner's publishable key", async () => {
@@ -379,5 +389,73 @@ describe('pay by wallet', () => {
       Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object' ? keys(v as Record<string, unknown>, `${p}${k}.`) : [`${p}${k}`]));
     expect(keys(ru.payment.wallet).sort()).toEqual(keys(en.payment.wallet).sort());
     expect(Object.keys(en.payment.wallet).length).toBeGreaterThan(5);
+    expect(keys(ru.payment.online).sort()).toEqual(keys(en.payment.online).sort());
+    expect(keys(ru.payment.returned).sort()).toEqual(keys(en.payment.returned).sort());
+  });
+});
+
+describe('pay online (SSLCommerz)', () => {
+  const O = en.payment.online;
+  const sslStart = (holdMs = 600_000): PaymentStart => ({
+    payment: { id: 'p1', amount: 1150, currency: 'BDT', gateway: 'sslcommerz', url: 'https://sandbox.sslcommerz.com/gw/abc' },
+    holdExpiresAt: new Date(Date.now() + holdMs).toISOString(),
+  });
+  const continueButton = () => screen.findByRole('button', { name: O.continue });
+
+  it('opens first, ahead of card and wallets, and starts nothing until pressed', async () => {
+    const { calls } = api({ options: { sslcommerz: true, card: true, wallets: [BKASH] }, pay: sslStart() });
+    renderApp(PATH, { user: player });
+    expect(await continueButton()).toBeInTheDocument();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((t) => t.textContent)).toEqual([O.tab, en.payment.wallet.card, 'bKash']);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText(O.body)).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === i18n.t('payment.payNow', { amount: money(1150, 'BDT', 'en') }))).toBeInTheDocument();
+    expect(calls.some((c) => c.path === '/bookings/b1/payment')).toBe(false);
+  });
+
+  it('continue posts the sslcommerz gateway and leaves for its page', async () => {
+    const { calls } = api({ options: { sslcommerz: true, card: false }, pay: sslStart() });
+    const { user } = renderApp(PATH, { user: player });
+    await user.click(await continueButton());
+    await waitFor(() => expect(h.leaveTo).toHaveBeenCalledWith('https://sandbox.sslcommerz.com/gw/abc'));
+    expect(calls.filter((c) => c.method === 'POST' && c.path === '/bookings/b1/payment').map((c) => c.body)).toEqual([{ gateway: 'sslcommerz' }]);
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
+  it('payment_in_progress is shown and the button works again', async () => {
+    api({ options: { sslcommerz: true, card: false }, payStatus: 409, pay: { error: { code: 'payment_in_progress', message: 'x' } } });
+    const { user } = renderApp(PATH, { user: player });
+    await user.click(await continueButton());
+    expect(await screen.findByText(en.errors.payment_in_progress)).toBeInTheDocument();
+    expect(h.leaveTo).not.toHaveBeenCalled();
+    expect(await continueButton()).toBeEnabled();
+  });
+
+  it('hold_expired shows Expired', async () => {
+    api({ options: { sslcommerz: true, card: false }, payStatus: 409, pay: { error: { code: 'hold_expired', message: 'x' } } });
+    const { user } = renderApp(PATH, { user: player });
+    await user.click(await continueButton());
+    expect(await screen.findByText(en.payment.expired)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: O.continue })).not.toBeInTheDocument();
+  });
+
+  it('shows Expired once the hold is over', async () => {
+    api({ options: { sslcommerz: true, card: false, holdExpiresAt: new Date(Date.now() - 1000).toISOString() } });
+    renderApp(PATH, { user: player });
+    expect(await screen.findByText(en.payment.expired)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: O.continue })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['failed', en.payment.returned.failed],
+    ['cancelled', en.payment.returned.cancelled],
+  ])('coming back with payment=%s says so once', async (flag, text) => {
+    api({ options: { sslcommerz: true, card: false } });
+    const { location } = renderApp(`${PATH}?payment=${flag}`, { user: player });
+    expect(await screen.findByText(text)).toBeInTheDocument();
+    await waitFor(() => expect(location().search).toBe(''));
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(await continueButton()).toBeInTheDocument();
   });
 });

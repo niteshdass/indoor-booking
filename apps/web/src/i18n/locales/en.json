@@ -167,8 +167,8 @@
     "slug_taken": "That link name is already taken.",
     "turf_name_taken": "This venue already has a turf with that name.",
     "sport_disabled": "That sport is not offered right now. Pick another one.",
-    "gateway_account_in_use": "A card payment is still pending on the current Stripe account. Try again once it settles.",
-    "gateway_error": "Stripe couldn't be reached or rejected the request. Try again.",
+    "gateway_account_in_use": "A payment is still pending on the current account. Try again once it settles.",
+    "gateway_error": "The payment provider couldn't be reached or rejected the request. Try again.",
     "payments_unconfigured": "Payments aren't configured on this server yet.",
     "turf_has_bookings": "This turf has bookings, so it can't be deleted. Deactivate it instead.",
     "last_active_turf": "A published venue needs at least one active turf. Unpublish the venue first.",
@@ -476,6 +476,7 @@
     "bookingCount_other": "{{count}} bookings",
     "payBy": "Pay {{amount}} now by {{methods}} · rest at venue",
     "card": "card",
+    "online": "online checkout",
     "noMethods": "Online payment isn't set up at this venue yet"
   },
   "payment": {
@@ -514,6 +515,15 @@
       "submit": "I have sent the money",
       "hint": "The venue checks your payment, then confirms the booking.",
       "holdEnded": "Your hold has ended. If you already sent the money, enter the Transaction ID — we'll confirm if the times are still free."
+    },
+    "online": {
+      "tab": "Pay online",
+      "body": "bKash, Nagad, Rocket or card. Confirmed instantly.",
+      "continue": "Continue to payment"
+    },
+    "returned": {
+      "failed": "Payment didn't go through. Try again or pick another way to pay.",
+      "cancelled": "Payment cancelled."
     }
   },
   "receipt": {
@@ -1176,8 +1186,14 @@
           "agent": "Agent"
         },
         "note": "Note for players (optional)",
-        "card": "Card (Stripe)",
-        "connectStripe": "Connect Stripe first"
+        "gateway": {
+          "sslcommerz": "Online checkout (SSLCommerz): bKash, Nagad, Rocket, card",
+          "stripe": "Card (Stripe)"
+        },
+        "connect": {
+          "sslcommerz": "Connect SSLCommerz first",
+          "stripe": "Connect Stripe first"
+        }
       },
       "guestTitle": "Guest booking",
       "guestAllowed": "Allow booking without an account",
@@ -1211,7 +1227,8 @@
         "booking": "Booking",
         "payments": "Payments",
         "refunds": "Refunds",
-        "stripe": "Stripe"
+        "stripe": "Stripe",
+        "sslcommerz": "SSLCommerz"
       }
     },
     "gateway": {
@@ -1262,6 +1279,42 @@
         "live": "Save live keys"
       },
       "webhookSecretHint": "From the endpoint above in this mode. Stored encrypted. It is never shown again."
+    },
+    "sslcommerz": {
+      "title": "SSLCommerz online checkout",
+      "intro": "Connect your SSLCommerz store so players pay by bKash, Nagad, Rocket or card and the booking confirms on its own. Manual wallet transfers stay available as a fallback.",
+      "mode": {
+        "test": "Sandbox (test)",
+        "live": "Live"
+      },
+      "modeHint": {
+        "test": "Sandbox: no real money moves.",
+        "live": "Payments are real and go to your SSLCommerz store."
+      },
+      "enabled": "Accept online checkout",
+      "notConnected": "SSLCommerz is not connected.",
+      "addLiveHint": "Add your live store below to start taking real payments.",
+      "storeTitle": "Store",
+      "storeId": "Store ID",
+      "storePassword": "Store password",
+      "replace": "Replace store",
+      "noStore": {
+        "test": "No sandbox store yet. Register one at developer.sslcommerz.com to get a store ID and password.",
+        "live": "No live store yet. SSLCommerz sends the live store ID and password once your merchant account is approved."
+      },
+      "save": {
+        "test": "Save sandbox store",
+        "live": "Save live store"
+      },
+      "ipnTitle": "Payment notifications (IPN)",
+      "ipnHint": "In the SSLCommerz merchant panel, set this as the IPN URL so payments confirm even if the player closes the page.",
+      "ipnUrl": "IPN URL",
+      "whitelistHint": "Ask SSLCommerz to whitelist the server IP for refunds.",
+      "errors": {
+        "storeId": "Enter the store ID: up to 64 letters, numbers, dashes or underscores.",
+        "storePassword": "Enter the store password, without spaces.",
+        "invalidCreds": "SSLCommerz didn't accept this store ID and password. Check them and the mode, then try again."
+      }
     },
     "turf": {
       "title": "Turf",

@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { PAYOUT_WEBHOOK_EVENTS, currencyExponent } from '@booking/shared';
-import { GatewayError, type GatewayEvent, type GatewayRefund, type PaymentGateway } from './gateway';
+import { GatewayError, type GatewayCredentials, type GatewayEvent, type GatewayRefund, type PaymentGateway, type StripeCredentials } from './gateway';
 
 /** The slice of the Stripe SDK we use, so tests can inject a fake. */
 export type StripeApi = {
@@ -79,15 +79,18 @@ function toGatewayRefund(r: { id: string; status: string | null; failure_reason?
   return { refundRef: r.id, status, failureCode: r.failure_reason ?? null };
 }
 
+const own = (c: GatewayCredentials) => c as StripeCredentials;
+
 export function stripeGateway(factory: StripeFactory): PaymentGateway {
   return {
     key: 'stripe',
+    hosted: false,
 
     supports: (_country, currency) => supportsCurrency(currency),
 
     async verifyCredentials(c) {
       try {
-        const account = await factory(c.secretKey).accounts.retrieve();
+        const account = await factory(own(c).secretKey).accounts.retrieve();
         return { accountId: account.id };
       } catch (err) {
         throw new GatewayError(err instanceof Stripe.errors.StripeAuthenticationError ? 'invalid_credentials' : 'gateway_error');
@@ -95,7 +98,7 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
     },
 
     async createPayment(c, input) {
-      const stripe = factory(c.secretKey);
+      const stripe = factory(own(c).secretKey);
       const currency = input.currency.toLowerCase();
       try {
         if (input.kind === 'intent') {
@@ -133,11 +136,12 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
       }
     },
 
-    handleWebhook(c, rawBody, signature) {
+    async handleWebhook(c, delivery) {
+      const signature = delivery.header('stripe-signature');
       if (!signature) throw new GatewayError('invalid_signature');
       let event: Stripe.Event;
       try {
-        event = Stripe.webhooks.constructEvent(rawBody, signature, c.webhookSecret);
+        event = Stripe.webhooks.constructEvent(delivery.rawBody, signature, own(c).webhookSecret);
       } catch {
         throw new GatewayError('invalid_signature');
       }
@@ -200,7 +204,7 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
     async cancelPayment(c, input) {
       const ref = input.kind === 'intent' ? input.gatewayRef : input.linkRef;
       if (!ref) return;
-      const stripe = factory(c.secretKey);
+      const stripe = factory(own(c).secretKey);
       try {
         // Refused once the object has succeeded or completed: its webhook is on the way.
         if (input.kind === 'intent') await stripe.paymentIntents.cancel(ref);
@@ -212,7 +216,7 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
 
     async refund(c, input) {
       try {
-        const r = await factory(c.secretKey).refunds.create(
+        const r = await factory(own(c).secretKey).refunds.create(
           { payment_intent: input.gatewayRef, amount: input.amount, metadata: { refundId: input.refundId } },
           { idempotencyKey: input.idempotencyKey },
         );
@@ -228,7 +232,7 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
 
     async findRefund(c, input) {
       try {
-        const { data } = await factory(c.secretKey).refunds.list({ payment_intent: input.gatewayRef, limit: 100 });
+        const { data } = await factory(own(c).secretKey).refunds.list({ payment_intent: input.gatewayRef, limit: 100 });
         const found = data.find((r) => r.metadata?.refundId === input.refundId);
         return found ? toGatewayRefund(found) : null;
       } catch {

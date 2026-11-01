@@ -104,6 +104,7 @@ describe('JOBS', () => {
       ['series-end', 300_000],
       ['deliver-notifications', 15_000],
       ['reconcile-refunds', 300_000],
+      ['reconcile-hosted-payments', 300_000],
       ['pending-images', 3_600_000],
     ]);
   });

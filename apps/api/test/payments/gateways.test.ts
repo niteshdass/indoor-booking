@@ -13,6 +13,7 @@ import { ActivityLog } from '../../src/tenancy/activityLog.model';
 import { PaymentGatewayAccount, loadGateway } from '../../src/payments/gateway.model';
 import { Payment } from '../../src/bookings/payment.model';
 import { open } from '../../src/payments/secretBox';
+import type { StripeCredentials } from '../../src/payments/gateway';
 
 beforeAll(async () => {
   await startTestDb();
@@ -60,6 +61,10 @@ describe('owner gateway settings', () => {
         gateway: 'stripe', connected: false, enabled: false, mode: null, accounts: { test: null, live: null },
         webhookUrl: webhookUrl(), webhookEvents: expect.arrayContaining(['refund.updated', 'refund.failed']), updatedAt: null,
       },
+      {
+        gateway: 'sslcommerz', connected: false, enabled: false, mode: null, accounts: { test: null, live: null },
+        webhookUrl: `http://localhost:4000/api/v1/webhooks/sslcommerz/${a.ownerId}`, webhookEvents: [], updatedAt: null,
+      },
     ]);
   });
 
@@ -93,7 +98,7 @@ describe('owner gateway settings', () => {
     expect(await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services)).toBeNull();
     await connectStripe(ctx.app, a, { enabled: false });
     const loaded = await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services);
-    expect(loaded?.creds.secretKey).toMatch(/^sk_test_owner/);
+    expect((loaded?.creds as StripeCredentials | undefined)?.secretKey).toMatch(/^sk_test_owner/);
     expect(loaded?.row.enabled).toBe(false);
     expect(loaded?.gateway.key).toBe('stripe');
     expect(await loadGateway(a.ownerId, 'paypal', ctx.config, ctx.services)).toBeNull();
@@ -234,8 +239,8 @@ describe('owner gateway settings', () => {
           live: { accountId: 'acct_test_abc999', publishableKey: 'pk_live_abc999' },
         },
       });
-      expect((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services))?.creds.secretKey).toBe(valid.secretKey);
-      expect((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services, { mode: 'live' }))?.creds.secretKey).toBe(live.secretKey);
+      expect(((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services))?.creds as StripeCredentials | undefined)?.secretKey).toBe(valid.secretKey);
+      expect(((await loadGateway(a.ownerId, 'stripe', ctx.config, ctx.services, { mode: 'live' }))?.creds as StripeCredentials | undefined)?.secretKey).toBe(live.secretKey);
     });
 
     it('first keys saved pick the active mode', async () => {

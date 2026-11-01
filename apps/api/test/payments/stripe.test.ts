@@ -102,9 +102,13 @@ describe('createPayment', () => {
 });
 
 describe('handleWebhook', () => {
+  const delivery = (body: string, signature: string) => ({
+    rawBody: Buffer.from(body),
+    header: (name: string) => (name === 'stripe-signature' ? signature : undefined),
+  });
   const evt = (type: string, object: object) => ({ id: `evt_${type}`, object: 'event', type, data: { object } });
 
-  it('maps the four handled types', () => {
+  it('maps the four handled types', async () => {
     const cases: [object, object][] = [
       [
         evt('payment_intent.succeeded', { id: 'pi_1', amount: 1000, amount_received: 900, currency: 'usd', metadata: meta }),
@@ -119,13 +123,13 @@ describe('handleWebhook', () => {
     ];
     for (const [event, expected] of cases) {
       const { body, signature } = signedEvent(creds.webhookSecret, event);
-      expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({
+      await expect(gw.handleWebhook(creds, delivery(body, signature))).resolves.toMatchObject({
         id: (event as { id: string }).id, type: (event as { type: string }).type, ...expected,
       });
     }
   });
 
-  it('normalizes refund.updated and refund.failed', () => {
+  it('normalizes refund.updated and refund.failed', async () => {
     const cases: [string, object, object][] = [
       ['refund.updated', { id: 're_1', status: 'succeeded' }, { kind: 'refund_updated', refundRef: 're_1', status: 'succeeded', failureCode: null }],
       [
@@ -136,11 +140,11 @@ describe('handleWebhook', () => {
     ];
     for (const [type, object, expected] of cases) {
       const { body, signature } = signedEvent(creds.webhookSecret, evt(type, object));
-      expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({ type, ...expected });
+      await expect(gw.handleWebhook(creds, delivery(body, signature))).resolves.toMatchObject({ type, ...expected });
     }
   });
 
-  it('normalizes charge refunds and disputes, expanded or not', () => {
+  it('normalizes charge refunds and disputes, expanded or not', async () => {
     const cases: [string, object, object][] = [
       [
         'charge.refunded',
@@ -161,23 +165,23 @@ describe('handleWebhook', () => {
     ];
     for (const [type, object, expected] of cases) {
       const { body, signature } = signedEvent(creds.webhookSecret, evt(type, object));
-      expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({ type, ...expected });
+      await expect(gw.handleWebhook(creds, delivery(body, signature))).resolves.toMatchObject({ type, ...expected });
     }
   });
 
-  it('gives null paymentId / failureCode when absent', () => {
+  it('gives null paymentId / failureCode when absent', async () => {
     const { body, signature } = signedEvent(creds.webhookSecret, evt('payment_intent.payment_failed', { id: 'pi_1', metadata: {} }));
-    expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({
+    await expect(gw.handleWebhook(creds, delivery(body, signature))).resolves.toMatchObject({
       kind: 'attempt_failed', paymentId: null, failureCode: null,
     });
   });
 
-  it('ignores other types', () => {
+  it('ignores other types', async () => {
     const { body, signature } = signedEvent(creds.webhookSecret, evt('customer.created', { id: 'cus_1' }));
-    expect(gw.handleWebhook(creds, Buffer.from(body), signature)).toMatchObject({ kind: 'ignored', type: 'customer.created' });
+    await expect(gw.handleWebhook(creds, delivery(body, signature))).resolves.toMatchObject({ kind: 'ignored', type: 'customer.created' });
   });
 
-  it('rejects tampered body, wrong secret, missing signature', () => {
+  it('rejects tampered body, wrong secret, missing signature', async () => {
     const { body, signature } = signedEvent(creds.webhookSecret, evt('customer.created', { id: 'cus_1' }));
     const wrong = signedEvent('whsec_other', evt('customer.created', { id: 'cus_1' }));
     const attempts: [Buffer, string | undefined][] = [
@@ -186,19 +190,15 @@ describe('handleWebhook', () => {
       [Buffer.from(body), undefined],
     ];
     for (const [b, s] of attempts) {
-      try {
-        gw.handleWebhook(creds, b, s);
-        expect.unreachable();
-      } catch (e) {
-        expect(e).toBeInstanceOf(GatewayError);
-        expect((e as GatewayError).code).toBe('invalid_signature');
-      }
+      const err = await gw.handleWebhook(creds, { rawBody: b, header: () => s }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(GatewayError);
+      expect((err as GatewayError).code).toBe('invalid_signature');
     }
   });
 });
 
 describe('refund', () => {
-  const input = { gatewayRef: 'pi_1', amount: 50, idempotencyKey: 'refund_p1', refundId: 'r1' };
+  const input = { gatewayRef: 'pi_1', amount: 50, currency: 'USD', idempotencyKey: 'refund_p1', refundId: 'r1' };
 
   it.each(['succeeded', 'pending', 'failed'] as const)('maps %s', async (status) => {
     const real = services.stripe(creds.secretKey);
@@ -233,14 +233,14 @@ describe('refund', () => {
 
 describe('findRefund', () => {
   it('finds an earlier refund by refund id', async () => {
-    const made = await gw.refund(creds, { gatewayRef: 'pi_1', amount: 50, idempotencyKey: 'k1', refundId: 'r1' });
-    expect((await gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r1' }))?.refundRef).toBe(made.refundRef);
-    expect(await gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r2' })).toBeNull();
+    const made = await gw.refund(creds, { gatewayRef: 'pi_1', amount: 50, currency: 'USD', idempotencyKey: 'k1', refundId: 'r1' });
+    expect((await gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r1', refundRef: null }))?.refundRef).toBe(made.refundRef);
+    expect(await gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r2', refundRef: null })).toBeNull();
   });
 
   it('throws a gateway_error when Stripe is unreachable', async () => {
     services.stripe.fail('refunds.list', 'api');
-    await expect(gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r1' })).rejects.toBeInstanceOf(GatewayError);
+    await expect(gw.findRefund(creds, { gatewayRef: 'pi_1', refundId: 'r1', refundRef: null })).rejects.toBeInstanceOf(GatewayError);
   });
 });
 
@@ -250,23 +250,23 @@ describe('cancelPayment', () => {
 
   it('cancels a PaymentIntent and expires a Checkout Session', async () => {
     const pi = await create('intent');
-    await gw.cancelPayment(creds, { kind: 'intent', gatewayRef: pi.gatewayRef, linkRef: null });
+    await gw.cancelPayment(creds, { kind: 'intent', paymentId: 'p1', gatewayRef: pi.gatewayRef, linkRef: null });
     expect(services.stripe.statusOf(pi.gatewayRef!)).toBe('canceled');
     const cs = await create('link');
-    await gw.cancelPayment(creds, { kind: 'link', gatewayRef: null, linkRef: cs.linkRef });
+    await gw.cancelPayment(creds, { kind: 'link', paymentId: 'p1', gatewayRef: null, linkRef: cs.linkRef });
     expect(services.stripe.statusOf(cs.linkRef!)).toBe('expired');
   });
 
   it('wraps a refusal (already succeeded) in a fixed-message GatewayError', async () => {
     const pi = await create('intent');
     services.stripe.settle(pi.gatewayRef!, 'succeeded');
-    const err = await gw.cancelPayment(creds, { kind: 'intent', gatewayRef: pi.gatewayRef, linkRef: null }).catch((e: unknown) => e);
+    const err = await gw.cancelPayment(creds, { kind: 'intent', paymentId: 'p1', gatewayRef: pi.gatewayRef, linkRef: null }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(GatewayError);
     expect(err).toMatchObject({ code: 'gateway_error', message: 'The payment gateway could not complete the request' });
   });
 
   it('makes no call when the payment never reached Stripe', async () => {
-    await gw.cancelPayment(creds, { kind: 'intent', gatewayRef: null, linkRef: null });
+    await gw.cancelPayment(creds, { kind: 'intent', paymentId: 'p1', gatewayRef: null, linkRef: null });
     expect(services.stripe.calls).toHaveLength(0);
   });
 });

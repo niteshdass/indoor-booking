@@ -2,6 +2,7 @@ import type { AppServices, GoogleProfile } from '../../src/services';
 import { AppError } from '../../src/errors';
 import Stripe from 'stripe';
 import type { StripeApi, StripeFactory } from '../../src/payments/stripe';
+import type { SslcommerzHttp } from '../../src/payments/sslcommerz';
 
 export type StripeCall = { method: string; secretKey: string; params: object; idempotencyKey?: string };
 
@@ -144,12 +145,134 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   return factory;
 }
 
+export type SslcommerzAttempt = { status: string; valId: string | null; bankTranId: string | null; amount: string; currency: string };
+export type SslcommerzSession = { host: string; storeId: string; form: Record<string, string> };
+
+export type FakeSslcommerz = SslcommerzHttp & {
+  calls: { method: 'get' | 'postForm'; url: URL; form?: Record<string, string> }[];
+  sessions: SslcommerzSession[];
+  /** Makes the next request to a path containing `path` throw, like a timeout. */
+  fail(path: string): void;
+  /** The customer pays the last session for `tranId`; returns its val_id. Defaults to the session's amount. */
+  pay(tranId: string, o?: { amount?: string; currency?: string }): string;
+  /** An unpaid attempt (FAILED, CANCELLED, UNATTEMPTED) for `tranId`. */
+  attempt(tranId: string, status: string): void;
+  /** Status the fake gives new refunds ('success' is accepted, not yet paid out); and what a later query answers. */
+  refundStatus: string;
+  refundQueryStatus: string;
+};
+
+/**
+ * In-memory SSLCommerz. A store is its host (sandbox or live) plus its store id; a password
+ * starting with "bad" is refused. Transactions are only visible to the store that opened them.
+ */
+export function makeFakeSslcommerz(): FakeSslcommerz {
+  const calls: FakeSslcommerz['calls'] = [];
+  const sessions: SslcommerzSession[] = [];
+  const failures = new Set<string>();
+  /** Attempts per store and tran_id. */
+  const attempts = new Map<string, SslcommerzAttempt[]>();
+  /** val_id -> what validation answers, and how often it has been asked. */
+  const vals = new Map<string, { store: string; tranId: string; attempt: SslcommerzAttempt; asked: number }>();
+  const refunds = new Map<string, { store: string; status: string }>();
+  let seq = 0;
+  const storeOf = (u: URL, storeId: string | null) => `${u.origin}|${storeId}`;
+  const authorized = (password: string | null) => !!password && !password.startsWith('bad');
+  const failing = (u: URL) => {
+    for (const f of failures) if (u.pathname.includes(f)) return failures.delete(f);
+    return false;
+  };
+
+  const fake: FakeSslcommerz = {
+    calls,
+    sessions,
+    refundStatus: 'success',
+    refundQueryStatus: 'refunded',
+    fail: (path) => void failures.add(path),
+    async postForm(raw, form) {
+      const u = new URL(raw);
+      calls.push({ method: 'postForm', url: u, form });
+      if (failing(u)) throw new Error('fake sslcommerz timeout');
+      if (!authorized(form.store_passwd ?? null)) return { status: 'FAILED', failedreason: 'Store Credential Error Or Store is De-active' };
+      sessions.push({ host: u.origin, storeId: form.store_id!, form });
+      seq += 1;
+      return { status: 'SUCCESS', sessionkey: `sk${seq}`, GatewayPageURL: `${u.origin}/gwprocess/v4/pay/${seq}` };
+    },
+    async get(raw) {
+      const u = new URL(raw);
+      calls.push({ method: 'get', url: u });
+      if (failing(u)) throw new Error('fake sslcommerz timeout');
+      const q = (k: string) => u.searchParams.get(k);
+      const store = storeOf(u, q('store_id'));
+      const ok = authorized(q('store_passwd'));
+      if (u.pathname.endsWith('/validationserverAPI.php')) {
+        const v = vals.get(q('val_id') ?? '');
+        if (!ok || !v || v.store !== store) return { status: 'INVALID_TRANSACTION' };
+        v.asked += 1;
+        return {
+          status: v.asked === 1 ? 'VALID' : 'VALIDATED',
+          tran_id: v.tranId,
+          val_id: v.attempt.valId,
+          bank_tran_id: v.attempt.bankTranId,
+          amount: v.attempt.amount,
+          currency: v.attempt.currency,
+          currency_type: v.attempt.currency,
+          currency_amount: v.attempt.amount,
+        };
+      }
+      if (!ok) return { APIConnect: 'INVALID_REQUEST' };
+      if (q('refund_ref_id')) {
+        const r = refunds.get(q('refund_ref_id')!);
+        if (!r || r.store !== store) return { APIConnect: 'INVALID_REQUEST' };
+        return { APIConnect: 'DONE', status: fake.refundQueryStatus, refund_ref_id: q('refund_ref_id') };
+      }
+      if (q('bank_tran_id')) {
+        const known = [...vals.values()].some((v) => v.store === store && v.attempt.bankTranId === q('bank_tran_id'));
+        if (!known) return { APIConnect: 'INVALID_REQUEST', errorReason: 'Invalid bank_tran_id' };
+        seq += 1;
+        const ref = `rf${seq}`;
+        refunds.set(ref, { store, status: fake.refundStatus });
+        return { APIConnect: 'DONE', status: fake.refundStatus, refund_ref_id: ref, bank_tran_id: q('bank_tran_id') };
+      }
+      const list = attempts.get(`${store}|${q('tran_id')}`) ?? [];
+      return {
+        APIConnect: 'DONE',
+        no_of_trans_found: list.length,
+        element: list.map((a) => ({ tran_id: q('tran_id'), status: a.status, val_id: a.valId, bank_tran_id: a.bankTranId, amount: a.amount })),
+      };
+    },
+    pay(tranId, o = {}) {
+      const session = [...sessions].reverse().find((s) => s.form.tran_id === tranId)!;
+      seq += 1;
+      const attempt = {
+        status: 'VALID',
+        valId: `val${seq}`,
+        bankTranId: `bank${seq}`,
+        amount: o.amount ?? session.form.total_amount!,
+        currency: o.currency ?? session.form.currency!,
+      };
+      const key = `${session.host}|${session.storeId}`;
+      attempts.set(`${key}|${tranId}`, [...(attempts.get(`${key}|${tranId}`) ?? []), attempt]);
+      vals.set(attempt.valId, { store: key, tranId, attempt, asked: 0 });
+      return attempt.valId;
+    },
+    attempt(tranId, status) {
+      const session = [...sessions].reverse().find((s) => s.form.tran_id === tranId)!;
+      const key = `${session.host}|${session.storeId}|${tranId}`;
+      const a = { status, valId: null, bankTranId: null, amount: session.form.total_amount!, currency: session.form.currency! };
+      attempts.set(key, [...(attempts.get(key) ?? []), a]);
+    },
+  };
+  return fake;
+}
+
 export type TestServices = AppServices & {
   sms: AppServices['sms'] & { sent: { to: string; text: string }[] };
   email: AppServices['email'] & { sent: { to: string; subject: string; text: string }[] };
   google: AppServices['google'] & { register(idToken: string, profile: GoogleProfile): void };
   clock: { advance(ms: number): void };
   stripe: FakeStripe;
+  sslcommerz: FakeSslcommerz;
 };
 
 /** Fakes for every external effect; time starts at 2026-01-01T00:00:00Z and only moves via clock.advance. */
@@ -190,5 +313,6 @@ export function makeTestServices(): TestServices {
     },
     otpCode: () => '123456',
     stripe: makeFakeStripe(now),
+    sslcommerz: makeFakeSslcommerz(),
   };
 }

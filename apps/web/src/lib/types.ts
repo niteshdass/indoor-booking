@@ -71,12 +71,15 @@ export type QuoteJson = {
   platformFee: PlatformFeeSnapshot | null;
 };
 
+/** Ways to pay online at a venue: manual wallet providers, card (Stripe), online checkout (SSLCommerz). */
+export type OfferedMethods = { wallets: WalletProvider[]; card: boolean; sslcommerz?: boolean };
+
 export type QuoteResponse = {
   quote: QuoteJson;
   guestAllowed: boolean;
   guestOtpRequired: boolean;
-  /** What the venue takes online: wallet providers and card. */
-  paymentMethods?: { wallets: WalletProvider[]; card: boolean };
+  /** What the venue takes online: wallet providers, card (Stripe) and online checkout (SSLCommerz). */
+  paymentMethods?: OfferedMethods;
   /** Several bookings at once: every one (the first included) and the sums across them. */
   items?: { turfId: string; date: string; quote: QuoteJson }[];
   total?: number;
@@ -138,7 +141,10 @@ export type ManualPaymentJson = {
 /** `GET /bookings/:id/payment-options`; `amount` is the whole group's remaining advance. */
 export type PaymentOptions = {
   wallets: ManualWallet[];
+  /** Stripe card payments. */
   card: boolean;
+  /** SSLCommerz hosted checkout (bKash, Nagad, Rocket, cards). */
+  sslcommerz?: boolean;
   amount: number;
   currency: string;
   holdExpiresAt: string | null;
@@ -175,8 +181,12 @@ export type CancellationPreview = {
 };
 
 export type PaymentStart = {
-  payment: { id: string; amount: number; currency: string; gateway: 'stripe'; clientSecret: string; publishableKey: string };
+  payment:
+    | { id: string; amount: number; currency: string; gateway: 'stripe'; clientSecret: string; publishableKey: string }
+    | { id: string; amount: number; currency: string; gateway: 'sslcommerz'; url: string };
   holdExpiresAt: string;
 };
+
+export type StripePaymentStart = PaymentStart & { payment: Extract<PaymentStart['payment'], { gateway: 'stripe' }> };
 
 export type OtpSent = { expiresInSec: number; resendInSec: number };

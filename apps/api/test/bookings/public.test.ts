@@ -112,7 +112,7 @@ describe('quote', () => {
     );
     const res = await post(`${base()}/quote`, { date: D, startAts: [at('18:00')] });
     expect(res.status).toBe(200);
-    expect(res.body.paymentMethods).toEqual({ wallets: ['bkash', 'nagad'], card: false });
+    expect(res.body.paymentMethods).toEqual({ wallets: ['bkash', 'nagad'], card: false, sslcommerz: false });
     expect(JSON.stringify(res.body)).not.toContain('+8801');
   });
 

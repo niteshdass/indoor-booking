@@ -31,9 +31,9 @@ describe('role names and locales', () => {
     const { SYSTEM_ROLE_NAMES } = await import('../src/permissions');
     expect(Object.keys(SYSTEM_ROLE_NAMES).sort()).toEqual(Object.keys(SYSTEM_ROLES).sort());
   });
-  it('supports English and Russian', async () => {
+  it('supports English, Russian and Bangla', async () => {
     const { LOCALES } = await import('../src/locales');
-    expect(LOCALES).toEqual(['en', 'ru']);
+    expect(LOCALES).toEqual(['en', 'ru', 'bn']);
   });
 });
 

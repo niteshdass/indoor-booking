@@ -82,6 +82,27 @@ describe('notification templates', () => {
     expect(ru.text).not.toContain('отклонила');
   });
 
+  it('bn writes Bangla text with Bangla digits and keeps the reference and link', () => {
+    const bn = renderNotice('booking_confirmed', 'bn', data, appUrl);
+    expect(bn.sms).toContain('বুকিং নিশ্চিত: Arena, Court 1,');
+    expect(bn.sms).toMatch(/১১:০০/);
+    expect(bn.sms).toContain('BK7Q2M https://app.test/b/BK7Q2M');
+    expect(bn.text).toContain('রেফারেন্স: BK7Q2M');
+    const series = renderNotice('series_accepted', 'bn', { ...data, games: [data.startAt, data.startAt], moreGames: 3 }, appUrl);
+    expect(series.text).toContain('৫টি খেলা');
+    expect(series.text).toContain('আরও ৩টি');
+  });
+
+  it('a bn auto-reject has no Latin text besides the reference, link and Intl\'s AM/PM', () => {
+    const auto = { ...data, venueName: 'অ্যারেনা', turfName: 'মাঠ ১', autoRejected: true };
+    const bn = renderNotice('booking_rejected', 'bn', auto, appUrl);
+    for (const s of [bn.subject, bn.text, bn.sms]) {
+      const rest = s.replaceAll(`${appUrl}/b/${data.reference}`, '').replaceAll(data.reference, '').replace(/\b[AP]M\b/g, '');
+      expect(rest).not.toMatch(/[A-Za-z]/);
+    }
+    expect(bn.text).not.toContain('কারণ');
+  });
+
   it('staff notice links to the dashboard, others to the booking page', () => {
     expect(renderNotice('staff_new_pending', 'en', data, appUrl).text).toContain('https://app.test/dashboard/bookings/b1');
     expect(renderNotice('booking_confirmed', 'en', data, appUrl).text).toContain('https://app.test/b/BK7Q2M');

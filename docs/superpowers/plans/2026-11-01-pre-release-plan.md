@@ -110,7 +110,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 |---|---|---|---|
 | [x] P2-01 | **Automatic bKash / Nagad checkout** via SSLCommerz or EPS | Turfly, TurfHub, Turffin, TurfBook | Done with SSLCommerz (`payments/sslcommerz.ts`): hosted checkout per owner store, notices checked with the Validation / transaction APIs, return route + 5-min reconcile sweep, refunds by `bank_tran_id`. Manual TrxID stays as fallback; walk-in links stay Stripe. |
 | [x] P2-02 | **Local BD SMS gateway** (confirm, reminder, OTP) | TurfBook (metered SMS), all | Done with SSL Wireless and BulkSMSBD (`notifications/senders.ts`): +8801 numbers go by the BD provider when one is set, everything else by Twilio. Optional metering: owners' booking SMS is charged in SMS parts against admin-granted credits (refunded on a failed send); OTPs are never charged. Alpha SMS not added. |
-| [ ] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Staff at the desk need Bangla. Add `bn.json`, Bangla digits/dates via Intl, check 30% length rule. |
+| [x] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Done: `bn` in shared `LOCALES` and the language menu, full `bn.json` (lazy, ~31 kB gzip), Bangla email/SMS templates, Bangla digits and dates via Intl. Noto Sans Bengali joins both font stacks; `:lang(bn)` raises line heights. Bangla runs 1.01× English overall (test caps it at 1.3×). |
 | [ ] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Roadmap #15, not built. Percent/fixed, validity, caps, per-venue, applied in `quoteBooking()`. |
 | [ ] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Not present anywhere. Reuse slot lock in one transaction; keep payments attached. |
 | [ ] P2-06 | **CSV export** of bookings & payments | TurfBook reports, roadmap #16 | Not present. Owner reports page + bookings list. |
@@ -131,6 +131,15 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 - Metering is off by default. Before turning it on (Admin → Settings), grant every owner credits on Admin → Owners, or their booking SMS stops.
 
 **Gate (release/p2-02-bd-sms):** typecheck ✅ · lint ✅ · API 1053/1053 · web 885/885 · shared 158/158 · build ✅
+
+**Ops left for P2-03 (code is done):**
+- Have a native Bangla speaker read `bn.json` and the bn templates in `notifications/templates.ts`, especially the landing page and owner settings. The translation was machine-made with a fixed glossary (venue ভেন্যু, turf মাঠ, recurring booking নিয়মিত বুকিং).
+- Click through Today, Walk-in, Bookings and checkout in Bangla on a phone to check that nothing wraps badly.
+- Login OTP text (`auth/otp.ts`) is still English only: the sign-in request carries no locale yet.
+- Bangla SMS is UCS-2 (70 characters a part), so a Bangla booking SMS costs about 2 parts against 1 in English. Size the owners' SMS credits with that in mind.
+- The landing FAQ still answers "Is it in Russian?". Consider changing it to ask about Bangla.
+
+**Gate (release/p2-03-bangla):** typecheck ✅ · lint ✅ · API 1055/1055 · web 892/892 · shared 158/158 · build ✅
 
 ---
 

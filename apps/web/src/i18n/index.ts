@@ -2,7 +2,7 @@ import i18n, { type BackendModule, type ResourceKey } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './locales/en.json';
 
-export const SUPPORTED_LANGUAGES = ['en', 'ru'] as const;
+export const SUPPORTED_LANGUAGES = ['en', 'ru', 'bn'] as const;
 const STORAGE_KEY = 'lang';
 
 function storedLanguage(): string | undefined {
@@ -21,6 +21,7 @@ const lazyLocales: BackendModule = {
   read(language, _namespace, callback) {
     const load: Record<string, () => Promise<{ default: ResourceKey }>> = {
       ru: () => import('./locales/ru.json'),
+      bn: () => import('./locales/bn.json'),
     };
     const loader = load[language];
     if (!loader) return callback(null, {});
@@ -31,7 +32,7 @@ const lazyLocales: BackendModule = {
   },
 };
 
-/** Resolves once the starting language is loaded; render after it so a Russian visitor never sees English first. */
+/** Resolves once the starting language is loaded; render after it so a Russian or Bangla visitor never sees English first. */
 export const i18nReady = i18n
   .use(lazyLocales)
   .use(initReactI18next)

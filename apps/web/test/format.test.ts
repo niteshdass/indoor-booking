@@ -37,4 +37,10 @@ describe('format', () => {
   it('formatDate converts an instant into the venue zone', () => {
     expect(f.formatDate('2026-01-01T23:30:00.000Z', 'Asia/Dhaka', 'en')).toContain('Jan 2');
   });
+  it('writes Bangla digits for bn', () => {
+    expect(f.formatTime('2026-01-01T12:00:00.000Z', 'Asia/Dhaka', 'bn')).toMatch(/১৮:০০|৬:০০/);
+    expect(f.moneyShort(150_000, 'BDT', 'bn')).toContain('১,৫০০');
+    expect(f.formatDistance(12_345, 'bn')).toContain('১২.৩');
+    expect(f.formatDate('2026-01-01', 'Asia/Dhaka', 'bn')).toContain('১');
+  });
 });

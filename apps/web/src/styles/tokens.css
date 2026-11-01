@@ -4,8 +4,8 @@
  */
 
 :root {
-  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-  --font-display: 'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'Noto Sans Bengali', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  --font-display: 'IBM Plex Sans Condensed', 'IBM Plex Sans', 'Noto Sans Bengali', system-ui, sans-serif;
   --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
 
   --text-2xs: 11px;
@@ -28,6 +28,10 @@
   --leading-heading: 1.15;
   --leading-display: 1.02;
   --tracking-display: -0.01em;
+  /* Bengali needs room for vowel signs above and below the line (:lang(bn) below). */
+  --leading-body-bn: 1.7;
+  --leading-heading-bn: 1.35;
+  --leading-display-bn: 1.25;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -227,6 +231,14 @@
   --brand-fg: var(--primary-fg);
 
   color-scheme: light;
+}
+
+/* Bangla: taller lines and no negative tracking, so conjuncts and vowel signs never clip or touch. */
+:root:lang(bn) {
+  --leading-body: var(--leading-body-bn);
+  --leading-heading: var(--leading-heading-bn);
+  --leading-display: var(--leading-display-bn);
+  --tracking-display: 0;
 }
 
 /*

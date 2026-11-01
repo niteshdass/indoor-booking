@@ -8,7 +8,7 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
+  gap: var(--hairline);
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--border-subtle);

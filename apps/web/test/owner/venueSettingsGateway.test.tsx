@@ -37,7 +37,7 @@ const view = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('VenueSettingsTab', () => {
-  const TAB = `/owner/${OWNER_ID}/venues/v1?tab=settings`;
+  const TAB = `/owner/${OWNER_ID}/venues/v1?tab=settings&section=booking`;
   const perms = ['booking.view', 'venue.manage'] as const;
 
   it('venue settings tab saves settings patch under the settings key', async () => {
@@ -93,7 +93,7 @@ describe('StripeGatewayCard', () => {
     const { calls } = mockApi(
       routes([view()], [{ method: 'PATCH', path: `${GW}/stripe`, body: { gateway: view({ enabled: false }) } }]),
     );
-    renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/settings?section=stripe`, { user: staffUser });
     expect(await screen.findByText('acct_123')).toBeTruthy();
     expect(screen.getAllByText(G.mode.test).length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue('https://api.example.com/api/v1/webhooks/stripe/o1')).toBeTruthy();
@@ -106,7 +106,7 @@ describe('StripeGatewayCard', () => {
 
   it('shows the webhook url before anything is connected', async () => {
     mockApi(routes([unconnected()]));
-    renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/settings?section=stripe`, { user: staffUser });
     expect(await screen.findByDisplayValue('https://api.example.com/api/v1/webhooks/stripe/o1')).toBeTruthy();
     expect(screen.getByText(G.notConnected)).toBeTruthy();
     expect(screen.getByText(G.noKeys.test)).toBeTruthy();
@@ -117,7 +117,7 @@ describe('StripeGatewayCard', () => {
     const { calls } = mockApi(
       routes([both()], [{ method: 'PATCH', path: `${GW}/stripe`, body: { gateway: both({ mode: 'live' }) } }]),
     );
-    renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/settings?section=stripe`, { user: staffUser });
     await user.selectOptions(await screen.findByLabelText(G.activeMode), 'live');
     expect(await screen.findByText(G.modeHint.live)).toBeTruthy();
     expect(calls.find((c) => c.method === 'PATCH')!.body).toEqual({ mode: 'live' });
@@ -126,7 +126,7 @@ describe('StripeGatewayCard', () => {
   it('live tab rejects test keys before posting', async () => {
     const user = userEvent.setup();
     const { calls } = mockApi(routes([view()]));
-    renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/settings?section=stripe`, { user: staffUser });
     await user.click(await screen.findByRole('tab', { name: G.mode.live }));
     await user.type(screen.getByLabelText(G.secretKey), 'sk_test_abc');
     await user.type(screen.getByLabelText(G.publishableKey), 'pk_live_abc');
@@ -141,7 +141,7 @@ describe('StripeGatewayCard', () => {
     const { calls } = mockApi(
       routes([unconnected()], [{ method: 'PUT', path: `${GW}/stripe`, body: { gateway: view({ accounts: { test: { accountId: 'acct_999', publishableKey: 'pk_test_abc' }, live: null } }) } }]),
     );
-    renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/settings?section=stripe`, { user: staffUser });
     const secret = (await screen.findByLabelText(G.secretKey)) as HTMLInputElement;
     expect(secret.type).toBe('password');
     expect(secret.autocomplete).toBe('off');

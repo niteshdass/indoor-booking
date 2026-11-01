@@ -76,7 +76,7 @@ describe('OwnerProvider', () => {
     }
     expect(paths).toContain(`/owners/${OWNER_ID}/bookings`);
     expect(localStorage.getItem('owner.last')).toBe(OWNER_ID);
-    expect(h.location().pathname).toBe(`/owner/${OWNER_ID}`);
+    expect(h.location().pathname).toBe(`/owner/${OWNER_ID}/today`);
   });
 
   it('unknown owner id renders owner.notFound', async () => {

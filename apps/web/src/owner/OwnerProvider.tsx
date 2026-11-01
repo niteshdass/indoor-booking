@@ -24,7 +24,8 @@ export type OwnerContextValue = {
   reloadVenues(): void;
 };
 
-const OwnerContext = createContext<OwnerContextValue | null>(null);
+/** Exported so tests can mount owner-portal parts without loading the whole provider. */
+export const OwnerContext = createContext<OwnerContextValue | null>(null);
 
 export function useOwner(): OwnerContextValue {
   const ctx = useContext(OwnerContext);

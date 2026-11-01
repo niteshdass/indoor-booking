@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { DEFAULT_OWNER_SETTINGS, type WeeklyHours } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import { HoursEditor } from '../../src/owner/settings/HoursEditor';
+import { OwnerContext, type OwnerContextValue } from '../../src/owner/OwnerProvider';
 import { SettingsForm } from '../../src/owner/settings/SettingsForm';
 import { hoursPatch, settingsPatch, type StoredSettings } from '../../src/owner/settings/settingsPatch';
 import { ApiError } from '../../src/lib/apiClient';
@@ -79,18 +81,28 @@ describe('HoursEditor', () => {
   });
 });
 
-function renderForm(level: 'owner' | 'venue', over: Partial<React.ComponentProps<typeof SettingsForm>> = {}) {
+// Only what the payment fields read; the rest of the portal context is never touched here.
+const owner = { ownerId: OWNER_ID, can: () => true } as unknown as OwnerContextValue;
+
+type Section = 'hours' | 'booking' | 'payments' | 'refunds';
+
+/** Renders the form on one settings tab (the tab lives in `?section=`). */
+function renderForm(level: 'owner' | 'venue', over: Partial<React.ComponentProps<typeof SettingsForm>> = {}, section: Section = 'hours') {
   const onSave = vi.fn().mockResolvedValue(undefined);
   render(
-    <SettingsForm
-      level={level}
-      stored={level === 'owner' ? DEFAULTS : {}}
-      effective={DEFAULTS}
-      inherited={level === 'owner' ? null : DEFAULTS}
-      currency="BDT"
-      onSave={onSave}
-      {...over}
-    />,
+    <MemoryRouter initialEntries={[section === 'hours' ? '/' : `/?section=${section}`]}>
+      <OwnerContext.Provider value={owner}>
+        <SettingsForm
+          level={level}
+          stored={level === 'owner' ? DEFAULTS : {}}
+          effective={DEFAULTS}
+          inherited={level === 'owner' ? null : DEFAULTS}
+          currency="BDT"
+          onSave={onSave}
+          {...over}
+        />
+      </OwnerContext.Provider>
+    </MemoryRouter>,
   );
   return onSave;
 }
@@ -98,7 +110,7 @@ function renderForm(level: 'owner' | 'venue', over: Partial<React.ComponentProps
 describe('SettingsForm', () => {
   it('owner level saves only the changed key and offers no inherit boxes', async () => {
     const user = userEvent.setup();
-    const onSave = renderForm('owner');
+    const onSave = renderForm('owner', {}, 'booking');
     expect(screen.queryByLabelText(S.inherit)).toBeNull();
     const win = screen.getByLabelText(S.bookingWindow);
     await user.clear(win);
@@ -109,35 +121,34 @@ describe('SettingsForm', () => {
   });
 
   it('owner level auto-reject card has its own heading', () => {
-    renderForm('owner');
+    renderForm('owner', {}, 'booking');
     const card = screen.getByRole('region', { name: S.autoRejectTitle });
     expect(within(card).getByLabelText(S.autoReject)).toBeTruthy();
   });
 
   it('refund rule remove is a visible secondary button', async () => {
-    renderForm('owner', { effective: { ...DEFAULTS, refundRules: [{ minHoursBefore: 24, percent: 50 }] } });
+    renderForm('owner', { effective: { ...DEFAULTS, refundRules: [{ minHoursBefore: 24, percent: 50 }] } }, 'refunds');
     expect(screen.getByRole('button', { name: i18n.t('owner.settings.removeRule', { n: 1 }) }).className).toMatch(/secondary/);
   });
 
   it('venue level inherit on refund rules sends null', async () => {
     const user = userEvent.setup();
     const stored: StoredSettings = { refundRules: [{ minHoursBefore: 24, percent: 50 }] };
-    const onSave = renderForm('venue', { stored });
-    const boxes = screen.getAllByLabelText(S.inherit);
-    expect(boxes.length).toBe(7);
+    const onSave = renderForm('venue', { stored }, 'refunds');
+    expect(screen.getAllByLabelText(S.inherit)).toHaveLength(1);
     await user.click(within(screen.getByRole('region', { name: S.refundTitle })).getByLabelText(S.inherit));
     await user.click(screen.getByRole('button', { name: S.save }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ refundRules: null }));
   });
 
   it('partial_fixed only offered at venue level and parsed to minor units', async () => {
-    renderForm('owner');
+    renderForm('owner', {}, 'payments');
     expect(screen.queryByRole('option', { name: S.payment.partial_fixed })).toBeNull();
   });
 
   it('venue level offers partial_fixed, parsed to minor units', async () => {
     const user = userEvent.setup();
-    const onSave = renderForm('venue', { stored: { paymentPolicy: { type: 'none' } } });
+    const onSave = renderForm('venue', { stored: { paymentPolicy: { type: 'none' } } }, 'payments');
     await user.selectOptions(screen.getByLabelText(S.paymentType), 'partial_fixed');
     await user.type(screen.getByLabelText(S.amount.replace('{{currency}}', 'BDT')), '25.50');
     expect(screen.getByText(S.paymentNote)).toBeTruthy();
@@ -150,7 +161,7 @@ describe('SettingsForm', () => {
     const onSave = renderForm('owner', {
       stored: { ...DEFAULTS, refundRules: [{ minHoursBefore: 24, percent: 100 }] },
       effective: { ...DEFAULTS, refundRules: [{ minHoursBefore: 24, percent: 100 }] },
-    });
+    }, 'refunds');
     await user.click(screen.getByRole('button', { name: S.addRule }));
     const hours = screen.getAllByLabelText(S.refundHours);
     await user.clear(hours[1]!);
@@ -166,7 +177,7 @@ describe('payment methods', () => {
 
   it('owner turns on bKash with a number and saves', async () => {
     const user = userEvent.setup();
-    const onSave = renderForm('owner');
+    const onSave = renderForm('owner', {}, 'payments');
     const card = screen.getByRole('region', { name: PM.title });
     await user.click(within(card).getByLabelText('bKash'));
     const number = within(card).getByLabelText(PM.number);
@@ -181,13 +192,13 @@ describe('payment methods', () => {
   it('shows a stored number formatted until it is edited', () => {
     renderForm('owner', {
       effective: { ...DEFAULTS, paymentMethods: { manualWallets: [{ provider: 'nagad', number: '+8801712345678', accountType: 'merchant' }], gateways: [] } },
-    });
+    }, 'payments');
     expect((screen.getByLabelText(PM.number) as HTMLInputElement).value).toBe('+880 1712-345678');
   });
 
   it('venue inherits payment methods until overridden', async () => {
     const user = userEvent.setup();
-    const onSave = renderForm('venue');
+    const onSave = renderForm('venue', {}, 'payments');
     const card = screen.getByRole('region', { name: PM.title });
     expect((within(card).getByLabelText('bKash') as HTMLInputElement).disabled).toBe(true);
     await user.click(within(card).getByLabelText(S.inherit));
@@ -203,17 +214,18 @@ describe('payment methods', () => {
   it('save error no_payment_method shows its message next to the group', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockRejectedValue(new ApiError(400, 'no_payment_method', 'x'));
-    renderForm('owner', { onSave, effective: { ...DEFAULTS, bookingWindowDays: 30 } });
+    renderForm('owner', { onSave, effective: { ...DEFAULTS, bookingWindowDays: 30 } }, 'booking');
     await user.clear(screen.getByLabelText(S.bookingWindow));
     await user.type(screen.getByLabelText(S.bookingWindow), '31');
     await user.click(screen.getByRole('button', { name: S.save }));
-    const card = screen.getByRole('region', { name: PM.title });
+    // The error switches the form to the Payments tab, which holds the methods card.
+    const card = await screen.findByRole('region', { name: PM.title });
     expect(await within(card).findByText(en.errors.no_payment_method)).toBeTruthy();
   });
 
   it.each(['8801712345678', '1712345678', '+88017123'])('rejects %s client-side with one wallet error', async (num) => {
     const user = userEvent.setup();
-    const onSave = renderForm('owner');
+    const onSave = renderForm('owner', {}, 'payments');
     await user.click(screen.getByLabelText('Nagad'));
     await user.type(screen.getByLabelText(PM.number), num);
     await user.click(screen.getByRole('button', { name: S.save }));
@@ -223,7 +235,7 @@ describe('payment methods', () => {
 
   it('accepts +880 and local forms', async () => {
     const user = userEvent.setup();
-    const onSave = renderForm('owner');
+    const onSave = renderForm('owner', {}, 'payments');
     await user.click(screen.getByLabelText('Nagad'));
     await user.type(screen.getByLabelText(PM.number), '+880 1712-345678');
     await user.click(screen.getByRole('button', { name: S.save }));
@@ -231,21 +243,21 @@ describe('payment methods', () => {
   });
 
   it('shows the connect hint only when it can help', () => {
-    renderForm('owner', { canConnectStripe: false });
+    renderForm('owner', { canConnectStripe: false }, 'payments');
     expect(screen.queryByText(PM.connectStripe)).toBeNull();
     cleanup();
-    renderForm('owner', { effective: { ...DEFAULTS, paymentMethods: { manualWallets: [], gateways: ['stripe'] } } });
+    renderForm('owner', { effective: { ...DEFAULTS, paymentMethods: { manualWallets: [], gateways: ['stripe'] } } }, 'payments');
     expect(screen.queryByText(PM.connectStripe)).toBeNull();
   });
 
   it('card is disabled until Stripe is connected', async () => {
     const user = userEvent.setup();
-    renderForm('owner');
+    renderForm('owner', {}, 'payments');
     const card = screen.getByLabelText(PM.card) as HTMLInputElement;
     expect(card.disabled).toBe(true);
     expect(screen.getByText(PM.connectStripe)).toBeTruthy();
     cleanup();
-    const onSave = renderForm('owner', { stripeReady: true });
+    const onSave = renderForm('owner', { stripeReady: true }, 'payments');
     await user.click(screen.getByLabelText(PM.card));
     await user.click(screen.getByRole('button', { name: S.save }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ paymentMethods: { manualWallets: [], gateways: ['stripe'] } }));
@@ -264,7 +276,7 @@ describe('SettingsPage', () => {
       { path: `/owners/${OWNER_ID}/settings`, body: { settings: DEFAULTS } },
       ...ownerRoutes({ permissions: ['booking.view', 'settings.edit'] }),
     ]);
-    renderApp(`/owner/${OWNER_ID}/settings`, { user: staffUser });
+    renderApp(`/owner/${OWNER_ID}/settings?section=booking`, { user: staffUser });
     const win = await screen.findByLabelText(S.bookingWindow);
     await user.clear(win);
     await user.type(win, '60');

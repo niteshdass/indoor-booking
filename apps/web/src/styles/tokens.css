@@ -60,6 +60,7 @@
   --timeline-label: 7rem;
   --timeline-lane: 3.25rem; /* blocks inside keep a 44px tap height */
   --timeline-min: 56rem;
+  --hairline: 1px; /* gap that shows a divider colour between cells of one surface (Today KPI strip) */
   --status-bar: 3px;
   --schedule-now-line: 2px;
   --now-line: 2px;

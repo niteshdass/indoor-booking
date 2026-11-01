@@ -66,3 +66,33 @@ If `DEMO_MODE` is anything other than `true`, the demo routes are not mounted an
 ## 4. Web env
 
 Set `VITE_API_URL` at build time to the API's public base, for example `https://api.example.com/api/v1`. The login page asks `/auth/providers` whether demo mode is on and shows the role buttons only when it is.
+
+## 5. One-project deploy on Vercel (free)
+
+Web and API run in one Vercel project on the Hobby plan. `scripts/vercel-build.mjs` builds the web app into static files and bundles the API into one function at `/api`, so the web app and API share a domain and the refresh cookie works.
+
+1. On Vercel, click **Add New > Project** and import the repo. Leave **Root Directory** at the repo root. `vercel.json` sets the install and build commands.
+2. Under **Settings > Git**, set the production branch to `demo`.
+3. Under **Settings > Environment Variables**, add the step 3 variables, with these changes:
+   - `APP_URL` and `CORS_ORIGIN`: the project URL, for example `https://slot-demo.vercel.app`.
+   - `TRUST_PROXY`: `1`.
+   - `CRON_SECRET`: `openssl rand -hex 32`.
+   - Don't set `VITE_API_URL`. The app calls `/api/v1` on its own domain.
+4. In Atlas **Network Access**, allow `0.0.0.0/0`, because Vercel has no fixed outbound IP.
+5. Deploy, then open `/api/v1/health`. It should return `{"status":"ok","db":"up"}`.
+
+### Background jobs
+
+Functions only run while serving a request, so jobs (hold expiry, reminders, notifications) run when something calls `GET /api/v1/jobs/tick` with `Authorization: Bearer <CRON_SECRET>`. Without that header the endpoint returns 401.
+
+Vercel Cron calls it once a day, which is the Hobby limit. For a call every minute, create a free job on [cron-job.org](https://cron-job.org):
+
+- URL: `https://<your-app>.vercel.app/api/v1/jobs/tick`
+- Schedule: every minute
+- Header: `Authorization: Bearer <CRON_SECRET>`
+
+### Limits
+
+- Hobby is for non-commercial use, so it fits the demo. Move to Pro or another host for real customers.
+- After a period with no traffic, the first request starts the function from cold and connects to Mongo, which takes a few seconds.
+- Stripe webhooks go to `https://<your-app>.vercel.app/api/v1/webhooks/...`.

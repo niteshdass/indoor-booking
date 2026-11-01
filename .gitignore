@@ -5,3 +5,4 @@ coverage
 .superpowers
 .playwright-mcp
 .DS_Store
+.vercel

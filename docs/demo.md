@@ -53,6 +53,7 @@ Set these on the API host:
 | Variable                  | Value                                                  |
 |---------------------------|--------------------------------------------------------|
 | `DEMO_MODE`               | `true`                                                 |
+| `DEMO_HOSTS`              | the demo's hostnames, comma-separated (e.g. `demo.example.com`) |
 | `NODE_ENV`                | `production`                                           |
 | `MONGODB_URI`             | the Atlas string from step 1                           |
 | `JWT_SECRET`              | 32+ random characters (`openssl rand -base64 48`)      |
@@ -62,6 +63,8 @@ Set these on the API host:
 | `TRUST_PROXY`             | `1` when the host sits behind a proxy or load balancer |
 
 If `DEMO_MODE` is anything other than `true`, the demo routes are not mounted and nothing is locked.
+
+With `NODE_ENV=production`, the API refuses to boot in demo mode unless `DEMO_HOSTS` is set and lists the hosts of `APP_URL` and `API_URL` (when set). The demo sign-in also answers only on a listed host. This keeps a stray `DEMO_MODE=true` from turning a real deploy into passwordless admin sign-in.
 
 ## 4. Web env
 
@@ -76,6 +79,7 @@ Web and API run in one Vercel project on the Hobby plan. `scripts/vercel-build.m
 3. Under **Settings > Environment Variables**, add the step 3 variables, with these changes:
    - `APP_URL`, `CORS_ORIGIN` and `API_URL`: the project URL, for example `https://slot-demo.vercel.app`. `API_URL` builds photo and webhook links.
    - `TRUST_PROXY`: `1`.
+   - `DEMO_HOSTS`: the project host, for example `slot-demo.vercel.app`. Add any custom domain too. Preview deploys on other hosts boot but won't offer demo sign-in.
    - `CRON_SECRET`: `openssl rand -hex 32`.
    - Don't set `VITE_API_URL`. The app calls `/api/v1` on its own domain.
 4. In Atlas **Network Access**, allow `0.0.0.0/0`, because Vercel has no fixed outbound IP.

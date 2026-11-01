@@ -12,6 +12,10 @@ const notSeeded = () => new AppError(503, 'demo_not_seeded', 'The demo data is m
 export function demoAuthRouter({ config, services }: AuthDeps): Router {
   const router = Router();
   router.post('/demo/:role', async (req, res) => {
+    // Config already refuses a production demo without DEMO_HOSTS; this keeps a stray host from serving it.
+    if (config.nodeEnv === 'production' && !config.demoHosts?.includes(req.hostname.toLowerCase())) {
+      throw new AppError(404, 'not_found', 'No such demo account');
+    }
     const role = req.params.role as DemoRole;
     if (!DEMO_ROLES.includes(role)) throw new AppError(404, 'not_found', 'No such demo account');
     const user = await User.findOne({ email: DEMO_ACCOUNTS[role] });

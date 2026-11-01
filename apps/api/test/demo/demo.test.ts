@@ -5,6 +5,7 @@ import { buildTestApp } from '../helpers/testApp';
 import { User } from '../../src/auth/user.model';
 import { RefreshToken } from '../../src/auth/refreshToken.model';
 import { DEMO_ACCOUNTS } from '../../src/demo/accounts';
+import { loadConfig } from '../../src/config';
 
 beforeAll(async () => {
   await startTestDb();
@@ -77,5 +78,40 @@ describe('demo mode', () => {
 
   it('locks nothing outside demo mode', async () => {
     expect((await request(plain()).put('/api/v1/admin/settings/email').send({})).status).toBe(401);
+  });
+});
+
+describe('demo hosts', () => {
+  const prod = {
+    MONGODB_URI: 'mongodb://x',
+    JWT_SECRET: 's'.repeat(32),
+    NODE_ENV: 'production',
+    PAYMENTS_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+    APP_URL: 'https://demo.example.com',
+    DEMO_MODE: 'true',
+  };
+
+  it('refuses to boot a production demo without DEMO_HOSTS', () => {
+    expect(() => loadConfig(prod)).toThrow(/DEMO_HOSTS: is required with DEMO_MODE=true in production/);
+    expect(loadConfig({ ...prod, DEMO_MODE: 'false' }).demoMode).toBeUndefined();
+    expect(loadConfig({ ...prod, NODE_ENV: 'development' }).demoMode).toBe(true);
+  });
+
+  it('refuses to boot when the app or API host is not on the list', () => {
+    expect(() => loadConfig({ ...prod, DEMO_HOSTS: 'other.example.com' })).toThrow(/APP_URL: host is not in DEMO_HOSTS/);
+    expect(() => loadConfig({ ...prod, DEMO_HOSTS: 'demo.example.com', API_URL: 'https://api.example.com' })).toThrow(
+      /API_URL: host is not in DEMO_HOSTS/,
+    );
+    const c = loadConfig({ ...prod, DEMO_HOSTS: ' Demo.Example.com , api.example.com', API_URL: 'https://api.example.com' });
+    expect(c.demoHosts).toEqual(['demo.example.com', 'api.example.com']);
+  });
+
+  it('a production demo signs in only on a listed host', async () => {
+    await User.create({ name: 'Venue Owner', email: DEMO_ACCOUNTS.owner });
+    const app = buildTestApp({ config: { demoMode: true, nodeEnv: 'production', demoHosts: ['demo.example.com'] } }).app;
+    const stray = await request(app).post('/api/v1/auth/demo/owner').set('Host', 'prod.example.com');
+    expect(stray.status).toBe(404);
+    const listed = await request(app).post('/api/v1/auth/demo/owner').set('Host', 'demo.example.com');
+    expect(listed.status).toBe(200);
   });
 });

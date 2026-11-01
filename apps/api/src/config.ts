@@ -24,6 +24,8 @@ export type Config = {
   sms?: { accountSid: string; authToken: string; from: string };
   /** Public demo deploy: one-click sign-in as the seeded accounts, and settings that would leak or break it are locked. */
   demoMode?: boolean;
+  /** Hostnames a production demo may run on; the demo sign-in refuses any other host. */
+  demoHosts?: string[];
 };
 
 export class ConfigError extends Error {
@@ -43,7 +45,8 @@ const envSchema = z
     GOOGLE_CLIENT_ID: z.string().min(1).optional(),
     // Defaulted in loadConfig, so production can tell an unset value apart.
     APP_URL: z.string().url().optional(),
-    API_URL: z.string().url().default('http://localhost:4000'),
+    // Defaulted in loadConfig, so the demo host check only looks at a URL that was really set.
+    API_URL: z.string().url().optional(),
     PAYMENTS_ENCRYPTION_KEY: z
       .string()
       .min(1)
@@ -52,6 +55,11 @@ const envSchema = z
     TRUST_PROXY: z.string().min(1).optional(),
     JOBS_ENABLED: z.enum(['true', 'false']).default('true'),
     DEMO_MODE: z.enum(['true', 'false']).default('false'),
+    DEMO_HOSTS: z
+      .string()
+      .min(1)
+      .transform((v) => v.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean))
+      .optional(),
     SMTP_URL: z.string().min(1).optional(),
     EMAIL_FROM: z.string().min(1).optional(),
     TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
@@ -68,6 +76,19 @@ const envSchema = z
     }
     if (e.NODE_ENV === 'production' && !e.APP_URL) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['APP_URL'], message: 'is required in production' });
+    }
+    // Demo mode signs anyone in as the seeded admin, so production runs it only on hosts named for it.
+    if (e.NODE_ENV === 'production' && e.DEMO_MODE === 'true') {
+      if (!e.DEMO_HOSTS?.length) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['DEMO_HOSTS'], message: 'is required with DEMO_MODE=true in production' });
+      } else {
+        for (const key of ['APP_URL', 'API_URL'] as const) {
+          const url = e[key];
+          if (url && !e.DEMO_HOSTS.includes(new URL(url).hostname.toLowerCase())) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'host is not in DEMO_HOSTS' });
+          }
+        }
+      }
     }
     // Each provider group is all-or-nothing. Both are optional: the admin dashboard can set them instead.
     const groups = [
@@ -110,7 +131,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     corsOrigin: e.CORS_ORIGIN,
     jwtSecret: e.JWT_SECRET,
     appUrl: e.APP_URL ?? 'http://localhost:5173',
-    apiUrl: e.API_URL,
+    apiUrl: e.API_URL ?? 'http://localhost:4000',
     jobsEnabled: e.JOBS_ENABLED === 'true',
   };
   if (e.GOOGLE_CLIENT_ID) config.googleClientId = e.GOOGLE_CLIENT_ID;
@@ -125,5 +146,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   }
   if (e.TRUST_PROXY) config.trustProxy = parseTrustProxy(e.TRUST_PROXY);
   if (e.DEMO_MODE === 'true') config.demoMode = true;
+  if (e.DEMO_HOSTS) config.demoHosts = e.DEMO_HOSTS;
   return config;
 }

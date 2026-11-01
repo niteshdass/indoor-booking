@@ -148,7 +148,7 @@ function EmailCard({ data, store, secrets }: { data: AdminSettingsJson['email'];
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <TextField icon="at" label={t('admin.settings.email.from')} hint={t('admin.settings.email.fromHint')} placeholder="Slots <no-reply@example.com>" autoComplete="off" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <TextField icon="at" label={t('admin.settings.email.from')} hint={t('admin.settings.email.fromHint')} placeholder="BookaTurf <no-reply@example.com>" autoComplete="off" value={from} onChange={(e) => setFrom(e.target.value)} />
         <Footer s={s} source={data.source} label={t('admin.settings.save')} />
       </form>
     </Card>

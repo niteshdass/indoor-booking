@@ -2321,7 +2321,7 @@
         "userHint": "Оставьте пустым, если сервер не требует входа.",
         "password": "Пароль",
         "from": "Отправитель",
-        "fromHint": "Имя и адрес, например Slots <no-reply@example.com>"
+        "fromHint": "Имя и адрес, например BookaTurf <no-reply@example.com>"
       },
       "sms": {
         "title": "SMS (Twilio)",

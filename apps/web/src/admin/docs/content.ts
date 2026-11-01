@@ -302,7 +302,7 @@ export const docsEn: Docs = {
                   ['Use TLS from the start', 'On only for port 465. Off for 587, which upgrades to TLS by itself.'],
                   ['Username', 'The SMTP login. Leave blank only if the server accepts mail without signing in.'],
                   ['Password', 'The SMTP password or API key. Stored encrypted and never shown again; leave blank to keep the saved one.'],
-                  ['From', 'Name and address people see, e.g. `Slots <no-reply@yourdomain.com>`. The provider must allow sending from this address.'],
+                  ['From', 'Name and address people see, e.g. `BookaTurf <no-reply@yourdomain.com>`. The provider must allow sending from this address.'],
                 ],
               },
             },
@@ -357,7 +357,7 @@ export const docsEn: Docs = {
         {
           id: 'env',
           title: 'Server fallback',
-          blocks: [{ p: 'Environment variables `SMTP_URL` and `EMAIL_FROM`, set together:' }, { code: 'SMTP_URL=smtp://user:password@smtp.example.com:587\nEMAIL_FROM="Slots <no-reply@example.com>"' }],
+          blocks: [{ p: 'Environment variables `SMTP_URL` and `EMAIL_FROM`, set together:' }, { code: 'SMTP_URL=smtp://user:password@smtp.example.com:587\nEMAIL_FROM="BookaTurf <no-reply@example.com>"' }],
         },
       ],
     },
@@ -501,7 +501,7 @@ export const docsEn: Docs = {
           title: 'Example',
           blocks: [
             {
-              code: 'GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com\nSMTP_URL=smtp://apikey:SG.xxxx@smtp.sendgrid.net:587\nEMAIL_FROM="Slots <no-reply@yourdomain.com>"\nTWILIO_ACCOUNT_SID=AC…\nTWILIO_AUTH_TOKEN=…\nTWILIO_FROM=+15550001111\nPAYMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>',
+              code: 'GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com\nSMTP_URL=smtp://apikey:SG.xxxx@smtp.sendgrid.net:587\nEMAIL_FROM="BookaTurf <no-reply@yourdomain.com>"\nTWILIO_ACCOUNT_SID=AC…\nTWILIO_AUTH_TOKEN=…\nTWILIO_FROM=+15550001111\nPAYMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>',
             },
           ],
         },

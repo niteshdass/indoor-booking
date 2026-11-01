@@ -2243,7 +2243,7 @@
         "userHint": "Leave blank if the server needs no sign-in.",
         "password": "Password",
         "from": "From",
-        "fromHint": "Name and address, e.g. Slots <no-reply@example.com>"
+        "fromHint": "Name and address, e.g. BookaTurf <no-reply@example.com>"
       },
       "sms": {
         "title": "SMS (Twilio)",

@@ -273,7 +273,7 @@ export const docsRu: Docs = {
                   ['TLS сразу при подключении', 'Включайте только для порта 465. Для 587 выключено: он сам переходит на TLS.'],
                   ['Логин', 'Логин SMTP. Оставляйте пустым, только если сервер принимает почту без входа.'],
                   ['Пароль', 'Пароль SMTP или API-ключ. Хранится в зашифрованном виде и больше не показывается; оставьте пустым, чтобы не менять.'],
-                  ['Отправитель', 'Имя и адрес, которые видят люди, например `Slots <no-reply@yourdomain.com>`. Провайдер должен разрешать отправку с этого адреса.'],
+                  ['Отправитель', 'Имя и адрес, которые видят люди, например `BookaTurf <no-reply@yourdomain.com>`. Провайдер должен разрешать отправку с этого адреса.'],
                 ],
               },
             },
@@ -328,7 +328,7 @@ export const docsRu: Docs = {
         {
           id: 'env',
           title: 'Резерв на сервере',
-          blocks: [{ p: 'Переменные окружения `SMTP_URL` и `EMAIL_FROM`, задаются вместе:' }, { code: 'SMTP_URL=smtp://user:password@smtp.example.com:587\nEMAIL_FROM="Slots <no-reply@example.com>"' }],
+          blocks: [{ p: 'Переменные окружения `SMTP_URL` и `EMAIL_FROM`, задаются вместе:' }, { code: 'SMTP_URL=smtp://user:password@smtp.example.com:587\nEMAIL_FROM="BookaTurf <no-reply@example.com>"' }],
         },
       ],
     },
@@ -472,7 +472,7 @@ export const docsRu: Docs = {
           title: 'Пример',
           blocks: [
             {
-              code: 'GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com\nSMTP_URL=smtp://apikey:SG.xxxx@smtp.sendgrid.net:587\nEMAIL_FROM="Slots <no-reply@yourdomain.com>"\nTWILIO_ACCOUNT_SID=AC…\nTWILIO_AUTH_TOKEN=…\nTWILIO_FROM=+15550001111\nPAYMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>',
+              code: 'GOOGLE_CLIENT_ID=1234-abc.apps.googleusercontent.com\nSMTP_URL=smtp://apikey:SG.xxxx@smtp.sendgrid.net:587\nEMAIL_FROM="BookaTurf <no-reply@yourdomain.com>"\nTWILIO_ACCOUNT_SID=AC…\nTWILIO_AUTH_TOKEN=…\nTWILIO_FROM=+15550001111\nPAYMENTS_ENCRYPTION_KEY=<openssl rand -base64 32>',
             },
           ],
         },

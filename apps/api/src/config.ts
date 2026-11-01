@@ -18,6 +18,8 @@ export type Config = {
   trustProxy?: boolean | number | string;
   /** Whether this process runs the background jobs (sweeps, delivery, refund reconcile). */
   jobsEnabled: boolean;
+  /** Bearer secret for `GET /jobs/tick`; the route exists only when it is set. */
+  cronSecret?: string;
   /** SMTP delivery from the env; the admin dashboard's setting wins. Unset everywhere: console in dev, refused in production. */
   email?: { smtpUrl: string; from: string };
   /** Twilio delivery from the env; the admin dashboard's setting wins. Unset everywhere: console in dev, refused in production. */
@@ -49,6 +51,7 @@ const envSchema = z
       .optional(),
     TRUST_PROXY: z.string().min(1).optional(),
     JOBS_ENABLED: z.enum(['true', 'false']).default('true'),
+    CRON_SECRET: z.string().min(16, 'must be at least 16 characters').optional(),
     SMTP_URL: z.string().min(1).optional(),
     EMAIL_FROM: z.string().min(1).optional(),
     TWILIO_ACCOUNT_SID: z.string().min(1).optional(),
@@ -115,6 +118,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     apiUrl: e.API_URL,
     jobsEnabled: e.JOBS_ENABLED === 'true',
   };
+  if (e.CRON_SECRET) config.cronSecret = e.CRON_SECRET;
   if (e.GOOGLE_CLIENT_ID) config.googleClientId = e.GOOGLE_CLIENT_ID;
   if (e.PAYMENTS_ENCRYPTION_KEY) config.paymentsKey = Buffer.from(e.PAYMENTS_ENCRYPTION_KEY, 'base64');
   if (e.SMTP_URL && e.EMAIL_FROM) config.email = { smtpUrl: e.SMTP_URL, from: e.EMAIL_FROM };

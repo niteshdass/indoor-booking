@@ -27,6 +27,7 @@ import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
 import { normalizePhone } from './auth/normalize';
+import { jobsTickRouter } from './jobs/tick';
 
 export type AppDeps = {
   config: Config;
@@ -102,6 +103,8 @@ export function createApp(deps: AppDeps): express.Express {
 
   const api = express.Router();
   api.use(healthRouter(deps.dbState));
+  const { cronSecret } = deps.config;
+  if (cronSecret) api.use(jobsTickRouter({ config: deps.config, services: deps.services, cronSecret }));
 
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();

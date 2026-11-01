@@ -88,6 +88,15 @@
       "toLogin": "Go to sign in",
       "invalid": "This reset link is invalid or has expired.",
       "requestNew": "Request a new link"
+    },
+    "demo": {
+      "title": "Try the demo",
+      "lead": "Sign in as admin, owner or player with one tap. API keys and account details are locked here.",
+      "roles": {
+        "admin": "Admin",
+        "owner": "Venue owner",
+        "player": "Player"
+      }
     }
   },
   "theme": {
@@ -225,7 +234,9 @@
     "duplicate_trx": "This Transaction ID was already used.",
     "amount_exceeds_balance": "The amount is more than you can pay now. The balance was updated.",
     "method_unavailable": "This way to pay is not available now. Pick another one.",
-    "forbidden": "You don't have permission to see this."
+    "forbidden": "You don't have permission to see this.",
+    "demo_locked": "This is turned off in the demo.",
+    "demo_not_seeded": "The demo data isn't loaded yet. Try again later."
   },
   "myBookings": {
     "title": "My bookings",

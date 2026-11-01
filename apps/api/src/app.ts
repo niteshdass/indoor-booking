@@ -29,6 +29,8 @@ import { publicImagesRouter } from './images/routes';
 import { seoRouter } from './seo/routes';
 import { MongoRateLimitStore } from './rateLimitStore';
 import { normalizeEmail, normalizePhone } from './auth/normalize';
+import { demoGuard } from './demo/guard';
+import { demoAuthRouter } from './demo/routes';
 import { jobsTickRouter } from './jobs/tick';
 import { requestLogger } from './requestLog';
 
@@ -126,6 +128,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(healthRouter(deps.dbState));
   const { cronSecret } = deps.config;
   if (cronSecret) api.use(jobsTickRouter({ config: deps.config, services: deps.services, cronSecret }));
+  if (deps.config.demoMode) api.use(demoGuard);
 
   const authDeps = { config: deps.config, services: deps.services };
   const auth = express.Router();
@@ -168,6 +171,7 @@ export function createApp(deps: AppDeps): express.Express {
   auth.use(emailAuthRouter(authDeps));
   auth.use(phoneAuthRouter(authDeps));
   auth.use(googleAuthRouter(authDeps));
+  if (deps.config.demoMode) auth.use(demoAuthRouter(authDeps));
   api.use('/auth', auth);
   api.use(meRouter(authDeps));
   api.use(myMembershipsRouter(authDeps));

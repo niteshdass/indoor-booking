@@ -119,3 +119,26 @@
   margin: 0 auto;
   padding: var(--space-6) var(--space-4);
 }
+
+/* Demo deploys only: one-click sign-in as each seeded role */
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.demoTitle {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.demoRoles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--choice-min), 1fr));
+  gap: var(--space-2);
+}

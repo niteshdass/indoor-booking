@@ -54,7 +54,10 @@ export function googleAuthRouter({ config, services }: AuthDeps): Router {
 export function authProvidersRouter({ config }: AuthDeps): Router {
   const router = Router();
   router.get('/providers', async (_req, res) => {
-    const body: AuthProvidersJson = { googleClientId: (await resolveGoogleClientId(config)) ?? null };
+    const body: AuthProvidersJson = {
+      googleClientId: (await resolveGoogleClientId(config)) ?? null,
+      demo: config.demoMode === true,
+    };
     res.json(body);
   });
   return router;

@@ -194,5 +194,9 @@ export type AdminSettingsJson = {
   updatedBy: string | null;
 };
 
-/** Public sign-in options for the login page. */
-export type AuthProvidersJson = { googleClientId: string | null };
+/** Seeded accounts a visitor can sign in as on a demo deploy, one button each. */
+export const DEMO_ROLES = ['admin', 'owner', 'player'] as const;
+export type DemoRole = (typeof DEMO_ROLES)[number];
+
+/** Public sign-in options for the login page. `demo` is true on a demo deploy (DEMO_MODE=true). */
+export type AuthProvidersJson = { googleClientId: string | null; demo: boolean };

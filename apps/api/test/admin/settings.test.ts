@@ -60,7 +60,7 @@ describe('admin settings', () => {
     const res = await put('/admin/settings/google', { clientId: CLIENT_ID });
     expect(res.body.google).toEqual({ source: 'admin', clientId: CLIENT_ID });
     expect(res.body.updatedBy).toBe('Admin');
-    expect((await request(ctx.app).get(api('/auth/providers'))).body).toEqual({ googleClientId: CLIENT_ID });
+    expect((await request(ctx.app).get(api('/auth/providers'))).body).toEqual({ googleClientId: CLIENT_ID, demo: false });
     expect(await resolveGoogleClientId(testConfig)).toBe(CLIENT_ID);
   });
 

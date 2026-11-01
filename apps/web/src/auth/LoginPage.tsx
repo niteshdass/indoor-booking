@@ -10,6 +10,7 @@ import { apiPost } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import type { AuthResponse, OtpSent } from '../lib/types';
 import { AuthLayout } from './AuthLayout';
+import { DemoSignIn } from './DemoSignIn';
 import { GoogleButton } from './GoogleButton';
 import { safeNext } from './safeNext';
 import { useAuth } from './useAuth';
@@ -101,6 +102,7 @@ export function LoginPage() {
       <AuthLayout variant="login">
         <div className={styles.card}>
           <h1 className={styles.title}>{t('auth.login.title')}</h1>
+          <DemoSignIn onSignedIn={finish} />
           <GoogleButton text="signin_with" onSignedIn={finish} />
           <div className={styles.choices}>
             <Button variant="secondary" size="lg" icon="phone" block to={loginHref('phone')}>

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { ratingJson } from '../../reviews/rating';
 import { SLUG_RE } from '@booking/shared';
 import { AppError } from '../../errors';
+import { enabledSports } from '../../admin/settings';
 import { turfNotFound } from '../guards';
 import { Owner } from '../../tenancy/owner.model';
 import { Venue, type VenueDoc } from '../venue.model';
@@ -35,6 +36,11 @@ export async function publicTurf(slug: string, turfId: string) {
 /** Unauthenticated venue page; unpublished, unknown and malformed slugs all look the same. */
 export function publicVenuesRouter(): Router {
   const router = Router();
+
+  /** The sports players can search for and owners can give a turf, in the admin's order. */
+  router.get('/sports', async (_req, res) => {
+    res.json({ sports: await enabledSports() });
+  });
 
   router.get('/venues/:slug', async (req, res) => {
     const venue = await publicVenueBySlug(req.params.slug);

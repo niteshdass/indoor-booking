@@ -158,6 +158,7 @@
     "venue_has_turfs": "Delete the venue's turfs first.",
     "slug_taken": "That link name is already taken.",
     "turf_name_taken": "This venue already has a turf with that name.",
+    "sport_disabled": "That sport is not offered right now. Pick another one.",
     "gateway_account_in_use": "A card payment is still pending on the current Stripe account. Try again once it settles.",
     "gateway_error": "Stripe couldn't be reached or rejected the request. Try again.",
     "payments_unconfigured": "Payments aren't configured on this server yet.",
@@ -2183,7 +2184,8 @@
           "kept": "Kept a review of {{target}}"
         },
         "settings": {
-          "general_updated": "Updated platform settings"
+          "general_updated": "Updated platform settings",
+          "sports_updated": "Updated the sports list"
         },
         "payout": {
           "confirmed": "Confirmed a payout from {{target}}",
@@ -2248,6 +2250,8 @@
       "tabs": "Settings sections",
       "tab": {
         "general": "General",
+        "payments": "Payments",
+        "sports": "Sports",
         "google": "Google sign-in",
         "email": "Email",
         "sms": "SMS"
@@ -2302,9 +2306,10 @@
           "number": "Use a Bangladesh mobile number, e.g. 01712345678."
         },
         "payout": {
-          "title": "Where owners pay you",
-          "intro": "The ways owners can pay what they owe. Only the ones set up here are offered to them.",
           "wallets": "Mobile wallets",
+          "walletsIntro": "Owners can send what they owe to these numbers. Only the wallets turned on here are offered to them.",
+          "save": "Save wallets",
+          "webhookTitle": "Stripe webhook",
           "number": {
             "bkash": "bKash number",
             "nagad": "Nagad number"
@@ -2314,7 +2319,6 @@
         "stripe": {
           "title": "Card (Stripe)",
           "intro": "Your own Stripe account. Owners pay by card and the money goes to you.",
-          "separate": "Stripe keys save on their own, with the button under them, not with Save settings.",
           "enabled": "Owners can pay by card",
           "on": "Card payments on",
           "off": "Card payments off",
@@ -2327,6 +2331,15 @@
           "webhookSecretHint": "From the Webhook endpoint in this mode. Stored encrypted. It is never shown again.",
           "modeNotConnected": "Add the keys for this mode first."
         }
+      },
+      "sports": {
+        "title": "Sports",
+        "intro": "Sports switched on show on the home page, in search and in the court forms, in this order. Switching one off keeps it on courts that already have it.",
+        "count": "{{count}} of {{total}} on",
+        "up": "Move {{sport}} up",
+        "down": "Move {{sport}} down",
+        "none": "Keep at least one sport on.",
+        "save": "Save sports"
       }
     },
     "docs": {

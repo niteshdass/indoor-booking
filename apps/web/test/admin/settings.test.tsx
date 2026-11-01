@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
-import { PAYOUT_WEBHOOK_EVENTS, type AdminSettingsJson } from '@booking/shared';
+import { PAYOUT_WEBHOOK_EVENTS, SPORTS, type AdminSettingsJson } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
@@ -36,6 +36,7 @@ function settings(over: Partial<AdminSettingsJson> = {}): AdminSettingsJson {
       payout: { bkash: null, nagad: null, stripe: null },
       payoutWebhookUrl: 'http://localhost:4000/api/v1/webhooks/stripe/platform',
     },
+    sports: SPORTS.map((sport) => ({ sport, enabled: true })),
     secretsAvailable: true,
     updatedAt: null,
     updatedBy: null,
@@ -141,11 +142,22 @@ describe('admin settings: General', () => {
     const panel = await screen.findByRole('tabpanel', { name: s.tab.general });
     expect(within(panel).getByRole('region', { name: g.signup.title })).toBeInTheDocument();
     expect(within(panel).getByRole('region', { name: g.fee.title })).toBeInTheDocument();
-    expect(within(panel).getByRole('region', { name: g.payout.title })).toBeInTheDocument();
+    expect(within(panel).queryByRole('region', { name: g.payout.wallets })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: s.tab.general })).toHaveAttribute('aria-selected', 'true');
     expect(within(panel).getByRole('radio', { name: g.approval.manual })).toBeChecked();
     expect(h.location().search).toBe('');
-    expect(within(panel).getByDisplayValue('http://localhost:4000/api/v1/webhooks/stripe/platform')).toBeInTheDocument();
+  });
+
+  it('Payments holds wallets, Stripe and its webhook as separate cards', async () => {
+    mockApi(routes());
+    const h = renderApp('/admin/settings', { user: admin });
+    await h.user.click(await screen.findByRole('tab', { name: s.tab.payments }));
+    expect(h.location().search).toBe('?section=payments');
+    const panel = screen.getByRole('tabpanel', { name: s.tab.payments });
+    expect(within(panel).getByRole('region', { name: g.payout.wallets })).toBeInTheDocument();
+    expect(within(panel).getByRole('region', { name: g.stripe.title })).toBeInTheDocument();
+    const webhook = within(panel).getByRole('region', { name: g.payout.webhookTitle });
+    expect(within(webhook).getByDisplayValue('http://localhost:4000/api/v1/webhooks/stripe/platform')).toBeInTheDocument();
   });
 
   it('free hides the amount fields', async () => {
@@ -182,9 +194,6 @@ describe('admin settings: General', () => {
     const fee = await card(g.fee.title);
     await h.user.click(within(fee).getByRole('radio', { name: g.mode.fixed }));
     await h.user.type(within(fee).getByLabelText(g.fee.fixed), '50');
-    const payout = await card(g.payout.title);
-    await h.user.click(within(payout).getByRole('checkbox', { name: 'bKash' }));
-    await h.user.type(within(payout).getByLabelText(g.payout.number.bkash), BKASH);
     await h.user.click(screen.getByRole('button', { name: g.save }));
     await waitFor(() => expect(api.calls.some((c) => c.method === 'PUT')).toBe(true));
     expect(api.calls.find((c) => c.method === 'PUT')).toMatchObject({
@@ -192,10 +201,53 @@ describe('admin settings: General', () => {
       body: {
         ownerApproval: 'automatic',
         fee: { mode: 'fixed', fixed: 50, percent: null, payer: 'owner' },
-        payout: { bkash: { provider: 'bkash', number: BKASH, accountType: 'personal' }, nagad: null },
+        payout: { bkash: null, nagad: null },
       },
     });
     expect(await screen.findByText(s.saved)).toBeInTheDocument();
+  });
+
+  it('saves wallets with the saved signup and fee', async () => {
+    const api = mockApi(routes([{ method: 'PUT', path: '/admin/settings/general', body: settings() }]));
+    const h = renderApp('/admin/settings?section=payments', { user: admin });
+    const payout = await card(g.payout.wallets);
+    await h.user.click(within(payout).getByRole('checkbox', { name: 'bKash' }));
+    await h.user.type(within(payout).getByLabelText(g.payout.number.bkash), BKASH);
+    await h.user.click(within(payout).getByRole('button', { name: g.payout.save }));
+    await waitFor(() => expect(api.calls.some((c) => c.method === 'PUT')).toBe(true));
+    expect(api.calls.find((c) => c.method === 'PUT')).toMatchObject({
+      path: '/admin/settings/general',
+      body: {
+        ownerApproval: 'manual',
+        fee: { mode: 'free', fixed: null, percent: null, payer: 'owner' },
+        payout: { bkash: { provider: 'bkash', number: BKASH, accountType: 'personal' }, nagad: null },
+      },
+    });
+    expect(await within(payout).findByText(s.saved)).toBeInTheDocument();
+  });
+
+  it('Sports switches sports off and reorders them, and never saves an empty list', async () => {
+    const saved = settings({ sports: SPORTS.map((sport) => ({ sport, enabled: sport !== 'padel' })) });
+    const api = mockApi(routes([{ method: 'PUT', path: '/admin/settings/sports', body: saved }]));
+    const h = renderApp('/admin/settings?section=sports', { user: admin });
+    const list = await card(s.sports.title);
+    expect(within(list).getByText(s.sports.count.replace('{{count}}', '12').replace('{{total}}', '12'))).toBeInTheDocument();
+    expect(within(list).getByRole('button', { name: s.sports.up.replace('{{sport}}', en.sports.football) })).toBeDisabled();
+    await h.user.click(within(list).getByRole('button', { name: s.sports.up.replace('{{sport}}', en.sports.cricket) }));
+    await h.user.click(within(list).getByRole('checkbox', { name: en.sports.padel }));
+    await h.user.click(within(list).getByRole('button', { name: s.sports.save }));
+    await waitFor(() => expect(api.calls.some((c) => c.method === 'PUT')).toBe(true));
+    const sent = (api.calls.find((c) => c.method === 'PUT')!.body as { sports: { sport: string; enabled: boolean }[] }).sports;
+    expect(sent.map((x) => x.sport).slice(0, 3)).toEqual(['football', 'cricket', 'futsal']);
+    expect(sent.find((x) => x.sport === 'padel')!.enabled).toBe(false);
+    expect(await within(list).findByText(s.saved)).toBeInTheDocument();
+
+    for (const sport of SPORTS) {
+      const box = within(list).getByRole('checkbox', { name: en.sports[sport] });
+      if ((box as HTMLInputElement).checked) await h.user.click(box);
+    }
+    expect(within(list).getByText(s.sports.none)).toBeInTheDocument();
+    expect(within(list).getByRole('button', { name: s.sports.save })).toBeDisabled();
   });
 
   it('checks the fee before sending', async () => {
@@ -226,11 +278,11 @@ describe('admin settings: General', () => {
         },
       ]),
     );
-    const h = renderApp('/admin/settings', { user: admin });
-    const payout = await card(g.payout.title);
+    const h = renderApp('/admin/settings?section=payments', { user: admin });
+    const payout = await card(g.payout.wallets);
     await h.user.click(within(payout).getByRole('checkbox', { name: 'bKash' }));
     await h.user.type(within(payout).getByLabelText(g.payout.number.bkash), '12345');
-    await h.user.click(screen.getByRole('button', { name: g.save }));
+    await h.user.click(within(payout).getByRole('button', { name: g.payout.save }));
     expect(await within(payout).findByText(g.errors.number)).toBeInTheDocument();
     expect(within(payout).getByLabelText(g.payout.number.bkash)).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText(en.errors.validation_error)).toBeInTheDocument();
@@ -247,8 +299,8 @@ describe('admin settings: General', () => {
       },
     });
     const api = mockApi(routes([{ method: 'PUT', path: '/admin/settings/payout-stripe', body: connected }]));
-    const h = renderApp('/admin/settings', { user: admin });
-    const payout = await card(g.payout.title);
+    const h = renderApp('/admin/settings?section=payments', { user: admin });
+    const payout = await card(g.stripe.title);
     await h.user.type(within(payout).getByLabelText(en.owner.gateway.secretKey), 'sk_test_abc');
     await h.user.type(within(payout).getByLabelText(en.owner.gateway.publishableKey), 'pk_test_1');
     await h.user.type(within(payout).getByLabelText(en.owner.gateway.webhookSecret), 'whsec_x');
@@ -265,8 +317,8 @@ describe('admin settings: General', () => {
 
   it('locks the Stripe form when the server has no encryption key', async () => {
     mockApi(routes([], settings({ secretsAvailable: false })));
-    renderApp('/admin/settings', { user: admin });
-    const payout = await card(g.payout.title);
+    renderApp('/admin/settings?section=payments', { user: admin });
+    const payout = await card(g.stripe.title);
     expect(within(payout).getByLabelText(en.owner.gateway.secretKey)).toBeDisabled();
     expect(within(payout).getByRole('button', { name: en.owner.gateway.save.test })).toBeDisabled();
     expect(within(payout).getByText(g.stripe.noKey)).toBeInTheDocument();
@@ -274,9 +326,10 @@ describe('admin settings: General', () => {
 
   it('shows the payout webhook events and a hint that does not depend on layout', async () => {
     mockApi(routes([]));
-    renderApp('/admin/settings', { user: admin });
-    const payout = await card(g.payout.title);
-    for (const ev of PAYOUT_WEBHOOK_EVENTS) expect(within(payout).getByText(ev)).toBeInTheDocument();
+    renderApp('/admin/settings?section=payments', { user: admin });
+    const webhook = await card(g.payout.webhookTitle);
+    for (const ev of PAYOUT_WEBHOOK_EVENTS) expect(within(webhook).getByText(ev)).toBeInTheDocument();
+    const payout = await card(g.stripe.title);
     expect(within(payout).getByText(g.stripe.webhookSecretHint)).toBeInTheDocument();
     expect(within(payout).queryByText(en.owner.gateway.webhookSecretHint)).not.toBeInTheDocument();
   });

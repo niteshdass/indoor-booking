@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { SPORTS, type Sport } from '@booking/shared';
+import type { Sport } from '@booking/shared';
 import { Button } from '../components/ui/Button';
 import { moneyShort } from '../lib/format';
 import { EMPTY_CRITERIA, criteriaToParams } from '../search/searchParams';
-import { SportCourt, TILE_SPORTS } from './SportCourt';
+import { SportCourt } from './SportCourt';
+import { useSports } from '../lib/sports';
 import styles from './LandingPage.module.css';
 
 /** Demo prices in BDT minor units, formatted in the reader's language. */
@@ -64,6 +65,7 @@ function HeroSearch() {
   const navigate = useNavigate();
   const id = useId();
   const [sport, setSport] = useState<Sport | ''>('');
+  const sports = useSports();
   const [date, setDate] = useState('');
 
   function submit(e: FormEvent) {
@@ -88,7 +90,7 @@ function HeroSearch() {
             onChange={(e) => setSport(e.target.value as Sport | '')}
           >
             <option value="">{t('search.anySport')}</option>
-            {SPORTS.map((s) => (
+            {sports.map((s) => (
               <option key={s} value={s}>
                 {t(`sports.${s}`)}
               </option>
@@ -407,6 +409,7 @@ export function LandingPage() {
   const features = ['weekly', 'map', 'lookup', 'reviews'] as const;
   const points = ['point1', 'point2', 'point3', 'point4'] as const;
   const faq = ['account', 'cancel', 'find', 'lang'] as const;
+  const sports = useSports();
 
   return (
     <>
@@ -434,7 +437,7 @@ export function LandingPage() {
               <p>{t('landing.sports.lede')}</p>
             </div>
             <ul className={styles.sports}>
-              {TILE_SPORTS.map((s) => (
+              {sports.map((s) => (
                 <li key={s}>
                   <Link className={styles.sport} to={`/search?sport=${s}&available=true`}>
                     <SportCourt sport={s} />

@@ -71,7 +71,7 @@ describe('SearchPage', () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
     renderApp('/search?sport=futsal');
     expect(await screen.findByText('Arena One')).toBeInTheDocument();
-    expect(api.calls[0]!.query.get('sport')).toBe('futsal');
+    expect(api.calls.find((c) => c.path === '/search')!.query.get('sport')).toBe('futsal');
     expect(screen.getByText((_, el) => el?.textContent === `from ${moneyShort(1000, 'BDT', 'en')}` && el.children.length === 0)).toBeInTheDocument();
     expect(screen.getByRole('group', { name: /^Free .*Oct 25/ })).toBeInTheDocument();
     const first = screen.getByRole('link', { name: 'Book 08:00, Court A' });
@@ -116,7 +116,7 @@ describe('SearchPage', () => {
     const api = mockApi([{ path: '/search', body: { results: [venue], nextCursor: null } }]);
     const { user, location } = renderApp('/search');
     await screen.findByText('Arena One');
-    expect(api.calls[0]!.query.has('sort')).toBe(false);
+    expect(api.calls.find((c) => c.path === '/search')!.query.has('sort')).toBe(false);
     await user.selectOptions(screen.getByLabelText('Sort'), 'rating');
     await user.click(screen.getByRole('button', { name: en.search.submit }));
     await waitFor(() => expect(location().search).toContain('sort=rating'));

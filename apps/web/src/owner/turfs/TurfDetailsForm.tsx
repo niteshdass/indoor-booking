@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { SPORTS, type Sport } from '@booking/shared';
+import type { Sport } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Checkbox } from '../../components/ui/Checkbox';
@@ -9,6 +9,7 @@ import { Dialog } from '../../components/ui/Dialog';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiDelete, apiPatch } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
+import { useSports } from '../../lib/sports';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerTurf } from '../types';
@@ -28,6 +29,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
   const path = ownerPath(ownerId, `/venues/${encodeURIComponent(turf.venueId)}/turfs/${encodeURIComponent(turf.id)}`);
   const [name, setName] = useState(turf.name);
   const [sports, setSports] = useState<Sport[]>(turf.sports);
+  const offered = useSports(turf.sports);
   const [indoor, setIndoor] = useState(turf.indoor);
   const [active, setActive] = useState(turf.active);
   const [submitted, setSubmitted] = useState(false);
@@ -90,7 +92,7 @@ export function TurfDetailsForm({ turf, onSaved }: Props) {
         <fieldset className={styles.fieldset}>
           <legend className={styles.legend}>{t('owner.venues.sports')}</legend>
           <div className={styles.checks}>
-            {SPORTS.map((s) => (
+            {offered.map((s) => (
               <Checkbox
                 key={s}
                 label={t(`sports.${s}`)}

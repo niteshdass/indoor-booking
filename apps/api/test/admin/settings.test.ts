@@ -7,6 +7,7 @@ import { User } from '../../src/auth/user.model';
 import { Role, ensureSystemRoles } from '../../src/tenancy/role.model';
 import { PlatformLog } from '../../src/admin/platformLog.model';
 import { defaultServices } from '../../src/services';
+import { SPORTS } from '@booking/shared';
 import { PlatformSettings, clearSettingsCache, resolveEmail, resolveGeneral, resolveGoogleClientId, resolvePayoutStripe, resolveSms } from '../../src/admin/settings';
 
 const CLIENT_ID = '1234-abc.apps.googleusercontent.com';
@@ -219,6 +220,47 @@ describe('admin general settings', () => {
     const player = await seedUser(ctx.services, { name: 'Player' });
     expect((await put('/admin/settings/general', general(), player.token)).status).toBe(403);
     expect((await put('/admin/settings/payout-stripe', {}, player.token)).status).toBe(403);
+  });
+});
+
+describe('admin sports catalog', () => {
+  const all = (over: Record<string, boolean> = {}, first?: string) => {
+    const order = first ? [first, ...SPORTS.filter((s) => s !== first)] : [...SPORTS];
+    return { sports: order.map((sport) => ({ sport, enabled: over[sport] ?? true })) };
+  };
+
+  it('starts with every sport on, in catalog order', async () => {
+    const res = await get('/admin/settings');
+    expect(res.body.sports).toEqual(SPORTS.map((sport) => ({ sport, enabled: true })));
+    expect((await request(ctx.app).get(api('/sports'))).body).toEqual({ sports: [...SPORTS] });
+  });
+
+  it('saves order and switches; the public list shows only enabled sports in that order', async () => {
+    const res = await put('/admin/settings/sports', all({ padel: false }, 'cricket'));
+    expect(res.status).toBe(200);
+    expect(res.body.sports[0]).toEqual({ sport: 'cricket', enabled: true });
+    expect(res.body.sports.find((s: { sport: string }) => s.sport === 'padel').enabled).toBe(false);
+    const pub = await request(ctx.app).get(api('/sports'));
+    expect(pub.body.sports[0]).toBe('cricket');
+    expect(pub.body.sports).not.toContain('padel');
+    expect(pub.body.sports).toHaveLength(SPORTS.length - 1);
+  });
+
+  it('needs every sport exactly once, and at least one on', async () => {
+    const { sports } = all();
+    const none = all(Object.fromEntries(SPORTS.map((x) => [x, false])));
+    expect((await put('/admin/settings/sports', none)).status).toBe(400);
+    for (const bad of [sports.slice(1), [...sports.slice(1), sports[1]], [...sports.slice(1), { sport: 'curling', enabled: true }]]) {
+      expect((await put('/admin/settings/sports', { sports: bad })).status).toBe(400);
+    }
+  });
+
+  it('logs each save and needs platform.settings', async () => {
+    await PlatformLog.deleteMany({});
+    await put('/admin/settings/sports', all());
+    expect(await PlatformLog.countDocuments({ action: 'settings.sports_updated' })).toBe(1);
+    const player = await seedUser(ctx.services, { name: 'Player' });
+    expect((await put('/admin/settings/sports', all(), player.token)).status).toBe(403);
   });
 });
 

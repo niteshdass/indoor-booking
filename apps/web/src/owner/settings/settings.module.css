@@ -345,3 +345,46 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Admin sports catalog: one row per sport (court thumb, switch, move up / down). */
+.sportList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sportRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.sportRow:last-child {
+  border-block-end: 0;
+}
+
+.sportArt {
+  flex: none;
+  width: var(--court-thumb);
+  aspect-ratio: 3 / 2;
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: var(--court-line);
+}
+
+.sportArtOn {
+  background: var(--graphite);
+  stroke: var(--chalk);
+}
+
+.sportMove {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+}

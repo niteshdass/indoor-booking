@@ -2,6 +2,7 @@ import type { OwnerApprovalMode, PlatformFeeSettings } from './platformFee';
 import type { PlatformPermission, PlatformRoleKey } from './permissions';
 import type { RatingSummary } from './reviews';
 import type { OwnerStatus } from './statuses';
+import type { SportSetting } from './venues';
 import type { ManualWallet } from './wallets';
 
 export const ADMIN_PAGE_SIZE = 25;
@@ -22,6 +23,7 @@ export const PLATFORM_ACTIONS = [
   'review.hidden',
   'review.kept',
   'settings.general_updated',
+  'settings.sports_updated',
   'payout.confirmed',
   'payout.rejected',
 ] as const;
@@ -171,6 +173,8 @@ export type AdminSettingsJson = {
     /** Where the payout Stripe account's webhook points. */
     payoutWebhookUrl: string;
   };
+  /** Every sport in catalog order, each switched on or off. */
+  sports: SportSetting[];
   updatedAt: string | null;
   updatedBy: string | null;
 };

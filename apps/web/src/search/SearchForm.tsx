@@ -4,7 +4,6 @@ import {
   InvalidMoneyError,
   MAX_SEARCH_RADIUS_KM,
   SEARCH_RADII_KM,
-  SPORTS,
   currencyExponent,
   parseMoney,
 } from '@booking/shared';
@@ -12,6 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Spinner } from '../components/ui/Spinner';
 import { TextField } from '../components/ui/TextField';
+import { useSports } from '../lib/sports';
 import { criteriaToParams, type Criteria } from './searchParams';
 import styles from './SearchForm.module.css';
 
@@ -85,6 +85,7 @@ export function SearchForm({ value, onChange, currencies, autoLocate = false }: 
   const { t } = useTranslation();
   const id = useId();
   const [draft, setDraft] = useState<Criteria>(value);
+  const sports = useSports(draft.sport ? [draft.sport] : []);
   const [texts, setTexts] = useState<Texts>(() => textsFrom(value));
   const [errors, setErrors] = useState<Errors>({});
   const [locating, setLocating] = useState(false);
@@ -249,7 +250,7 @@ export function SearchForm({ value, onChange, currencies, autoLocate = false }: 
   ];
   const sportOptions = [
     { value: '', label: t('search.anySport') },
-    ...SPORTS.map((s) => ({ value: s, label: t(`sports.${s}`) })),
+    ...sports.map((s) => ({ value: s, label: t(`sports.${s}`) })),
   ];
   const sortOptions = [
     { value: 'default', label: t('search.sortDefault') },

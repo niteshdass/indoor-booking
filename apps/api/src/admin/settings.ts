@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { DEFAULT_PLATFORM_FEE, FEE_PAYERS, OWNER_APPROVAL_MODES, PLATFORM_FEE_MODES, WALLET_PROVIDERS } from '@booking/shared';
-import type { ManualWallet, OwnerApprovalMode, PlatformFeeSettings } from '@booking/shared';
+import { DEFAULT_PLATFORM_FEE, FEE_PAYERS, OWNER_APPROVAL_MODES, PLATFORM_FEE_MODES, SPORTS, WALLET_PROVIDERS, mergeSportSettings } from '@booking/shared';
+import type { ManualWallet, OwnerApprovalMode, PlatformFeeSettings, Sport, SportSetting } from '@booking/shared';
 import type { Config } from '../config';
 import type { GatewayCredentials } from '../payments/gateway';
 import { open } from '../payments/secretBox';
@@ -61,6 +61,14 @@ const generalSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const sportSettingSchema = new mongoose.Schema(
+  {
+    sport: { type: String, enum: SPORTS, required: true },
+    enabled: { type: Boolean, required: true },
+  },
+  { _id: false },
+);
+
 /** The single platform settings document: sign-in and delivery providers an admin sets in the dashboard. */
 const platformSettingsSchema = new mongoose.Schema(
   {
@@ -88,6 +96,8 @@ const platformSettingsSchema = new mongoose.Schema(
       _id: false,
     },
     general: { type: generalSchema, default: null },
+    /** The sport catalog's order and switches; null until an admin saves it. */
+    sports: { type: [sportSettingSchema], default: null },
     updatedAt: { type: Date, default: null },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
@@ -119,6 +129,16 @@ export async function loadSettings(): Promise<PlatformSettingsDoc | null> {
 export type SmtpSettings = { host: string; port: number; secure: boolean; user: string | null; password: string | null };
 export type EmailSettings = { from: string } & ({ url: string } | { smtp: SmtpSettings });
 export type SmsSettings = { accountSid: string; authToken: string; from: string };
+
+/** The sport catalog with the admin's order and switches. */
+export async function resolveSportSettings(): Promise<SportSetting[]> {
+  return mergeSportSettings((await loadSettings())?.sports);
+}
+
+/** Sports players and owners can pick right now, in the admin's order. */
+export async function enabledSports(): Promise<Sport[]> {
+  return (await resolveSportSettings()).filter((s) => s.enabled).map((s) => s.sport);
+}
 
 /** The admin's Google client ID, else the server's. */
 export async function resolveGoogleClientId(config: Config): Promise<string | undefined> {

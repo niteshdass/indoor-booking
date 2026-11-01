@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { SPORTS, type Sport } from '@booking/shared';
+import type { Sport } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -14,6 +14,7 @@ import { Table } from '../../components/ui/Table';
 import { TextField } from '../../components/ui/TextField';
 import { apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
+import { useSports } from '../../lib/sports';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerTurf, OwnerVenue } from '../types';
@@ -93,6 +94,7 @@ function TurfCreateForm({ venueId, base }: { venueId: string; base: string }) {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [sports, setSports] = useState<Sport[]>([]);
+  const offered = useSports();
   const [indoor, setIndoor] = useState(false);
   const [slotLength, setSlotLength] = useState(String(DEFAULT_SLOT_MIN));
   const [submitted, setSubmitted] = useState(false);
@@ -137,7 +139,7 @@ function TurfCreateForm({ venueId, base }: { venueId: string; base: string }) {
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>{t('owner.venues.sports')}</legend>
         <div className={styles.checks}>
-          {SPORTS.map((s) => (
+          {offered.map((s) => (
             <Checkbox
               key={s}
               label={t(`sports.${s}`)}

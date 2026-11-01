@@ -1,4 +1,4 @@
-# Slot Booking
+# BookaTurf
 
 ## UI
 - All UI follows `.superdesign/design-system.md`. Read it before building or changing any screen.

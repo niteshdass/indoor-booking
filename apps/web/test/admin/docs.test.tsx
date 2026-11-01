@@ -88,10 +88,10 @@ describe('admin docs', () => {
 
   it('the General topic covers approval, fee modes, who pays, payouts and walk-ins', () => {
     const body = JSON.stringify(topic('general'));
-    for (const word of ['Automatic', 'Free', 'Fixed', 'Percent', '50%', 'Court', 'bKash', 'Nagad', 'Stripe', 'Payouts', 'Reject', 'Owes', 'credit', 'walk-in']) {
+    for (const word of ['Automatic', 'Free', 'Fixed', 'Percent', '50%', 'turf', 'bKash', 'Nagad', 'Stripe', 'Payouts', 'Reject', 'Owes', 'credit', 'walk-in']) {
       expect(body).toContain(word);
     }
-    // The app calls a playable space a "Court" everywhere; the guide must not slip back to "Field".
+    // The app calls a playable space a "turf" everywhere; the guide must not slip back to "Field".
     expect(body).not.toContain('Field');
   });
 

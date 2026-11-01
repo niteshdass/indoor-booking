@@ -46,6 +46,50 @@ describe('SearchForm', () => {
     expect(screen.getByRole('button', { name: s.clearLocation })).toBeInTheDocument();
   });
 
+  it('a found location applies at once with the default distance', async () => {
+    stubGeo((ok) => ok({ coords: { latitude: 23.81234, longitude: 90.41234 } } as GeolocationPosition));
+    const { onChange, user } = setup();
+    await user.click(screen.getByRole('button', { name: s.useMyLocation }));
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({ near: { lat: 23.8123, lng: 90.4123 }, radiusKm: 10 }),
+      ),
+    );
+  });
+
+  it('distance and clearing the location apply at once', async () => {
+    const { onChange, user } = setup({ ...EMPTY_CRITERIA, near: { lat: 1, lng: 2 }, radiusKm: 10 });
+    await user.selectOptions(screen.getByLabelText(s.radius), '30');
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ radiusKm: 30 })));
+    await user.click(screen.getByRole('button', { name: s.clearLocation }));
+    await waitFor(() =>
+      expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ near: null, radiusKm: null })),
+    );
+  });
+
+  it('autoLocate searches near the player on mount, silently on failure', async () => {
+    stubGeo((ok) => ok({ coords: { latitude: 23.81234, longitude: 90.41234 } } as GeolocationPosition));
+    const onChange = vi.fn();
+    const view = render(
+      <I18nextProvider i18n={i18n}>
+        <SearchForm value={EMPTY_CRITERIA} onChange={onChange} currencies={[]} autoLocate />
+      </I18nextProvider>,
+    );
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ near: { lat: 23.8123, lng: 90.4123 }, radiusKm: 10 })),
+    );
+    view.unmount();
+
+    stubGeo((_ok, err) => err({ code: 1 } as GeolocationPositionError));
+    render(
+      <I18nextProvider i18n={i18n}>
+        <SearchForm value={EMPTY_CRITERIA} onChange={vi.fn()} currencies={[]} autoLocate />
+      </I18nextProvider>,
+    );
+    await screen.findByRole('button', { name: s.useMyLocation });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('geolocation denied shows message', async () => {
     stubGeo((_ok, err) => err({ code: 1 } as GeolocationPositionError));
     const { onChange, user } = setup();
@@ -55,10 +99,10 @@ describe('SearchForm', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ near: null }));
   });
 
-  it('missing geolocation is treated as denied', async () => {
+  it('missing geolocation is reported as unavailable', async () => {
     const { user } = setup();
     await user.click(screen.getByRole('button', { name: s.useMyLocation }));
-    expect(await screen.findByText(s.locationDenied)).toBeInTheDocument();
+    expect(await screen.findByText(s.locationUnavailable)).toBeInTheDocument();
   });
 
   it('shows a pending state while locating', async () => {
@@ -203,8 +247,8 @@ describe('SearchForm', () => {
     });
     const { user } = setup();
     await user.click(screen.getByRole('button', { name: s.useMyLocation }));
-    expect(opts).toEqual({ timeout: 10000 });
-    expect(await screen.findByText(s.locationDenied)).toBeInTheDocument();
+    expect(opts).toEqual({ timeout: 15000, maximumAge: 300000 });
+    expect(await screen.findByText(s.locationUnavailable)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: s.useMyLocation })).toBeEnabled();
   });
 

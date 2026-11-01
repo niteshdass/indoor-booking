@@ -12,6 +12,8 @@ import { ActivityLog } from '../../src/tenancy/activityLog.model';
 import { Venue } from '../../src/venues/venue.model';
 import { Turf } from '../../src/venues/turf.model';
 import { Booking } from '../../src/bookings/booking.model';
+import { PlatformSettings, clearSettingsCache } from '../../src/admin/settings';
+import { SPORTS } from '@booking/shared';
 
 beforeAll(async () => {
   await startTestDb();
@@ -34,7 +36,9 @@ beforeEach(async () => {
     Venue.deleteMany({}).setOptions({ crossTenant: true }),
     Turf.deleteMany({}).setOptions({ crossTenant: true }),
     Booking.deleteMany({}).setOptions({ crossTenant: true }),
+    PlatformSettings.deleteMany({}),
   ]);
+  clearSettingsCache();
   ctx = buildTestApp();
   a = await seedOwner(ctx.services);
   v1 = (await seedVenue(a.ownerId)).id as string;
@@ -71,6 +75,23 @@ describe('turfs API', () => {
     const { id } = (await createTurf()).body.turf;
     const res = await api().patch(turfs(v1, `/${id}`)).set(...bearer(a.token)).send({ slotLengthMin: 90 });
     expect(res.status).toBe(400);
+  });
+
+  it('refuses sports the platform switched off, but keeps ones a turf already has', async () => {
+    const { id } = (await createTurf({ sports: ['football', 'padel'] })).body.turf;
+    await PlatformSettings.updateOne(
+      { _id: 'platform' },
+      { $set: { sports: SPORTS.map((sport) => ({ sport, enabled: sport !== 'padel' && sport !== 'squash' })) } },
+      { upsert: true },
+    );
+    clearSettingsCache();
+    const off = await createTurf({ name: 'Court 2', sports: ['padel'] });
+    expect(off.status).toBe(400);
+    expect(off.body.error.code).toBe('sport_disabled');
+    const kept = await api().patch(turfs(v1, `/${id}`)).set(...bearer(a.token)).send({ sports: ['padel', 'cricket'] });
+    expect(kept.status).toBe(200);
+    const added = await api().patch(turfs(v1, `/${id}`)).set(...bearer(a.token)).send({ sports: ['padel', 'squash'] });
+    expect(added.body.error.code).toBe('sport_disabled');
   });
 
   it('turf names unique per venue, case-insensitive', async () => {

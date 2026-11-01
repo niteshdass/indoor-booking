@@ -89,7 +89,7 @@ export const docsEn: Docs = {
       id: 'general',
       group: 'platform',
       title: 'Venue signup and platform fee',
-      summary: 'Admin > Settings > General decides whether new businesses need your approval, what you earn on each online booking, and where owners pay you what they owe.',
+      summary: 'Admin > Settings > General decides whether new businesses need your approval and what you earn on each online booking. Admin > Settings > Payments sets where owners pay you what they owe.',
       settings: 'general',
       sections: [
         {
@@ -118,7 +118,7 @@ export const docsEn: Docs = {
                 rows: [
                   ['Free', 'No fee. Nothing is owed, and no fee shows anywhere: not at checkout, not on bookings, not in the owner portal.'],
                   ['Fixed', 'The same amount on every booking, in that booking\'s own currency: 50 means ৳50 on a BDT venue and $50 on a USD one. Run a single-currency platform to keep this simple.'],
-                  ['Percent', 'A share of court time plus extras, above 0% and up to 50%, at most 2 decimals. It is rounded to the nearest poisha or cent.'],
+                  ['Percent', 'A share of turf time plus extras, above 0% and up to 50%, at most 2 decimals. It is rounded to the nearest poisha or cent.'],
                 ],
               },
             },
@@ -135,7 +135,7 @@ export const docsEn: Docs = {
           id: 'payer',
           title: 'Who pays the fee',
           blocks: [
-            { p: 'Either way the owner owes you the fee: the player pays the venue, never you. The choice only changes what the player is charged. Example with a fixed fee of 50 on a Court that costs 1,000:' },
+            { p: 'Either way the owner owes you the fee: the player pays the venue, never you. The choice only changes what the player is charged. Example with a fixed fee of 50 on a turf that costs 1,000:' },
             {
               table: {
                 head: ['Who pays', 'Player pays', 'Owner owes you'],
@@ -156,13 +156,13 @@ export const docsEn: Docs = {
             { p: 'Owners pay what they owe from the Platform fee page in the owner portal. They are offered only the methods you set up here.' },
             {
               list: [
-                'bKash and Nagad: tick the wallet, enter its number (for example `01712345678`) and the account type (Personal, Merchant or Agent). These are saved with Save settings.',
+                'bKash and Nagad: tick the wallet, enter its number (for example `01712345678`) and the account type (Personal, Merchant or Agent). These are saved with Save wallets.',
                 'Card (Stripe): your own Stripe account, with Test and Live keys like an owner\'s Stripe setup. The keys have their own Save button and are stored encrypted; the server needs an encryption key for this.',
               ],
             },
             { p: 'In Stripe, add a webhook endpoint with this URL, once in test mode and once in live mode, and paste each endpoint\'s signing secret with that mode\'s keys:' },
             { code: 'https://<your API domain>/api/v1/webhooks/stripe/platform' },
-            { p: 'Subscribe it to `payment_intent.succeeded`, `payment_intent.payment_failed` and `payment_intent.canceled`. The General tab shows the exact URL for this server with copy buttons.' },
+            { p: 'Subscribe it to `payment_intent.succeeded`, `payment_intent.payment_failed` and `payment_intent.canceled`. The Payments tab shows the exact URL for this server with copy buttons.' },
             { note: 'This is a different endpoint from the owners\' own Stripe webhooks. Card payouts are only confirmed when this one is set up.', tone: 'info' },
           ],
         },
@@ -188,6 +188,14 @@ export const docsEn: Docs = {
             { p: 'Admin > Businesses has an Owes column with each business\'s balance per currency: fees owed minus confirmed payouts. Payouts waiting for a check do not lower it yet. The Overview shows fees owed and collected for the period.' },
             { p: 'A negative balance is a credit, shown as "Credit ৳X". It happens when a booking whose fee was already paid is later cancelled or rejected. Credit is not paid back: the business\'s next fees use it up.' },
             { p: 'Nothing is enforced automatically: a business that does not pay keeps taking bookings. You can still suspend it by hand.' },
+          ],
+        },
+        {
+          id: 'sports',
+          title: 'Sports on offer',
+          blocks: [
+            { p: 'Admin > Settings > Sports lists every sport. Ticked sports show as tiles on the home page and in the sport pickers of search and the turf forms, in the order of the list; use the arrows to move one up or down, then Save sports.' },
+            { p: 'Switching a sport off hides it from new choices only. Turfs that already have it keep it and still show in search for it. At least one sport stays on.' },
           ],
         },
         {

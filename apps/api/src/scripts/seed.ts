@@ -84,13 +84,13 @@ const GUESTS = [
 ];
 
 const REVIEWS: { stars: number; comment: string | null }[] = [
-  { stars: 5, comment: 'Great court, clean changing rooms and the lights are excellent at night.' },
+  { stars: 5, comment: 'Great turf, clean changing rooms and the lights are excellent at night.' },
   { stars: 5, comment: 'Booked in a minute, staff had everything ready when we arrived.' },
   { stars: 4, comment: 'Good surface. Parking gets tight on Friday evenings.' },
   { stars: 4, comment: 'Nice place, a bit pricey at peak hours but worth it.' },
-  { stars: 5, comment: 'Лучший корт в районе, обязательно вернёмся.' },
+  { stars: 5, comment: 'Лучшее поле в районе, обязательно вернёмся.' },
   { stars: 4, comment: 'Хорошее покрытие, удобная запись онлайн.' },
-  { stars: 3, comment: 'Court was fine but the AC in the lobby was not working.' },
+  { stars: 3, comment: 'Turf was fine but the AC in the lobby was not working.' },
   { stars: 5, comment: null },
   { stars: 4, comment: null },
   { stars: 2, comment: 'Previous group ran over by 15 minutes, we started late.' },
@@ -99,7 +99,7 @@ const REVIEWS: { stars: number; comment: string | null }[] = [
 ];
 
 const REPLIES = [
-  'Thanks for playing with us, see you on court again!',
+  'Thanks for playing with us, see you on the turf again!',
   'Thank you for the feedback, we have spoken to the team about it.',
   'Спасибо за отзыв! Ждём вас снова.',
 ];
@@ -177,9 +177,9 @@ const FIXED_OWNERS: OwnerSpec[] = [
           refundRules: REFUNDS,
         },
         turfs: [
-          { name: 'Court 1', sports: ['padel'], indoor: true, slotLengthMin: 60, pricing: peak(150000, 200000, 220000) },
-          { name: 'Court 2', sports: ['padel'], indoor: true, slotLengthMin: 60, pricing: peak(150000, 200000, 220000) },
-          { name: 'Court 3', sports: ['tennis'], indoor: false, slotLengthMin: 60, pricing: peak(120000, 160000, 180000) },
+          { name: 'Turf 1', sports: ['padel'], indoor: true, slotLengthMin: 60, pricing: peak(150000, 200000, 220000) },
+          { name: 'Turf 2', sports: ['padel'], indoor: true, slotLengthMin: 60, pricing: peak(150000, 200000, 220000) },
+          { name: 'Turf 3', sports: ['tennis'], indoor: false, slotLengthMin: 60, pricing: peak(120000, 160000, 180000) },
           { name: 'Futsal A', sports: ['futsal', 'football'], indoor: true, slotLengthMin: 90, pricing: peak(250000, 320000, 350000) },
         ],
         addons: ['Racket rental', 'New ball can', 'Bib set', 'Coach'],
@@ -199,8 +199,8 @@ const FIXED_OWNERS: OwnerSpec[] = [
           guestBooking: { allowed: true, requireOtp: true },
         },
         turfs: [
-          { name: 'Court 1', sports: ['padel'], indoor: false, slotLengthMin: 60, pricing: peak(100000, 140000, 150000) },
-          { name: 'Court 2', sports: ['padel', 'pickleball'], indoor: false, slotLengthMin: 60, pricing: peak(100000, 140000, 150000) },
+          { name: 'Turf 1', sports: ['padel'], indoor: false, slotLengthMin: 60, pricing: peak(100000, 140000, 150000) },
+          { name: 'Turf 2', sports: ['padel', 'pickleball'], indoor: false, slotLengthMin: 60, pricing: peak(100000, 140000, 150000) },
         ],
         addons: ['Racket rental', 'New ball can'],
       },
@@ -320,7 +320,7 @@ const KINDS: Kind[] = [
   },
   {
     label: 'Futsal',
-    court: (i) => `Court ${String.fromCharCode(64 + i)}`,
+    court: (i) => `Turf ${String.fromCharCode(64 + i)}`,
     courts: [1, 2],
     sports: [['futsal'], ['futsal', 'football']],
     indoor: 0.9,
@@ -348,7 +348,7 @@ const KINDS: Kind[] = [
   },
   {
     label: 'Padel Club',
-    court: (i) => `Court ${i}`,
+    court: (i) => `Turf ${i}`,
     courts: [2, 4],
     sports: [['padel'], ['padel', 'pickleball']],
     indoor: 0.5,
@@ -363,7 +363,7 @@ const KINDS: Kind[] = [
   },
   {
     label: 'Badminton Hall',
-    court: (i) => `Court ${i}`,
+    court: (i) => `Turf ${i}`,
     courts: [3, 6],
     sports: [['badminton'], ['badminton', 'table_tennis']],
     indoor: 1,
@@ -377,7 +377,7 @@ const KINDS: Kind[] = [
   },
   {
     label: 'Tennis Centre',
-    court: (i) => `Court ${i}`,
+    court: (i) => `Turf ${i}`,
     courts: [1, 3],
     sports: [['tennis'], ['tennis', 'pickleball']],
     indoor: 0.2,

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { SPORTS, resolveSettings, type EffectiveSettings, type TurfSettingsOverride, type VenueSettingsOverride } from '@booking/shared';
 import { AppError } from '../../errors';
+import { enabledSports } from '../../admin/settings';
 import { isDuplicateKeyError, runInTransaction } from '../../db';
 import type { AppServices } from '../../services';
 import { logActivity } from '../../tenancy/activityLog.model';
@@ -16,6 +17,12 @@ import { Closure } from '../../schedule/closure.model';
 import { AddonAssignment } from '../../addons/assignment.model';
 import { activeTurfCount, lockTurf, lockVenue, scopedTurf } from '../guards';
 import { changedFields, scopedVenue } from './venues';
+
+/** New sports must be switched on in the catalog; ones a turf already has stay even after an admin turns them off. */
+async function checkSports(next: readonly string[], kept: readonly string[] = []): Promise<void> {
+  const on = new Set<string>(await enabledSports());
+  if (next.some((s) => !kept.includes(s) && !on.has(s))) throw new AppError(400, 'sport_disabled', 'That sport is not offered on this platform');
+}
 
 const fields = {
   name: z.string().trim().min(1).max(60),
@@ -102,6 +109,7 @@ export function turfsRouter(services: AppServices): Router {
   router.post(base, requirePermission('turf.manage'), async (req, res) => {
     const t = tenantOf(req);
     const input = createSchema.parse(req.body);
+    await checkSports(input.sports);
     const venue = await scopedVenue(t, req.params.venueId as string);
     const venueId = venue.id as string;
     try {
@@ -146,6 +154,7 @@ export function turfsRouter(services: AppServices): Router {
     const t = tenantOf(req);
     const input = patchSchema.parse(req.body);
     const { venue, turf } = await scopedTurf(t, req.params.venueId as string, req.params.turfId as string);
+    if (input.sports) await checkSports(input.sports, turf.sports);
     const venueId = venue.id as string;
     const beforeAll = snapshot(turf);
     const wasActive = turf.active;

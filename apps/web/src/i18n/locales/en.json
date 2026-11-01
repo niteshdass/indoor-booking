@@ -5,7 +5,7 @@
     "ru": "Русский"
   },
   "app": {
-    "name": "Slot Booking"
+    "name": "BookaTurf"
   },
   "nav": {
     "label": "Main navigation",
@@ -13,20 +13,20 @@
     "signIn": "Sign in",
     "myBookings": "My bookings",
     "profile": "Profile",
-    "findCourt": "Find a court"
+    "findCourt": "Find a turf"
   },
   "auth": {
     "art": {
-      "court": "Padel · Court 2",
+      "court": "Padel · Turf 2",
       "time": "Today · 19:00–20:30",
       "booked": "Booked",
       "login": {
         "title": "Welcome back",
-        "sub": "Your bookings and favourite courts are one tap away."
+        "sub": "Your bookings and favourite turfs are one tap away."
       },
       "register": {
         "title": "Your next game starts here",
-        "sub": "Find a court, pick a time and pay in a minute."
+        "sub": "Find a turf, pick a time and pay in a minute."
       }
     },
     "offline": "We can't reach the server to check your session. Check your connection.",
@@ -167,6 +167,7 @@
     "venue_has_turfs": "Delete the venue's turfs first.",
     "slug_taken": "That link name is already taken.",
     "turf_name_taken": "This venue already has a turf with that name.",
+    "sport_disabled": "That sport is not offered right now. Pick another one.",
     "gateway_account_in_use": "A card payment is still pending on the current Stripe account. Try again once it settles.",
     "gateway_error": "Stripe couldn't be reached or rejected the request. Try again.",
     "payments_unconfigured": "Payments aren't configured on this server yet.",
@@ -254,7 +255,7 @@
     "signOut": "Sign out",
     "signOutConfirm": {
       "title": "Sign out?",
-      "body": "You'll need to sign in again to book courts or manage your venues.",
+      "body": "You'll need to sign in again to book turfs or manage your venues.",
       "cancel": "Cancel"
     },
     "notVerified": "Not verified",
@@ -264,11 +265,12 @@
     "adminPortalHint": "Approve businesses, manage users and reviews"
   },
   "search": {
-    "title": "Find a court",
+    "title": "Find a turf",
     "useMyLocation": "Use my location",
     "locationSet": "Using your location",
     "clearLocation": "Clear location",
     "locationDenied": "We couldn't get your location. Allow location access in your browser, or search without it.",
+    "locationUnavailable": "We couldn't find your location right now. Check that location services are on for your browser, then try again.",
     "radius": "Distance",
     "anyDistance": "Any distance",
     "km_one": "{{count}} km",
@@ -301,7 +303,7 @@
     "resultsLabel": "Search results",
     "count_one": "{{count}} venue",
     "count_other": "{{count}} venues",
-    "emptyTitle": "No courts found",
+    "emptyTitle": "No turfs found",
     "empty": "Try another date or sport, or loosen the filters.",
     "noPrice": "No price available",
     "fromPrice": "from {{price}}",
@@ -366,16 +368,16 @@
   "venue": {
     "photosLabel": "Venue photos",
     "amenities": "Amenities",
-    "turfs": "Courts",
+    "turfs": "Turfs",
     "indoor": "Indoor",
     "outdoor": "Outdoor",
-    "noTurfs": "This venue has no courts yet.",
+    "noTurfs": "This venue has no turfs yet.",
     "dateStrip": "Choose a date",
     "today": "today",
     "todayChip": "Today",
-    "book": "Book a court",
-    "courtCount_one": "{{count}} court",
-    "courtCount_other": "{{count}} courts",
+    "book": "Book a turf",
+    "courtCount_one": "{{count}} turf",
+    "courtCount_other": "{{count}} turfs",
     "slotLength_one": "{{count}} min",
     "slotLength_other": "{{count}} min",
     "sports": "Sports",
@@ -384,8 +386,8 @@
     "fewerPhotos": "Show fewer photos",
     "share": "Share",
     "linkCopied": "Link copied",
-    "court": "Court",
-    "courts": "Courts",
+    "court": "Turf",
+    "courts": "Turfs",
     "date": "Date",
     "time": "Time",
     "total": "Total",
@@ -728,13 +730,13 @@
       "status": "Status",
       "noVenues": "Create a venue to start taking bookings.",
       "createVenue": "Create a venue",
-      "courts": "Courts today",
+      "courts": "Turfs today",
       "legendConfirmed": "Confirmed",
       "legendDue": "Payment due",
       "legendWaiting": "Waiting",
       "legendWalkIn": "Walk-in",
       "lastWeek": "Same day last week: {{n}}",
-      "courtsUsed": "Courts used",
+      "courtsUsed": "Turfs used",
       "courtsUsedHint": "{{booked}} of {{open}} open hours booked",
       "legendClosed": "Closed",
       "attention": "Needs your attention",
@@ -782,7 +784,7 @@
         "afterFee": "After {{amount}} platform fee",
         "bookings": "Bookings",
         "hours": "Hours played",
-        "utilization": "Court use",
+        "utilization": "Turf use",
         "average": "Average booking",
         "cancellations": "Cancellations"
       },
@@ -808,7 +810,7 @@
       },
       "mix": {
         "title": "Where revenue comes from",
-        "courts": "Court time",
+        "courts": "Turf time",
         "addons": "Add-ons",
         "fees": "Kept on cancellation",
         "total": "Total",
@@ -818,7 +820,7 @@
         "platformFeeNote": "Not included in the figures above"
       },
       "heat": {
-        "title": "When courts are busy",
+        "title": "When turfs are busy",
         "hint": "Hours played by start time",
         "fewer": "Fewer",
         "more": "More",
@@ -840,8 +842,8 @@
         "none": "No payments in this period."
       },
       "courts": {
-        "title": "Courts",
-        "court": "Court",
+        "title": "Turfs",
+        "court": "Turf",
         "revenue": "Revenue",
         "share": "Share",
         "hours": "Hours",
@@ -869,7 +871,7 @@
     },
     "schedule": {
       "closed": "Closed",
-      "noTurfs": "This venue has no active courts.",
+      "noTurfs": "This venue has no active turfs.",
       "noSlots": "No time slots on this day."
     },
     "bookings": {
@@ -912,7 +914,7 @@
       "sourceWalkin": "Walk-in",
       "empty": "No bookings match these filters.",
       "emptyHint": "Bookings show up here as players book.",
-      "emptyFilteredHint": "Try another date range, court or status, or clear the filters.",
+      "emptyFilteredHint": "Try another date range, turf or status, or clear the filters.",
       "rangeOrder": "The end date must be on or after the start date.",
       "notFound": "We couldn't find that booking.",
       "back": "Back to bookings",
@@ -1040,9 +1042,9 @@
       "estimateSlots": "Time slots",
       "estimateTotal": "Total",
       "submit": "Create booking",
-      "courts": "Courts",
+      "courts": "Turfs",
       "selection": "Selection",
-      "pickHint": "Pick slots on any court and day. Each run of slots is its own booking.",
+      "pickHint": "Pick slots on any turf and day. Each run of slots is its own booking.",
       "bookingCount_one": "{{count}} booking",
       "bookingCount_other": "{{count}} bookings",
       "extrasEach": "Extras are added to each booking.",
@@ -1834,7 +1836,7 @@
     "player": {
       "requestLink": "Request weekly booking",
       "requestTitle": "Request weekly booking",
-      "turf": "Court",
+      "turf": "Turf",
       "intro": "Pick the days and time, check which dates are free, then send the request. The venue answers before the first game.",
       "send": "Send request",
       "sending": "Sending",
@@ -1861,14 +1863,14 @@
     }
   },
   "landing": {
-    "title": "Book a court in under a minute.",
+    "title": "Book a turf in under a minute.",
     "lede": "Padel, futsal, tennis and more at venues near you. See free times live, pay online and get your confirmation straight away.",
-    "searchLabel": "Find a free court",
-    "submit": "Show free courts",
+    "searchLabel": "Find a free turf",
+    "submit": "Show free turfs",
     "note": "No account needed to book. You can look up any booking with your phone number.",
     "demo": {
-      "label": "Example: find a padel court, pick 19:00, book it and get the confirmation",
-      "court": "Padel court 2",
+      "label": "Example: find a padel turf, pick 19:00, book it and get the confirmation",
+      "court": "Padel turf 2",
       "venue": "Arena North",
       "booked": "Booked",
       "confirm": "Booked. See you at 19:00.",
@@ -1899,10 +1901,10 @@
     },
     "features": {
       "title": "Made for people who play every week",
-      "weekly": "Same court, every week",
+      "weekly": "Same turf, every week",
       "weeklyText": "Ask for a weekly booking once. The venue approves it and every game shows up in your bookings.",
       "map": "See venues on a map",
-      "mapText": "Find the closest free court and compare prices side by side.",
+      "mapText": "Find the closest free turf and compare prices side by side.",
       "lookup": "No account? No problem",
       "lookupText": "Book with your name and phone number, then find the booking again with a code sent to that phone.",
       "reviews": "Reviews from real games",
@@ -1911,7 +1913,7 @@
     "owners": {
       "title": "Run your venue from one screen",
       "lede": "Online bookings, walk-ins and weekly regulars on one schedule. Your staff see what they need, and you see the money.",
-      "point1": "A live schedule for every court, with walk-ins in a few taps",
+      "point1": "A live schedule for every turf, with walk-ins in a few taps",
       "point2": "Slot prices, closures and add-ons you set yourself",
       "point3": "Card payments paid into your own account",
       "point4": "Staff roles, so the front desk sees only what it needs",
@@ -1919,10 +1921,10 @@
       "previewLabel": "Preview of the venue portal",
       "previewTitle": "Today",
       "previewDate": "Arena North, Tuesday",
-      "previewOpen": "4 courts open",
+      "previewOpen": "4 turfs open",
       "kpiBookings": "Bookings",
       "kpiRevenue": "Revenue",
-      "kpiUsed": "Courts used",
+      "kpiUsed": "Turfs used",
       "walkIn": "Walk-in",
       "awaiting": "Awaiting payment",
       "weekly": "Weekly game",
@@ -1940,15 +1942,15 @@
       "langA": "Yes. Switch language from the top of any page, for players and for staff."
     },
     "band": {
-      "title": "Free courts tonight, near you.",
-      "cta": "Find a court"
+      "title": "Free turfs tonight, near you.",
+      "cta": "Find a turf"
     },
     "footer": {
       "players": "Players",
       "venues": "Venues",
       "portal": "Venue portal",
       "list": "List your venue",
-      "rights": "© {{year}} Slot Booking"
+      "rights": "© {{year}} BookaTurf"
     }
   },
   "verifyEmail": {
@@ -2058,7 +2060,7 @@
       "noHistory": "No platform actions yet.",
       "col": {
         "venue": "Venue",
-        "courts": "Courts",
+        "courts": "Turfs",
         "rating": "Rating",
         "state": "State"
       },
@@ -2193,7 +2195,8 @@
           "kept": "Kept a review of {{target}}"
         },
         "settings": {
-          "general_updated": "Updated platform settings"
+          "general_updated": "Updated platform settings",
+          "sports_updated": "Updated the sports list"
         },
         "payout": {
           "confirmed": "Confirmed a payout from {{target}}",
@@ -2258,6 +2261,8 @@
       "tabs": "Settings sections",
       "tab": {
         "general": "General",
+        "payments": "Payments",
+        "sports": "Sports",
         "google": "Google sign-in",
         "email": "Email",
         "sms": "SMS"
@@ -2286,7 +2291,7 @@
           "fixed": "Amount per booking",
           "percent": "Percent of the booking",
           "fixedHint": "Charged in each owner's own currency: 50 means ৳50 on a BDT venue and $50 on a USD one.",
-          "percentHint": "Of court time plus extras, up to 50%.",
+          "percentHint": "Of turf time plus extras, up to 50%.",
           "payer": "Who pays"
         },
         "mode": {
@@ -2303,8 +2308,8 @@
           "ownerHint": "The player's price stays the same.",
           "playerHint": "Added to the player's total at checkout."
         },
-        "exampleOwner": "Court {{base}} → player pays {{base}}, owner owes you {{fee}}",
-        "examplePlayer": "Court {{base}} → player pays {{total}}, owner owes you {{fee}}",
+        "exampleOwner": "Turf {{base}} → player pays {{base}}, owner owes you {{fee}}",
+        "examplePlayer": "Turf {{base}} → player pays {{total}}, owner owes you {{fee}}",
         "exampleLabel": "Example",
         "errors": {
           "fixed": "Enter an amount above 0 and up to 1,000,000, with at most 2 decimals.",
@@ -2312,9 +2317,10 @@
           "number": "Use a Bangladesh mobile number, e.g. 01712345678."
         },
         "payout": {
-          "title": "Where owners pay you",
-          "intro": "The ways owners can pay what they owe. Only the ones set up here are offered to them.",
           "wallets": "Mobile wallets",
+          "walletsIntro": "Owners can send what they owe to these numbers. Only the wallets turned on here are offered to them.",
+          "save": "Save wallets",
+          "webhookTitle": "Stripe webhook",
           "number": {
             "bkash": "bKash number",
             "nagad": "Nagad number"
@@ -2324,7 +2330,6 @@
         "stripe": {
           "title": "Card (Stripe)",
           "intro": "Your own Stripe account. Owners pay by card and the money goes to you.",
-          "separate": "Stripe keys save on their own, with the button under them, not with Save settings.",
           "enabled": "Owners can pay by card",
           "on": "Card payments on",
           "off": "Card payments off",
@@ -2337,6 +2342,15 @@
           "webhookSecretHint": "From the Webhook endpoint in this mode. Stored encrypted. It is never shown again.",
           "modeNotConnected": "Add the keys for this mode first."
         }
+      },
+      "sports": {
+        "title": "Sports",
+        "intro": "Sports switched on show on the home page, in search and in the turf forms, in this order. Switching one off keeps it on turfs that already have it.",
+        "count": "{{count}} of {{total}} on",
+        "up": "Move {{sport}} up",
+        "down": "Move {{sport}} down",
+        "none": "Keep at least one sport on.",
+        "save": "Save sports"
       }
     },
     "docs": {

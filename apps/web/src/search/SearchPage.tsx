@@ -105,7 +105,7 @@ export function SearchPage() {
       <div className={styles.main}>
         <div className={styles.top}>
           <h1 className={styles.title}>{t('search.title')}</h1>
-          <SearchForm value={criteria} onChange={onChange} currencies={currencies} />
+          <SearchForm value={criteria} onChange={onChange} currencies={currencies} autoLocate />
         </div>
 
         <section

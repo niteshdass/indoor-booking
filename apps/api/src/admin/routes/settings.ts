@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { DEFAULT_PLATFORM_FEE, OWNER_APPROVAL_MODES, FEE_PAYERS, PLATFORM_FEE_MAX_PERCENT, PLATFORM_FEE_MODES } from '@booking/shared';
+import { DEFAULT_PLATFORM_FEE, OWNER_APPROVAL_MODES, FEE_PAYERS, PLATFORM_FEE_MAX_PERCENT, PLATFORM_FEE_MODES, SPORTS, mergeSportSettings } from '@booking/shared';
 import type { AdminSettingsJson, SettingSource } from '@booking/shared';
 import { User } from '../../auth/user.model';
 import type { Config } from '../../config';
@@ -80,6 +80,17 @@ const payoutStripeBody = z
   .strict()
   .refine(sameKeyMode.check, sameKeyMode.issue);
 
+/** The whole catalog, each sport once, in the order to show it. */
+const sportsBody = z
+  .object({
+    sports: z
+      .array(z.object({ sport: z.enum(SPORTS), enabled: z.boolean() }).strict())
+      .length(SPORTS.length)
+      .refine((list) => new Set(list.map((s) => s.sport)).size === SPORTS.length, 'List every sport once')
+      .refine((list) => list.some((s) => s.enabled), 'Keep at least one sport on'),
+  })
+  .strict();
+
 const testEmailBody = z.object({ to: z.string().trim().email() }).strict();
 const testSmsBody = z.object({ to: z.string().trim().regex(E164_RE, 'Must be a phone number in international format') }).strict();
 
@@ -128,6 +139,7 @@ async function settingsJson(config: Config, doc: PlatformSettingsDoc | null): Pr
       },
       payoutWebhookUrl: `${config.apiUrl}/api/v1/webhooks/stripe/platform`,
     },
+    sports: mergeSportSettings(doc?.sports),
     secretsAvailable: Boolean(config.paymentsKey),
     updatedAt: doc?.updatedAt ? doc.updatedAt.toISOString() : null,
     updatedBy: by?.name ?? null,
@@ -233,6 +245,14 @@ export function adminSettingsRouter(config: Config, services: AppServices): Rout
       fee: body.fee,
       payout: { ...g.payout, bkash: body.payout.bkash, nagad: body.payout.nagad },
     }));
+    res.json(await settingsJson(config, doc));
+  });
+
+  router.put('/settings/sports', async (req, res) => {
+    const { sports } = sportsBody.parse(req.body);
+    const actorId = platformOf(req).userId;
+    const doc = await save(actorId, { sports });
+    await logPlatform(actorId, { action: 'settings.sports_updated', entity: 'user', entityId: actorId }, services.now());
     res.json(await settingsJson(config, doc));
   });
 

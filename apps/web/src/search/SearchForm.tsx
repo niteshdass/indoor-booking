@@ -4,7 +4,6 @@ import {
   InvalidMoneyError,
   MAX_SEARCH_RADIUS_KM,
   SEARCH_RADII_KM,
-  SPORTS,
   currencyExponent,
   parseMoney,
 } from '@booking/shared';
@@ -12,6 +11,7 @@ import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Spinner } from '../components/ui/Spinner';
 import { TextField } from '../components/ui/TextField';
+import { useSports } from '../lib/sports';
 import { criteriaToParams, type Criteria } from './searchParams';
 import styles from './SearchForm.module.css';
 
@@ -19,9 +19,13 @@ export type SearchFormProps = {
   value: Criteria;
   onChange(c: Criteria): void;
   currencies: string[];
+  /** Locate the player once on mount when the criteria carry no location; failures stay silent. */
+  autoLocate?: boolean;
 };
 
 const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+/** Distance applied when a location is set without one chosen. */
+const DEFAULT_RADIUS = String(SEARCH_RADII_KM[0]);
 
 const ICONS = {
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3',
@@ -77,16 +81,24 @@ type Errors = { radius?: true; min?: true; max?: true; range?: true; time?: true
 const normaliseDecimal = (s: string) =>
   !s.includes('.') && s.split(',').length === 2 ? s.replace(',', '.') : s;
 
-export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
+export function SearchForm({ value, onChange, currencies, autoLocate = false }: SearchFormProps) {
   const { t } = useTranslation();
   const id = useId();
   const [draft, setDraft] = useState<Criteria>(value);
+  const sports = useSports(draft.sport ? [draft.sport] : []);
   const [texts, setTexts] = useState<Texts>(() => textsFrom(value));
   const [errors, setErrors] = useState<Errors>({});
   const [locating, setLocating] = useState(false);
-  const [locationDenied, setLocationDenied] = useState(false);
+  const [locationError, setLocationError] = useState<'denied' | 'unavailable' | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  // Location, distance and sort apply at once: they ask for a submit that runs after the state lands.
+  const submitPending = useRef(false);
+  useEffect(() => {
+    if (!submitPending.current) return;
+    submitPending.current = false;
+    formRef.current?.requestSubmit();
+  }, [draft, texts]);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -101,7 +113,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
     setDraft(value);
     setTexts(textsFrom(value));
     setErrors({});
-    setLocationDenied(false);
+    setLocationError(null);
     // valueKey stands in for `value`: a new object with the same content must not reset edits.
   }, [valueKey]);
 
@@ -121,10 +133,10 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       ? draft.currency
       : (currencyOptions[0] ?? null);
 
-  function locate() {
-    setLocationDenied(false);
+  function locate(silent = false) {
+    setLocationError(null);
     if (!('geolocation' in navigator) || !navigator.geolocation) {
-      setLocationDenied(true);
+      if (!silent) setLocationError('unavailable');
       return;
     }
     setLocating(true);
@@ -132,16 +144,38 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
       (pos) => {
         if (!mounted.current) return;
         patch({ near: { lat: round4(pos.coords.latitude), lng: round4(pos.coords.longitude) } });
+        setTexts((x) => (x.radiusChoice === 'any' ? { ...x, radiusChoice: DEFAULT_RADIUS } : x));
+        setLocationError(null);
         setLocating(false);
+        submitPending.current = true;
       },
-      () => {
+      (err) => {
         if (!mounted.current) return;
-        setLocationDenied(true);
+        // Only code 1 is a refusal; unavailable (2) and timeout (3) usually mean the OS has location off.
+        if (!silent) setLocationError(err.code === 1 ? 'denied' : 'unavailable');
         setLocating(false);
       },
-      { timeout: 10000 },
+      // A fix up to five minutes old is fine for distance search and avoids a slow fresh lookup.
+      { timeout: 15000, maximumAge: 300000 },
     );
   }
+
+  // Once per page: a link or reload that already carries a location keeps it.
+  useEffect(() => {
+    if (!autoLocate || value.near) return;
+    let live = true;
+    const perms = navigator.permissions?.query({ name: 'geolocation' });
+    if (!perms) locate(true);
+    else
+      perms.then(
+        (st) => live && st.state !== 'denied' && locate(true),
+        () => live && locate(true),
+      );
+    return () => {
+      live = false;
+    };
+    // Mount only; later criteria changes must not locate again.
+  }, []);
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -216,7 +250,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
   ];
   const sportOptions = [
     { value: '', label: t('search.anySport') },
-    ...SPORTS.map((s) => ({ value: s, label: t(`sports.${s}`) })),
+    ...sports.map((s) => ({ value: s, label: t(`sports.${s}`) })),
   ];
   const sortOptions = [
     { value: 'default', label: t('search.sortDefault') },
@@ -291,7 +325,10 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
               type="button"
               className={styles.chipClear}
               aria-label={t('search.clearLocation')}
-              onClick={() => patch({ near: null, radiusKm: null })}
+              onClick={() => {
+                patch({ near: null, radiusKm: null });
+                submitPending.current = true;
+              }}
             >
               <Icon d={ICONS.x} />
             </button>
@@ -302,7 +339,7 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
             className={styles.chip}
             disabled={locating}
             aria-busy={locating || undefined}
-            onClick={locate}
+            onClick={() => locate()}
           >
             {locating ? <Spinner label={t('common.loading')} /> : <Icon d={ICONS.pin} />}
             {t('search.useMyLocation')}
@@ -316,7 +353,11 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
           title={draft.near ? undefined : t('search.radiusNeedsLocation')}
           aria-describedby={draft.near ? undefined : `${id}-radius-hint`}
           value={draft.near ? texts.radiusChoice : 'any'}
-          onChange={(e) => setTexts((x) => ({ ...x, radiusChoice: e.target.value }))}
+          onChange={(e) => {
+            setTexts((x) => ({ ...x, radiusChoice: e.target.value }));
+            // A custom distance waits for its number and the Search button.
+            if (e.target.value !== 'custom') submitPending.current = true;
+          }}
           options={radiusOptions}
           className={styles.chipSelect}
         />
@@ -325,7 +366,10 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
           icon="sort"
           label={t('search.sort')}
           value={draft.sort}
-          onChange={(e) => patch({ sort: e.target.value === 'rating' ? 'rating' : 'default' })}
+          onChange={(e) => {
+            patch({ sort: e.target.value === 'rating' ? 'rating' : 'default' });
+            submitPending.current = true;
+          }}
           options={sortOptions}
           className={styles.chipSelect}
         />
@@ -348,9 +392,9 @@ export function SearchForm({ value, onChange, currencies }: SearchFormProps) {
           {t('search.radiusNeedsLocation')}
         </span>
       )}
-      {locationDenied && (
+      {locationError && !draft.near && (
         <p className={styles.error} role="alert">
-          {t('search.locationDenied')}
+          {t(locationError === 'denied' ? 'search.locationDenied' : 'search.locationUnavailable')}
         </p>
       )}
       {draft.near && texts.radiusChoice === 'custom' && (

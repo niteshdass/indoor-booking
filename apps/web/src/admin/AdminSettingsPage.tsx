@@ -14,6 +14,8 @@ import { useResource } from '../owner/useResource';
 import { useAdminTitle } from './AdminShell';
 import { dayTime } from './parts';
 import { GeneralTab } from './settings/GeneralTab';
+import { PaymentsTab } from './settings/PaymentsTab';
+import { SportsTab } from './settings/SportsTab';
 import { Card, failureText, useSection, type SettingsTab, type Store } from './settings/shared';
 import styles from '../owner/settings/settings.module.css';
 
@@ -206,9 +208,9 @@ function GoogleSteps() {
   );
 }
 
-const SECTIONS: SettingsTab[] = ['general', 'google', 'email', 'sms'];
+const SECTIONS: SettingsTab[] = ['general', 'payments', 'sports', 'google', 'email', 'sms'];
 
-/** Platform settings, one tab each: General (signup, fee, payouts), then the sign-in and delivery providers. Saved values win over the server env and apply without a restart. */
+/** Platform settings, one tab each: General (signup, fee), Payments (where owners pay you), Sports (the catalog), then the sign-in and delivery providers. Saved values win over the server env and apply without a restart. */
 export function AdminSettingsPage() {
   const { t, i18n } = useTranslation();
   useAdminTitle(t('admin.nav.settings'));
@@ -251,6 +253,8 @@ export function AdminSettingsPage() {
       <Tabs label={t('admin.settings.tabs')} tabs={SECTIONS.map((id) => ({ id, label: t(`admin.settings.tab.${id}`) }))} value={tab} onChange={setTab} />
       <div className={styles.layout} role="tabpanel" aria-label={t(`admin.settings.tab.${tab}`)}>
         {tab === 'general' && <GeneralTab data={data} store={res.set} />}
+        {tab === 'payments' && <PaymentsTab data={data} store={res.set} />}
+        {tab === 'sports' && <SportsTab data={data} store={res.set} />}
         {tab === 'google' && (
           <>
             <GoogleCard data={data.google} store={res.set} />

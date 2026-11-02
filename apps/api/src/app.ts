@@ -23,6 +23,7 @@ import { publicBookingsRouter } from './bookings/routes/public';
 import { playerSeriesRouter } from './series/routes/player';
 import { publicReviewsRouter } from './reviews/routes/public';
 import { playerReviewsRouter } from './reviews/routes/player';
+import { savedVenuesRouter } from './venues/routes/saved';
 import { searchRouter } from './search/routes';
 import { webhooksRouter } from './payments/routes/webhooks';
 import { publicImagesRouter } from './images/routes';
@@ -184,6 +185,7 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(publicBookingsRouter(deps.config, deps.services));
   api.use(playerSeriesRouter(deps.config, deps.services));
   api.use(playerReviewsRouter(deps.config, deps.services));
+  api.use(savedVenuesRouter(deps.config, deps.services));
   api.use(applyOwnerRouter(authDeps));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
   api.use('/admin', adminRouter(authDeps));

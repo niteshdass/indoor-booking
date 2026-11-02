@@ -170,6 +170,29 @@ describe('VenuePage slots', () => {
     expect(screen.getAllByRole('button', { pressed: true }).filter((b) => /\d\d:00/.test(b.textContent ?? ''))).toEqual([]);
   });
 
+  it('times param from book again picks those times once, then leaves the URL', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
+    mockApi(routes());
+    const { location } = renderApp('/venues/arena-one?date=2026-10-25&turf=t1&times=10:00,11:00');
+    await waitFor(() => expect(screen.getByRole('button', { name: /10:00/ })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: /11:00/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(screen.getByRole('complementary', { name: en.slots.summary })).getByText('2 slots')).toBeInTheDocument();
+    await waitFor(() => expect(location().search).not.toContain('times='));
+    expect(location().navType).toBe('REPLACE');
+    expect(screen.queryByText(en.bookAgain.taken)).not.toBeInTheDocument();
+  });
+
+  it('times param with one time taken picks nothing and says so, until the day changes', async () => {
+    vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
+    mockApi(routes());
+    const { user, location } = renderApp('/venues/arena-one?date=2026-10-25&turf=t1&times=11:00,12:00');
+    expect(await screen.findByText(en.bookAgain.taken)).toBeInTheDocument();
+    await waitFor(() => expect(location().search).not.toContain('times='));
+    expect(screen.getAllByRole('button', { pressed: true }).filter((b) => /\d\d:00/.test(b.textContent ?? ''))).toEqual([]);
+    await user.click(screen.getByRole('button', { name: /Oct 26/ }));
+    await waitFor(() => expect(screen.queryByText(en.bookAgain.taken)).not.toBeInTheDocument());
+  });
+
   it('copy times to other days: busy days disabled, copied days add to total and the link', async () => {
     vi.setSystemTime(new Date('2026-10-24T06:00:00Z'));
     mockApi([

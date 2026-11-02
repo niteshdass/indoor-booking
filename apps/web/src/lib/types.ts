@@ -1,6 +1,6 @@
 import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingCoupon, BookingStatus, CouponType, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
 
-export type { SearchResult, SearchResponse } from '@booking/shared';
+export type { SearchResult, SearchResponse, SavedVenueJson } from '@booking/shared';
 
 export type PublicUser = {
   id: string;

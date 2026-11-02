@@ -383,3 +383,88 @@ describe('booking detail, wallet payment', () => {
     expect(await screen.findByText(en.booking.manualLate)).toBeInTheDocument();
   });
 });
+
+describe('booking detail: calendar and book again', () => {
+  let saved: Blob[] = [];
+  let clicked: { href: string; download: string }[] = [];
+
+  beforeEach(() => {
+    // Mon 2026-11-02 12:00 Dhaka, the day before the booking.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-02T06:00:00.000Z'));
+    saved = [];
+    clicked = [];
+    // jsdom has no object URLs and does not navigate; record what would be saved instead.
+    Object.assign(URL, {
+      createObjectURL: vi.fn((b: Blob) => {
+        saved.push(b);
+        return 'blob:ics';
+      }),
+      revokeObjectURL: vi.fn(),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push({ href: this.href, download: this.download });
+    });
+  });
+
+  it('a booking still to come saves an .ics of its game and its live group days', async () => {
+    const next = booking({
+      id: 'b2',
+      reference: 'EF34GH',
+      businessDate: '2026-11-10',
+      slots: [{ startAt: '2026-11-10T12:00:00.000Z', endAt: '2026-11-10T13:00:00.000Z', price: 1000 }],
+    });
+    const gone = booking({ id: 'b3', reference: 'IJ56KL', status: 'cancelled', businessDate: '2026-11-17' });
+    mockApi([{ path: '/me/bookings/b1', body: { booking: booking(), refunds: [], group: [next, gone] } }]);
+    const { user } = renderApp('/me/bookings/b1', { user: player });
+    await user.click(await screen.findByRole('button', { name: en.calendar.add }));
+    expect(clicked).toEqual([{ href: 'blob:ics', download: 'Booking-AB12CD.ics' }]);
+    const ics = (await saved[0]!.text()).replace(/\r\n /g, '');
+    expect(saved[0]!.type).toBe('text/calendar;charset=utf-8');
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+    expect(ics).toContain('DTSTART:20261103T120000Z');
+    expect(ics).toContain('DTEND:20261103T140000Z');
+    expect(ics).toContain('DTSTART:20261110T120000Z');
+    expect(ics).toContain('SUMMARY:Turf A · Arena One');
+    expect(ics).toContain('DESCRIPTION:Booking AB12CD. Show the reference at the venue.');
+    expect(ics).not.toContain('IJ56KL');
+
+    const google = new URL(screen.getByRole('link', { name: en.calendar.google }).getAttribute('href')!);
+    expect(google.hostname).toBe('calendar.google.com');
+    expect(google.searchParams.get('dates')).toBe('20261103T120000Z/20261103T140000Z');
+  });
+
+  it('book again opens the venue on the same turf and times, the week after a booking still to come', async () => {
+    api(() => booking());
+    renderApp('/me/bookings/b1', { user: player });
+    const link = await screen.findByRole('link', { name: en.bookAgain.open });
+    expect(link).toHaveAttribute('href', '/venues/arena-one?turf=t1&date=2026-11-10&times=18%3A00%2C19%3A00');
+    expect(screen.getByText(/^Same turf and times on Tue, (10 Nov|Nov 10)$/)).toBeInTheDocument();
+  });
+
+  it('a played booking offers book again but no calendar', async () => {
+    vi.setSystemTime(new Date('2026-11-04T06:00:00.000Z'));
+    api(() => booking({ status: 'completed' }));
+    renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByRole('link', { name: en.bookAgain.open })).toHaveAttribute(
+      'href',
+      expect.stringContaining('date=2026-11-10'),
+    );
+    expect(screen.queryByRole('button', { name: en.calendar.add })).not.toBeInTheDocument();
+  });
+
+  it('neither while the booking waits for payment', async () => {
+    api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid' }));
+    renderApp('/me/bookings/b1', { user: player });
+    await screen.findByText('AB12CD');
+    expect(screen.queryByRole('button', { name: en.calendar.add })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: en.bookAgain.open })).not.toBeInTheDocument();
+  });
+
+  it('a cancelled booking offers book again but no calendar', async () => {
+    api(() => booking({ status: 'cancelled' }));
+    renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByRole('link', { name: en.bookAgain.open })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: en.calendar.add })).not.toBeInTheDocument();
+  });
+});

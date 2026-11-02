@@ -115,7 +115,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 | [x] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Done: per-owner/per-venue reschedule policy (allowed, hours before start, max moves; default on, 24h, 1 move), frozen on the booking at create. Players move to another time on the same court when the new slots cost no more; staff with the new `booking.reschedule` permission move to any court of the venue until the booking ends. One transaction locks both turfs, re-checks the slots, swaps the slot locks; price, add-ons, coupon, fee and payments stay attached. Customer and staff notices, reminder re-sent for the new time, activity log entry. "Change time" on the player booking page, "Move" in owner booking actions, Rescheduling section in settings. |
 | [x] P2-06 | **CSV export** of bookings & payments | TurfBook reports, roadmap #16 | Done: `bookings.csv` (bookings played in a range) and `payments.csv` (payments taken in a range) under owner reports, gated on `reports.view`. One venue or every venue the member can see, venue-local dates, up to 366 days and 50,000 rows. UTF-8 with BOM so Excel shows Bangla and Cyrillic names, amounts as plain decimals, formula-looking cells defused, wallet sender numbers never exported. Each download is logged as `report.exported`. "Export CSV" dialog on the Overview and Bookings pages. |
 | [ ] P2-07 | **Deposit / partial payment with dues tracking** surfaced to owners | TurfBook, Turffin | Partial advance exists in settings; make "due at desk" visible on Today and in reports. |
-| [ ] P2-08 | **Player conveniences:** add to calendar (.ics), book again, saved venues | Turfly (one-tap rebook), Playo | Cheap, high retention. |
+| [x] P2-08 | **Player conveniences:** add to calendar (.ics), book again, saved venues | Turfly (one-tap rebook), Playo | Done: "Add to calendar" on the player booking page downloads an .ics (built in the browser, `lib/calendar.ts`) of the booking and the live days booked with it, back-to-back slots as one event, reminder an hour before, lines folded for Bangla/Cyrillic; a "Google Calendar" link beside it. "Book again" opens the venue page on the same turf, the next day with the same weekday, with the same start times picked (`?times=`), all or none; an info alert when they are not free. Saved venues: new `savedvenues` collection (player-owned, not tenant scoped, up to 100 each), `GET/PUT/DELETE /me/saved-venues[/:slug]`, Save button beside Share on the venue page, Saved tab on My bookings. Deleting a venue drops its saves. |
 | [ ] P2-09 | **Weekly payouts / commission** (if marketplace collects) | Playo, TurfHub | Roadmap #19. Only needed if we collect money; owners currently use their own gateways. |
 
 **Ops left for P2-01 (code is done):**
@@ -165,6 +165,14 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 - Check the Export dialog on screen in light/dark and in ru/bn before launch.
 
 **Gate (release/p2-06-csv-export):** typecheck ✅ · lint ✅ · API 1112/1112 · web 943/943 · shared 177/177 · build ✅
+
+**Ops left for P2-08 (code is done):**
+- Deploy builds the new `savedvenues` indexes: `{userId, venueId}` unique and `{userId, createdAt}`.
+- All three need a player account: the guest booking lookup page has no calendar or Book again button yet.
+- The .ics is a one-off file: a later reschedule or cancel does not update the calendar entry (same UID, so re-adding replaces it in most apps).
+- Check the booking page actions, the venue header (Save + Share wrapping) and the Saved tab on screen in light/dark and in ru/bn before launch.
+
+**Gate (release/p2-08-player-conveniences):** typecheck ✅ · lint ✅ · API 1123/1123 · web 973/973 · shared 179/179 · build ✅
 
 ---
 

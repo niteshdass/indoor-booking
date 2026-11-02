@@ -47,3 +47,19 @@ export type SearchResult = {
 };
 
 export type SearchResponse = { results: SearchResult[]; nextCursor: number | null };
+
+/** Most venues one player can keep saved. */
+export const MAX_SAVED_VENUES = 100;
+
+/** A venue the signed-in player saved, newest first in `GET /me/saved-venues`. */
+export type SavedVenueJson = {
+  slug: string;
+  name: string;
+  address: string;
+  city: string;
+  photo: { url: string; alt?: string } | null;
+  /** Sports of the venue's active turfs, in catalog order. */
+  sports: Sport[];
+  rating: RatingSummary | null;
+  savedAt: string;
+};

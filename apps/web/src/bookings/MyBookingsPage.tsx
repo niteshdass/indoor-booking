@@ -11,11 +11,12 @@ import { nextGames } from '../series/nextGames';
 import type { PlayerSeries } from '../series/types';
 import { BookingRow } from './BookingRow';
 import { MySeries } from './MySeries';
+import { SavedVenues } from './SavedVenues';
 import styles from './MyBookingsPage.module.css';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const UPCOMING_STATUSES = new Set(['awaiting_payment', 'pending', 'confirmed']);
-const TABS = ['upcoming', 'past'] as const;
+const TABS = ['upcoming', 'past', 'saved'] as const;
 type Tab = (typeof TABS)[number];
 
 const startMs = (b: BookingJson) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
@@ -93,7 +94,7 @@ export function MyBookingsPage() {
     document.getElementById(`bookings-tab-${target}`)?.focus();
   };
 
-  const list = tab === 'upcoming' ? upcoming : past;
+  const list = tab === 'upcoming' ? upcoming : tab === 'past' ? past : [];
 
   return (
     <main className={styles.page}>
@@ -120,10 +121,11 @@ export function MyBookingsPage() {
         })}
       </div>
       <div id="bookings-panel" role="tabpanel" aria-labelledby={`bookings-tab-${tab}`}>
-        {state.status === 'loading' && (
+        {tab === 'saved' && <SavedVenues />}
+        {tab !== 'saved' && state.status === 'loading' && (
           <Skeleton kind="list" label={t('common.loading')} />
         )}
-        {state.status === 'error' && (
+        {tab !== 'saved' && state.status === 'error' && (
           <Alert tone="danger" className={styles.alert}>
             <span>{errorMessage(state.error, t)}</span>
             <Button size="sm" variant="secondary" icon="refresh" onClick={() => setAttempt((n) => n + 1)}>
@@ -131,7 +133,8 @@ export function MyBookingsPage() {
             </Button>
           </Alert>
         )}
-        {state.status === 'ready' &&
+        {tab !== 'saved' &&
+          state.status === 'ready' &&
           (list.length === 0 ? (
             <EmptyState
               sport={tab === 'upcoming' ? 'padel' : 'tennis'}

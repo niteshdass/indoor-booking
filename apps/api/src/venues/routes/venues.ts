@@ -25,6 +25,7 @@ import { tenantRepo } from '../../tenancy/repo';
 import { applyPatch, assertCanPay, venueSettingsPatchSchema } from '../settingsSchema';
 import { effectiveForVenue, ownerSettings } from '../effective';
 import { Venue, type VenueDoc } from '../venue.model';
+import { SavedVenue } from '../savedVenue.model';
 import { Turf } from '../turf.model';
 import { Closure } from '../../schedule/closure.model';
 import { AddonAssignment } from '../../addons/assignment.model';
@@ -320,6 +321,8 @@ export function venuesRouter(config: Config, services: AppServices): Router {
       await Closure.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
       await AddonAssignment.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
       await Image.deleteMany({ ownerId: t.ownerId, venueId: venue._id }, { session });
+      // Players' saves of it go too; they belong to players, so no tenant filter.
+      await SavedVenue.deleteMany({ venueId: venue._id }, { session });
       await Membership.updateMany(
         { ownerId: t.ownerId, venueIds: venue._id },
         { $pull: { venueIds: venue._id } },

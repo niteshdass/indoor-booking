@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
@@ -15,12 +15,14 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { DateStrip } from './DateStrip';
 import { ReviewsSection } from './ReviewsSection';
+import { SaveVenueButton } from './SaveVenueButton';
 import { SlotsPanel } from './SlotsPanel';
 import { VenueAbout } from './VenueAbout';
 import { VenueGallery } from './VenueGallery';
 import styles from './VenuePage.module.css';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const HM = /^\d{2}:\d{2}$/;
 
 const ICONS = {
   pin: 'M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
@@ -98,6 +100,8 @@ export function VenuePage() {
   const [attempt, setAttempt] = useState(0);
   /** Slots picked per day on each court, for the court tabs and the date strip. */
   const [picked, setPicked] = useState<Record<string, Record<string, number>>>({});
+  const [timesTaken, setTimesTaken] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
 
   useEffect(() => {
     let live = true;
@@ -116,6 +120,8 @@ export function VenuePage() {
 
   const update = useCallback(
     (patch: Record<string, string>) => {
+      // Another day or turf: the "usual time is taken" note was about the first one.
+      setTimesTaken(false);
       const next = new URLSearchParams(params);
       for (const [k, v] of Object.entries(patch)) next.set(k, v);
       setParams(next, { replace: true });
@@ -124,11 +130,19 @@ export function VenuePage() {
   );
   // `slot` is a one-shot pick from a search card; dropped once handled so a reload does not pick it again.
   const preselect = params.get('slot');
-  const onPreselected = useCallback(() => {
-    const next = new URLSearchParams(params);
-    next.delete('slot');
-    setParams(next, { replace: true });
-  }, [params, setParams]);
+  // `times` is the same one-shot pick from "Book again": local start times, all picked or none.
+  const timesParam = params.get('times');
+  const preselectTimes = useMemo(() => (timesParam ? timesParam.split(',').filter((x) => HM.test(x)) : null), [timesParam]);
+  const onPreselected = useCallback(
+    (taken: boolean) => {
+      if (taken && params.has('times')) setTimesTaken(true);
+      const next = new URLSearchParams(params);
+      next.delete('slot');
+      next.delete('times');
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
   useDocumentTitle(state.status === 'ready' ? state.venue.name : null);
 
   if (state.status === 'not_found') return <NotFoundPage />;
@@ -179,8 +193,14 @@ export function VenuePage() {
       <header className={styles.header}>
         <div className={styles.titleRow}>
           <h1 className={styles.title}>{venue.name}</h1>
-          <ShareButton title={venue.name} />
+          <div className={styles.actions}>
+            <SaveVenueButton slug={venue.slug} onError={setSaveError} />
+            <ShareButton title={venue.name} />
+          </div>
         </div>
+        {saveError != null && (
+          <Alert tone="danger">{errorMessage(saveError, t)}</Alert>
+        )}
         <div className={styles.meta}>
           {venue.rating && (
             <a className={styles.rating} href="#reviews">
@@ -267,6 +287,11 @@ export function VenuePage() {
                 {t('errors.slot_taken')}
               </Alert>
             )}
+            {timesTaken && (
+              <Alert tone="info" className={styles.alert}>
+                {t('bookAgain.taken')}
+              </Alert>
+            )}
 
             <SlotsPanel
               slug={slug}
@@ -277,6 +302,7 @@ export function VenuePage() {
               onOpen={(id, d) => update({ turf: id, date: d })}
               onPicked={setPicked}
               preselect={preselect}
+              preselectTimes={preselectTimes}
               onPreselected={onPreselected}
             />
           </>

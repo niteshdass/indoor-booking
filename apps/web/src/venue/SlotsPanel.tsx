@@ -42,8 +42,10 @@ type Props = {
   onPicked?(counts: Record<string, Record<string, number>>): void;
   /** A slot start of the shown day to pick once it loads (a free time tapped on a search card). */
   preselect?: string | null;
-  /** The preselect was handled: picked, or not free any more. */
-  onPreselected?(): void;
+  /** Local start times of the shown day to pick together once it loads ("Book again"); all or none. */
+  preselectTimes?: string[] | null;
+  /** The preselect was handled: picked (`taken` false), or not all free any more. */
+  onPreselected?(taken: boolean): void;
 };
 
 const storeKey = (slug: string) => `picks:${slug}`;
@@ -103,7 +105,7 @@ const range = (run: SlotJson[]) => `${run[0]!.localStart}–${run[run.length - 1
  * Slots of the shown court plus the pick: any free slots on any courts and days, each consecutive run one
  * booking, all in one checkout. The pick survives a change of court or `date` and a reload.
  */
-export function SlotsPanel({ slug, turfs, turfId, date, tabId, onOpen, onPicked, preselect, onPreselected }: Props) {
+export function SlotsPanel({ slug, turfs, turfId, date, tabId, onOpen, onPicked, preselect, preselectTimes, onPreselected }: Props) {
   const { t, i18n } = useTranslation();
   const lang = i18n.language;
   const { status: auth } = useAuth();
@@ -240,9 +242,19 @@ export function SlotsPanel({ slug, turfs, turfId, date, tabId, onOpen, onPicked,
   useEffect(() => {
     if (!preselect || !day) return;
     const slot = day.slots.find((s) => s.startAt === preselect);
-    if (slot && isSelectable(slot) && !selected.includes(preselect)) setDay(turfId, date, [...selected, preselect]);
-    onPreselected?.();
+    const free = !!slot && isSelectable(slot);
+    if (free && !selected.includes(preselect)) setDay(turfId, date, [...selected, preselect]);
+    onPreselected?.(!free);
   }, [preselect, day, selected, turfId, date, setDay, onPreselected]);
+
+  useEffect(() => {
+    if (!preselectTimes?.length || !day) return;
+    const wanted = day.slots.filter((s) => preselectTimes.includes(s.localStart));
+    const free = wanted.length === preselectTimes.length && wanted.every(isSelectable);
+    const add = wanted.map((s) => s.startAt).filter((at) => !selected.includes(at));
+    if (free && add.length > 0) setDay(turfId, date, [...selected, ...add].sort());
+    onPreselected?.(!free);
+  }, [preselectTimes, day, selected, turfId, date, setDay, onPreselected]);
 
   const localStarts = day ? day.slots.filter((s) => selected.includes(s.startAt)).map((s) => s.localStart) : [];
   /** Copies this day's times onto `d`, or clears `d` when it already has them. */

@@ -11,12 +11,14 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../auth/useAuth';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import { formatDateTime } from '../lib/format';
+import { formatDate, formatDateTime } from '../lib/format';
 import type { BookingJson, CancellationPreview, PaymentOptions, RefundJson, SlotDay } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { SeriesBadge } from '../series/SeriesBadge';
 import { MyReview } from './MyReview';
 import { ReviewDialog } from './ReviewDialog';
+import { AddToCalendar, onCalendar } from './AddToCalendar';
+import { bookAgain } from './bookAgain';
 import { BookingFacts } from './BookingFacts';
 import { BookingRow } from './BookingRow';
 import { CancelDialog } from './CancelDialog';
@@ -203,6 +205,7 @@ export function BookingDetailPage() {
   // The player moves the booking on its own court until the venue's cutoff; the API says until when.
   const movable = !!booking?.reschedulableUntil && !!booking.venue && booking.slots.length > 0;
   const tz = booking?.venue?.timezone ?? 'UTC';
+  const again = booking ? bookAgain(booking, new Date()) : null;
 
   const holder = booking?.guest
     ? { name: booking.guest.name, contact: booking.guest.phone }
@@ -339,6 +342,15 @@ export function BookingDetailPage() {
               <p className={styles.moveHint}>
                 {t('reschedule.until', { when: formatDateTime(booking.reschedulableUntil!, tz, i18n.language) })}
               </p>
+            </div>
+          )}
+          {onCalendar(booking) && <AddToCalendar booking={booking} group={group} />}
+          {again && (
+            <div className={styles.move}>
+              <Button to={again.href} variant="secondary" size="lg" icon="repeat" block>
+                {t('bookAgain.open')}
+              </Button>
+              <p className={styles.moveHint}>{t('bookAgain.hint', { date: formatDate(again.date, tz, i18n.language) })}</p>
             </div>
           )}
           <RefundList refunds={refunds} />

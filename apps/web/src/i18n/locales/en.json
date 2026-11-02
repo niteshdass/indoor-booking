@@ -252,7 +252,8 @@
     "reschedule_same_slots": "That's the time the booking has now. Pick another.",
     "turf_change_not_allowed": "The turf can't be changed for this booking.",
     "booking_changed": "The booking changed meanwhile. Check it and try again.",
-    "export_too_large": "Too many rows for one file. Pick a shorter date range."
+    "export_too_large": "Too many rows for one file. Pick a shorter date range.",
+    "saved_venues_full": "Your saved list is full. Remove a venue to save another."
   },
   "myBookings": {
     "title": "My bookings",
@@ -260,7 +261,8 @@
     "past": "Past",
     "noUpcoming": "You have no upcoming bookings.",
     "noPast": "No past bookings yet.",
-    "findVenues": "Find a venue"
+    "findVenues": "Find a venue",
+    "saved": "Saved"
   },
   "profile": {
     "title": "Profile",
@@ -2676,5 +2678,25 @@
     "priceKeptStaff": "The price and payments stay as they are.",
     "back": "Keep current time",
     "confirm": "Confirm new time"
+  },
+  "calendar": {
+    "add": "Add to calendar",
+    "google": "Or add to Google Calendar",
+    "title": "{{turf}} · {{venue}}",
+    "details": "Booking {{reference}}. Show the reference at the venue.",
+    "reminder": "Your game starts in an hour"
+  },
+  "bookAgain": {
+    "open": "Book again",
+    "hint": "Same turf and times on {{date}}",
+    "taken": "Your usual time isn't free on this day. Pick another time or day."
+  },
+  "savedVenues": {
+    "save": "Save",
+    "saved": "Saved",
+    "empty": "No saved venues yet",
+    "emptyHint": "Tap Save on a venue's page to keep it here.",
+    "remove": "Remove",
+    "removeLabel": "Remove {{venue}} from saved"
   }
 }

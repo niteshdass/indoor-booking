@@ -1,0 +1,107 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-default);
+}
+
+/* Segmented radio cards, as on Admin > Settings > General. */
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--choice-min), 1fr));
+  gap: var(--space-2);
+}
+
+.option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: var(--control-lg);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-default);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--bg-hover);
+}
+
+.option:has(.radio:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.option:has(.radio:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+.option:has(.radio:disabled) {
+  opacity: var(--opacity-muted);
+  cursor: default;
+}
+
+/* The radio stays focusable and announced; the option box shows its state. */
+.radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.optionLabel {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.optionHint {
+  font-size: var(--text-xs);
+  line-height: var(--leading-body);
+  color: var(--text-muted);
+}
+
+/* From and To side by side, stacked once they no longer fit. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--date-field-min), 1fr));
+  gap: var(--space-3);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}

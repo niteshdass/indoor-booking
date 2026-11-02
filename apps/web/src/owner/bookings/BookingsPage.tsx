@@ -14,6 +14,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { SeriesBadge } from '../../series/SeriesBadge';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
+import { ExportCsvButton } from '../export/ExportCsv';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
@@ -253,6 +254,7 @@ function BookingsVenue({ venue }: { venue: OwnerVenue }) {
           onChange={(e) => update({ sort: BOOKING_SORTS.find((s) => s === e.target.value) ?? DEFAULT_SORT[filters.tab] })}
           options={sortOptions}
         />
+        <ExportCsvButton size="lg" venueId={venue.id} kind="bookings" from={filters.from} to={filters.to} />
       </div>
       {waitingForTurfs ? (
         <Skeleton kind="table" label={t('common.loading')} />

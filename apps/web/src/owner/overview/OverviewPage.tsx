@@ -14,6 +14,7 @@ import { Tabs } from '../../components/ui/Tabs';
 import { errorMessage } from '../../lib/errors';
 import { formatDate, formatTime, money } from '../../lib/format';
 import { customerLabel } from '../customerLabel';
+import { ExportCsvButton } from '../export/ExportCsv';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
@@ -74,6 +75,8 @@ export function OverviewPage() {
           onChange={(e) => setDays(e.target.value)}
           options={OVERVIEW_DAYS.map((d) => ({ value: String(d), label: t(`owner.overview.days_${d}`) }))}
         />
+        {/* Prefilled with this venue and the period on screen. */}
+        <ExportCsvButton venueId={venue.id} days={days} />
       </div>
       <OverviewVenue venue={venue} days={days} />
     </div>

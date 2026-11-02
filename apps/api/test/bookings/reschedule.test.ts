@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import mongoose from 'mongoose';
 import request from 'supertest';
 import { hmToMin, localToUtc } from '@booking/shared';
 import { startTestDb, stopTestDb } from '../helpers/testDb';
@@ -234,6 +235,20 @@ describe('staff reschedule', () => {
     expect((await bookingOf(b.id)).rescheduleCount).toBe(2);
     // One notice per move.
     expect(await notices('booking_rescheduled')).toHaveLength(2);
+  });
+
+  it('moves a booking made before moves existed', async () => {
+    const player = await newPlayer();
+    const b = await book(player);
+    // Rows from before P2-05 have none of the move fields or the policy.
+    await Booking.collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(b.id) },
+      { $unset: { rescheduleCount: '', playerMoves: '', rescheduledAt: '', 'policySnapshot.reschedule': '' } },
+    );
+    const res = await staffMove(b.id, { date: D, startAts: [at('12:00')] });
+    expect(res.status).toBe(200);
+    expect((await bookingOf(b.id)).rescheduleCount).toBe(1);
+    expect((await staffMove(b.id, { date: D, startAts: [at('13:00')] })).status).toBe(200);
   });
 
   it('needs booking.reschedule', async () => {

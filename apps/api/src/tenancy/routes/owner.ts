@@ -9,6 +9,7 @@ import { rolesRouter } from './roles';
 import { membersRouter } from './members';
 import { settingsRouter } from '../../venues/routes/settings';
 import { venuesRouter } from '../../venues/routes/venues';
+import { mapLinkRouter } from '../../venues/routes/mapLink';
 import { turfsRouter } from '../../venues/routes/turfs';
 import { pricingRouter } from '../../schedule/routes/pricing';
 import { closuresRouter } from '../../schedule/routes/closures';
@@ -62,6 +63,7 @@ export function ownerRouter({ config, services }: AuthDeps): Router {
   router.use(settingsRouter(services));
   router.use(ownerImagesRouter(config));
   router.use(venuesRouter(config, services));
+  router.use(mapLinkRouter(services));
   router.use(turfsRouter(services));
   router.use(pricingRouter(services));
   router.use(closuresRouter(services));

@@ -20,6 +20,8 @@ const leaflet = vi.hoisted(() => ({
   drag: null as null | (() => void),
   markers: [] as { pos: [number, number]; setLatLng: (p: [number, number]) => void }[],
   dragTo: { lat: 0, lng: 0 },
+  /** Tile layers on the map, by URL. */
+  tiles: new Set<string>(),
 }));
 vi.mock('leaflet', () => {
   const map = {
@@ -33,10 +35,25 @@ vi.mock('leaflet', () => {
     getBounds: () => ({ contains: () => true }),
     getSize: () => ({ x: 100, y: 100 }),
     invalidateSize: vi.fn(),
+    hasLayer: (l: { url: string }) => leaflet.tiles.has(l.url),
+    fitBounds: vi.fn(() => map),
   };
   const L = {
     map: vi.fn(() => map),
-    tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
+    tileLayer: vi.fn((url: string) => {
+      const layer = {
+        url,
+        addTo: vi.fn(() => {
+          leaflet.tiles.add(url);
+          return layer;
+        }),
+        remove: vi.fn(() => {
+          leaflet.tiles.delete(url);
+          return layer;
+        }),
+      };
+      return layer;
+    }),
     divIcon: vi.fn((o: unknown) => o),
     marker: vi.fn((pos: [number, number]) => {
       const m = {
@@ -64,6 +81,7 @@ beforeEach(async () => {
   await i18n.changeLanguage('en');
   localStorage.clear();
   leaflet.markers.length = 0;
+  leaflet.tiles.clear();
   leaflet.click = null;
   leaflet.drag = null;
 });
@@ -293,6 +311,31 @@ describe('venue editor', () => {
     act(() => leaflet.drag!());
     await waitFor(() => expect(lat.value).toBe('10.5'));
     expect(lng.value).toBe('11.5');
+  });
+
+  it('finder places the pin from pasted coordinates or a map link, and switches to aerial photos', async () => {
+    mockApi([...ownerRoutes({ permissions: [...MANAGE] }), { path: TURFS, body: { turfs: [] } }]);
+    const { user } = renderApp(`/owner/${OWNER_ID}/venues/v1`, { user: staffUser });
+    const lat = (await screen.findByLabelText(en.owner.venues.latitude)) as HTMLInputElement;
+    const lng = screen.getByLabelText(en.owner.venues.longitude) as HTMLInputElement;
+    const finder = await screen.findByLabelText(en.owner.venues.findPlace);
+    // Enter searches: the venue form is not submitted.
+    await user.type(finder, '23.7937, 90.4066{Enter}');
+    await waitFor(() => expect(lat.value).toBe('23.7937'));
+    expect(lng.value).toBe('90.4066');
+    expect(screen.getByText(en.owner.venues.pinPlaced)).toBeInTheDocument();
+    await user.clear(finder);
+    await user.type(finder, 'https://www.google.com/maps/place/A/@1,2,15z/data=!3d23.5!4d90.25');
+    await user.click(screen.getByRole('button', { name: en.owner.venues.find }));
+    await waitFor(() => expect(lat.value).toBe('23.5'));
+    expect(lng.value).toBe('90.25');
+    expect(leaflet.markers.at(-1)!.pos).toEqual([23.5, 90.25]);
+
+    const satellite = screen.getByRole('button', { name: en.owner.venues.satelliteView });
+    expect(satellite).toHaveAttribute('aria-pressed', 'false');
+    await user.click(satellite);
+    expect(satellite).toHaveAttribute('aria-pressed', 'true');
+    expect([...leaflet.tiles]).toEqual([expect.stringContaining('World_Imagery')]);
   });
 });
 

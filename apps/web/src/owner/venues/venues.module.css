@@ -130,6 +130,130 @@
   gap: var(--space-3);
 }
 
+/* Location picker: find the place (search, pasted link or coordinates, device location), then fine-tune the pin. */
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.finder {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.finderField {
+  flex: 1 1 var(--field-min);
+}
+
+.finderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.finderActions > * {
+  min-height: var(--input-height);
+}
+
+.finderStatus {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.finderStatus:empty {
+  display: none;
+}
+
+.finderError {
+  color: var(--danger);
+}
+
+.places {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.place {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-md);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.place:hover {
+  background: var(--bg-hover);
+}
+
+.place:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.placeIcon {
+  flex: none;
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin-block-start: calc((1lh - var(--icon-sm)) / 2);
+  color: var(--text-muted);
+}
+
+/* Map / Satellite: a surface pill on the map's top end corner so it reads on streets and photos alike. */
+.mapStyle {
+  position: absolute;
+  top: var(--space-3);
+  inset-inline-end: var(--space-3);
+  z-index: 1000; /* above Leaflet's panes (up to 700); controls share 1000 and this comes later */
+  display: inline-flex;
+  padding: var(--space-1);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.mapStyleBtn {
+  min-height: var(--control-md);
+  padding-inline: var(--space-4);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.mapStyleBtn[aria-pressed='true'] {
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+.mapStyleBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* Map tiles are never inverted in dark mode; only the frame and pin follow the theme. */
 .mapFrame {
   position: relative;
@@ -161,6 +285,11 @@
   border-radius: var(--radius-full);
   background: var(--primary);
   box-shadow: var(--shadow-sm);
+}
+
+/* On aerial photos the primary pin can vanish into dark roofs; the ball colour reads on any of them. */
+.onPhoto .pin {
+  background: var(--ball);
 }
 
 .pinWrap:focus-visible .pin {

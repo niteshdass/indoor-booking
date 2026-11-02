@@ -34,6 +34,8 @@ export type AppServices = {
   stripe: StripeFactory;
   /** HTTP to SSLCommerz; credentials go in each request. */
   sslcommerz: SslcommerzHttp;
+  /** Plain HTTP for small lookups (following a map share link); global fetch when unset. */
+  fetch?: typeof fetch;
 };
 
 /**

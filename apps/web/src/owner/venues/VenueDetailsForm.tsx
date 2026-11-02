@@ -167,6 +167,10 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
               <LocationPicker
                 lat={lat}
                 lng={lng}
+                country={draft.country}
+                onPlace={(p) =>
+                  setDraft((d) => ({ ...d, city: d.city || (p.city ?? ''), address: d.address || p.label.split(', ').slice(0, 3).join(', ').slice(0, 300) }))
+                }
                 onChange={(a, b) => {
                   setDone(false);
                   setDraft((d) => ({ ...d, lat: String(a), lng: String(b) }));

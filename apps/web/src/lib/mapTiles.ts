@@ -21,3 +21,24 @@ export function tileConfig(env: TileEnv): TileConfig {
 }
 
 export const MAP_TILES: TileConfig = tileConfig(import.meta.env);
+
+const ESRI_IMAGERY_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const ESRI_ATTRIBUTION = 'Imagery &copy; Esri, Maxar, Earthstar Geographics';
+
+type SatelliteEnv = { VITE_MAP_SATELLITE_URL?: string; VITE_MAP_SATELLITE_ATTRIBUTION?: string };
+
+/**
+ * Aerial photos for the venue location picker, so an owner can drop the pin on the field itself. Esri's World
+ * Imagery by default; a production build can point VITE_MAP_SATELLITE_URL at a keyed provider (MapTiler satellite…).
+ * Imagery is sharp to about zoom 18; past that Leaflet scales those tiles up.
+ */
+export function satelliteConfig(env: SatelliteEnv): TileConfig & { maxNativeZoom: number } {
+  const url = env.VITE_MAP_SATELLITE_URL?.trim();
+  if (!url) return { url: ESRI_IMAGERY_URL, attribution: ESRI_ATTRIBUTION, maxZoom: 20, maxNativeZoom: 18 };
+  return { url, attribution: env.VITE_MAP_SATELLITE_ATTRIBUTION?.trim() || '', maxZoom: 20, maxNativeZoom: 18 };
+}
+
+export const SATELLITE_TILES = satelliteConfig({
+  VITE_MAP_SATELLITE_URL: import.meta.env.VITE_MAP_SATELLITE_URL,
+  VITE_MAP_SATELLITE_ATTRIBUTION: import.meta.env.VITE_MAP_SATELLITE_ATTRIBUTION,
+});

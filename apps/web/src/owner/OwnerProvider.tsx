@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'r
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
-import { Spinner } from '../components/ui/Spinner';
+import { PageLoader } from '../components/ui/PageLoader';
 import { ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { ownerPath } from './ownerApi';
@@ -86,6 +86,6 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!value) return <Spinner label={t('common.loading')} />;
+  if (!value) return <PageLoader label={t('common.loading')} />;
   return <OwnerContext.Provider value={value}>{children}</OwnerContext.Provider>;
 }

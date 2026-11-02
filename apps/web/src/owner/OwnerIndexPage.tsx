@@ -4,7 +4,7 @@ import { Alert } from '../components/ui/Alert';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-import { Spinner } from '../components/ui/Spinner';
+import { PageLoader } from '../components/ui/PageLoader';
 import { errorMessage } from '../lib/errors';
 import { LAST_OWNER_KEY } from './OwnerProvider';
 import { useResource } from './useResource';
@@ -32,7 +32,7 @@ export function OwnerIndexPage() {
       </div>
     );
   }
-  if (state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (state.status !== 'ready') return <PageLoader label={t('common.loading')} />;
   const { memberships } = state.data;
   if (memberships.length === 0) {
     return (

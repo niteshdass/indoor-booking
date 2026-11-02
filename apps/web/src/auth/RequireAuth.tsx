@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
-import { Spinner } from '../components/ui/Spinner';
+import { PageLoader } from '../components/ui/PageLoader';
 import { useAuth } from './AuthProvider';
 import styles from './auth.module.css';
 
@@ -11,7 +11,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   const { status, retry } = useAuth();
   const { pathname, search } = useLocation();
   const { t } = useTranslation();
-  if (status === 'loading') return <Spinner label={t('common.loading')} />;
+  if (status === 'loading') return <PageLoader label={t('common.loading')} />;
   if (status === 'offline') {
     return (
       <div className={styles.offline}>

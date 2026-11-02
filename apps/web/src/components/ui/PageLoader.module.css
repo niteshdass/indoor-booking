@@ -1,0 +1,153 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-page);
+  opacity: 0;
+  animation: appear var(--duration-slow) var(--ease-out) var(--loader-delay) forwards;
+}
+
+.stage {
+  position: relative;
+  width: var(--loader-court);
+  aspect-ratio: 80 / 48;
+}
+
+.court {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.surface {
+  fill: var(--graphite);
+  stroke: var(--border-default);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.lines {
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+}
+
+.lines > * {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw var(--duration-draw) var(--ease-out) var(--loader-delay) forwards;
+}
+
+.lines > :nth-child(2) {
+  animation-delay: calc(var(--loader-delay) + var(--stagger) * 2);
+}
+
+.lines > :nth-child(3) {
+  animation-delay: calc(var(--loader-delay) + var(--stagger) * 4);
+}
+
+/* The ball crosses the court and back; `hop` lifts it mid-flight, the shadow stays on the court. */
+.ball,
+.shadow {
+  position: absolute;
+  top: 50%;
+  left: 15%;
+  width: var(--loader-ball);
+  height: var(--loader-ball);
+  margin: calc(var(--loader-ball) / -2) 0 0 calc(var(--loader-ball) / -2);
+  border-radius: var(--radius-full);
+  animation: rally var(--loader-rally) ease-in-out infinite alternate;
+}
+
+.ball {
+  background: var(--ball);
+  box-shadow: var(--shadow-ball);
+  animation:
+    rally var(--loader-rally) ease-in-out infinite alternate,
+    hop var(--loader-rally) ease-in-out infinite;
+}
+
+.shadow {
+  background: var(--graphite-deep);
+  opacity: var(--opacity-muted);
+  animation:
+    rally var(--loader-rally) ease-in-out infinite alternate,
+    shrink var(--loader-rally) ease-in-out infinite;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: center;
+  animation: pulse var(--duration-pulse) ease-in-out infinite;
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes rally {
+  to {
+    left: 85%;
+  }
+}
+
+@keyframes hop {
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+  50% {
+    translate: 0 calc(var(--loader-hop) * -1);
+    scale: 1.25;
+  }
+}
+
+@keyframes shrink {
+  0%,
+  100% {
+    scale: 1;
+  }
+  50% {
+    scale: 0.6;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: var(--opacity-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lines > * {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .ball,
+  .shadow,
+  .label {
+    left: 50%;
+    animation: none;
+  }
+}

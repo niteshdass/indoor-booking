@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { AdminMeJson } from '@booking/shared';
 import { Alert } from '../components/ui/Alert';
 import { Button } from '../components/ui/Button';
-import { Spinner } from '../components/ui/Spinner';
+import { PageLoader } from '../components/ui/PageLoader';
 import { ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { useResource } from '../owner/useResource';
@@ -37,6 +37,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (state.status !== 'ready') return <Spinner label={t('common.loading')} />;
+  if (state.status !== 'ready') return <PageLoader label={t('common.loading')} />;
   return <AdminContext.Provider value={state.data}>{children}</AdminContext.Provider>;
 }

@@ -144,6 +144,12 @@
   --skeleton-stat: 7.5rem;
   --skeleton-panel: 16rem;
   --skeleton-item: 4.5rem;
+  /* Full-page loader: court width, ball size, how high the ball hops, one crossing, delay before it shows */
+  --loader-court: 8rem;
+  --loader-ball: 0.75rem;
+  --loader-hop: 1.25rem;
+  --loader-rally: 0.9s;
+  --loader-delay: 200ms;
   --focus-width: 2px;
   --focus-offset: 2px; /* gap between a control and its focus ring */
   --star-size-sm: 1rem;

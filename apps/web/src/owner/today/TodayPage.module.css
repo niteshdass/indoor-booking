@@ -24,7 +24,7 @@
 
 @media (min-width: 1280px) {
   .stats {
-    /* One row however many cards loaded (3 or 4). */
+    /* One row however many cards loaded (3 to 5). */
     grid-template-columns: none;
     grid-auto-columns: 1fr;
     grid-auto-flow: column;

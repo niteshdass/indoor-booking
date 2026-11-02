@@ -50,7 +50,7 @@ export function VenuesPage() {
                 {rows.map((v) => (
                   <tr key={v.id}>
                     <td>
-                      <Link to={encodeURIComponent(v.id)} className={styles.link}>
+                      <Link to={encodeURIComponent(v.id)} className={styles.link} data-row-link>
                         {v.name}
                       </Link>
                     </td>

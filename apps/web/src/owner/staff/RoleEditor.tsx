@@ -80,7 +80,7 @@ export function RoleEditor({ roles, onChanged }: Props) {
                     <td className={styles.num}>{r.permissions.length}</td>
                     <td>
                       <div className={styles.rowActions}>
-                        <Button variant="ghost" size="sm" icon={r.system ? 'arrowRight' : 'edit'} onClick={() => setEditing(r)}>
+                        <Button variant="ghost" size="sm" icon={r.system ? 'arrowRight' : 'edit'} onClick={() => setEditing(r)} data-row-link>
                           {t(r.system ? 'owner.staff.view' : 'owner.staff.edit')}
                         </Button>
                         {!r.system && (

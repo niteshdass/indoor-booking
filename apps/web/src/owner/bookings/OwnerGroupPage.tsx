@@ -163,7 +163,7 @@ export function OwnerGroupPage() {
                     {rows.map((b) => (
                       <tr key={b.id}>
                         <td>
-                          <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(b.id)}`} className={page.link}>
+                          <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(b.id)}`} className={page.link} data-row-link>
                             {b.reference}
                           </Link>
                         </td>

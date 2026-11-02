@@ -204,7 +204,7 @@ export function SeriesDetailPage() {
                       </td>
                       <td className={styles.nums}>{fmt(g.amountPaid)}</td>
                       <td>
-                        <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.ref}>
+                        <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.ref} data-row-link>
                           {g.reference}
                         </Link>
                       </td>

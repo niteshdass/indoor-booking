@@ -113,6 +113,19 @@ describe('Overview page', () => {
     expect(screen.queryByText(/platform fee/i)).toBeNull();
   });
 
+  it('links Still to collect to the Dues bookings tab only when something is owed', async () => {
+    mockApi(routes());
+    const { unmount } = renderApp(`/owner/${OWNER_ID}/overview`, { user: staffUser });
+    const link = await screen.findByRole('link', { name: en.owner.overview.mix.seeDues });
+    expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/bookings?tab=dues&venue=v1`);
+    unmount();
+
+    mockApi(routes(overview({ mix: { courts: 250000, addons: 50000, cancellationFees: 0, collected: 300000, outstanding: 0 } })));
+    renderApp(`/owner/${OWNER_ID}/overview`, { user: staffUser });
+    await screen.findByText(en.owner.overview.kpi.cancellations);
+    expect(screen.queryByRole('link', { name: en.owner.overview.mix.seeDues })).toBeNull();
+  });
+
   it('switches the trend between revenue, bookings and hours', async () => {
     mockApi(routes());
     const { user } = renderApp(`/owner/${OWNER_ID}/overview`, { user: staffUser });

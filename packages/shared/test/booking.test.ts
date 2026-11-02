@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   advanceFor,
+  amountDue,
   BOOKING_TRANSITIONS,
   BookingQuoteError,
   canTransition,
@@ -140,6 +141,21 @@ describe('paymentStatusFor', () => {
     expect(paymentStatusFor(400, 1000)).toBe('partially_paid');
     expect(paymentStatusFor(1000, 1000)).toBe('paid');
     expect(paymentStatusFor(0, 0)).toBe('paid');
+  });
+});
+
+describe('amountDue', () => {
+  it('is the unpaid balance while the booking goes ahead or was played', () => {
+    expect(amountDue({ status: 'confirmed', total: 1000, amountPaid: 300 })).toBe(700);
+    expect(amountDue({ status: 'completed', total: 1000, amountPaid: 0 })).toBe(1000);
+    expect(amountDue({ status: 'no_show', total: 1000, amountPaid: 200 })).toBe(800);
+    expect(amountDue({ status: 'confirmed', total: 1000, amountPaid: 1200 })).toBe(0);
+  });
+
+  it('is nothing for bookings not (yet) going ahead', () => {
+    for (const status of ['pending', 'awaiting_payment', 'cancelled', 'rejected', 'expired'] as const) {
+      expect(amountDue({ status, total: 1000, amountPaid: 0 })).toBe(0);
+    }
   });
 });
 

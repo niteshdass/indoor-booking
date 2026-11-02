@@ -588,6 +588,10 @@
   color: var(--warning);
 }
 
+.footer .footLink {
+  margin-top: var(--space-1);
+}
+
 /* A footer figure that is not part of the chart (the platform fee): muted, with a note saying so. */
 .footer .aside dd {
   color: var(--text-muted);

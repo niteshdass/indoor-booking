@@ -211,7 +211,7 @@ export function AdminOwnerDetailPage() {
                     <td>
                       <span className={styles.stack}>
                         {v.published ? (
-                          <Link to={`/venues/${encodeURIComponent(v.slug)}`} className={styles.link}>
+                          <Link to={`/venues/${encodeURIComponent(v.slug)}`} className={styles.link} data-row-link>
                             {v.name}
                           </Link>
                         ) : (

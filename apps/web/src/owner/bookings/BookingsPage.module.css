@@ -17,6 +17,11 @@
   margin-inline-start: auto;
 }
 
+/* Same text size as the search field and the lg Export button beside it */
+.sort select {
+  font-size: var(--text-md);
+}
+
 .srOnly {
   position: absolute;
   width: 1px;
@@ -50,7 +55,8 @@
 
 .searchInput {
   min-width: 0;
-  min-height: var(--input-height);
+  /* Same height as the filter button, sort and export beside it */
+  min-height: var(--control-lg);
   padding-inline: calc(var(--space-3) + var(--icon-sm) + var(--space-2)) var(--space-3);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -286,6 +292,25 @@ tr > .num {
   color: var(--text-muted);
 }
 
+/* Dues tab: what is left to collect, in warning so it reads as money to chase; paid so far muted under it */
+.list tbody .due {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.list tbody .due .time {
+  font-weight: var(--weight-regular);
+}
+
+.dueTotal {
+  font-weight: var(--weight-semibold);
+  color: var(--warning);
+}
+
+.actions {
+  white-space: nowrap;
+}
+
 .badges {
   display: flex;
   flex-wrap: wrap;
@@ -393,6 +418,12 @@ tr > .num {
 
   .list tbody .paid {
     grid-area: paid;
+  }
+
+  /* Dues tab: Record cash under the amounts, across the card */
+  .list tbody .actions {
+    grid-column: 1 / -1;
+    white-space: normal;
   }
 
   .list tbody .total::before,

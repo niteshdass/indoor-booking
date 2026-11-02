@@ -149,7 +149,7 @@ export function CouponsPage() {
                         {writable && (
                           <td>
                             <div className={styles.rowActions}>
-                              <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(c)}>
+                              <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(c)} data-row-link>
                                 {t('owner.coupons.edit')}
                               </Button>
                               <Button

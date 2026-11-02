@@ -105,6 +105,14 @@ export function paymentStatusFor(amountPaid: number, total: number): 'unpaid' | 
   return amountPaid > 0 ? 'partially_paid' : 'unpaid';
 }
 
+/** Statuses whose unpaid balance the customer still owes at the desk: going ahead, played, or not turned up. */
+export const DUE_STATUSES: readonly BookingStatus[] = ['confirmed', 'completed', 'no_show'];
+
+/** What is left to collect on the booking; 0 once paid or when it is not going ahead. */
+export function amountDue(b: { status: BookingStatus; total: number; amountPaid: number }): number {
+  return DUE_STATUSES.includes(b.status) ? Math.max(0, b.total - b.amountPaid) : 0;
+}
+
 export type BookingQuote = {
   slots: { startAt: Date; endAt: Date; price: number }[];
   addons: AddonLine[];

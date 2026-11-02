@@ -140,7 +140,7 @@ function OverviewVenue({ venue, days }: { venue: OwnerVenue; days: OverviewDays 
       <Kpis o={o} f={f} />
       <div className={styles.split}>
         <TrendCard o={o} f={f} />
-        <MixCard o={o} f={f} />
+        <MixCard o={o} f={f} venue={venue} />
       </div>
       <div className={styles.split}>
         <HeatCard o={o} f={f} />
@@ -357,8 +357,9 @@ function TrendCard({ o, f }: CardProps) {
   );
 }
 
-function MixCard({ o, f }: CardProps) {
+function MixCard({ o, f, venue }: CardProps & { venue: OwnerVenue }) {
   const { t } = useTranslation();
+  const { ownerId } = useOwner();
   const parts = [
     { key: 'courts', label: t('owner.overview.mix.courts'), value: o.mix.courts, className: styles.series1! },
     { key: 'addons', label: t('owner.overview.mix.addons'), value: o.mix.addons, className: styles.series2! },
@@ -396,6 +397,13 @@ function MixCard({ o, f }: CardProps) {
         <div>
           <dt>{t('owner.overview.mix.outstanding')}</dt>
           <dd className={o.mix.outstanding > 0 ? styles.warn : undefined}>{f.money(o.mix.outstanding)}</dd>
+          {o.mix.outstanding > 0 && (
+            <dd className={styles.footLink}>
+              <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings?tab=dues&venue=${encodeURIComponent(venue.id)}`} className={styles.link}>
+                {t('owner.overview.mix.seeDues')}
+              </Link>
+            </dd>
+          )}
         </div>
         {/* Already taken off the courts and add-ons above; shown for reference, not part of the chart. */}
         {o.platformFees > 0 && (
@@ -636,7 +644,7 @@ function RecentCard({ o, f, venue }: CardProps & { venue: OwnerVenue }) {
               return (
                 <tr key={b.id}>
                   <td>
-                    <Link to={`${bookingsPath}/${encodeURIComponent(b.id)}`} className={styles.ref}>
+                    <Link to={`${bookingsPath}/${encodeURIComponent(b.id)}`} className={styles.ref} data-row-link>
                       {b.reference}
                     </Link>
                   </td>

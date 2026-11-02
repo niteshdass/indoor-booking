@@ -819,7 +819,13 @@
       "paymentsToVerify_other": "{{count}}টি পেমেন্ট যাচাই বাকি",
       "verifyOldest": "সবচেয়ে পুরোনো: {{name}}, পাঠানো {{time}}",
       "verifySoonest": "পরের খেলা: {{name}}, {{time}}",
-      "verifyAll": "সব দেখুন"
+      "verifyAll": "সব দেখুন",
+      "dueAtDesk": "কাউন্টারে আদায়",
+      "dueNone": "আদায়ের কিছু বাকি নেই",
+      "dueOverdue_one": "{{count}}টি খেলা হয়েছে, পুরো পরিশোধ হয়নি",
+      "dueOverdue_other": "{{count}}টি খেলা হয়েছে, পুরো পরিশোধ হয়নি",
+      "dueFrom_one": "{{count}}টি বুকিং থেকে",
+      "dueFrom_other": "{{count}}টি বুকিং থেকে"
     },
     "overview": {
       "range": "সময়কাল",
@@ -865,7 +871,8 @@
         "collected": "আদায়",
         "outstanding": "আদায় বাকি",
         "platformFee": "প্ল্যাটফর্ম ফি",
-        "platformFeeNote": "ওপরের হিসাবে ধরা নেই"
+        "platformFeeNote": "ওপরের হিসাবে ধরা নেই",
+        "seeDues": "কার বাকি দেখুন"
       },
       "heat": {
         "title": "মাঠ কখন ব্যস্ত",
@@ -929,6 +936,7 @@
       "status": "অবস্থা",
       "search": "রেফারেন্স, নাম বা ফোন খুঁজুন",
       "allTurfs": "সব মাঠ",
+      "allVenues": "সব ভেন্যু",
       "allStatuses": "সব অবস্থা",
       "filters": "ফিল্টার",
       "filtersActive_one": "{{count}}টি চালু",
@@ -941,7 +949,8 @@
         "all": "সব",
         "today": "আজ",
         "upcoming": "আসন্ন",
-        "past": "আগের"
+        "past": "আগের",
+        "dues": "বকেয়া"
       },
       "sortLabel": "সাজান",
       "sort": {
@@ -1033,7 +1042,12 @@
       "discount": "ছাড় ({{code}})",
       "moved": "সরানো হয়েছে",
       "movedTimes_one": "{{when}} ({{count}} বার)",
-      "movedTimes_other": "{{when}} ({{count}} বার)"
+      "movedTimes_other": "{{when}} ({{count}} বার)",
+      "due": "বাকি",
+      "dueTotal": "{{amount}} আদায় বাকি",
+      "paidSoFar": "{{amount}} পরিশোধিত",
+      "duesEmpty": "কোনো বকেয়া নেই",
+      "duesEmptyHint": "নিশ্চিত ও খেলা হয়ে যাওয়া সব বুকিং পুরো পরিশোধিত।"
     },
     "cancel": {
       "refund": "কাস্টমারের রিফান্ড ({{percent}}%)",

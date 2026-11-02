@@ -114,7 +114,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { bookings } = state.data;
   const now = new Date();
   const summary = summarize(bookings, now);
-  const { count, collected, pending } = summary;
+  const { count, collected, due, pending } = summary;
   // A row whose dialog is open stays (as last seen) after its game ends, in start order so it keeps its page.
   const upcoming = keep(summary.upcoming).sort((a, b) => firstStart(a) - firstStart(b));
   const usage = courtUsage(bookings, extras.courts, venue.timezone);
@@ -151,6 +151,20 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
           label={t('owner.today.collected')}
           value={money(collected, venue.currency, lang)}
           hint={t('owner.today.collectedHint')}
+        />
+        <StatCard
+          plain
+          label={t('owner.today.dueAtDesk')}
+          value={money(due.amount, venue.currency, lang)}
+          // Warning once someone has played and left without paying in full.
+          tone={due.overdue > 0 ? 'warning' : undefined}
+          hint={
+            due.owing === 0
+              ? t('owner.today.dueNone')
+              : due.overdue > 0
+                ? t('owner.today.dueOverdue', { count: due.overdue })
+                : t('owner.today.dueFrom', { count: due.owing })
+          }
         />
         {usage && (
           <StatCard
@@ -223,7 +237,7 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
                           </td>
                           <td className={styles.turf}>{b.turf?.name ?? '—'}</td>
                           <td className={styles.customer}>
-                            <Link to={`../bookings/${encodeURIComponent(b.id)}`} className={styles.name}>
+                            <Link to={`../bookings/${encodeURIComponent(b.id)}`} className={styles.name} data-row-link>
                               {b.customer?.name ?? b.reference}
                             </Link>
                           </td>

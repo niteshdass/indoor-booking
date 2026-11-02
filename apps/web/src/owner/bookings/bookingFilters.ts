@@ -2,8 +2,8 @@ import { BOOKING_STATUSES, type BookingStatus } from '@booking/shared';
 import { PAGE_SIZE } from '../../components/ui/Pagination';
 import { ownerPath } from '../ownerApi';
 
-/** `to_verify`: bookings of any date with a wallet payment still to check. */
-export const BOOKING_TABS = ['all', 'today', 'upcoming', 'past', 'to_verify'] as const;
+/** `to_verify`: bookings of any date with a wallet payment still to check. `dues`: any date, money still to collect. */
+export const BOOKING_TABS = ['all', 'today', 'upcoming', 'past', 'to_verify', 'dues'] as const;
 export type BookingTab = (typeof BOOKING_TABS)[number];
 
 /** Field and direction: when the booking was made, when it is played, or its reference. */
@@ -17,10 +17,12 @@ export const DEFAULT_SORT: Record<BookingTab, BookingSort> = {
   upcoming: 'date-asc',
   past: 'date-desc',
   to_verify: 'date-asc',
+  dues: 'date-asc',
 };
 
 export type BookingFilters = {
-  venueId: string;
+  /** null: every venue the member can see. */
+  venueId: string | null;
   tab: BookingTab;
   sort: BookingSort;
   turfId: string | null;
@@ -39,7 +41,7 @@ const isRealDate = (v: string) => {
 };
 
 /** Filters from the URL: the All tab in its default order, no range, every turf and status. The venue itself is `venueId`. */
-export function readFilters(p: URLSearchParams, venueId: string): BookingFilters {
+export function readFilters(p: URLSearchParams, venueId: string | null): BookingFilters {
   const date = (key: string) => {
     const v = p.get(key);
     return v && DATE.test(v) && isRealDate(v) ? v : null;
@@ -73,7 +75,8 @@ export function filtersToParams(f: BookingFilters): URLSearchParams {
 
 /** One page of the list. */
 export function apiPathFor(ownerId: string, f: BookingFilters, page: number): string {
-  const p = new URLSearchParams({ venueId: f.venueId, scope: f.tab, sort: f.sort, page: String(page), pageSize: String(PAGE_SIZE) });
+  const p = new URLSearchParams({ scope: f.tab, sort: f.sort, page: String(page), pageSize: String(PAGE_SIZE) });
+  if (f.venueId) p.set('venueId', f.venueId);
   if (f.from) p.set('from', f.from);
   if (f.to) p.set('to', f.to);
   if (f.turfId) p.set('turfId', f.turfId);

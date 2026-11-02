@@ -194,7 +194,7 @@ export function OwnerBookingPage() {
                         return (
                           <tr key={g.id}>
                             <td>
-                              <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.link}>
+                              <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(g.id)}`} className={styles.link} data-row-link>
                                 {g.reference}
                               </Link>
                             </td>

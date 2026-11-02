@@ -157,7 +157,7 @@ function SeriesRows({ venue, status }: { venue: OwnerVenue; status: SeriesStatus
                 return (
                   <tr key={s.id}>
                     <td>
-                      <Link to={encodeURIComponent(s.id)} className={styles.link}>
+                      <Link to={encodeURIComponent(s.id)} className={styles.link} data-row-link>
                         {seriesCustomer(s, t)}
                       </Link>
                     </td>

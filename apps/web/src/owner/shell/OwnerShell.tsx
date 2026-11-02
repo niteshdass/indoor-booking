@@ -171,7 +171,8 @@ export function OwnerShell() {
           <h1 className={styles.title}>{title}</h1>
           {can('booking.create') && !pathname.endsWith('/walk-in') && (
             <Button to={venueParam ? `walk-in?venue=${encodeURIComponent(venueParam)}` : 'walk-in'} size="sm" icon="plus" className={styles.topAction}>
-              {t('owner.shell.newWalkIn')}
+              {/* Phones show just the plus, so the title and tools still fit; screen readers keep the label. */}
+              <span className={styles.topActionLabel}>{t('owner.shell.newWalkIn')}</span>
             </Button>
           )}
           <div className={styles.tools}>

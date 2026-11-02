@@ -52,7 +52,7 @@ export function AdminActivityPage() {
                   <td>{e.actor?.name || '—'}</td>
                   <td>
                     {e.ownerId ? (
-                      <Link to={`../owners/${e.ownerId}`} relative="path" className={styles.link}>
+                      <Link to={`../owners/${e.ownerId}`} relative="path" className={styles.link} data-row-link>
                         {logLabel(e, t)}
                       </Link>
                     ) : (

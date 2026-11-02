@@ -66,7 +66,7 @@ export function TurfList({ venue }: { venue: OwnerVenue }) {
                 {rows.map((x) => (
                   <tr key={x.id}>
                     <td>
-                      <Link to={`/owner/${ownerId}/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(x.id)}`} className={styles.link}>
+                      <Link to={`/owner/${ownerId}/venues/${encodeURIComponent(venue.id)}/turfs/${encodeURIComponent(x.id)}`} className={styles.link} data-row-link>
                         {x.name}
                       </Link>
                     </td>

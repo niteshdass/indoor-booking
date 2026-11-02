@@ -146,7 +146,7 @@ function MembersTab({ members, roles, onChanged }: { members: Member[]; roles: R
                       <td>
                         {!locked && (
                           <div className={styles.rowActions}>
-                            <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(m)}>
+                            <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(m)} data-row-link>
                               {t('owner.staff.edit')}
                             </Button>
                             <Button variant="ghost" size="sm" icon="trash" onClick={() => setRemoving(m)}>

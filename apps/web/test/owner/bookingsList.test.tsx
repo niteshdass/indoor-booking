@@ -51,8 +51,8 @@ describe('booking filters', () => {
   });
 
   it('api path asks for one page of the tab in its order', () => {
-    expect(apiPathFor('o1', base, 1)).toBe('/owners/o1/bookings?venueId=v1&scope=all&sort=created-desc&page=1&pageSize=25');
-    const q = new URLSearchParams(apiPathFor('o1', { ...base, tab: 'past', sort: 'date-desc', q: ' ada ', status: 'pending', turfId: 't1', from: '2026-10-01' }, 3).split('?')[1]);
+    expect(apiPathFor('o1', base, 1)).toBe('/owners/o1/bookings?scope=all&sort=created-desc&page=1&pageSize=25&venueId=v1');
+    const q = new URLSearchParams(apiPathFor('o1', { ...base, venueId: 'v1', tab: 'past', sort: 'date-desc', q: ' ada ', status: 'pending', turfId: 't1', from: '2026-10-01' }, 3).split('?')[1]);
     expect(Object.fromEntries(q)).toEqual({
       venueId: 'v1',
       scope: 'past',
@@ -85,7 +85,7 @@ describe('Bookings page', () => {
     expect(screen.getByRole('tab', { name: en.owner.bookings.tab.all }).getAttribute('aria-selected')).toBe('true');
     expect((screen.getByLabelText(en.owner.bookings.sortLabel) as HTMLSelectElement).value).toBe('created-desc');
     const call = listCalls(api)[0]!;
-    expect(call.query.get('venueId')).toBe('v1');
+    expect(call.query.has('venueId')).toBe(false);
     expect(call.query.get('scope')).toBe('all');
     expect(call.query.get('sort')).toBe('created-desc');
     expect(call.query.has('from')).toBe(false);
@@ -128,6 +128,36 @@ describe('Bookings page', () => {
     expect(last.query.get('scope')).toBe('to_verify');
     expect(last.query.get('sort')).toBe('date-asc');
     expect(screen.getByRole('tabpanel', { name: en.status.paymentToCheck })).toBeTruthy();
+  });
+
+  it('the Dues tab lists what is left to collect with the sum and a Record cash button', async () => {
+    const owes = ownerBooking({ status: 'completed', amountPaid: 300, paymentStatus: 'partially_paid' });
+    const api = mockApi([
+      ...ownerRoutes({ permissions: ['booking.view', 'payment.mark_cash'] }),
+      { path: '/owners/o1/venues/v1/turfs', body: { turfs: [turf()] } },
+      { path: '/owners/o1/bookings', body: { bookings: [owes], total: 1, due: [{ currency: 'BDT', amount: 700 }] } },
+    ]);
+    const { user, location } = renderApp(`/owner/${OWNER_ID}/bookings`, { user: staffUser });
+    await screen.findByRole('link', { name: 'BK-0001' });
+    await user.click(screen.getByRole('tab', { name: en.owner.bookings.tab.dues }));
+    expect(location().search).toBe('?tab=dues');
+    const last = listCalls(api).at(-1)!;
+    expect(last.query.get('scope')).toBe('dues');
+    expect(last.query.get('sort')).toBe('date-asc');
+    const panel = await screen.findByRole('tabpanel', { name: en.owner.bookings.tab.dues });
+    expect(within(panel).getByText(/BDT\s7\.00 still to collect/)).toBeTruthy();
+    const table = within(panel).getByRole('table');
+    expect(within(table).getByRole('columnheader', { name: en.owner.bookings.due })).toBeTruthy();
+    expect(within(table).queryByRole('columnheader', { name: en.owner.bookings.paid })).toBeNull();
+    expect(within(table).getByText(/BDT\s3\.00 paid/)).toBeTruthy();
+    expect(within(table).getByRole('button', { name: en.owner.bookings.actions.markCash })).toBeTruthy();
+  });
+
+  it('the Dues tab has no actions without payment.mark_cash and says when nothing is owed', async () => {
+    mockApi([...ownerRoutes(), { path: '/owners/o1/venues/v1/turfs', body: { turfs: [turf()] } }, { path: '/owners/o1/bookings', body: { bookings: [], total: 0, due: [] } }]);
+    renderApp(`/owner/${OWNER_ID}/bookings?tab=dues`, { user: staffUser });
+    expect(await screen.findByText(en.owner.bookings.duesEmpty)).toBeTruthy();
+    expect(screen.getByText(en.owner.bookings.duesEmptyHint)).toBeTruthy();
   });
 
   it('opens on the Payment to check tab from the URL', async () => {

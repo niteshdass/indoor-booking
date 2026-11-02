@@ -101,7 +101,7 @@ export function ActivityPage() {
                         <span className={styles.stack}>
                           <span>{t(`owner.activity.entity.${item.entity}`, { defaultValue: item.entity })}</span>
                           {item.entity === 'booking' && (
-                            <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(item.entityId)}`} className={styles.link}>
+                            <Link to={`/owner/${encodeURIComponent(ownerId)}/bookings/${encodeURIComponent(item.entityId)}`} className={styles.link} data-row-link>
                               {t('owner.activity.openBooking')}
                             </Link>
                           )}

@@ -445,6 +445,25 @@
   flex-shrink: 0;
 }
 
+/* Below sm the walk-in button is a square plus; the label stays for screen readers. */
+@media (max-width: 639.98px) {
+  /* Scoped under .topbar so it wins over Button's own size padding whatever the stylesheet order. */
+  .topbar .topAction {
+    min-width: var(--control-lg);
+    padding-inline: 0;
+    gap: 0;
+  }
+
+  .topActionLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
 /* The same header card, shown as a label (the Admin portal has no team to switch). */
 .switcherButton.static,
 .switcherButton.static:hover {

@@ -819,7 +819,13 @@
       "paymentsToVerify_other": "{{count}} payments to verify",
       "verifyOldest": "Oldest: {{name}}, sent {{time}}",
       "verifySoonest": "Next game: {{name}}, {{time}}",
-      "verifyAll": "See all"
+      "verifyAll": "See all",
+      "dueAtDesk": "Due at desk",
+      "dueNone": "Nothing left to collect",
+      "dueOverdue_one": "{{count}} played and not paid",
+      "dueOverdue_other": "{{count}} played and not paid",
+      "dueFrom_one": "From {{count}} booking",
+      "dueFrom_other": "From {{count}} bookings"
     },
     "overview": {
       "range": "Period",
@@ -865,7 +871,8 @@
         "collected": "Collected",
         "outstanding": "Still to collect",
         "platformFee": "Platform fee",
-        "platformFeeNote": "Not included in the figures above"
+        "platformFeeNote": "Not included in the figures above",
+        "seeDues": "See who owes"
       },
       "heat": {
         "title": "When turfs are busy",
@@ -929,6 +936,7 @@
       "status": "Status",
       "search": "Search reference, name or phone",
       "allTurfs": "All turfs",
+      "allVenues": "All venues",
       "allStatuses": "All statuses",
       "filters": "Filters",
       "filtersActive_one": "{{count}} active",
@@ -941,7 +949,8 @@
         "all": "All",
         "today": "Today",
         "upcoming": "Upcoming",
-        "past": "Past"
+        "past": "Past",
+        "dues": "Dues"
       },
       "sortLabel": "Sort",
       "sort": {
@@ -1033,7 +1042,12 @@
       "discount": "Discount ({{code}})",
       "moved": "Moved",
       "movedTimes_one": "{{when}} ({{count}} time)",
-      "movedTimes_other": "{{when}} ({{count}} times)"
+      "movedTimes_other": "{{when}} ({{count}} times)",
+      "due": "Due",
+      "dueTotal": "{{amount}} still to collect",
+      "paidSoFar": "{{amount}} paid",
+      "duesEmpty": "Nothing owed",
+      "duesEmptyHint": "Every confirmed and played booking is paid in full."
     },
     "cancel": {
       "refund": "Customer refund ({{percent}}%)",

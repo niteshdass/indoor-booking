@@ -84,7 +84,7 @@ export function AddonsPage() {
                       {writable && (
                         <td>
                           <div className={styles.rowActions}>
-                            <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(a)}>
+                            <Button variant="ghost" size="sm" icon="edit" onClick={() => setEditing(a)} data-row-link>
                               {t('owner.addons.edit')}
                             </Button>
                             <Button variant="ghost" size="sm" icon="trash" onClick={() => setRemoving(a)}>

@@ -52,3 +52,22 @@
 .table tbody tr:hover {
   background: var(--bg-hover);
 }
+
+/* Whole-row click: the row's main link (or Edit button) carries `data-row-link` and its ::after covers the
+   row, so a click anywhere opens it while cmd/middle-click and the keyboard still use the real link.
+   The row's other controls sit above the cover so they keep their own clicks. */
+.table tbody tr:has([data-row-link]) {
+  position: relative;
+  cursor: pointer;
+}
+
+.table [data-row-link]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.table tbody tr:has([data-row-link]) :is(a, button, input, select, textarea, label, summary):not([data-row-link]) {
+  position: relative;
+  z-index: 1;
+}

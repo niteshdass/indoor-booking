@@ -849,7 +849,17 @@
       "paymentsToVerify_other": "{{count}} оплаты на проверке",
       "verifyOldest": "Самая ранняя: {{name}}, отправлено {{time}}",
       "verifySoonest": "Ближайшая игра: {{name}}, {{time}}",
-      "verifyAll": "Показать все"
+      "verifyAll": "Показать все",
+      "dueAtDesk": "Получить на месте",
+      "dueNone": "Получать больше нечего",
+      "dueOverdue_one": "{{count}} сыграна без полной оплаты",
+      "dueOverdue_few": "{{count}} сыграны без полной оплаты",
+      "dueOverdue_many": "{{count}} сыграно без полной оплаты",
+      "dueOverdue_other": "{{count}} сыграно без полной оплаты",
+      "dueFrom_one": "По {{count}} брони",
+      "dueFrom_few": "По {{count}} броням",
+      "dueFrom_many": "По {{count}} броням",
+      "dueFrom_other": "По {{count}} брони"
     },
     "overview": {
       "range": "Период",
@@ -895,7 +905,8 @@
         "collected": "Получено",
         "outstanding": "Осталось получить",
         "platformFee": "Комиссия платформы",
-        "platformFeeNote": "Не входит в суммы выше"
+        "platformFeeNote": "Не входит в суммы выше",
+        "seeDues": "Кто должен"
       },
       "heat": {
         "title": "Когда поля заняты",
@@ -961,6 +972,7 @@
       "status": "Статус",
       "search": "Поиск по номеру, имени или телефону",
       "allTurfs": "Все поля",
+      "allVenues": "Все площадки",
       "allStatuses": "Все статусы",
       "filters": "Фильтры",
       "filtersActive_one": "{{count}} включён",
@@ -977,7 +989,8 @@
         "all": "Все",
         "today": "Сегодня",
         "upcoming": "Предстоящие",
-        "past": "Прошедшие"
+        "past": "Прошедшие",
+        "dues": "Долги"
       },
       "sortLabel": "Сортировка",
       "sort": {
@@ -1073,7 +1086,12 @@
       "movedTimes_one": "{{when}} ({{count}} раз)",
       "movedTimes_few": "{{when}} ({{count}} раза)",
       "movedTimes_many": "{{when}} ({{count}} раз)",
-      "movedTimes_other": "{{when}} ({{count}} раза)"
+      "movedTimes_other": "{{when}} ({{count}} раза)",
+      "due": "К оплате",
+      "dueTotal": "осталось получить {{amount}}",
+      "paidSoFar": "оплачено {{amount}}",
+      "duesEmpty": "Долгов нет",
+      "duesEmptyHint": "Все подтверждённые и сыгранные брони оплачены полностью."
     },
     "cancel": {
       "refund": "Возврат клиенту ({{percent}}%)",

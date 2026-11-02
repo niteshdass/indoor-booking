@@ -134,7 +134,7 @@ describe('export dialog', () => {
 
   it('downloads bookings for the page venue and range, then closes', async () => {
     const api = mockApi(bookingsRoutes(['booking.view', 'reports.view'], [{ path: csvPath, body: {} }]));
-    const { user } = renderApp(`/owner/${OWNER_ID}/bookings?from=2026-10-01&to=2026-10-15`, { user: staffUser });
+    const { user } = renderApp(`/owner/${OWNER_ID}/bookings?venue=v1&from=2026-10-01&to=2026-10-15`, { user: staffUser });
     const dialog = await openDialog(user);
     expect(within(dialog).getByLabelText(E.from)).toHaveValue('2026-10-01');
     expect(within(dialog).getByLabelText(E.to)).toHaveValue('2026-10-15');
@@ -158,9 +158,8 @@ describe('export dialog', () => {
     const dialog = await openDialog(user);
     expect(within(dialog).getByLabelText(E.from)).toHaveValue('2026-09-28');
     expect(within(dialog).getByLabelText(E.to)).toHaveValue('2026-10-27');
-    const select = within(dialog).getByLabelText(en.owner.venue);
-    expect(select).toHaveValue('v1');
-    await user.selectOptions(select, '');
+    // The page shows every venue, so the export does too.
+    expect(within(dialog).getByLabelText(en.owner.venue)).toHaveValue('');
     await user.click(within(dialog).getByRole('radio', { name: new RegExp(E.kind.payments) }));
     await user.click(within(dialog).getByRole('button', { name: E.download }));
     await waitFor(() => expect(api.calls.some((c) => csvPath.test(c.path))).toBe(true));

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
-import { BOOKING_STATUSES, localParts, paymentStatusFor, type BookingStatus } from '@booking/shared';
+import { BOOKING_STATUSES, DUE_STATUSES, localParts, paymentStatusFor, type BookingStatus } from '@booking/shared';
 import { normalizePhone } from '../../auth/normalize';
 import { nameSchema } from '../../auth/routes/emailAuth';
 import type { Config } from '../../config';
@@ -20,6 +20,7 @@ import { tenantRepo } from '../../tenancy/repo';
 import { noticeBooking } from '../../notifications/outbox';
 import { scopedTurf } from '../../venues/guards';
 import { scopedVenue } from '../../venues/routes/venues';
+import { Venue } from '../../venues/venue.model';
 import { Booking, type BookingDoc } from '../booking.model';
 import { ownerBookingJson, ownerBookingsJson } from '../ownerJson';
 import { assertSeriesAnswered, CANCELLABLE, cancelBooking, previewCancellation } from '../cancel';
@@ -32,8 +33,12 @@ import { rescheduleBooking } from '../reschedule';
 
 const MAX_RANGE_DAYS = 31;
 const LIST_LIMIT = 500;
-/** `to_verify`: any date and status, with a wallet payment staff have not checked yet. */
-const LIST_SCOPES = ['all', 'today', 'upcoming', 'past', 'to_verify'] as const;
+/**
+ * `to_verify`: any date and status, with a wallet payment staff have not checked yet.
+ * `dues`: any date, going ahead or played, with money still to collect; the reply adds the sum as `due`, one amount per currency.
+ * Without `venueId` every scope covers all the member's venues; today, upcoming and past use each venue's own local date.
+ */
+const LIST_SCOPES = ['all', 'today', 'upcoming', 'past', 'to_verify', 'dues'] as const;
 /** Field and direction: when the booking was made, the reference, or when it is played. */
 const LIST_SORTS = ['created-desc', 'created-asc', 'date-asc', 'date-desc', 'ref-asc', 'ref-desc'] as const;
 const MAX_PAGE_SIZE = 100;
@@ -52,6 +57,8 @@ const DEFAULT_SORT: Record<(typeof LIST_SCOPES)[number], (typeof LIST_SORTS)[num
   upcoming: 'date-asc',
   past: 'date-desc',
   to_verify: 'date-asc',
+  // Oldest debts first.
+  dues: 'date-asc',
 };
 const CHECK_IN_LEAD_MS = 60 * 60_000;
 /** Statuses that still take a cash payment. */
@@ -141,31 +148,61 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
       if (q.venueId) filter.venueId = q.venueId;
       if (q.turfId) filter.turfId = q.turfId;
       if (q.status) filter.status = q.status;
-      // Today, upcoming and past are venue-local dates, so they need the venue.
-      if (scope !== 'all' && scope !== 'to_verify' && !q.venueId) throw new AppError(400, 'validation_error', 'venueId is required for this scope');
-      const today = q.venueId ? localParts(services.now(), (await scopedVenue(t, q.venueId)).timezone).date : null;
-      const date: Record<string, string> = {};
-      if (scope === 'today') Object.assign(date, { $gte: today!, $lte: today! });
-      if (scope === 'upcoming') date.$gt = today!;
-      if (scope === 'past') date.$lt = today!;
-      if (q.from) date.$gte = date.$gte && date.$gte > q.from ? date.$gte : q.from;
-      if (q.to) date.$lte = date.$lte && date.$lte < q.to ? date.$lte : q.to;
-      if (Object.keys(date).length) filter.businessDate = date;
+      /** The play-date condition: the tab against `today`, narrowed by any from/to. */
+      const dateFor = (today: string | null) => {
+        const date: Record<string, string> = {};
+        if (scope === 'today') Object.assign(date, { $gte: today!, $lte: today! });
+        if (scope === 'upcoming') date.$gt = today!;
+        if (scope === 'past') date.$lt = today!;
+        if (q.from) date.$gte = date.$gte && date.$gte > q.from ? date.$gte : q.from;
+        if (q.to) date.$lte = date.$lte && date.$lte < q.to ? date.$lte : q.to;
+        return Object.keys(date).length ? date : null;
+      };
+      const datedScope = scope === 'today' || scope === 'upcoming' || scope === 'past';
+      if (q.venueId) {
+        const venue = await scopedVenue(t, q.venueId);
+        const date = dateFor(datedScope ? localParts(services.now(), venue.timezone).date : null);
+        if (date) filter.businessDate = date;
+      } else if (datedScope) {
+        // "Today" is each venue's own local date, so across venues it is one condition per venue.
+        const venues = await tenantRepo(Venue, t, { venueField: '_id' }).find({}, 'timezone');
+        filter.$and = [
+          {
+            // A member with no venues matches nothing ($or must not be empty).
+            $or: venues.length
+              ? venues.map((v) => ({ venueId: v._id, businessDate: dateFor(localParts(services.now(), v.timezone).date) }))
+              : [{ _id: { $in: [] } }],
+          },
+        ];
+      } else {
+        const date = dateFor(null);
+        if (date) filter.businessDate = date;
+      }
       if (q.q) Object.assign(filter, await bookingSearchFilter(q.q));
       if (scope === 'to_verify') {
         const waiting = { ownerId: t.ownerId, kind: 'manual', status: 'pending', ...(q.venueId ? { venueId: q.venueId } : {}) };
         filter._id = { $in: await Payment.distinct('bookingId', waiting) };
       }
+      if (scope === 'dues') {
+        filter.status = { $in: q.status ? DUE_STATUSES.filter((s) => s === q.status) : DUE_STATUSES };
+        filter.$expr = { $lt: ['$amountPaid', '$total'] };
+      }
       const repo = tenantRepo(Booking, t, { venueField: 'venueId' });
-      const [total, bookings] = await Promise.all([
+      const [total, bookings, owed] = await Promise.all([
         repo.countDocuments(filter),
         repo
           .find(filter)
           .sort(SORT_SPEC[q.sort ?? DEFAULT_SORT[scope]])
           .skip((q.page - 1) * q.pageSize)
           .limit(q.pageSize),
+        // Unpaid bookings stay few (staff chase them), so the sum reads just the two amounts of each.
+        scope === 'dues' ? repo.find(filter, 'total amountPaid currency').lean() : null,
       ]);
-      res.json({ bookings: await ownerBookingsJson(bookings), total });
+      // Venues can differ in currency, so the sum is one amount per currency.
+      const sums = new Map<string, number>();
+      for (const b of owed ?? []) sums.set(b.currency, (sums.get(b.currency) ?? 0) + b.total - b.amountPaid);
+      const due = owed ? { due: [...sums].sort().map(([currency, amount]) => ({ currency, amount })) } : {};
+      res.json({ bookings: await ownerBookingsJson(bookings), total, ...due });
       return;
     }
     let { from, to } = q;

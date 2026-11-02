@@ -46,6 +46,19 @@ describe('summarize', () => {
     expect(s.pending).toBe(1);
   });
 
+  it('summarize adds up what is left to collect on confirmed and played bookings and counts the played ones', () => {
+    const past = [slot('2026-10-26T01:00:00.000Z', '2026-10-26T02:00:00.000Z')];
+    const s = summarize([
+      ownerBooking({ id: 'part', status: 'confirmed', amountPaid: 300 }),
+      ownerBooking({ id: 'left', status: 'completed', slots: past }),
+      ownerBooking({ id: 'paid', status: 'confirmed', amountPaid: 1000 }),
+      ownerBooking({ id: 'asked', status: 'pending' }),
+      ownerBooking({ id: 'gone', status: 'cancelled' }),
+    ]);
+    expect(s.due).toEqual({ amount: 700 + 1000, owing: 2, overdue: 1 });
+    expect(summarize([]).due).toEqual({ amount: 0, owing: 0, overdue: 0 });
+  });
+
   it('summarize upcoming excludes finished and terminal bookings', () => {
     const later = [slot('2026-10-26T08:00:00.000Z', '2026-10-26T09:00:00.000Z')];
     const soon = [slot('2026-10-26T04:00:00.000Z', '2026-10-26T05:00:00.000Z')];
@@ -95,6 +108,36 @@ describe('Today page', () => {
     expect(within(pending).getByText('1')).toBeTruthy();
     const link = screen.getByRole('link', { name: /Bob Pending/ });
     expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/bookings/b`);
+  });
+
+  it('Today shows what is due at the desk and warns once a played game is unpaid', async () => {
+    const past = [slot('2026-10-26T01:00:00.000Z', '2026-10-26T02:00:00.000Z')];
+    mockApi([
+      ...ownerRoutes(),
+      {
+        path: '/owners/o1/bookings',
+        body: {
+          bookings: [
+            ownerBooking({ id: 'a', status: 'confirmed', amountPaid: 400, paymentStatus: 'partially_paid' }),
+            ownerBooking({ id: 'b', status: 'completed', slots: past }),
+          ],
+        },
+      },
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const due = (await screen.findByText(en.owner.today.dueAtDesk)).closest('div')!;
+    expect(due.textContent).toMatch(/BDT\s16\.00/);
+    expect(due.textContent).toContain('1 played and not paid');
+  });
+
+  it('Today says nothing is due when every booking is paid', async () => {
+    mockApi([
+      ...ownerRoutes(),
+      { path: '/owners/o1/bookings', body: { bookings: [ownerBooking({ status: 'confirmed', amountPaid: 1000, paymentStatus: 'paid' })] } },
+    ]);
+    renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
+    const due = (await screen.findByText(en.owner.today.dueAtDesk)).closest('div')!;
+    expect(due.textContent).toContain(en.owner.today.dueNone);
   });
 
   it('Today with no venues prompts to create one', async () => {

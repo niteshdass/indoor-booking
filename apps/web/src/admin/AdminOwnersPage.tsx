@@ -92,7 +92,7 @@ export function AdminOwnersPage() {
                 <tr key={o.id}>
                   <td>
                     <span className={styles.stack}>
-                      <Link to={o.id} className={styles.link}>
+                      <Link to={o.id} className={styles.link} data-row-link>
                         {o.name}
                       </Link>
                       <span className={styles.sub}>

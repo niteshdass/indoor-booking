@@ -109,7 +109,7 @@ export function AdminPayoutsPage() {
               return (
                 <tr key={p.id}>
                   <td>
-                    <Link to={`../owners/${p.ownerId}`} relative="path" className={styles.link}>
+                    <Link to={`../owners/${p.ownerId}`} relative="path" className={styles.link} data-row-link>
                       {p.ownerName || '—'}
                     </Link>
                   </td>

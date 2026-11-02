@@ -511,10 +511,36 @@ describe('list', () => {
     expect(await list('scope=all&sort=date-asc&page=2&pageSize=3')).toEqual({ ids: [later], total: 4 });
     expect(await list('scope=all&q=rd')).toEqual({ ids: [soon], total: 1 });
 
-    expect((await get('/bookings?scope=today', a.token)).status).toBe(400);
     expect((await get('/bookings?scope=all', a.token)).status).toBe(200);
     expect((await get(`/bookings?venueId=${v1}&scope=soon`, a.token)).status).toBe(400);
     expect((await get(`/bookings?venueId=${v1}&scope=all&pageSize=101`, a.token)).status).toBe(400);
+  });
+
+  it('without a venue, today, upcoming and past use each venue’s own date', async () => {
+    await setClock('2026-01-10T06:00:00Z'); // Jan 10 in Dhaka, still Jan 9 in Honolulu
+    const v3 = (await seedVenue(a.ownerId, { timezone: 'Pacific/Honolulu', slug: 'v-three', settings: { hours: HOURS, bookingWindowDays: 365 } })).id as string;
+    const t3 = (await seedTurf(a.ownerId, v3)).id as string;
+    const on = async (date: string, hm: string, venueId = v1, turfId = t1) => {
+      const id = await pendingBooking({ hm, venueId, turfId });
+      const startAt = at(hm, date);
+      await Booking.updateOne({ _id: id, ownerId: a.ownerId }, { businessDate: date, startAt, endAt: new Date(startAt.getTime() + 3_600_000) });
+      return id;
+    };
+    const dhakaToday = await on(D, '10:00');
+    const dhakaPast = await on('2026-01-09', '11:00');
+    const hawaiiToday = await on('2026-01-09', '12:00', v3, t3);
+    const hawaiiUpcoming = await on(D, '13:00', v3, t3);
+    const ids = async (query: string, token = a.token) => {
+      const res = await get(`/bookings?${query}`, token);
+      expect(res.status).toBe(200);
+      return (res.body.bookings as { id: string }[]).map((b) => b.id).sort();
+    };
+
+    expect(await ids('scope=today')).toEqual([dhakaToday, hawaiiToday].sort());
+    expect(await ids('scope=upcoming')).toEqual([hawaiiUpcoming]);
+    expect(await ids('scope=past')).toEqual([dhakaPast]);
+    expect(await ids('scope=today&q=zz-none')).toEqual([]);
+    expect(await ids('scope=today', manager.token)).toEqual([dhakaToday]); // v3 is outside the manager's venues
   });
 
   it('searches every date by reference, customer name, phone or player', async () => {
@@ -585,6 +611,52 @@ describe('list: payments to check', () => {
     const role = await Role.create({ ownerId: a.ownerId, name: 'Cashier', permissions: ['booking.create'] });
     const member = await addMember(ctx.services, a.ownerId, { roleId: role.id as string });
     expect((await get(`/bookings?venueId=${v1}&scope=to_verify`, member.token)).status).toBe(403);
+  });
+});
+
+describe('list: dues', () => {
+  /** A booking at `hm` on `date` moved to `status` with `amountPaid` of its 1500 taken. */
+  const owing = async (status: string, amountPaid: number, hm = '18:00', date = D, venueId = v1, turfId = t1) => {
+    const id = await pendingBooking({ hm, venueId, turfId });
+    await Booking.updateOne(
+      { _id: id, ownerId: a.ownerId },
+      { status, amountPaid, businessDate: date, startAt: at(hm, date), endAt: at(hm, date).getTime() + 3_600_000 },
+    );
+    return id;
+  };
+  const list = async (query: string, token = a.token) => {
+    const res = await get(`/bookings?${query}`, token);
+    expect(res.status).toBe(200);
+    return { ids: (res.body.bookings as { id: string }[]).map((b) => b.id), total: res.body.total as number, due: res.body.due as { currency: string; amount: number }[] };
+  };
+
+  it('scope=dues lists played or going-ahead bookings with money left, oldest first, and sums what is owed', async () => {
+    const old = await owing('completed', 500, '10:00', '2025-12-01');
+    const noShow = await owing('no_show', 0, '09:00', '2026-01-05');
+    const today = await owing('confirmed', 300, '12:00');
+    const later = await owing('confirmed', 0, '11:00', '2026-02-01');
+    await owing('confirmed', 1500, '14:00'); // paid
+    await owing('pending', 0, '15:00'); // not accepted yet
+    await owing('cancelled', 0, '16:00');
+    await owing('completed', 0, '17:00', D, v2, t2); // other venue
+
+    expect(await list(`venueId=${v1}&scope=dues`)).toEqual({ ids: [old, noShow, today, later], total: 4, due: [{ currency: 'BDT', amount: 1000 + 1500 + 1200 + 1500 }] });
+    expect(await list(`venueId=${v1}&scope=dues&pageSize=1`)).toEqual({ ids: [old], total: 4, due: [{ currency: 'BDT', amount: 5200 }] });
+    expect(await list(`venueId=${v1}&scope=dues&status=no_show`)).toEqual({ ids: [noShow], total: 1, due: [{ currency: 'BDT', amount: 1500 }] });
+    expect(await list(`venueId=${v1}&scope=dues&status=pending`)).toEqual({ ids: [], total: 0, due: [] });
+    expect(await list(`venueId=${v1}&scope=dues&from=2026-01-01&to=${D}`)).toEqual({ ids: [noShow, today], total: 2, due: [{ currency: 'BDT', amount: 2700 }] });
+    expect((await list(`venueId=${v1}&scope=all`)).due).toBeUndefined();
+  });
+
+  it('scope=dues covers every venue without one, summed per currency, and keeps to the member’s venues', async () => {
+    await owing('completed', 0, '17:00', D, v2, t2);
+    await owing('confirmed', 500, '18:00');
+    const usd = await owing('confirmed', 0, '19:00');
+    await Booking.updateOne({ _id: usd, ownerId: a.ownerId }, { currency: 'USD' });
+    expect(await list('scope=dues')).toMatchObject({ total: 3, due: [{ currency: 'BDT', amount: 2500 }, { currency: 'USD', amount: 1500 }] });
+    expect((await list('scope=dues', manager.token)).total).toBe(2);
+    expect((await get(`/bookings?venueId=${v2}&scope=dues`, manager.token)).status).toBe(404);
+    expect((await list(`venueId=${v2}&scope=dues`)).total).toBe(1);
   });
 });
 

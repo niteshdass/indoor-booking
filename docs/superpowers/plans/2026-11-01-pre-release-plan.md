@@ -112,7 +112,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 | [x] P2-02 | **Local BD SMS gateway** (confirm, reminder, OTP) | TurfBook (metered SMS), all | Done with SSL Wireless and BulkSMSBD (`notifications/senders.ts`): +8801 numbers go by the BD provider when one is set, everything else by Twilio. Optional metering: owners' booking SMS is charged in SMS parts against admin-granted credits (refunded on a failed send); OTPs are never charged. Alpha SMS not added. |
 | [x] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Done: `bn` in shared `LOCALES` and the language menu, full `bn.json` (lazy, ~31 kB gzip), Bangla email/SMS templates, Bangla digits and dates via Intl. Noto Sans Bengali joins both font stacks; `:lang(bn)` raises line heights. Bangla runs 1.01× English overall (test caps it at 1.3×). |
 | [x] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Done: owner coupons (percent with optional cap, or fixed), validity window, total and per-customer use caps, minimum spend, per-venue or all venues, new `coupon.manage` permission. `quoteBooking()` takes the discount off slots + add-ons before the platform fee and advance; a group splits one discount across its bookings and counts as one use. Uses are counted from live bookings, so expired, rejected and cancelled ones free theirs. Bookings keep a `{code, discount}` snapshot. Promo field at checkout; Coupons page in the owner dashboard. |
-| [ ] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Not present anywhere. Reuse slot lock in one transaction; keep payments attached. |
+| [x] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Done: per-owner/per-venue reschedule policy (allowed, hours before start, max moves; default on, 24h, 1 move), frozen on the booking at create. Players move to another time on the same court when the new slots cost no more; staff with the new `booking.reschedule` permission move to any court of the venue until the booking ends. One transaction locks both turfs, re-checks the slots, swaps the slot locks; price, add-ons, coupon, fee and payments stay attached. Customer and staff notices, reminder re-sent for the new time, activity log entry. "Change time" on the player booking page, "Move" in owner booking actions, Rescheduling section in settings. |
 | [ ] P2-06 | **CSV export** of bookings & payments | TurfBook reports, roadmap #16 | Not present. Owner reports page + bookings list. |
 | [ ] P2-07 | **Deposit / partial payment with dues tracking** surfaced to owners | TurfBook, Turffin | Partial advance exists in settings; make "due at desk" visible on Today and in reports. |
 | [ ] P2-08 | **Player conveniences:** add to calendar (.ics), book again, saved venues | Turfly (one-tap rebook), Playo | Cheap, high retention. |
@@ -148,6 +148,15 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 - A fixed coupon is in the owner's default currency and is refused at a venue priced in another.
 
 **Gate (release/p2-04-coupons):** typecheck ✅ · lint ✅ · API 1091/1091 · web 906/906 · shared 168/168 · build ✅
+
+**Ops left for P2-05 (code is done):**
+- Bookings made before the deploy carry no reschedule policy snapshot, so only staff can move them.
+- Guests (no player account) cannot move their own bookings; the venue moves them.
+- Default policy is allowed, 24 hours before start, 1 move; owners who don't want player moves must turn it off in settings.
+- New `booking.reschedule` permission: system owner/manager roles get it on start; custom roles need it granted by hand.
+- Series games are moved by staff only.
+
+**Gate (release/p2-05-reschedule):** typecheck ✅ · lint ✅ · API 1106/1106 · web 929/929 · shared 177/177 · build ✅
 
 ---
 

@@ -1,5 +1,6 @@
 import { WEEKDAYS, type Weekday } from './venues';
 import type { PaymentMethods } from './wallets';
+import { DEFAULT_RESCHEDULE, type ReschedulePolicy } from './reschedule';
 
 /** 'HH:MM' local venue time. close <= open means the session ends the next day; equal means 24 h. */
 export type DayHours = { open: string; close: string } | 'closed';
@@ -22,6 +23,8 @@ export type OwnerSettings = {
   guestBooking: GuestBooking;
   /** Sorted by minHoursBefore descending; empty means no refund. */
   refundRules: RefundRule[];
+  /** When a player may move their own booking; frozen onto each booking. */
+  reschedule: ReschedulePolicy;
   bookingWindowDays: number;
   pendingAutoRejectHours: number;
   paymentMethods: PaymentMethods;
@@ -41,6 +44,7 @@ export const DEFAULT_OWNER_SETTINGS: OwnerSettings = {
   paymentPolicy: { type: 'none' },
   guestBooking: { allowed: true, requireOtp: true },
   refundRules: [],
+  reschedule: { ...DEFAULT_RESCHEDULE },
   bookingWindowDays: 30,
   pendingAutoRejectHours: 2,
   paymentMethods: { manualWallets: [], gateways: [] },

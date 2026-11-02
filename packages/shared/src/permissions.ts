@@ -7,6 +7,7 @@ export const PERMISSIONS = [
   'booking.create',
   'booking.confirm',
   'booking.cancel',
+  'booking.reschedule',
   'booking.checkin',
   'payment.mark_cash',
   'payment.verify',

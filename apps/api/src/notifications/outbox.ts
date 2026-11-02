@@ -78,6 +78,10 @@ export async function noticeBooking(
     kept?: string[];
     /** Series events that go to staff instead of the player. */
     toStaff?: boolean;
+    /** Tells apart repeats of an event on one booking across its moves. */
+    repeatKey?: string;
+    /** Reschedule events: where the booking was. */
+    previous?: { turfName: string; startAt: string; endAt: string };
   } = {},
 ): Promise<number> {
   const ownerId = String(booking.ownerId);
@@ -117,12 +121,15 @@ export async function noticeBooking(
         }
       : {}),
     ...(booking.holdExpiresAt ? { holdExpiresAt: booking.holdExpiresAt.toISOString() } : {}),
+    ...(extra.previous
+      ? { previousTurfName: extra.previous.turfName, previousStartAt: extra.previous.startAt, previousEndAt: extra.previous.endAt }
+      : {}),
   };
 
   let recipients: Recipient[];
   if (event === 'series_requested' || (event === 'series_games_cancelled' && extra.toStaff)) {
     recipients = await staffRecipients(booking, 'booking.confirm', session);
-  } else if (event === 'staff_new_pending') recipients = await staffRecipients(booking, 'booking.confirm', session);
+  } else if (event === 'staff_new_pending' || event === 'staff_booking_rescheduled') recipients = await staffRecipients(booking, 'booking.confirm', session);
   else if (event === 'review_posted') recipients = await staffRecipients(booking, 'review.manage', session);
   else if (STAFF_PAYMENT_EVENTS.includes(event)) recipients = await staffRecipients(booking, 'refund.issue', session);
   else if (player) recipients = contactsOf(player);
@@ -130,7 +137,7 @@ export async function noticeBooking(
 
   let inserted = 0;
   for (const r of recipients) {
-    const dedupeKey = [event, String(booking._id), extra.refundId ?? extra.disputeRef ?? '', r.channel, r.to].join(':');
+    const dedupeKey = [event, String(booking._id), extra.refundId ?? extra.disputeRef ?? extra.repeatKey ?? '', r.channel, r.to].join(':');
     const res = await Notification.updateOne(
       { ownerId, dedupeKey },
       {
@@ -158,15 +165,17 @@ export async function noticeBooking(
 }
 
 /** True when the thing the notice is about no longer holds, so sending it would mislead. */
-async function isStale(event: NoticeEvent, ownerId: unknown, bookingId: unknown): Promise<boolean> {
+async function isStale(event: NoticeEvent, ownerId: unknown, bookingId: unknown, data: NoticeData): Promise<boolean> {
   if (event === 'review_request') {
     const booking = await Booking.findOne({ ownerId, _id: bookingId }).select('status reviewedAt');
     return !booking || !!booking.reviewedAt || booking.status !== 'completed';
   }
   const wanted = event === 'booking_reminder' ? 'confirmed' : event === 'hold_expiring' ? 'awaiting_payment' : null;
   if (!wanted) return false;
-  const booking = await Booking.findOne({ ownerId, _id: bookingId }).select('status');
-  return booking?.status !== wanted;
+  const booking = await Booking.findOne({ ownerId, _id: bookingId }).select('status startAt');
+  if (booking?.status !== wanted) return true;
+  // A reminder of a time the booking has since moved from.
+  return event === 'booking_reminder' && booking.startAt.toISOString() !== data.startAt;
 }
 
 /**
@@ -199,7 +208,7 @@ export async function deliverNotifications(
       if (!claimed) continue;
       let charged = 0;
       try {
-        if (row.bookingId && (await isStale(row.event, row.ownerId, row.bookingId))) {
+        if (row.bookingId && (await isStale(row.event, row.ownerId, row.bookingId, row.data as NoticeData))) {
           await Notification.updateOne(mine, { $set: { status: 'failed', lastError: 'stale' } });
           result.dropped += 1;
           continue;

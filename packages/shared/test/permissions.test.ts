@@ -37,6 +37,14 @@ describe('role names and locales', () => {
   });
 });
 
+describe('booking.reschedule', () => {
+  it('is for manager and owner, not staff', () => {
+    expect(SYSTEM_ROLES.manager).toContain('booking.reschedule');
+    expect(SYSTEM_ROLES.owner).toContain('booking.reschedule');
+    expect(SYSTEM_ROLES.staff).not.toContain('booking.reschedule');
+  });
+});
+
 describe('payment.verify', () => {
   it('is for manager and owner, not staff', () => {
     expect(SYSTEM_ROLES.manager).toContain('payment.verify');

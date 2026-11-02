@@ -6,6 +6,8 @@ export type DialogProps = {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  /** Room for a slot grid (`--dialog-wide`) instead of the compact confirm width. */
+  wide?: boolean;
 };
 
 /** Open modals, newest last: only the topmost one answers Escape. */
@@ -63,12 +65,12 @@ export function useModal(open: boolean, onClose: () => void) {
   return { ref, onCancel };
 }
 
-export function Dialog({ open, onClose, title, children }: DialogProps) {
+export function Dialog({ open, onClose, title, children, wide = false }: DialogProps) {
   const { ref, onCancel } = useModal(open, onClose);
   const titleId = useId();
 
   return (
-    <dialog ref={ref} className={styles.dialog} aria-labelledby={titleId} onCancel={onCancel}>
+    <dialog ref={ref} className={[styles.dialog, wide ? styles.wide : ''].filter(Boolean).join(' ')} aria-labelledby={titleId} onCancel={onCancel}>
       <h2 id={titleId} className={styles.title}>
         {title}
       </h2>

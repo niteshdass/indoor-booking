@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { localParts } from '@booking/shared';
 import { ActionMenu } from '../components/ActionMenu';
 import { PROVIDER_NAMES } from '../lib/wallets';
 import { Alert } from '../components/ui/Alert';
@@ -10,7 +11,8 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useAuth } from '../auth/useAuth';
 import { apiGet, apiPost, ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
-import type { BookingJson, CancellationPreview, PaymentOptions, RefundJson } from '../lib/types';
+import { formatDateTime } from '../lib/format';
+import type { BookingJson, CancellationPreview, PaymentOptions, RefundJson, SlotDay } from '../lib/types';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { SeriesBadge } from '../series/SeriesBadge';
 import { MyReview } from './MyReview';
@@ -18,6 +20,7 @@ import { ReviewDialog } from './ReviewDialog';
 import { BookingFacts } from './BookingFacts';
 import { BookingRow } from './BookingRow';
 import { CancelDialog } from './CancelDialog';
+import { RescheduleDialog } from './RescheduleDialog';
 import { Receipt } from './Receipt';
 import { downloadReceiptPdf } from './receiptPdf';
 import { RefundList } from './RefundList';
@@ -44,7 +47,7 @@ type State =
 
 export function BookingDetailPage() {
   const { id = '' } = useParams();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useDocumentTitle(t('booking.title'));
   const { user } = useAuth();
   const [params] = useSearchParams();
@@ -66,6 +69,7 @@ export function BookingDetailPage() {
   // The other days booked in the same go.
   const [group, setGroup] = useState<BookingJson[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   // The receipt is mounted off screen only while its PDF is being made.
   const [receipt, setReceipt] = useState<'idle' | 'busy' | 'failed'>('idle');
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -196,6 +200,10 @@ export function BookingDetailPage() {
       ? t('booking.paymentReceived')
       : t('booking.title');
 
+  // The player moves the booking on its own court until the venue's cutoff; the API says until when.
+  const movable = !!booking?.reschedulableUntil && !!booking.venue && booking.slots.length > 0;
+  const tz = booking?.venue?.timezone ?? 'UTC';
+
   const holder = booking?.guest
     ? { name: booking.guest.name, contact: booking.guest.phone }
     : user
@@ -323,6 +331,16 @@ export function BookingDetailPage() {
               {t('booking.lateEntry')}
             </Button>
           )}
+          {movable && (
+            <div className={styles.move}>
+              <Button variant="secondary" size="lg" icon="calendar" block onClick={() => setMoveOpen(true)}>
+                {t('reschedule.open')}
+              </Button>
+              <p className={styles.moveHint}>
+                {t('reschedule.until', { when: formatDateTime(booking.reschedulableUntil!, tz, i18n.language) })}
+              </p>
+            </div>
+          )}
           <RefundList refunds={refunds} />
           {reviewable && (
             <Button size="lg" icon="star" block onClick={() => setReviewOpen(true)}>
@@ -357,6 +375,35 @@ export function BookingDetailPage() {
                 setReviewOpen(false);
                 if (!booking.review) setCancelledAt((n) => n + 1);
               }}
+            />
+          )}
+          {movable && (
+            <RescheduleDialog<BookingJson>
+              open={moveOpen}
+              onClose={() => setMoveOpen(false)}
+              current={{ turfId: booking.turfId, date: booking.businessDate, startAts: booking.slots.map((s) => s.startAt).sort() }}
+              today={localParts(new Date(), tz).date}
+              timeZone={tz}
+              currency={booking.currency}
+              maxPrice={booking.subtotal}
+              loadDay={(turfId, date) =>
+                apiGet<{ day: SlotDay }>(
+                  `/venues/${encodeURIComponent(booking.venue!.slug)}/turfs/${encodeURIComponent(turfId)}/slots?date=${date}`,
+                ).then((r) => r.day)
+              }
+              move={({ date, startAts }) => apiPost<{ booking: BookingJson }>(`${path}/reschedule`, { date, startAts }).then((r) => r.booking)}
+              onMoved={(b) => {
+                setState({ status: 'ready', booking: b });
+                setMoveOpen(false);
+                setCancelledAt((n) => n + 1);
+              }}
+              // Re-read in place: a full reload would unmount the dialog and its message.
+              onConflict={() =>
+                apiGet<{ booking: BookingJson }>(path).then(
+                  (r) => setState({ status: 'ready', booking: r.booking }),
+                  () => undefined,
+                )
+              }
             />
           )}
           {CANCELLABLE.has(booking.status) && (

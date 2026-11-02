@@ -1,5 +1,5 @@
 import { bdMobileDigits } from '../../lib/wallets';
-import { WEEKDAYS, type DayHours, type OwnerSettings, type WeeklyHours } from '@booking/shared';
+import { RESCHEDULE_MAX_HOURS, RESCHEDULE_MAX_MOVES, WEEKDAYS, type DayHours, type OwnerSettings, type WeeklyHours } from '@booking/shared';
 
 export type SettingsLevel = 'owner' | 'venue';
 
@@ -34,7 +34,7 @@ export function hoursPatch(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-const KEYS = ['weekendDays', 'paymentPolicy', 'paymentMethods', 'guestBooking', 'refundRules', 'bookingWindowDays', 'pendingAutoRejectHours'] as const;
+const KEYS = ['weekendDays', 'paymentPolicy', 'paymentMethods', 'guestBooking', 'refundRules', 'reschedule', 'bookingWindowDays', 'pendingAutoRejectHours'] as const;
 
 /**
  * The PATCH body: only keys that differ from `before`. At venue level a key removed from the draft becomes
@@ -62,7 +62,7 @@ export function settingsPatch(level: SettingsLevel, before: StoredSettings, draf
   return out;
 }
 
-export type SettingsError = 'hours' | 'percent' | 'amount' | 'refund' | 'duplicate' | 'wallet' | 'window' | 'autoReject';
+export type SettingsError = 'hours' | 'percent' | 'amount' | 'refund' | 'duplicate' | 'wallet' | 'window' | 'autoReject' | 'reschedule';
 
 const inRange = (n: number | undefined, min: number, max: number) =>
   n !== undefined && Number.isInteger(n) && n >= min && n <= max;
@@ -81,6 +81,8 @@ export function settingsErrors(draft: Draft): Set<SettingsError> {
   }
   if (draft.bookingWindowDays !== undefined && !inRange(draft.bookingWindowDays, 1, 365)) e.add('window');
   if (draft.pendingAutoRejectHours !== undefined && !inRange(draft.pendingAutoRejectHours, 0, 72)) e.add('autoReject');
+  const r = draft.reschedule;
+  if (r && (!inRange(r.minHoursBefore, 0, RESCHEDULE_MAX_HOURS) || !inRange(r.maxMoves, 1, RESCHEDULE_MAX_MOVES))) e.add('reschedule');
   if (draft.paymentMethods?.manualWallets.some((w) => bdMobileDigits(w.number) === null)) e.add('wallet');
   const times = Object.values(draft.hours ?? {});
   if (times.some((h) => h !== 'closed' && (!h.open || !h.close))) e.add('hours');

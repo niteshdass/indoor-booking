@@ -32,7 +32,7 @@ import { useTodayExtras } from './useTodayExtras';
 import styles from './TodayPage.module.css';
 
 /** Any of these gives a member something to do from a Coming up row. */
-const ACT_PERMISSIONS: Permission[] = ['booking.confirm', 'booking.cancel', 'booking.checkin', 'payment.mark_cash', 'payment.verify', 'booking.create'];
+const ACT_PERMISSIONS: Permission[] = ['booking.confirm', 'booking.cancel', 'booking.reschedule', 'booking.checkin', 'payment.mark_cash', 'payment.verify', 'booking.create'];
 
 /** Owner landing page: today's totals for one venue and the queue of bookings still to come. */
 export function TodayPage() {

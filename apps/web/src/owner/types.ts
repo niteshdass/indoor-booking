@@ -151,7 +151,7 @@ export type WalkInAddon = {
 };
 
 /** Task 1: the booking JSON plus customer and turf name; no venue summary on owner responses. */
-export type OwnerBooking = Omit<BookingJson, 'venue' | 'turf' | 'completedAt' | 'review' | 'reviewableUntil'> & {
+export type OwnerBooking = Omit<BookingJson, 'venue' | 'turf' | 'completedAt' | 'review' | 'reviewableUntil' | 'reschedulableUntil'> & {
   customer: { name: string; phone: string | null; email: string | null } | null;
   turf: { name: string } | null;
   /** The wallet payment the player submitted, if any. `amount` is the whole submission (a group's total). */

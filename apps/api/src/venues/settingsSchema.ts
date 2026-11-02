@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { WALLET_PROVIDERS, WEEKDAYS, assertMinor, type EffectiveSettings } from '@booking/shared';
+import { RESCHEDULE_MAX_HOURS, RESCHEDULE_MAX_MOVES, WALLET_PROVIDERS, WEEKDAYS, assertMinor, type EffectiveSettings } from '@booking/shared';
 import { normalizeBdMobile } from '../auth/normalize';
 import { AppError } from '../errors';
 
@@ -62,6 +62,14 @@ export const weekendDaysSchema = z
 
 const guestBookingSchema = z.object({ allowed: z.boolean(), requireOtp: z.boolean() }).strict();
 
+const rescheduleSchema = z
+  .object({
+    allowed: z.boolean(),
+    minHoursBefore: z.number().int().min(0).max(RESCHEDULE_MAX_HOURS),
+    maxMoves: z.number().int().min(1).max(RESCHEDULE_MAX_MOVES),
+  })
+  .strict();
+
 export const walletSchema = z
   .object({
     provider: z.enum(WALLET_PROVIDERS),
@@ -102,6 +110,7 @@ const venueFields = {
   weekendDays: weekendDaysSchema.nullable().optional(),
   guestBooking: guestBookingSchema.nullable().optional(),
   refundRules: refundRulesSchema.nullable().optional(),
+  reschedule: rescheduleSchema.nullable().optional(),
   bookingWindowDays: z.number().int().min(1).max(365).nullable().optional(),
 };
 

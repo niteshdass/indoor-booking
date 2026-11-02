@@ -14,7 +14,7 @@ import { Table } from '../../components/ui/Table';
 import { SeriesBadge } from '../../series/SeriesBadge';
 import { ApiError } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { formatDate, formatTime, money } from '../../lib/format';
+import { formatDate, formatDateTime, formatTime, money } from '../../lib/format';
 import { ownerOwedFee, playerFee } from '../../lib/platformFee';
 import { useOwner } from '../OwnerProvider';
 import { customerLabel } from '../customerLabel';
@@ -139,6 +139,13 @@ export function OwnerBookingPage() {
               <Fact label={t('owner.bookings.time')}>
                 {starts.length > 0 ? range(starts[0]!, ends[ends.length - 1]!) : '—'}
               </Fact>
+              {b.rescheduleCount > 0 && b.rescheduledAt && (
+                <Fact label={t('owner.bookings.moved')}>
+                  {b.rescheduleCount > 1
+                    ? t('owner.bookings.movedTimes', { when: formatDateTime(b.rescheduledAt, tz, lang), count: b.rescheduleCount })
+                    : formatDateTime(b.rescheduledAt, tz, lang)}
+                </Fact>
+              )}
               <Fact label={t('owner.bookings.source')}>
                 {b.source === 'walkin' ? t('owner.bookings.sourceWalkin') : t('owner.bookings.sourceOnline')}
               </Fact>

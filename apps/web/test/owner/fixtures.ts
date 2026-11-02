@@ -149,6 +149,8 @@ export function ownerBooking(over: Partial<OwnerBooking> = {}): OwnerBooking {
     turf: { name: 'Pitch A' },
     manualPayment: null,
     coupon: null,
+    rescheduleCount: 0,
+    rescheduledAt: null,
     ...over,
   };
 }

@@ -59,3 +59,19 @@ export function runsOf<S extends SlotJson>(slots: S[], picked: string[]): S[][] 
   if (run.length > 0) runs.push(run);
   return runs;
 }
+
+/**
+ * The run of exactly `count` consecutive selectable slots that holds `startAt`, starting there when it can and
+ * otherwise as late as it fits before it; null when no such run exists (moving a booking keeps its length).
+ */
+export function runOfLength<S extends SlotJson>(slots: S[], startAt: string, count: number, selectable: (s: S) => boolean = isSelectable): S[] | null {
+  const sorted = [...slots].sort((a, b) => a.startAt.localeCompare(b.startAt));
+  const at = sorted.findIndex((s) => s.startAt === startAt);
+  if (at < 0 || count < 1) return null;
+  for (let from = at; from > at - count && from >= 0; from--) {
+    const run = sorted.slice(from, from + count);
+    if (run.length !== count || !run.every(selectable)) continue;
+    if (run.every((s, i) => i === 0 || run[i - 1]!.endAt === s.startAt)) return run;
+  }
+  return null;
+}

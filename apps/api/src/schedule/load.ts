@@ -48,6 +48,16 @@ const dbSources: DaySources = {
   overrides: overridesFor,
 };
 
+/** The database sources with one booking left out, so a booking being moved does not block its own slots. */
+export const sourcesWithout = (bookingId: unknown): DaySources => ({
+  ...dbSources,
+  bookings: (ownerId, turf, from, to, now) =>
+    Booking.find(
+      { ownerId, turfId: turf._id, _id: { $ne: bookingId }, startAt: { $lt: to }, endAt: { $gt: from }, ...holdingFilter(now) },
+      { status: 1, slots: 1 },
+    ).lean(),
+});
+
 /**
  * One business day of a turf: effective settings, closure, overrides, then computeSlots. The day
  * before is computed too, and its slots win: a slot of this day overlapping one of the day before

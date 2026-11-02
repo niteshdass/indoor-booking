@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 import {
   DEFAULT_OWNER_SETTINGS,
+  DEFAULT_RESCHEDULE,
+  RESCHEDULE_MAX_HOURS,
+  RESCHEDULE_MAX_MOVES,
   WEEKDAYS,
   currencyExponent,
   parseMoney,
@@ -57,6 +60,7 @@ const ERROR_SECTION: Record<SettingsError, SettingsSection> = {
   hours: 'hours',
   window: 'booking',
   autoReject: 'booking',
+  reschedule: 'booking',
   percent: 'payments',
   amount: 'payments',
   wallet: 'payments',
@@ -159,7 +163,7 @@ export function SettingsForm({
   const toggle = (k: keyof OwnerSettings) => (on: boolean) => {
     const next = { ...draft };
     if (on) delete next[k];
-    else (next as Record<string, unknown>)[k] = k === 'hours' ? {} : clone(from[k]);
+    else (next as Record<string, unknown>)[k] = k === 'hours' ? {} : clone(from[k] ?? (k === 'reschedule' ? DEFAULT_RESCHEDULE : undefined));
     if (k === 'paymentPolicy') {
       const p = next.paymentPolicy;
       setAmount(p?.type === 'partial_fixed' ? amountText(p.amount, currency) : '');
@@ -211,6 +215,10 @@ export function SettingsForm({
   const walletsBad = submitted && errors.has('wallet');
 
   const guest = value('guestBooking');
+  const moves = value('reschedule') ?? DEFAULT_RESCHEDULE;
+  const whole = (n: number, max: number, min: number) => Number.isInteger(n) && n >= min && n <= max;
+  const badHours = submitted && errors.has('reschedule') && !whole(moves.minHoursBefore, RESCHEDULE_MAX_HOURS, 0);
+  const badMoves = submitted && errors.has('reschedule') && !whole(moves.maxMoves, RESCHEDULE_MAX_MOVES, 1);
   const weekend = value('weekendDays');
 
   const submit = async (e: FormEvent) => {
@@ -343,6 +351,45 @@ export function SettingsForm({
             onChange={(requireOtp) => edit({ ...draft, guestBooking: { ...guest, requireOtp } })}
           />
         </div>,
+      )}
+
+      {section(
+        'reschedule',
+        t('owner.settings.rescheduleTitle'),
+        <>
+          <Checkbox
+            label={t('owner.settings.rescheduleAllowed')}
+            checked={moves.allowed}
+            disabled={locked('reschedule')}
+            onChange={(allowed) => edit({ ...draft, reschedule: { ...moves, allowed } })}
+          />
+          <div className={styles.grid}>
+            <TextField
+              icon="duration"
+              label={t('owner.settings.rescheduleHours')}
+              hint={t('owner.settings.rescheduleHoursHint')}
+              type="number"
+              min={0}
+              max={RESCHEDULE_MAX_HOURS}
+              value={numText(moves.minHoursBefore)}
+              disabled={locked('reschedule') || !moves.allowed}
+              error={badHours ? t('owner.settings.errors.reschedule') : undefined}
+              onChange={(e) => edit({ ...draft, reschedule: { ...moves, minHoursBefore: toNum(e.target.value) } })}
+            />
+            <TextField
+              icon="repeat"
+              label={t('owner.settings.rescheduleMoves')}
+              type="number"
+              min={1}
+              max={RESCHEDULE_MAX_MOVES}
+              value={numText(moves.maxMoves)}
+              disabled={locked('reschedule') || !moves.allowed}
+              error={badMoves ? t('owner.settings.errors.rescheduleMoves') : undefined}
+              onChange={(e) => edit({ ...draft, reschedule: { ...moves, maxMoves: toNum(e.target.value) } })}
+            />
+          </div>
+          <p className={styles.muted}>{t('owner.settings.rescheduleNote')}</p>
+        </>,
       )}
     </>
   );

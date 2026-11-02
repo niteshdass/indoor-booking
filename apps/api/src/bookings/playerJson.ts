@@ -1,4 +1,4 @@
-import { REVIEW_WINDOW_DAYS, type OwnReviewJson, type WalletProvider } from '@booking/shared';
+import { REVIEW_WINDOW_DAYS, reschedulableUntil, type BookingStatus, type OwnReviewJson, type ReschedulePolicy, type WalletProvider } from '@booking/shared';
 import { User } from '../auth/user.model';
 import { ownReviewJson } from '../reviews/json';
 import { Review } from '../reviews/review.model';
@@ -19,6 +19,8 @@ export type PlayerBooking = ReturnType<typeof bookingJson> & {
   review: OwnReviewJson | null;
   /** Last moment a review can be posted; null when it cannot (any more). */
   reviewableUntil: string | null;
+  /** Last moment the player may move the booking themselves; null when they cannot (any more). */
+  reschedulableUntil: string | null;
   /** The latest wallet payment the player submitted for this booking (a group's, on its lead); never the sender number. */
   manualPayment: PlayerManualPayment | null;
 };
@@ -45,6 +47,17 @@ function reviewableUntil(b: BookingDoc, now: Date): string | null {
   if (b.status !== 'completed' || !b.completedAt || b.reviewedAt || !b.playerId) return null;
   const until = new Date(b.completedAt.getTime() + REVIEW_WINDOW_DAYS * DAY_MS);
   return until.getTime() >= now.getTime() ? until.toISOString() : null;
+}
+
+function playerMoveUntil(b: BookingDoc, now: Date): string | null {
+  if (!b.playerId) return null;
+  const policy = (b.policySnapshot?.reschedule ?? null) as ReschedulePolicy | null;
+  const until = reschedulableUntil(
+    policy,
+    { status: b.status as BookingStatus, startAt: b.startAt, moves: b.playerMoves ?? 0, series: !!b.seriesId },
+    now,
+  );
+  return until && until >= now ? until.toISOString() : null;
 }
 
 /**
@@ -87,6 +100,7 @@ export async function playerBookingsJson(bookings: BookingDoc[], now: Date): Pro
       turf: t ? { name: t.name } : null,
       review: r ? ownReviewJson(r, nameById.get(String(r.playerId)), now) : null,
       reviewableUntil: reviewableUntil(b, now),
+      reschedulableUntil: playerMoveUntil(b, now),
       manualPayment: m ? manualPaymentJson(m) : null,
     };
   });

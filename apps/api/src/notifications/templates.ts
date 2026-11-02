@@ -7,10 +7,12 @@ export const NOTICE_EVENTS = [
   'payment_received',
   'payment_not_found',
   'booking_cancelled',
+  'booking_rescheduled',
   'refund_issued',
   'booking_reminder',
   'hold_expiring',
   'staff_new_pending',
+  'staff_booking_rescheduled',
   'staff_refund_external',
   'staff_dispute_opened',
   'staff_dispute_closed',
@@ -55,6 +57,10 @@ export type NoticeData = {
   kept?: string[];
   /** series_games_cancelled: the notice goes to staff, so it links to the series page. */
   toStaff?: boolean;
+  /** Reschedule events: where the booking was before the move. */
+  previousTurfName?: string;
+  previousStartAt?: string;
+  previousEndAt?: string;
 };
 
 type Ctx = {
@@ -64,6 +70,8 @@ type Ctx = {
   start: string;
   /** Local date and start time. */
   startsAt: string;
+  /** Reschedule events: the old turf, local date and time range; empty otherwise. */
+  was: string;
   holdUntil: string;
   money: string;
   link: string;
@@ -253,6 +261,26 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       sms: `বুকিং বাতিল। ${d.reference}`,
     }),
   },
+  booking_rescheduled: {
+    en: ({ d, startsAt, was }) => ({
+      subject: `Booking moved (${d.reference})`,
+      lead: 'Your booking has been moved to a new time.',
+      extra: was ? `Was: ${was}` : undefined,
+      sms: `Booking moved: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
+    }),
+    ru: ({ d, startsAt, was }) => ({
+      subject: `Бронирование перенесено (${d.reference})`,
+      lead: 'Ваше бронирование перенесено на новое время.',
+      extra: was ? `Было: ${was}` : undefined,
+      sms: `Бронирование перенесено: ${d.venueName}, ${d.turfName}, ${startsAt}. ${d.reference}`,
+    }),
+    bn: ({ d, startsAt, was }) => ({
+      subject: `বুকিং সরানো হয়েছে (${d.reference})`,
+      lead: 'আপনার বুকিং নতুন সময়ে সরানো হয়েছে।',
+      extra: was ? `আগে ছিল: ${was}` : undefined,
+      sms: `বুকিং সরানো হয়েছে: ${d.venueName}, ${d.turfName}, ${startsAt}। ${d.reference}`,
+    }),
+  },
   refund_issued: {
     en: ({ d, money }) => ({
       subject: `Refund issued (${d.reference})`,
@@ -319,6 +347,26 @@ const BUILDERS: Record<NoticeEvent, Record<Locale, Builder>> = {
       subject: `নতুন বুকিং অনুরোধ (${d.reference})`,
       lead: `${d.customerName ?? 'একজন কাস্টমার'}-এর নতুন বুকিং অনুরোধ, নিশ্চিতকরণের অপেক্ষায়।`,
       sms: `${d.customerName ?? 'একজন কাস্টমার'}-এর নতুন বুকিং অনুরোধ। ${d.reference}`,
+    }),
+  },
+  staff_booking_rescheduled: {
+    en: ({ d, startsAt, was }) => ({
+      subject: `Booking moved by the customer (${d.reference})`,
+      lead: `${d.customerName ?? 'A customer'} moved their booking to a new time.`,
+      extra: was ? `Was: ${was}` : undefined,
+      sms: `${d.customerName ?? 'A customer'} moved a booking to ${startsAt}. ${d.reference}`,
+    }),
+    ru: ({ d, startsAt, was }) => ({
+      subject: `Клиент перенёс бронирование (${d.reference})`,
+      lead: `${d.customerName ?? 'Клиент'} перенёс бронирование на новое время.`,
+      extra: was ? `Было: ${was}` : undefined,
+      sms: `${d.customerName ?? 'Клиент'} перенёс бронирование на ${startsAt}. ${d.reference}`,
+    }),
+    bn: ({ d, startsAt, was }) => ({
+      subject: `কাস্টমার বুকিং সরিয়েছেন (${d.reference})`,
+      lead: `${d.customerName ?? 'একজন কাস্টমার'} তাঁর বুকিং নতুন সময়ে সরিয়েছেন।`,
+      extra: was ? `আগে ছিল: ${was}` : undefined,
+      sms: `${d.customerName ?? 'একজন কাস্টমার'} বুকিং ${startsAt}-এ সরিয়েছেন। ${d.reference}`,
     }),
   },
   staff_refund_external: {
@@ -571,7 +619,7 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
     ? staffSeries
       ? `${appUrl}/owner/${d.ownerId}/series/${d.seriesId}`
       : `${appUrl}/me/bookings`
-    : event === 'staff_new_pending'
+    : event === 'staff_new_pending' || event === 'staff_booking_rescheduled'
       ? `${appUrl}/dashboard/bookings/${d.bookingId}`
       : event === 'review_request'
         ? `${appUrl}/me/bookings/${d.bookingId}?review=1`
@@ -585,6 +633,7 @@ export function renderNotice(event: NoticeEvent, locale: Locale, d: NoticeData, 
     when: `${d.venueName}, ${d.turfName}\n${dateTime(d.startAt)} - ${time(d.endAt)}`,
     start: time(d.startAt),
     startsAt: dateTime(d.startAt),
+    was: d.previousStartAt && d.previousEndAt ? `${d.previousTurfName ?? d.turfName}, ${dateTime(d.previousStartAt)} - ${time(d.previousEndAt)}` : '',
     holdUntil: d.holdExpiresAt ? time(d.holdExpiresAt) : '',
     money: d.amount ? formatMoney(d.amount, d.currency, locale) : '',
     link,

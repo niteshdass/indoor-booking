@@ -48,6 +48,20 @@ describe('roles', () => {
     expect(within(dialog).getAllByText(S.cannotGrant)).toHaveLength(PERMISSIONS.length - CALLER.length);
   });
 
+  it('lists Move bookings right after Cancel bookings', async () => {
+    mockApi([rolesRoute, membersRoute(), ...ownerRoutes({ permissions: [...CALLER] })]);
+    const { user } = renderApp(`${URL}?tab=roles`, { user: staffUser });
+    await user.click(await screen.findByRole('button', { name: S.roleAdd }));
+    const dialog = await screen.findByRole('dialog');
+    const labels = within(dialog)
+      .getAllByRole('checkbox')
+      .map((b) => (b as HTMLInputElement).labels?.[0]?.textContent ?? '');
+    const at = labels.findIndex((l) => l.includes(en.owner.perm.booking_cancel));
+    expect(labels[at + 1]).toContain(en.owner.perm.booking_reschedule);
+    await i18n.changeLanguage('ru');
+    expect(await within(dialog).findByText(ru.owner.perm.booking_reschedule)).toBeTruthy();
+  });
+
   it('creates a role with the checked permissions', async () => {
     const { calls } = mockApi([
       { method: 'POST', path: '/owners/o1/roles', status: 201, body: { role: ROLES[2] } },

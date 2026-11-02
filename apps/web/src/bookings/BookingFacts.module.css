@@ -154,3 +154,10 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* "Time changed on …" under the meta line once the booking was moved */
+.moved {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--info);
+}

@@ -113,3 +113,17 @@
   padding: var(--space-12);
   background: var(--bg-surface);
 }
+
+/* "Change time" with the cutoff under it */
+.move {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.moveHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { AddonLine } from '@booking/shared';
 import { Button } from '../components/ui/Button';
-import { formatDate, formatTime, money } from '../lib/format';
+import { formatDate, formatDateTime, formatTime, money } from '../lib/format';
 import { playerFee } from '../lib/platformFee';
 import type { BookingJson } from '../lib/types';
 import { BookingStatusBadge, PaymentStatusBadge } from './BookingStatusBadge';
@@ -101,6 +101,9 @@ export function BookingFacts({ booking }: { booking: BookingJson }) {
           )}
           {!booking.venue && <span className={styles.utc}> · {t('booking.timesUtc')}</span>}
         </p>
+        {booking.rescheduleCount > 0 && booking.rescheduledAt && (
+          <p className={styles.moved}>{t('booking.moved', { when: formatDateTime(booking.rescheduledAt, tz, lang) })}</p>
+        )}
       </header>
 
       {booking.status === 'pending' && <p className={styles.note}>{t('booking.pendingNote')}</p>}

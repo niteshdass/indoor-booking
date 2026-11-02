@@ -243,7 +243,15 @@
     "coupon_used_up": "This promo code has been used up.",
     "coupon_limit_reached": "You've already used this promo code as many times as allowed.",
     "coupon_min_subtotal": "Your booking is below the minimum for this promo code.",
-    "coupon_code_taken": "A coupon with this code already exists."
+    "coupon_code_taken": "A coupon with this code already exists.",
+    "reschedule_not_allowed": "This booking can't be moved online. Contact the venue.",
+    "reschedule_too_late": "It's too late to change the time of this booking.",
+    "reschedule_limit": "This booking has been moved as many times as allowed.",
+    "reschedule_price_higher": "The new slots cost more than the booking. Pick cheaper slots.",
+    "reschedule_length": "Pick as many slots in a row as the booking has.",
+    "reschedule_same_slots": "That's the time the booking has now. Pick another.",
+    "turf_change_not_allowed": "The turf can't be changed for this booking.",
+    "booking_changed": "The booking changed meanwhile. Check it and try again."
   },
   "myBookings": {
     "title": "My bookings",
@@ -593,7 +601,8 @@
     "groupNote_other": "{{count}} bookings made in one go. Each one can be cancelled on its own.",
     "manualWaiting": "Waiting for the venue to check your payment ({{provider}} {{trxId}})",
     "manualLate": "These times were taken while you paid. The venue will send your money back once they check it.",
-    "lateEntry": "Already sent the money? Enter the Transaction ID"
+    "lateEntry": "Already sent the money? Enter the Transaction ID",
+    "moved": "Time changed on {{when}}"
   },
   "status": {
     "awaiting_payment": "Awaiting payment",
@@ -1007,7 +1016,8 @@
         "noShow": "Mark no-show",
         "markCash": "Mark cash paid",
         "paymentLink": "Show payment link",
-        "verify": "Verify payment"
+        "verify": "Verify payment",
+        "move": "Move booking"
       },
       "reject": {
         "title": "Reject this booking?",
@@ -1019,7 +1029,10 @@
         "recorded": "Reason"
       },
       "emptySearchHint": "Nothing matches. Check the spelling or try the phone number.",
-      "discount": "Discount ({{code}})"
+      "discount": "Discount ({{code}})",
+      "moved": "Moved",
+      "movedTimes_one": "{{when}} ({{count}} time)",
+      "movedTimes_other": "{{when}} ({{count}} times)"
     },
     "cancel": {
       "refund": "Customer refund ({{percent}}%)",
@@ -1250,7 +1263,9 @@
         "refund": "Hours must be 0 to 8760 and percent 0 to 100.",
         "window": "Enter a whole number from 1 to 365.",
         "wallet": "Enter a Bangladesh mobile number, like 01712345678.",
-        "autoReject": "Enter a whole number from 0 to 72."
+        "autoReject": "Enter a whole number from 0 to 72.",
+        "reschedule": "Enter a whole number from 0 to 168.",
+        "rescheduleMoves": "Enter a whole number from 1 to 5."
       },
       "sections": "Settings sections",
       "tab": {
@@ -1261,7 +1276,13 @@
         "stripe": "Stripe",
         "sslcommerz": "SSLCommerz",
         "sms": "SMS"
-      }
+      },
+      "rescheduleTitle": "Rescheduling",
+      "rescheduleAllowed": "Players can move their own booking",
+      "rescheduleHours": "Up to N hours before start",
+      "rescheduleHoursHint": "0 to 168 hours.",
+      "rescheduleMoves": "Moves per booking",
+      "rescheduleNote": "Same turf and number of slots, at no higher price. Staff can move any booking. Applies to new bookings."
     },
     "gateway": {
       "title": "Stripe card payments",
@@ -1669,7 +1690,8 @@
       "settings_edit": "Edit settings",
       "reports_view": "View reports",
       "review_manage": "Manage reviews",
-      "coupon_manage": "Manage coupons"
+      "coupon_manage": "Manage coupons",
+      "booking_reschedule": "Move bookings"
     },
     "activity": {
       "title": "Activity",
@@ -1759,7 +1781,8 @@
         "series_withdraw": "Series withdrawn",
         "series_cancel": "Series cancelled",
         "payment_verified": "Wallet payment verified",
-        "payment_not_received": "Wallet payment marked not received"
+        "payment_not_received": "Wallet payment marked not received",
+        "booking_rescheduled": "Booking moved"
       }
     },
     "reviews": {
@@ -2594,5 +2617,23 @@
   "notificationEvent": {
     "payment_received": "Payment received",
     "payment_not_found": "Payment not found"
+  },
+  "reschedule": {
+    "open": "Change time",
+    "until": "You can change the time until {{when}}",
+    "title": "Change time",
+    "staffTitle": "Move booking",
+    "pickHint_one": "Tap a new start. The booking keeps its {{count}} slot.",
+    "pickHint_other": "Tap a new start. The booking keeps its {{count}} slots.",
+    "court": "Turf",
+    "noRun_one": "That slot isn't free. Pick another ({{count}} slot).",
+    "noRun_other": "There are no {{count}} free slots in a row there. Pick another start.",
+    "newTime": "New time",
+    "sameTime": "That's the time it has now. Pick another.",
+    "tooDear": "These slots cost more ({{amount}}). Pick slots that cost the same or less.",
+    "priceKept": "The price stays the same: nothing more to pay, no refund.",
+    "priceKeptStaff": "The price and payments stay as they are.",
+    "back": "Keep current time",
+    "confirm": "Confirm new time"
   }
 }

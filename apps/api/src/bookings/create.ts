@@ -78,7 +78,7 @@ export const REFERENCE_ATTEMPTS = 5;
  */
 export const LINK_HOLD_MINUTES = 32;
 
-const slotTaken = () => new AppError(409, 'slot_taken', 'That slot was just booked');
+export const slotTaken = () => new AppError(409, 'slot_taken', 'That slot was just booked');
 
 /** A duplicate-key error on an index containing `key`. */
 export const keyHas = (err: unknown, key: string) =>
@@ -117,10 +117,19 @@ export async function stockInUse(
   range: Range,
   now: Date,
   session: ClientSession | null = null,
+  /** A booking left out of the count: one being moved does not use its own stock twice. */
+  except?: unknown,
 ): Promise<Record<string, number>> {
   if (addonIds.length === 0) return {};
   const bookings = await Booking.find(
-    { ownerId, venueId: venue._id, ...overlapping(range), 'addons.addonId': { $in: addonIds }, ...holdingFilter(now) },
+    {
+      ownerId,
+      venueId: venue._id,
+      ...(except === undefined ? {} : { _id: { $ne: except } }),
+      ...overlapping(range),
+      'addons.addonId': { $in: addonIds },
+      ...holdingFilter(now),
+    },
     { addons: 1 },
   )
     .session(session)
@@ -309,7 +318,7 @@ export async function createBooking(input: CreateBookingInput): Promise<BookingD
             source,
             playerId: who.playerId,
             guest: who.guest,
-            policySnapshot: { paymentPolicy: settings.paymentPolicy, refundRules: settings.refundRules },
+            policySnapshot: { paymentPolicy: settings.paymentPolicy, refundRules: settings.refundRules, reschedule: settings.reschedule },
             createdBy: who.createdBy,
             requestKey,
             // The app clock, not the wall clock: the reminder sweep compares it with startAt.
@@ -537,7 +546,7 @@ export async function createBookingGroup(input: CreateGroupInput): Promise<Booki
               source,
               playerId: who.playerId,
               guest: who.guest,
-              policySnapshot: { paymentPolicy: d.settings.paymentPolicy, refundRules: d.settings.refundRules },
+              policySnapshot: { paymentPolicy: d.settings.paymentPolicy, refundRules: d.settings.refundRules, reschedule: d.settings.reschedule },
               createdBy: who.createdBy,
               groupId,
               requestKey: bookings.length === 0 ? requestKey : undefined,

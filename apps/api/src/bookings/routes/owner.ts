@@ -28,6 +28,7 @@ import { bookingSearchFilter, searchCustomers } from '../customers';
 import { Payment, type PaymentDoc } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
 import { addonsSchema, groupItems, moreSchema, startAtsSchema } from './public';
+import { rescheduleBooking } from '../reschedule';
 
 const MAX_RANGE_DAYS = 31;
 const LIST_LIMIT = 500;
@@ -94,6 +95,8 @@ const customerQuery = z.object({ q: z.string().trim().min(2).max(80) });
 
 const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
+/** Omitting turfId keeps the booking on its court. */
+const rescheduleSchema = z.object({ turfId: idQuery.optional(), date: isoDateSchema, startAts: startAtsSchema }).strict();
 const cashSchema = z.object({ amount: z.number().int().optional() }).strict();
 const verifySchema = z.object({ amountReceived: z.number().int().min(1).optional() }).strict();
 
@@ -225,6 +228,16 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const booking = await scopedBooking(t, req.params.bookingId as string);
     const out = await cancelBooking(booking, { kind: 'staff', t }, { reason: reason || undefined }, { config, services });
     res.json({ booking: await ownerBookingJson(out.booking), refunds: await ownerRefundsJson(out.refunds) });
+  });
+
+  // Any court of the venue, any time before the booking ends; the price and payments stay as they are.
+  router.post('/bookings/:bookingId/reschedule', requirePermission('booking.reschedule'), async (req, res) => {
+    const t = tenantOf(req);
+    const { turfId, date, startAts } = rescheduleSchema.parse(req.body ?? {});
+    const booking = await scopedBooking(t, req.params.bookingId as string);
+    const { venue, turf } = await scopedTurf(t, String(booking.venueId), turfId ?? String(booking.turfId));
+    const moved = await rescheduleBooking(booking, { kind: 'staff', t }, { venue, turf, date, startAts }, { services });
+    res.json({ booking: await ownerBookingJson(moved) });
   });
 
   router.get('/booking-groups/:groupId', requirePermission('booking.view'), async (req, res) => {

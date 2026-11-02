@@ -120,6 +120,62 @@ describe('SettingsForm', () => {
     expect(await screen.findByText(S.saved)).toBeTruthy();
   });
 
+  it('owner level rescheduling saves the whole policy under reschedule', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('owner', {}, 'booking');
+    const card = screen.getByRole('region', { name: S.rescheduleTitle });
+    expect((within(card).getByLabelText(S.rescheduleAllowed) as HTMLInputElement).checked).toBe(DEFAULTS.reschedule.allowed);
+    const hours = within(card).getByLabelText(S.rescheduleHours);
+    await user.clear(hours);
+    await user.type(hours, '12');
+    const moves = within(card).getByLabelText(S.rescheduleMoves);
+    await user.clear(moves);
+    await user.type(moves, '3');
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ reschedule: { ...DEFAULTS.reschedule, minHoursBefore: 12, maxMoves: 3 } }));
+  });
+
+  it('players can be stopped from moving bookings', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('owner', {}, 'booking');
+    const card = screen.getByRole('region', { name: S.rescheduleTitle });
+    await user.click(within(card).getByLabelText(S.rescheduleAllowed));
+    expect(within(card).getByLabelText(S.rescheduleHours)).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ reschedule: { ...DEFAULTS.reschedule, allowed: false } }));
+  });
+
+  it('out-of-range rescheduling numbers block save with their own errors', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('owner', {}, 'booking');
+    const card = screen.getByRole('region', { name: S.rescheduleTitle });
+    const hours = within(card).getByLabelText(S.rescheduleHours);
+    await user.clear(hours);
+    await user.type(hours, '200');
+    await user.click(screen.getByRole('button', { name: S.save }));
+    expect(await within(card).findByText(S.errors.reschedule)).toBeTruthy();
+    expect(within(card).queryByText(S.errors.rescheduleMoves)).toBeNull();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('venue level rescheduling inherits until overridden, and inherit again sends null', async () => {
+    const user = userEvent.setup();
+    const onSave = renderForm('venue', { stored: { reschedule: { allowed: true, minHoursBefore: 6, maxMoves: 2 } } }, 'booking');
+    const card = screen.getByRole('region', { name: S.rescheduleTitle });
+    expect((within(card).getByLabelText(S.rescheduleHours) as HTMLInputElement).value).toBe('6');
+    await user.click(within(card).getByLabelText(S.inherit));
+    expect((within(card).getByLabelText(S.rescheduleHours) as HTMLInputElement).value).toBe(String(DEFAULTS.reschedule.minHoursBefore));
+    await user.click(screen.getByRole('button', { name: S.save }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ reschedule: null }));
+  });
+
+  it('settingsPatch sends reschedule like the other keys', () => {
+    const policy = { allowed: false, minHoursBefore: 0, maxMoves: 1 };
+    expect(settingsPatch('venue', {}, { reschedule: policy })).toEqual({ reschedule: policy });
+    expect(settingsPatch('venue', { reschedule: policy }, {})).toEqual({ reschedule: null });
+    expect(settingsPatch('owner', { ...DEFAULTS }, { ...DEFAULTS })).toEqual({});
+  });
+
   it('owner level auto-reject card has its own heading', () => {
     renderForm('owner', {}, 'booking');
     const card = screen.getByRole('region', { name: S.autoRejectTitle });

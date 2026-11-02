@@ -133,6 +133,12 @@ export type BookingJson = {
   completedAt: string | null;
   review: OwnReviewJson | null;
   reviewableUntil: string | null;
+  /** Times the booking was moved (by the player or staff); 0 when never. */
+  rescheduleCount: number;
+  /** When it was last moved; null when never. */
+  rescheduledAt: string | null;
+  /** Last moment the player may move it themselves; null when they cannot (any more). */
+  reschedulableUntil: string | null;
   venue: PlayerVenue | null;
   turf: { name: string } | null;
   /** The wallet payment the player sent, if any; never the sender number. */

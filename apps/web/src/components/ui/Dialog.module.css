@@ -7,6 +7,10 @@
   box-shadow: var(--shadow-lg);
 }
 
+.wide {
+  width: min(90vw, var(--dialog-wide));
+}
+
 .dialog::backdrop {
   background: var(--overlay);
 }

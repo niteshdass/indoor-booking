@@ -34,6 +34,7 @@ import { offeredMethods } from '../../payments/methods';
 import { payableGroup, submitManualPayment } from '../../payments/manual';
 import { invalidTransition } from '../transition';
 import { cancelBooking, previewCancellation } from '../cancel';
+import { rescheduleBooking } from '../reschedule';
 import { Refund } from '../../payments/refund.model';
 import { refundJson } from '../../payments/refunds';
 
@@ -175,6 +176,7 @@ const manualSchema = z
   .strict();
 
 const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
+export const rescheduleSchema = z.object({ date: isoDateSchema, startAts: startAtsSchema }).strict();
 const guestCancelSchema = z
   .object({ reference: z.string().min(1).max(32), phone: z.string().min(1).max(32), otpCode: otpCodeSchema, reason: z.string().trim().max(300).optional() })
   .strict();
@@ -198,7 +200,7 @@ async function guestBooking(reference: string, rawPhone: string, opts: { unowned
 
 /** What a guest sees: a review belongs to the signed-in player, never to whoever holds the reference and phone. */
 async function guestBookingJson(b: BookingDoc, now: Date) {
-  return { ...(await playerBookingJson(b, now)), review: null, reviewableUntil: null };
+  return { ...(await playerBookingJson(b, now)), review: null, reviewableUntil: null, reschedulableUntil: null };
 }
 
 const quoteJson = (q: BookingQuote, currency: string) => ({
@@ -468,6 +470,21 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     const by = { kind: 'player' as const, ownerId: String(booking.ownerId), userId };
     const out = await cancelBooking(booking, by, { reason: reason || undefined }, { config, services });
     res.json({ booking: await playerBookingJson(out.booking, services.now()), refunds: out.refunds.map(refundJson) });
+  });
+
+  // Same court, within the policy frozen on the booking; the price and payments stay as they are.
+  router.post('/me/bookings/:bookingId/reschedule', requireAuth(config, services), async (req, res) => {
+    const { date, startAts } = rescheduleSchema.parse(req.body ?? {});
+    const userId = req.auth!.userId;
+    const booking = await playerBooking(req.params.bookingId as string, userId);
+    const ownerId = String(booking.ownerId);
+    const [venue, turf] = await Promise.all([
+      Venue.findOne({ ownerId, _id: booking.venueId }),
+      Turf.findOne({ ownerId, _id: booking.turfId }),
+    ]);
+    if (!venue || !turf) throw bookingNotFound();
+    const moved = await rescheduleBooking(booking, { kind: 'player', userId }, { venue, turf, date, startAts }, { services });
+    res.json({ booking: await playerBookingJson(moved, services.now()) });
   });
 
   // The venue's wallet numbers go to the booking's own player only.

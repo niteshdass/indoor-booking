@@ -12,6 +12,7 @@ import { ownerPath } from '../ownerApi';
 import type { OwnerBooking, PaymentLink, RefundJson } from '../types';
 import { availableActions, type Action } from './availableActions';
 import { CashDialog } from './CashDialog';
+import { MoveDialog } from './MoveDialog';
 import { OwnerCancelDialog } from './OwnerCancelDialog';
 import { PaymentLinkDialog } from './PaymentLinkDialog';
 import { VerifyPaymentDialog } from './VerifyPaymentDialog';
@@ -79,6 +80,7 @@ const ACTION_ICON: Record<Action, IconName> = {
   noShow: 'ban',
   markCash: 'money',
   paymentLink: 'link',
+  move: 'calendar',
 };
 
 /** The leading icon for an action's button. */
@@ -99,6 +101,7 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
   const [cashOpen, setCashOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [link, setLink] = useState<PaymentLink | null>(null);
   const actions = availableActions(booking, can);
   const base = ownerPath(ownerId, `/bookings/${encodeURIComponent(booking.id)}`);
@@ -123,6 +126,8 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
         return setCashOpen(true);
       case 'paymentLink':
         return setLinkOpen(true);
+      case 'move':
+        return setMoveOpen(true);
     }
   };
 
@@ -177,6 +182,16 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
           }
         }}
       />
+      <MoveDialog
+        booking={booking}
+        open={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        onConflict={cb.onConflict}
+        onMoved={(b) => {
+          setMoveOpen(false);
+          cb.onUpdated(b);
+        }}
+      />
       <OwnerCancelDialog
         bookingId={booking.id}
         open={cancelOpen}
@@ -190,7 +205,7 @@ export function useBookingActions(booking: OwnerBooking, cb: ActionCallbacks) {
   );
 
   // The reject dialog shows its own error.
-  const open = rejectOpen || cancelOpen || cashOpen || linkOpen || verifyOpen;
+  const open = rejectOpen || cancelOpen || cashOpen || linkOpen || verifyOpen || moveOpen;
   return { actions, trigger, pending, error: rejectOpen ? null : error, dialogs, open };
 }
 

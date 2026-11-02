@@ -167,7 +167,9 @@ export async function sendReminders(now: Date): Promise<number> {
       $expr: { $lte: ['$createdAt', { $subtract: ['$startAt', lead] }] },
     },
     'startAt',
-    async (b, session) => (await noticeBooking('booking_reminder', b, now, session)) > 0,
+    // A moved booking is reminded again of its new time.
+    async (b, session) =>
+      (await noticeBooking('booking_reminder', b, now, session, b.rescheduleCount ? { repeatKey: `move${b.rescheduleCount}` } : {})) > 0,
   );
 }
 

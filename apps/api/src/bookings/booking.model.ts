@@ -68,7 +68,15 @@ const bookingSchema = new mongoose.Schema(
     guest: { type: guestSchema, default: null },
     /** Venue rules in force when the booking was made. */
     policySnapshot: {
-      type: new mongoose.Schema({ paymentPolicy: { type: Mixed, default: null }, refundRules: { type: [Mixed], default: [] } }, { _id: false, minimize: false }),
+      type: new mongoose.Schema(
+        {
+          paymentPolicy: { type: Mixed, default: null },
+          refundRules: { type: [Mixed], default: [] },
+          /** ReschedulePolicy; null on bookings made before moves existed, which only staff can move. */
+          reschedule: { type: Mixed, default: null },
+        },
+        { _id: false, minimize: false },
+      ),
       required: true,
     },
     /** PlatformFeeSnapshot frozen at create time; null for walk-ins, free mode and bookings made before fees. */
@@ -88,6 +96,11 @@ const bookingSchema = new mongoose.Schema(
     cancelledBy: { type: String, enum: ['player', 'guest', 'staff', null], default: null },
     cancelReason: { type: String, default: null },
     completedAt: { type: Date, default: null },
+    /** Times the booking was moved to other slots, by anyone, and when it last was. */
+    rescheduleCount: { type: Number, default: 0, min: 0 },
+    /** Moves the player made themselves; what the policy's maxMoves counts. */
+    playerMoves: { type: Number, default: 0, min: 0 },
+    rescheduledAt: { type: Date, default: null },
     /** The latest card dispute on the booking's payment, staff only; null when there has been none. */
     dispute: {
       type: new mongoose.Schema(
@@ -178,6 +191,8 @@ export function bookingJson(b: BookingDoc) {
     cancelledBy: b.cancelledBy ?? null,
     cancelReason: b.cancelReason ?? null,
     completedAt: b.completedAt ? b.completedAt.toISOString() : null,
+    rescheduleCount: b.rescheduleCount ?? 0,
+    rescheduledAt: b.rescheduledAt ? b.rescheduledAt.toISOString() : null,
     createdAt: b.createdAt.toISOString(),
   };
 }

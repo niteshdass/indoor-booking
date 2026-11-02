@@ -132,8 +132,11 @@ export async function rescheduleBooking(
 
       await SlotLock.deleteMany({ ownerId, bookingId: booking._id }, { session });
       await lockSlots(ownerId, turf._id, booking._id, slots, session);
+      // A booking from before moves existed has no rescheduleCount stored (mongoose reads it as 0);
+      // a filter on 0 alone would never match it.
+      const count = current.rescheduleCount === 0 ? { $in: [0, null] } : current.rescheduleCount;
       const moved = await Booking.findOneAndUpdate(
-        { ownerId, _id: booking._id, status: current.status, rescheduleCount: current.rescheduleCount },
+        { ownerId, _id: booking._id, status: current.status, rescheduleCount: count },
         {
           $set: { turfId: turf._id, businessDate: date, startAt: range.startAt, endAt: range.endAt, slots, rescheduledAt: now },
           $inc: { rescheduleCount: 1, ...(staff ? {} : { playerMoves: 1 }) },

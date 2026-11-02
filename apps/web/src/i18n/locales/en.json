@@ -251,7 +251,8 @@
     "reschedule_length": "Pick as many slots in a row as the booking has.",
     "reschedule_same_slots": "That's the time the booking has now. Pick another.",
     "turf_change_not_allowed": "The turf can't be changed for this booking.",
-    "booking_changed": "The booking changed meanwhile. Check it and try again."
+    "booking_changed": "The booking changed meanwhile. Check it and try again.",
+    "export_too_large": "Too many rows for one file. Pick a shorter date range."
   },
   "myBookings": {
     "title": "My bookings",
@@ -1723,7 +1724,8 @@
         "payment_gateway": "Payment gateway",
         "refund": "Refund",
         "review": "Review",
-        "series": "Series"
+        "series": "Series",
+        "report": "Report"
       },
       "action": {
         "settings_update": "Settings updated",
@@ -1782,7 +1784,8 @@
         "series_cancel": "Series cancelled",
         "payment_verified": "Wallet payment verified",
         "payment_not_received": "Wallet payment marked not received",
-        "booking_rescheduled": "Booking moved"
+        "booking_rescheduled": "Booking moved",
+        "report_exported": "Report exported"
       }
     },
     "reviews": {
@@ -1925,6 +1928,30 @@
         "maxUses": "Enter a whole number of 1 or more, or leave blank.",
         "maxUsesPerCustomer": "Enter a whole number from 1 to 1000, or leave blank.",
         "venues": "Choose at least one venue."
+      }
+    },
+    "export": {
+      "button": "Export CSV",
+      "title": "Export CSV",
+      "what": "What to export",
+      "kind": {
+        "bookings": "Bookings",
+        "payments": "Payments"
+      },
+      "kindHint": {
+        "bookings": "Played on these dates",
+        "payments": "Taken on these dates"
+      },
+      "from": "From",
+      "to": "To",
+      "allVenues": "All venues",
+      "note": "The file has customer names, phone numbers and emails. Keep it safe.",
+      "cancel": "Cancel",
+      "download": "Download",
+      "err": {
+        "date": "Pick a date.",
+        "order": "The end date must be on or after the start date.",
+        "tooLong": "Pick at most {{max}} days."
       }
     }
   },

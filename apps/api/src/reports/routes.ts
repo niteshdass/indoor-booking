@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import mongoose from 'mongoose';
 import { z } from 'zod';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
@@ -6,10 +6,12 @@ import { ownerBookingsJson } from '../bookings/ownerJson';
 import { Payment } from '../bookings/payment.model';
 import type { AppServices } from '../services';
 import { requirePermission, tenantOf } from '../tenancy/context';
+import { logActivity } from '../tenancy/activityLog.model';
 import { tenantRepo } from '../tenancy/repo';
 import { effectiveForTurf } from '../venues/effective';
 import { scopedVenue } from '../venues/routes/venues';
 import { Turf } from '../venues/turf.model';
+import { bookingsCsv, exportQuery, paymentsCsv, type CsvFile } from './export';
 import { buildOverview, OVERVIEW_DAYS, overviewRanges, type OverviewBooking, type Range } from './overview';
 
 const RECENT_LIMIT = 6;
@@ -36,6 +38,17 @@ const asOverview = (b: BookingDoc): OverviewBooking => ({
   amountRefunded: b.amountRefunded,
   platformFee: b.platformFee ?? null,
 });
+
+function sendCsv(res: Response, file: CsvFile) {
+  res
+    .status(200)
+    .set({
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${file.filename}"`,
+      'Cache-Control': 'no-store',
+    })
+    .send(file.body);
+}
 
 /** Mounted on ownerRouter. */
 export function reportsRouter(services: AppServices): Router {
@@ -104,6 +117,29 @@ export function reportsRouter(services: AppServices): Router {
       recent: await ownerBookingsJson(recent),
     });
   });
+
+  // Customer names, phones and emails go out in these files, so they sit with the reports and each
+  // download is logged.
+  const exportRoute = (kind: 'bookings' | 'payments', build: typeof bookingsCsv) =>
+    router.get(`/reports/${kind}.csv`, requirePermission('reports.view'), async (req, res) => {
+      const t = tenantOf(req);
+      const q = exportQuery.parse(req.query);
+      const file = await build(t, q);
+      await logActivity(
+        t,
+        {
+          action: 'report.exported',
+          entity: 'report',
+          entityId: q.venueId ?? t.ownerId,
+          ...(q.venueId ? { venueId: q.venueId } : {}),
+          after: { kind, from: q.from, to: q.to, rows: file.rows },
+        },
+        services.now(),
+      );
+      sendCsv(res, file);
+    });
+  exportRoute('bookings', bookingsCsv);
+  exportRoute('payments', paymentsCsv);
 
   return router;
 }

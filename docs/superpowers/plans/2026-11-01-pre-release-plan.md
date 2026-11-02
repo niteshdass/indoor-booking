@@ -113,7 +113,7 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 | [x] P2-03 | **Bangla (bn) UI** | Gap — competitors barely do it | Done: `bn` in shared `LOCALES` and the language menu, full `bn.json` (lazy, ~31 kB gzip), Bangla email/SMS templates, Bangla digits and dates via Intl. Noto Sans Bengali joins both font stacks; `:lang(bn)` raises line heights. Bangla runs 1.01× English overall (test caps it at 1.3×). |
 | [x] P2-04 | **Coupons / promo codes** | Turfly, Khelboo, TurfBook | Done: owner coupons (percent with optional cap, or fixed), validity window, total and per-customer use caps, minimum spend, per-venue or all venues, new `coupon.manage` permission. `quoteBooking()` takes the discount off slots + add-ons before the platform fee and advance; a group splits one discount across its bookings and counts as one use. Uses are counted from live bookings, so expired, rejected and cancelled ones free theirs. Bookings keep a `{code, discount}` snapshot. Promo field at checkout; Coupons page in the owner dashboard. |
 | [x] P2-05 | **Reschedule / move booking** (owner + player within policy) | Turffin, Playo | Done: per-owner/per-venue reschedule policy (allowed, hours before start, max moves; default on, 24h, 1 move), frozen on the booking at create. Players move to another time on the same court when the new slots cost no more; staff with the new `booking.reschedule` permission move to any court of the venue until the booking ends. One transaction locks both turfs, re-checks the slots, swaps the slot locks; price, add-ons, coupon, fee and payments stay attached. Customer and staff notices, reminder re-sent for the new time, activity log entry. "Change time" on the player booking page, "Move" in owner booking actions, Rescheduling section in settings. |
-| [ ] P2-06 | **CSV export** of bookings & payments | TurfBook reports, roadmap #16 | Not present. Owner reports page + bookings list. |
+| [x] P2-06 | **CSV export** of bookings & payments | TurfBook reports, roadmap #16 | Done: `bookings.csv` (bookings played in a range) and `payments.csv` (payments taken in a range) under owner reports, gated on `reports.view`. One venue or every venue the member can see, venue-local dates, up to 366 days and 50,000 rows. UTF-8 with BOM so Excel shows Bangla and Cyrillic names, amounts as plain decimals, formula-looking cells defused, wallet sender numbers never exported. Each download is logged as `report.exported`. "Export CSV" dialog on the Overview and Bookings pages. |
 | [ ] P2-07 | **Deposit / partial payment with dues tracking** surfaced to owners | TurfBook, Turffin | Partial advance exists in settings; make "due at desk" visible on Today and in reports. |
 | [ ] P2-08 | **Player conveniences:** add to calendar (.ics), book again, saved venues | Turfly (one-tap rebook), Playo | Cheap, high retention. |
 | [ ] P2-09 | **Weekly payouts / commission** (if marketplace collects) | Playo, TurfHub | Roadmap #19. Only needed if we collect money; owners currently use their own gateways. |
@@ -157,6 +157,14 @@ Every serious BD competitor has these. Without them owners compare us unfavourab
 - Series games are moved by staff only.
 
 **Gate (release/p2-05-reschedule):** typecheck ✅ · lint ✅ · API 1106/1106 · web 929/929 · shared 177/177 · build ✅
+
+**Ops left for P2-06 (code is done):**
+- Column headers and status values are English codes, kept stable for spreadsheet imports; translate them only if owners ask.
+- Files are built in memory (up to 50,000 rows); switch to a streamed cursor if exports grow past that.
+- Phones start with `'` in the file (formula guard), which Excel hides but other tools may show.
+- Check the Export dialog on screen in light/dark and in ru/bn before launch.
+
+**Gate (release/p2-06-csv-export):** typecheck ✅ · lint ✅ · API 1112/1112 · web 943/943 · shared 177/177 · build ✅
 
 ---
 

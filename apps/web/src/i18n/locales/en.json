@@ -2902,6 +2902,11 @@
     "venue": {
       "back": "Back",
       "reviewsFailed": "Reviews could not be loaded."
+    },
+    "pay": {
+      "holdExpired": "Your hold expired, so these slots were released. Pick your slots again.",
+      "waitingVerify": "Waiting for the venue to verify your payment.",
+      "checking": "Payment sent. Updating your booking…"
     }
   }
 }

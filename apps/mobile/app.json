@@ -38,6 +38,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#fbfbfa"
         }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "enableGooglePay": false
+        }
       ]
     ],
     "experiments": {

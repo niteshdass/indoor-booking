@@ -1,6 +1,7 @@
 import {
   EMPTY_CRITERIA,
   MAX_SEARCH_RADIUS_KM,
+  MAX_SEARCH_TEXT,
   SPORTS,
   apiQuery,
   criteriaToParams,
@@ -125,5 +126,6 @@ export function criteriaFromParams(p: URLSearchParams): Criteria {
     maxPrice,
     available: p.get('available') === 'true',
     sort: p.get('sort') === 'rating' ? 'rating' : 'default',
+    text: (p.get('q') ?? '').trim().slice(0, MAX_SEARCH_TEXT),
   };
 }

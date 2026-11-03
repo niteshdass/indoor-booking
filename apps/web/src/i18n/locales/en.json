@@ -306,6 +306,9 @@
     "customRadius": "Custom distance (km)",
     "radiusInvalid": "Enter a distance from 1 to {{max}} km.",
     "radiusNeedsLocation": "Use your location to filter by distance.",
+    "text": "Venue or area",
+    "textPlaceholder": "Name, area or address",
+    "clearText": "Clear search",
     "sport": "Sport",
     "anySport": "Any sport",
     "date": "Date",
@@ -2892,11 +2895,8 @@
       "themeNote": "Light or dark follows your phone setting."
     },
     "find": {
-      "locationDenied": "Location is off, so search by city instead.",
-      "locationFailed": "We couldn't get your location. Search by city instead.",
-      "cityLabel": "City",
-      "cityPlaceholder": "For example Dhaka",
-      "cityNotFound": "We couldn't find that city. Check the spelling and try again.",
+      "locationDenied": "Location is off. Search by venue name or area instead.",
+      "locationFailed": "We couldn't get your location. Search by venue name or area instead.",
       "locating": "Finding your location"
     },
     "bookings": {

@@ -9,7 +9,10 @@ export interface VenueCardProps {
   onPress(venue: SearchResult): void;
 }
 
-/** One search result: photo, name, place, sports, price and rating. The whole card is one 44pt+ target. */
+/**
+ * One search result, compact: photo, then name and "km · place" on one line each, then price · free today · ★ rating.
+ * The whole card is one 44pt+ target; its label carries the sports the card leaves out.
+ */
 export function VenueCard({ venue: v, onPress }: VenueCardProps) {
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
@@ -18,46 +21,44 @@ export function VenueCard({ venue: v, onPress }: VenueCardProps) {
   const price = v.fromPrice === null ? tr('search.noPrice') : tr('search.fromPrice', { price: formatMoney(v.fromPrice, v.currency, i18n.language) });
   const free = v.freeTimeCount > 0 ? tr('search.freeToday') : tr('search.noFreeSlot');
   const km = v.distanceMeters === null ? null : tr('search.km', { count: Math.max(1, Math.round(v.distanceMeters / 1000)) });
-  const rating = v.rating
-    ? tr('reviews.cardLabel', { value: new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v.rating.average), count: v.rating.count })
+  const average = v.rating
+    ? new Intl.NumberFormat(i18n.language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v.rating.average)
     : null;
+  const thumb = { width: t.photoThumbSm, height: t.photoThumbSm, borderRadius: t.radiusMd, backgroundColor: t.controlFill };
 
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${v.name}, ${place}, ${price}`} onPress={() => onPress(v)}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={[v.name, place, sports, price].filter(Boolean).join(', ')}
+      onPress={() => onPress(v)}
+    >
       {({ pressed }) => (
-        <Card style={{ flexDirection: 'row', gap: t.space3, backgroundColor: pressed ? t.bgHover : t.bgSurface }}>
-          {v.photo ? (
-            <Image
-              source={{ uri: v.photo.url }}
-              accessibilityIgnoresInvertColors
-              style={{ width: t.photoThumb, height: t.photoThumb, borderRadius: t.radiusMd, backgroundColor: t.controlFill }}
-            />
-          ) : (
-            <View style={{ width: t.photoThumb, height: t.photoThumb, borderRadius: t.radiusMd, backgroundColor: t.controlFill }} />
-          )}
+        <Card style={{ flexDirection: 'row', alignItems: 'center', padding: t.space3, gap: t.space3, backgroundColor: pressed ? t.bgHover : t.bgSurface }}>
+          {v.photo ? <Image source={{ uri: v.photo.url }} accessibilityIgnoresInvertColors style={thumb} /> : <View style={thumb} />}
           <View style={{ flex: 1, gap: t.space1 }}>
-            <Text variant="title" tone="strong">
+            <Text variant="title" tone="strong" numberOfLines={1}>
               {v.name}
             </Text>
-            <Text variant="caption" tone="muted">
+            <Text variant="caption" tone="muted" numberOfLines={1}>
               {km ? `${km} · ${place}` : place}
             </Text>
-            {sports ? (
-              <Text variant="caption" tone="muted">
-                {sports}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: t.space2 }}>
+              <Text variant="label" tone="strong">
+                {price}
               </Text>
-            ) : null}
-            <Text variant="label" tone="strong">
-              {price}
-            </Text>
-            <Text variant="caption" tone={v.freeTimeCount > 0 ? 'success' : 'subtle'}>
-              {free}
-            </Text>
-            {rating ? (
-              <Text variant="caption" tone="muted">
-                {`★ ${rating}`}
+              <Text variant="caption" tone={v.freeTimeCount > 0 ? 'success' : 'subtle'}>
+                {free}
               </Text>
-            ) : null}
+              {v.rating && average ? (
+                <Text
+                  variant="caption"
+                  tone="muted"
+                  accessibilityLabel={tr('reviews.cardLabel', { value: average, count: v.rating.count })}
+                >
+                  {`★ ${average} (${new Intl.NumberFormat(i18n.language).format(v.rating.count)})`}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </Card>
       )}

@@ -29,6 +29,7 @@ describe('parseSearchQuery', () => {
       limit: 20,
       cursor: 0,
       sort: 'default',
+      words: [],
     });
   });
 
@@ -50,6 +51,7 @@ describe('parseSearchQuery', () => {
         limit: '5',
         cursor: '40',
         sort: 'rating',
+        q: '  Golden   Mirpur ',
       }),
     ).toEqual({
       near: { lat: 23.81, lng: 90.41 },
@@ -66,6 +68,7 @@ describe('parseSearchQuery', () => {
       limit: 5,
       cursor: 40,
       sort: 'rating',
+      words: ['Golden', 'Mirpur'],
     });
   });
 
@@ -119,6 +122,11 @@ describe('parseSearchQuery', () => {
     expect(err).toBeInstanceOf(AppError);
     expect(err.status).toBe(400);
     expect(err.code).toBe('validation_error');
+  });
+
+  it('search text: blank means no filter, at most 100 characters', () => {
+    expect(parseSearchQuery({ q: '   ' }).words).toEqual([]);
+    expect(failure({ q: 'x'.repeat(101) }).code).toBe('validation_error');
   });
 
   it('shared radius presets', () => {

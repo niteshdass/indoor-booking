@@ -1,20 +1,19 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { EMPTY_CRITERIA, type Criteria, type SearchResult, type Sport } from '@booking/shared';
 import { apiGet } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
+import { Chip } from '../../src/search/Chip';
+import { FindHero } from '../../src/search/FindHero';
+import { SearchBox } from '../../src/search/SearchBox';
 import { SportChips } from '../../src/search/SportChips';
 import { useNearMe } from '../../src/search/useNearMe';
 import { PAGE_SIZE, useSearch } from '../../src/search/useSearch';
 import { VenueCard } from '../../src/search/VenueCard';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { Button, Field, Screen, Text } from '../../src/ui';
-
-/** Where the search is centred: the phone, or a typed city. */
-type Origin = { kind: 'gps' } | { kind: 'city'; name: string };
+import { Button, Icon, Screen, Text } from '../../src/ui';
 
 export default function FindScreen() {
   const { t: tr } = useTranslation();
@@ -22,10 +21,6 @@ export default function FindScreen() {
   const router = useRouter();
   const [sports, setSports] = useState<Sport[]>([]);
   const [criteria, setCriteria] = useState<Criteria>(EMPTY_CRITERIA);
-  const [origin, setOrigin] = useState<Origin | null>(null);
-  const [city, setCity] = useState('');
-  const [cityError, setCityError] = useState(false);
-  const [geocoding, setGeocoding] = useState(false);
   const near = useNearMe();
   const { results, status, error, hasMore, loadMore, retry } = useSearch(criteria);
 
@@ -41,84 +36,51 @@ export default function FindScreen() {
 
   const locate = async () => {
     const c = await near.locate();
-    if (!c) return;
-    setCriteria((cur) => ({ ...cur, near: c }));
-    setOrigin({ kind: 'gps' });
+    if (c) setCriteria((cur) => ({ ...cur, near: c }));
   };
-
-  const searchCity = async () => {
-    const name = city.trim();
-    if (!name) return;
-    setGeocoding(true);
-    setCityError(false);
-    try {
-      const [hit] = await Location.geocodeAsync(name);
-      if (!hit) {
-        setCityError(true);
-        return;
-      }
-      setCriteria((cur) => ({ ...cur, near: { lat: hit.latitude, lng: hit.longitude } }));
-      setOrigin({ kind: 'city', name });
-    } catch {
-      setCityError(true);
-    } finally {
-      setGeocoding(false);
-    }
-  };
-
-  const clearOrigin = () => {
-    setCriteria((cur) => ({ ...cur, near: null }));
-    setOrigin(null);
-  };
+  const clearNear = () => setCriteria((cur) => ({ ...cur, near: null }));
 
   const open = (v: SearchResult) => router.push({ pathname: '/venue/[slug]', params: { slug: v.slug } });
 
-  const header = (
-    <View style={{ gap: t.space3, marginBottom: t.space4 }}>
-      <Text variant="heading" tone="strong" accessibilityRole="header">
-        {tr('mobile.tabs.find')}
+  // Without location the search box is the way in: it matches venue name, address and city.
+  const locationChip = criteria.near ? (
+    <Chip selected accessibilityRole="button" accessibilityLabel={tr('search.clearLocation')} onPress={clearNear}>
+      <Icon name="locate" color={t.primary} size={t.iconSm} />
+      <Text variant="label" tone="primary" weight="semibold">
+        {tr('search.locationSet')}
       </Text>
-      <SportChips sports={sports} value={criteria.sport} onChange={(sport) => setCriteria((cur) => ({ ...cur, sport }))} />
-      {origin ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: t.space2 }}>
-          <Text tone="muted" style={{ flexShrink: 1 }}>
-            {origin.kind === 'gps' ? tr('search.locationSet') : origin.name}
-          </Text>
-          <Button label={tr('search.clearLocation')} variant="ghost" onPress={clearOrigin} />
-        </View>
-      ) : (
-        <>
-          {near.blocked || near.failed ? (
-            <View style={{ gap: t.space2 }}>
-              <Text tone="muted" accessibilityRole="alert">
-                {near.blocked ? tr('mobile.find.locationDenied') : tr('mobile.find.locationFailed')}
-              </Text>
-              <Field
-                label={tr('mobile.find.cityLabel')}
-                placeholder={tr('mobile.find.cityPlaceholder')}
-                value={city}
-                onChangeText={(v) => {
-                  setCity(v);
-                  setCityError(false);
-                }}
-                onSubmitEditing={() => void searchCity()}
-                returnKeyType="search"
-                error={cityError ? tr('mobile.find.cityNotFound') : undefined}
-              />
-              <Button label={tr('search.submit')} loading={geocoding} disabled={!city.trim()} onPress={() => void searchCity()} />
-            </View>
-          ) : null}
-          {near.blocked ? null : (
-            <Button
-              label={tr('search.useMyLocation')}
-              variant="secondary"
-              loading={near.locating}
-              accessibilityHint={near.locating ? tr('mobile.find.locating') : undefined}
-              onPress={() => void locate()}
-            />
-          )}
-        </>
-      )}
+      <Icon name="close" color={t.primary} size={t.iconSm} />
+    </Chip>
+  ) : near.blocked ? null : (
+    <Chip
+      accessibilityRole="button"
+      accessibilityLabel={tr('search.useMyLocation')}
+      accessibilityHint={near.locating ? tr('mobile.find.locating') : undefined}
+      accessibilityState={{ busy: near.locating }}
+      disabled={near.locating}
+      onPress={() => void locate()}
+    >
+      {near.locating ? <ActivityIndicator size="small" color={t.primary} /> : <Icon name="locate" color={t.textMuted} size={t.iconSm} />}
+      <Text variant="label" tone="strong">
+        {tr('search.useMyLocation')}
+      </Text>
+    </Chip>
+  );
+
+  const header = (
+    <View style={{ gap: t.space3, marginBottom: t.space3 }}>
+      <FindHero>
+        <SearchBox raised value={criteria.text} onChange={(text) => setCriteria((cur) => (cur.text === text ? cur : { ...cur, text }))} />
+      </FindHero>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.space2, paddingVertical: t.space1 }}>
+        <SportChips sports={sports} value={criteria.sport} onChange={(sport) => setCriteria((cur) => ({ ...cur, sport }))} />
+        {locationChip}
+      </View>
+      {!criteria.near && (near.blocked || near.failed) ? (
+        <Text variant="caption" tone="muted" accessibilityRole="alert">
+          {near.blocked ? tr('mobile.find.locationDenied') : tr('mobile.find.locationFailed')}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -155,7 +117,7 @@ export default function FindScreen() {
         ListHeaderComponent={header}
         ListEmptyComponent={empty ?? undefined}
         ListFooterComponent={footer ?? undefined}
-        ItemSeparatorComponent={() => <View style={{ height: t.space3 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: t.space2 }} />}
         contentContainerStyle={{ paddingBottom: t.space4 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

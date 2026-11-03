@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   InvalidMoneyError,
   MAX_SEARCH_RADIUS_KM,
+  MAX_SEARCH_TEXT,
   SEARCH_RADII_KM,
   currencyExponent,
   parseMoney,
@@ -278,6 +279,18 @@ export function SearchForm({ value, onChange, currencies, autoLocate = false }: 
       aria-label={t('search.title')}
     >
       <div className={styles.bar}>
+        <div className={styles.barField}>
+          <label htmlFor={`${id}-text`}>{t('search.text')}</label>
+          <input
+            id={`${id}-text`}
+            type="search"
+            enterKeyHint="search"
+            maxLength={MAX_SEARCH_TEXT}
+            placeholder={t('search.textPlaceholder')}
+            value={draft.text}
+            onChange={(e) => patch({ text: e.target.value })}
+          />
+        </div>
         <div className={styles.barField}>
           <label htmlFor={`${id}-sport`}>{t('search.sport')}</label>
           <span className={styles.selectWrap}>

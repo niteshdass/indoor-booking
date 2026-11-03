@@ -2,6 +2,7 @@ import type { PipelineStage } from 'mongoose';
 import { Owner } from '../tenancy/owner.model';
 import { Venue, type VenueDoc } from '../venues/venue.model';
 import { Turf, type TurfDoc } from '../venues/turf.model';
+import { escapeRegExp } from '../bookings/customers';
 import type { Bbox, SearchQuery } from './query';
 
 export type Candidate = { venue: VenueDoc; turfs: TurfDoc[]; distanceMeters: number | null };
@@ -51,6 +52,12 @@ function exactBox(b: Bbox): Record<string, unknown> {
   return { $and: (bboxFilter(b).$and as Record<string, unknown>[]).slice(1) };
 }
 
+/** One search word, anywhere in the name, address or city, any case. */
+function textMatch(word: string): Record<string, unknown> {
+  const re = new RegExp(escapeRegExp(word), 'i');
+  return { $or: [{ name: re }, { address: re }, { city: re }] };
+}
+
 /** Top rated first when asked (unrated last), otherwise nearest first, or by name without a location. */
 function sortStage(q: SearchQuery): Record<string, 1 | -1> {
   if (q.sort === 'rating') return { 'rating.average': -1, 'rating.count': -1, name: 1, _id: 1 };
@@ -66,6 +73,7 @@ export async function findCandidates(q: SearchQuery, skip: number, n: number): P
   if (q.currency) venueMatch.currency = q.currency;
   // With a centre point $geoNear already walks the 2dsphere index, so the box only has to trim.
   if (q.bbox) Object.assign(venueMatch, q.near ? exactBox(q.bbox) : bboxFilter(q.bbox));
+  if (q.words.length > 0) venueMatch.$and = [...((venueMatch.$and as unknown[]) ?? []), ...q.words.map(textMatch)];
 
   const turfMatch: Record<string, unknown> = {
     $expr: { $and: [{ $eq: ['$ownerId', '$$ownerId'] }, { $eq: ['$venueId', '$$venueId'] }] },

@@ -4,6 +4,8 @@ import type { Sport } from './venues';
 /** Radius presets offered next to "anywhere" and a custom value. */
 export const SEARCH_RADII_KM = [10, 20, 30] as const;
 export const MAX_SEARCH_RADIUS_KM = 500;
+/** Longest search text (`q`): the longest venue name, so a pasted name always fits. */
+export const MAX_SEARCH_TEXT = 100;
 
 /** How many free start times a search result lists. */
 export const FREE_TIMES_SHOWN = 3;
@@ -81,6 +83,7 @@ export type Criteria = {
   maxPrice: number | null; // minor units
   available: boolean;
   sort: 'default' | 'rating';
+  text: string; // venue name, address or city; '' = no text filter
 };
 
 export const EMPTY_CRITERIA: Criteria = {
@@ -97,6 +100,7 @@ export const EMPTY_CRITERIA: Criteria = {
   maxPrice: null,
   available: false,
   sort: 'default',
+  text: '',
 };
 
 /** Writes criteria with the API's parameter names; nulls and false are omitted. */
@@ -120,6 +124,8 @@ export function criteriaToParams(c: Criteria): URLSearchParams {
   if (c.maxPrice !== null) p.set('maxPrice', String(c.maxPrice));
   if (c.available) p.set('available', 'true');
   if (c.sort === 'rating') p.set('sort', 'rating');
+  const text = c.text.trim().slice(0, MAX_SEARCH_TEXT);
+  if (text) p.set('q', text);
   return p;
 }
 

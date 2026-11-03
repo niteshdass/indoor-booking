@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MAX_SEARCH_RADIUS_KM, SPORTS, currencyExponent, type Sport, type TimeRange } from '@booking/shared';
+import { MAX_SEARCH_RADIUS_KM, MAX_SEARCH_TEXT, SPORTS, currencyExponent, type Sport, type TimeRange } from '@booking/shared';
 import { AppError } from '../errors';
 import { isoDateSchema, timeSchema } from '../schedule/schemas';
 
@@ -21,6 +21,8 @@ export type SearchQuery = {
   limit: number;
   cursor: number;
   sort: 'default' | 'rating';
+  /** Words that must each appear in the venue's name, address or city; empty = no text filter. */
+  words: string[];
 };
 
 // Query values are strings; z.coerce would read '' as 0, so numbers go through a regex first.
@@ -49,6 +51,8 @@ const bboxSchema = z
     'Longitude must be within ±180 and latitude within ±90',
   )
   .refine((b) => b.south < b.north && b.west !== b.east, 'The box must have an area');
+const MAX_SEARCH_WORDS = 8;
+
 const flag = z.enum(['true', 'false']).transform((v) => v === 'true');
 
 const isCurrency = (code: string) => {
@@ -78,6 +82,7 @@ const searchQuerySchema = z
     limit: whole.pipe(z.number().min(1).max(50)),
     cursor: whole,
     sort: z.literal('rating'),
+    q: z.string().max(MAX_SEARCH_TEXT),
   })
   .partial()
   .strict()
@@ -115,5 +120,6 @@ export function parseSearchQuery(q: unknown): SearchQuery {
     limit: v.limit ?? 20,
     cursor: v.cursor ?? 0,
     sort: v.sort ?? 'default',
+    words: (v.q ?? '').trim().split(/\s+/).filter(Boolean).slice(0, MAX_SEARCH_WORDS),
   };
 }

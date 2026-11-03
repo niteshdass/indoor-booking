@@ -55,6 +55,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.barField input::placeholder {
+  color: var(--text-muted);
+  font-weight: var(--weight-regular);
+  opacity: 1;
+}
+
 /* Native select without its own chrome, so its text lines up with the label */
 .selectWrap {
   position: relative;
@@ -323,7 +329,7 @@
 
 @media (min-width: 640px) {
   .bar {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr) minmax(0, 1fr) auto;
     align-items: stretch;
   }
   .barField + .barField {

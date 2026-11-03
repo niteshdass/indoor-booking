@@ -9,7 +9,7 @@ export interface CourtTabsProps {
   onChange(id: string): void;
 }
 
-/** Court tabs. The active one is filled with the venue brand color and also bordered and semibold, never color alone. */
+/** Court tabs as `control-md` pills (hit area `control-lg`). The active one is filled with the venue brand color and also bordered and semibold, never color alone. */
 export function CourtTabs({ courts, value, onChange }: CourtTabsProps) {
   const { t: tr } = useTranslation();
   const { t } = useTheme();
@@ -30,11 +30,12 @@ export function CourtTabs({ courts, value, onChange }: CourtTabsProps) {
             accessibilityLabel={c.name}
             accessibilityState={{ selected: active }}
             onPress={() => onChange(c.id)}
+            hitSlop={{ top: (t.controlLg - t.controlMd) / 2, bottom: (t.controlLg - t.controlMd) / 2 }}
             style={{
-              minHeight: t.controlLg,
+              minHeight: t.controlMd,
               justifyContent: 'center',
               paddingHorizontal: t.space4,
-              borderRadius: t.radiusMd,
+              borderRadius: t.radiusFull,
               borderWidth: t.focusWidth,
               borderColor: active ? t.brand : t.borderSubtle,
               backgroundColor: active ? t.brand : t.bgSurface,

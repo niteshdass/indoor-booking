@@ -155,7 +155,6 @@ describe('checkout screen', () => {
     await renderCheckout();
     await screen.findByTestId('quote-total');
 
-    await fireEvent.press(screen.getByRole('button', { name: 'Have a promo code?' }));
     await fireEvent.changeText(screen.getByLabelText('Promo code'), 'bad1');
     await fireEvent.press(screen.getByRole('button', { name: 'Apply' }));
 
@@ -235,7 +234,8 @@ describe('checkout screen', () => {
 
     expect(screen.getByRole('checkbox', { name: /Bibs/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Increase Water' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Have a promo code?' })).toBeDisabled();
+    expect(screen.getByLabelText('Promo code').props.editable).toBe(false);
+    expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
     expect(screen.getByText('Extras and the promo code are locked while this booking may still be going through. Tap Book again to check.')).toBeTruthy();
 
     // A definite answer (here a refusal) means nothing was booked under the key: editing opens again.

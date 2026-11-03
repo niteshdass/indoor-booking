@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { TextInput, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { COUPON_CODE_PATTERN, formatMoney, normalizeCouponCode } from '@booking/shared';
 import { ApiError } from '../lib/api';
 import { errorMessage } from '../lib/errors';
+import { fontFamily } from '../theme/fonts';
 import { useTheme } from '../theme/ThemeProvider';
-import { Button, Field, Text } from '../ui';
+import { Button, Icon, Text } from '../ui';
 import type { QuoteCoupon } from './types';
 
 export interface PromoCodeProps {
@@ -23,13 +24,13 @@ export interface PromoCodeProps {
 }
 
 /**
- * "Have a promo code?" disclosure: a code field and Apply, or once applied the code with Remove.
- * Mirrors apps/web/src/checkout/PromoCode.tsx; a code that cannot match the pattern is refused without a request.
+ * Always open: a tag-icon code field with Apply beside it, or once applied a success row with the code, the saving and
+ * Remove. Same rules as apps/web/src/checkout/PromoCode.tsx; a code that cannot match the pattern is refused without a request.
  */
 export function PromoCode({ applied, currency, pending, error, onApply, onRemove, disabled = false }: PromoCodeProps) {
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
-  const [open, setOpen] = useState(error !== null && error !== undefined);
+  const [focused, setFocused] = useState(false);
   const [text, setText] = useState('');
   const [localError, setLocalError] = useState(false);
   // A refusal belongs to the code that was sent; once the player edits it, the message goes.
@@ -37,25 +38,33 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
   const [seen, setSeen] = useState(error);
   if (error !== seen) {
     setSeen(error);
-    if (error !== null && error !== undefined) {
-      setOpen(true);
-      setEdited(false);
-    }
+    if (error !== null && error !== undefined) setEdited(false);
   }
 
   if (applied) {
     return (
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: t.space2 }}>
-        <View style={{ paddingHorizontal: t.space3, paddingVertical: t.space1, borderRadius: t.radiusMd, backgroundColor: t.successSoft }}>
-          <Text variant="label" weight="semibold" tone="success">
-            {`✓ ${applied.code} ${formatMoney(-applied.discount, currency, i18n.language)}`}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: t.space3,
+          paddingLeft: t.space3,
+          paddingVertical: t.space1,
+          borderRadius: t.radiusMd,
+          backgroundColor: t.successSoft,
+        }}
+      >
+        <Icon name="tag" color={t.success} />
+        <View style={{ flex: 1 }} accessibilityLiveRegion="polite">
+          <Text variant="label" weight="bold" tone="success">
+            {applied.code}
+          </Text>
+          <Text variant="caption" tone="success">
+            {`${tr('checkout.promo.applied')} · ${formatMoney(-applied.discount, currency, i18n.language)}`}
           </Text>
         </View>
-        <Text variant="caption" tone="muted" accessibilityLiveRegion="polite" style={{ flexGrow: 1 }}>
-          {tr('checkout.promo.applied')}
-        </Text>
         <Button
-          variant="secondary"
+          variant="ghost"
           label={tr('checkout.promo.remove')}
           accessibilityLabel={tr('checkout.promo.removeLabel', { code: applied.code })}
           disabled={disabled}
@@ -85,26 +94,30 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
   };
 
   return (
-    <View style={{ gap: t.space2 }}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={tr('checkout.promo.toggle')}
-        accessibilityState={{ expanded: open, disabled }}
-        disabled={disabled}
-        onPress={() => setOpen((o) => !o)}
-        style={{ minHeight: t.controlLg, flexDirection: 'row', alignItems: 'center', gap: t.space2, opacity: disabled ? t.opacityMuted : 1 }}
-      >
-        <Text variant="label" weight="semibold" tone="primary">
-          {tr('checkout.promo.toggle')}
-        </Text>
-        <Text variant="label" tone="primary">
-          {open ? '▴' : '▾'}
-        </Text>
-      </Pressable>
-      {open ? (
-        <View style={{ gap: t.space2 }}>
-          <Field
-            label={tr('checkout.promo.label')}
+    <View style={{ gap: t.space1 }}>
+      {/* Stretch so Apply matches the field, whose focus border adds to its height. */}
+      <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: t.space2 }}>
+        <View
+          style={{
+            flex: 1,
+            minHeight: t.controlLg,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: t.space2,
+            paddingLeft: t.space3,
+            borderRadius: t.radiusMd,
+            borderWidth: t.focusWidth,
+            borderColor: message ? t.danger : focused ? t.primary : 'transparent',
+            backgroundColor: t.controlFill,
+            opacity: disabled ? t.opacityMuted : 1,
+          }}
+        >
+          <Icon name="tag" color={t.textMuted} />
+          <TextInput
+            accessibilityLabel={tr('checkout.promo.label')}
+            accessibilityHint={message ?? undefined}
+            placeholder={tr('checkout.promo.placeholder')}
+            placeholderTextColor={t.textSubtle}
             value={text}
             maxLength={32}
             autoCapitalize="characters"
@@ -112,18 +125,30 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
             autoCorrect={false}
             returnKeyType="done"
             editable={!disabled}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             onSubmitEditing={submit}
-            error={message ?? undefined}
             onChangeText={(v) => {
               setText(v.toUpperCase());
               setLocalError(false);
               setEdited(true);
             }}
+            style={{
+              flex: 1,
+              minHeight: t.controlLg,
+              paddingRight: t.space3,
+              color: t.textStrong,
+              fontFamily: fontFamily('sans', 'medium', i18n.language),
+              fontSize: t.textMd,
+            }}
           />
-          <View style={{ alignItems: 'flex-start' }}>
-            <Button variant="secondary" label={tr('checkout.promo.apply')} loading={pending} disabled={disabled || pending || text.trim() === ''} onPress={submit} />
-          </View>
         </View>
+        <Button variant="secondary" label={tr('checkout.promo.apply')} loading={pending} disabled={disabled || pending || text.trim() === ''} onPress={submit} />
+      </View>
+      {message ? (
+        <Text variant="caption" tone="danger" accessibilityRole="alert">
+          {message}
+        </Text>
       ) : null}
     </View>
   );

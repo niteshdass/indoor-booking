@@ -440,6 +440,7 @@
     "closed": "Closed on this day.",
     "outsideWindow": "This date is not open for booking yet.",
     "none": "No time slots on this day.",
+    "allPast": "No more times today. Pick another day.",
     "summary": "Your selection",
     "continue": "Continue",
     "selectedCount_one": "{{count}} slot",
@@ -514,6 +515,7 @@
     "promo": {
       "toggle": "Have a promo code?",
       "label": "Promo code",
+      "placeholder": "Enter code",
       "apply": "Apply",
       "remove": "Remove",
       "removeLabel": "Remove promo code {{code}}",

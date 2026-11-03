@@ -16,7 +16,7 @@ import { isCouponError, useQuote } from '../../../src/checkout/useQuote';
 import { ApiError, apiGet, apiPost } from '../../../src/lib/api';
 import { errorMessage } from '../../../src/lib/errors';
 import { useTheme } from '../../../src/theme/ThemeProvider';
-import { Button, Card, Text } from '../../../src/ui';
+import { BackButton, Button, Card, Text } from '../../../src/ui';
 import type { PublicVenue } from '../../../src/venue/types';
 
 type Params = { slug: string; turfId: string; date: string; startAts: string };
@@ -144,10 +144,12 @@ export default function CheckoutScreen() {
   const frame = (children: ReactNode, footer?: ReactNode) => (
     <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: t.bgPage }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: t.space4, gap: t.space4 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <View style={{ alignItems: 'flex-start' }}>
-            <Button label={tr('mobile.venue.back')} variant="ghost" onPress={() => router.back()} />
-          </View>
+        <ScrollView
+          contentContainerStyle={{ padding: t.space4, paddingTop: t.space2, gap: t.space3 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <BackButton />
           {children}
         </ScrollView>
         {footer}
@@ -241,10 +243,9 @@ export default function CheckoutScreen() {
         <Text variant="heading" tone="strong" accessibilityRole="header">
           {tr('checkout.title')}
         </Text>
-        <Text weight="medium" tone="strong">
-          {court ? `${venue.name} · ${court.name}` : venue.name}
+        <Text variant="caption" tone="muted">
+          {[venue.name, court?.name, dayLabel].filter(Boolean).join(' · ')}
         </Text>
-        <Text tone="muted">{dayLabel}</Text>
       </View>
 
       <Card>
@@ -270,6 +271,9 @@ export default function CheckoutScreen() {
       ) : null}
 
       <Card>
+        <Text variant="title" tone="strong" accessibilityRole="header">
+          {tr('checkout.promo.label')}
+        </Text>
         <PromoCode
           applied={data.coupon ?? null}
           currency={data.quote.currency}

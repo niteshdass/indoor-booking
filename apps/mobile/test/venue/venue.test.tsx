@@ -133,6 +133,16 @@ describe('venue screen', () => {
     expect(screen.getByRole('button', { name: 'Continue' }).props.accessibilityState).toMatchObject({ disabled: true });
   });
 
+  it('past times are left out; a day with only past times says so', async () => {
+    serve((_t, d) => openDay(d, d === '2026-11-05' ? [slot(-3, 'past'), slot(-2, 'past')] : [slot(-1, 'past'), slot(0)]));
+    await renderVenue();
+    expect(await screen.findByText('No more times today. Pick another day.')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('radio', { name: /Nov 6/ }));
+    expect(await screen.findByRole('button', { name: /^19:00/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^18:00/ })).toBeNull();
+    expect(screen.queryByText('Past')).toBeNull();
+  });
+
   it('closed day shows the closed message', async () => {
     serve((_t, d) => ({ day: { businessDate: d, currency: 'BDT', status: 'closed', slots: [] } }));
     await renderVenue();

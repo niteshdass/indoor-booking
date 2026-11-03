@@ -33,6 +33,8 @@ export function QuoteSummary({ quote, coupon, timeZone }: QuoteSummaryProps) {
   const fmt = (n: number) => formatMoney(n, quote.currency, i18n.language);
   const fee = quote.platformFee?.payer === 'player' ? quote.platformFee.amount : 0;
   const due = quote.advanceRequired;
+  const discount = coupon !== null && quote.discount > 0;
+  const breakdown = quote.addonsTotal > 0 || discount || fee > 0;
   const rule = <View style={{ height: t.hairline, backgroundColor: t.borderSubtle }} />;
 
   return (
@@ -50,11 +52,16 @@ export function QuoteSummary({ quote, coupon, timeZone }: QuoteSummaryProps) {
         />
       ))}
       {rule}
-      <Row label={tr('checkout.subtotal')} value={fmt(quote.subtotal)} />
-      {quote.addonsTotal > 0 ? <Row label={tr('checkout.addonsTotal')} value={fmt(quote.addonsTotal)} /> : null}
-      {coupon && quote.discount > 0 ? <Row label={tr('checkout.promo.discount', { code: coupon.code })} value={fmt(-quote.discount)} /> : null}
-      {fee > 0 ? <Row label={tr('checkout.platformFee')} value={fmt(fee)} /> : null}
-      {rule}
+      {/* With nothing added or taken off, the breakdown would only repeat the total. */}
+      {breakdown ? (
+        <>
+          <Row label={tr('checkout.subtotal')} value={fmt(quote.subtotal)} />
+          {quote.addonsTotal > 0 ? <Row label={tr('checkout.addonsTotal')} value={fmt(quote.addonsTotal)} /> : null}
+          {discount ? <Row label={tr('checkout.promo.discount', { code: coupon.code })} value={fmt(-quote.discount)} /> : null}
+          {fee > 0 ? <Row label={tr('checkout.platformFee')} value={fmt(fee)} /> : null}
+          {rule}
+        </>
+      ) : null}
       <Row testID="quote-total" label={tr('checkout.total')} value={fmt(quote.total)} strong />
       {due > 0 ? (
         <>

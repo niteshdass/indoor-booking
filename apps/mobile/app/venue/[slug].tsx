@@ -7,7 +7,7 @@ import { formatMoney, keepSelectable, localParts, toggleSlot } from '@booking/sh
 import { ApiError, apiGet } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { Button, Text } from '../../src/ui';
+import { BackButton, Button, Text } from '../../src/ui';
 import { CourtTabs } from '../../src/venue/CourtTabs';
 import { DateStrip } from '../../src/venue/DateStrip';
 import { ReviewsPreview } from '../../src/venue/ReviewsPreview';
@@ -78,7 +78,7 @@ export default function VenueScreen() {
   if (state.status === 'not_found' || state.status === 'error') {
     return body(
       <View style={{ padding: t.space4, gap: t.space3 }}>
-        <Button label={tr('mobile.venue.back')} variant="ghost" onPress={() => router.back()} />
+        <BackButton />
         <Text tone="danger" accessibilityRole="alert">
           {state.status === 'not_found' ? tr('errors.not_found') : errorMessage(state.error, tr)}
         </Text>
@@ -106,27 +106,25 @@ export default function VenueScreen() {
 
   return body(
     <>
-      <ScrollView contentContainerStyle={{ padding: t.space4, gap: t.space4 }} showsVerticalScrollIndicator={false}>
-        <View style={{ alignItems: 'flex-start' }}>
-          <Button label={tr('mobile.venue.back')} variant="ghost" onPress={() => router.back()} />
-        </View>
+      <ScrollView contentContainerStyle={{ padding: t.space4, paddingTop: t.space2, gap: t.space3 }} showsVerticalScrollIndicator={false}>
+        <BackButton />
         <View style={{ gap: t.space1 }}>
           <Text variant="heading" tone="strong" accessibilityRole="header">
             {v.name}
           </Text>
-          <Text tone="muted">{place}</Text>
-          {sports ? <Text variant="caption" tone="muted">{sports}</Text> : null}
+          <Text variant="caption" tone="muted">
+            {sports ? `${place} · ${sports}` : place}
+          </Text>
         </View>
 
         {court ? (
           <>
-            <Text variant="title" tone="strong" accessibilityRole="header">
-              {tr('venue.book')}
-            </Text>
-            <CourtTabs courts={v.turfs} value={court.id} onChange={pickCourt} />
-            <Text variant="caption" tone="muted">
-              {[tr(court.indoor ? 'venue.indoor' : 'venue.outdoor'), tr('venue.slotLength', { count: court.slotLengthMin })].join(' · ')}
-            </Text>
+            <View style={{ gap: t.space2 }}>
+              <CourtTabs courts={v.turfs} value={court.id} onChange={pickCourt} />
+              <Text variant="caption" tone="muted">
+                {[tr(court.indoor ? 'venue.indoor' : 'venue.outdoor'), tr('venue.slotLength', { count: court.slotLengthMin })].join(' · ')}
+              </Text>
+            </View>
             <DateStrip today={today} value={shownDate} onChange={pickDate} />
             {slots.status === 'loading' ? <ActivityIndicator accessibilityLabel={tr('common.loading')} /> : null}
             {slots.status === 'error' ? (
@@ -147,19 +145,33 @@ export default function VenueScreen() {
       </ScrollView>
 
       {court ? (
-        <View style={{ padding: t.space4, gap: t.space2, backgroundColor: t.bgSurfaceRaised, ...t.shadowMd }}>
-          {picked.length > 0 ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: t.space2 }} accessibilityLiveRegion="polite">
-              <Text weight="semibold" tone="strong">
-                {tr('slots.selectedCount', { count: picked.length })}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: t.space3,
+            paddingHorizontal: t.space4,
+            paddingVertical: t.space3,
+            backgroundColor: t.bgSurfaceRaised,
+            ...t.shadowMd,
+          }}
+        >
+          <View style={{ flex: 1 }} accessibilityLiveRegion="polite">
+            {picked.length > 0 ? (
+              <>
+                <Text variant="caption" tone="muted">
+                  {tr('slots.selectedCount', { count: picked.length })}
+                </Text>
+                <Text variant="title" weight="bold" tone="strong" accessibilityLabel={`${tr('venue.total')}: ${formatMoney(total, v.currency, i18n.language)}`}>
+                  {formatMoney(total, v.currency, i18n.language)}
+                </Text>
+              </>
+            ) : (
+              <Text variant="caption" tone="muted">
+                {tr('slots.pickHint')}
               </Text>
-              <Text weight="semibold" tone="strong">
-                {`${tr('venue.total')}: ${formatMoney(total, v.currency, i18n.language)}`}
-              </Text>
-            </View>
-          ) : (
-            <Text tone="muted">{tr('slots.pickHint')}</Text>
-          )}
+            )}
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={tr('slots.continue')}
@@ -170,7 +182,7 @@ export default function VenueScreen() {
               minHeight: t.controlLg,
               alignItems: 'center',
               justifyContent: 'center',
-              paddingHorizontal: t.space4,
+              paddingHorizontal: t.space6,
               borderRadius: t.radiusMd,
               backgroundColor: t.brand,
               opacity: picked.length === 0 ? t.opacityMuted : 1,

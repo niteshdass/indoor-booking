@@ -4,7 +4,7 @@
   height: var(--icon-md);
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.75;
+  stroke-width: var(--icon-stroke);
   stroke-linecap: round;
   stroke-linejoin: round;
 }

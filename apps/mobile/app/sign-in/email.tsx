@@ -6,7 +6,7 @@ import { returnAfterSignIn } from '../../src/auth/returnAfterSignIn';
 import { useAuth, type NativeAuthResponse } from '../../src/auth/useAuth';
 import { apiPost } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
-import { Button, Field, Screen, Text } from '../../src/ui';
+import { BackButton, Button, Field, Screen, Text } from '../../src/ui';
 
 // The password reset flow lives on the web; the app only opens it.
 const WEB_URL: string = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:5173';
@@ -39,6 +39,7 @@ export default function EmailSignInScreen() {
   return (
     <Screen scroll>
       <>
+        <BackButton />
         <Text variant="heading" tone="strong" accessibilityRole="header">
           {tr('auth.login.titleEmail')}
         </Text>

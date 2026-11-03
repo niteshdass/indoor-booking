@@ -7,7 +7,7 @@ import { useAuth, type NativeAuthResponse } from '../src/auth/useAuth';
 import { useCooldown } from '../src/auth/useCooldown';
 import { ApiError, apiPost } from '../src/lib/api';
 import { errorMessage } from '../src/lib/errors';
-import { Button, Field, Screen, Text } from '../src/ui';
+import { BackButton, Button, Field, Screen, Text } from '../src/ui';
 
 type OtpSent = { expiresInSec: number; resendInSec: number };
 
@@ -61,6 +61,7 @@ export default function RegisterScreen() {
   return (
     <Screen scroll>
       <>
+        <BackButton />
         <Text variant="heading" tone="strong" accessibilityRole="header">
           {tr('auth.register.titlePhone')}
         </Text>

@@ -23,14 +23,14 @@ const signOut = jest.fn(async () => undefined);
 const setUser = jest.fn();
 const base: AuthContextValue = { status: 'signedIn', user, signIn: jest.fn(), setUser, signOut, retry: jest.fn() };
 
-const renderAccount = (value: Partial<AuthContextValue> = {}) =>
-  render(
-    <ThemeProvider>
-      <AuthContext.Provider value={{ ...base, ...value }}>
-        <AccountScreen />
-      </AuthContext.Provider>
-    </ThemeProvider>,
-  );
+const tree = (value: Partial<AuthContextValue> = {}) => (
+  <ThemeProvider>
+    <AuthContext.Provider value={{ ...base, ...value }}>
+      <AccountScreen />
+    </AuthContext.Provider>
+  </ThemeProvider>
+);
+const renderAccount = (value: Partial<AuthContextValue> = {}) => render(tree(value));
 
 beforeEach(() => jest.clearAllMocks());
 
@@ -77,5 +77,20 @@ describe('account', () => {
     await renderAccount({ status: 'signedOut', user: null });
     await fireEvent.press(await screen.findByRole('button', { name: 'Sign in' }));
     expect(mockRouter.push).toHaveBeenCalledWith('/sign-in?next=%2Faccount');
+  });
+
+  it('fills the name when the session arrives after mount', async () => {
+    const { rerender } = await renderAccount({ status: 'loading', user: null });
+    expect(screen.getByLabelText('Loading')).toBeTruthy();
+    await rerender(tree({ user: { ...user, name: 'Rafi' } }));
+    expect(await screen.findByDisplayValue('Rafi')).toBeTruthy();
+  });
+
+  it('offline shows the message and Retry calls retry', async () => {
+    const retry = jest.fn();
+    await renderAccount({ status: 'offline', user: null, retry });
+    expect(screen.getByText(/can't reach the server/i)).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalled();
   });
 });

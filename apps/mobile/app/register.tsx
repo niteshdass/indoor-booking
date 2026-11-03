@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { safeNext } from '../src/auth/safeNext';
@@ -8,14 +7,12 @@ import { useCooldown } from '../src/auth/useCooldown';
 import { ApiError, apiPost } from '../src/lib/api';
 import { errorMessage } from '../src/lib/errors';
 import { Button, Field, Screen, Text } from '../src/ui';
-import { useTheme } from '../src/theme/ThemeProvider';
 
 type OtpSent = { expiresInSec: number; resendInSec: number };
 
 /** The number is verified with a code first, then the account details are filled in (same as the web). */
 export default function RegisterScreen() {
   const { t: tr } = useTranslation();
-  const { t } = useTheme();
   const router = useRouter();
   const { signIn } = useAuth();
   const { next: rawNext } = useLocalSearchParams<{ next?: string }>();
@@ -62,7 +59,7 @@ export default function RegisterScreen() {
 
   return (
     <Screen scroll>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ gap: t.space4 }}>
+      <>
         <Text variant="heading" tone="strong" accessibilityRole="header">
           {tr('auth.register.titlePhone')}
         </Text>
@@ -148,7 +145,7 @@ export default function RegisterScreen() {
         )}
 
         <Button label={tr('auth.register.haveAccount')} variant="ghost" onPress={() => router.replace(`/sign-in${query}` as never)} />
-      </KeyboardAvoidingView>
+      </>
     </Screen>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { safeNext } from '../src/auth/safeNext';
@@ -8,14 +7,12 @@ import { useCooldown } from '../src/auth/useCooldown';
 import { apiPost } from '../src/lib/api';
 import { errorMessage } from '../src/lib/errors';
 import { Button, Field, Screen, Text } from '../src/ui';
-import { useTheme } from '../src/theme/ThemeProvider';
 
 type OtpSent = { expiresInSec: number; resendInSec: number };
 
 /** Phone OTP sign-in: request a code, then verify it. Email and password live one tap away. */
 export default function SignInScreen() {
   const { t: tr } = useTranslation();
-  const { t } = useTheme();
   const router = useRouter();
   const { signIn } = useAuth();
   const { next: rawNext } = useLocalSearchParams<{ next?: string }>();
@@ -58,7 +55,7 @@ export default function SignInScreen() {
 
   return (
     <Screen scroll>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ gap: t.space4 }}>
+      <>
         <Text variant="heading" tone="strong" accessibilityRole="header">
           {tr('auth.login.titlePhone')}
         </Text>
@@ -114,7 +111,7 @@ export default function SignInScreen() {
 
         <Button label={tr('auth.login.withEmail')} variant="ghost" onPress={() => router.push(`/sign-in/email${query}` as never)} />
         <Button label={tr('auth.login.toRegister')} variant="ghost" onPress={() => router.push(`/register${query}` as never)} />
-      </KeyboardAvoidingView>
+      </>
     </Screen>
   );
 }

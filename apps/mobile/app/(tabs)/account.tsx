@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import type { PublicUser } from '@booking/shared';
@@ -23,31 +23,46 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Tab screens stay mounted, so the form is keyed on the user: it starts from the session's name whenever that changes. */
 export default function AccountScreen() {
+  const { t: tr } = useTranslation();
+  const router = useRouter();
+  const { status, user, retry } = useAuth();
+
+  if (user) return <SignedInAccount key={user.id} user={user} />;
+  return (
+    <Screen>
+      <Text variant="heading" tone="strong" accessibilityRole="header">
+        {tr('mobile.tabs.account')}
+      </Text>
+      {status === 'loading' ? <ActivityIndicator accessibilityLabel={tr('common.loading')} /> : null}
+      {status === 'offline' ? (
+        <>
+          <Text tone="muted" accessibilityRole="alert">
+            {tr('auth.offline')}
+          </Text>
+          <Button label={tr('auth.retry')} onPress={retry} />
+        </>
+      ) : null}
+      {status === 'signedOut' ? (
+        <>
+          <Text tone="muted">{tr('mobile.account.signedOut')}</Text>
+          <Button label={tr('mobile.account.signedOutCta')} onPress={() => requireSignIn(router, '/account')} />
+        </>
+      ) : null}
+    </Screen>
+  );
+}
+
+function SignedInAccount({ user }: { user: PublicUser }) {
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
   const router = useRouter();
-  const { status, user, setUser, signOut } = useAuth();
-  const [name, setName] = useState(user?.name ?? '');
+  const { setUser, signOut } = useAuth();
+  const [name, setName] = useState(user.name);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  if (!user) {
-    return (
-      <Screen>
-        <Text variant="heading" tone="strong" accessibilityRole="header">
-          {tr('mobile.tabs.account')}
-        </Text>
-        {status === 'signedOut' ? (
-          <>
-            <Text tone="muted">{tr('mobile.account.signedOut')}</Text>
-            <Button label={tr('mobile.account.signedOutCta')} onPress={() => requireSignIn(router, '/account')} />
-          </>
-        ) : null}
-      </Screen>
-    );
-  }
 
   const save = async () => {
     setBusy(true);

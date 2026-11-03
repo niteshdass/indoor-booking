@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   currencyExponent,
   parseMoney,
@@ -80,5 +80,23 @@ describe('formatMoney', () => {
   it('formats using currency exponent', () => {
     expect(formatMoney(1250, 'USD', 'en-US')).toBe('$12.50');
     expect(formatMoney(1500, 'JPY', 'en-US')).toBe('¥1,500');
+  });
+});
+
+describe('runtime without Intl.supportedValuesOf (Hermes)', () => {
+  it('loads and still validates the code shape', async () => {
+    const original = Intl.supportedValuesOf;
+    // @ts-expect-error simulate a runtime that lacks the API
+    delete Intl.supportedValuesOf;
+    vi.resetModules();
+    try {
+      const money = await import('../src/money');
+      expect(money.currencyExponent('BDT')).toBe(2);
+      expect(money.currencyExponent('JPY')).toBe(0);
+      expect(() => money.currencyExponent('bdt')).toThrow(money.InvalidCurrencyError);
+    } finally {
+      Intl.supportedValuesOf = original;
+      vi.resetModules();
+    }
   });
 });

@@ -1,0 +1,174 @@
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import type { SearchResult } from '@booking/shared';
+import { ApiError } from '../../src/lib/api';
+import { __resetLocationDecision } from '../../src/search/useNearMe';
+import { ThemeProvider } from '../../src/theme/ThemeProvider';
+import FindScreen from '../../app/(tabs)/index';
+
+const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
+jest.mock('expo-router', () => ({ useRouter: () => mockRouter, useLocalSearchParams: () => ({}) }));
+
+const mockGet = jest.fn();
+jest.mock('../../src/lib/api', () => {
+  const actual = jest.requireActual('../../src/lib/api');
+  return { ...actual, apiGet: (...a: unknown[]) => mockGet(...a) };
+});
+
+const mockLocation = {
+  getForegroundPermissionsAsync: jest.fn(),
+  requestForegroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+  geocodeAsync: jest.fn(),
+  Accuracy: { Balanced: 3 },
+};
+jest.mock('expo-location', () => ({
+  getForegroundPermissionsAsync: (...a: unknown[]) => mockLocation.getForegroundPermissionsAsync(...a),
+  requestForegroundPermissionsAsync: (...a: unknown[]) => mockLocation.requestForegroundPermissionsAsync(...a),
+  getCurrentPositionAsync: (...a: unknown[]) => mockLocation.getCurrentPositionAsync(...a),
+  geocodeAsync: (...a: unknown[]) => mockLocation.geocodeAsync(...a),
+  Accuracy: { Balanced: 3 },
+}));
+
+const venue = (n: number, over: Partial<SearchResult> = {}): SearchResult => ({
+  slug: `venue-${n}`,
+  name: `Venue ${n}`,
+  address: `${n} Main Rd`,
+  city: 'Dhaka',
+  country: 'BD',
+  currency: 'BDT',
+  timezone: 'Asia/Dhaka',
+  location: { lat: 23.8, lng: 90.4 },
+  photo: null,
+  sports: ['futsal'],
+  distanceMeters: null,
+  date: '2026-11-03',
+  fromPrice: 120000,
+  nextFreeSlot: null,
+  freeTimes: [],
+  freeTimeCount: 0,
+  rating: null,
+  ...over,
+});
+
+/** Routes mocked GETs: /sports, and /search by its query string. */
+function serve(search: (query: URLSearchParams) => unknown) {
+  mockGet.mockImplementation(async (path: string) => {
+    if (path === '/sports') return { sports: ['futsal', 'cricket'] };
+    const out = search(new URLSearchParams(path.split('?')[1]));
+    if (out instanceof Error) throw out;
+    return out;
+  });
+}
+const searches = () => mockGet.mock.calls.map((c) => c[0] as string).filter((p) => p.startsWith('/search'));
+const lastSearch = () => new URLSearchParams(searches().at(-1)!.split('?')[1]);
+
+const renderFind = () =>
+  render(
+    <ThemeProvider>
+      <FindScreen />
+    </ThemeProvider>,
+  );
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  __resetLocationDecision();
+  mockLocation.getForegroundPermissionsAsync.mockResolvedValue({ status: 'undetermined', canAskAgain: true });
+});
+
+describe('find tab', () => {
+  it('shows results for the chosen sport', async () => {
+    serve((q) => ({ results: q.get('sport') === 'cricket' ? [venue(2, { sports: ['cricket'] })] : [venue(1)], nextCursor: null }));
+    await renderFind();
+    expect(await screen.findByText('Venue 1')).toBeTruthy();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Cricket' }));
+    expect(await screen.findByText('Venue 2')).toBeTruthy();
+    expect(screen.queryByText('Venue 1')).toBeNull();
+    expect(lastSearch().get('sport')).toBe('cricket');
+  });
+
+  it('opens the venue when a card is tapped', async () => {
+    serve(() => ({ results: [venue(1)], nextCursor: null }));
+    await renderFind();
+    await fireEvent.press(await screen.findByText('Venue 1'));
+    expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/venue/[slug]', params: { slug: 'venue-1' } });
+  });
+
+  it('load more appends the next page', async () => {
+    serve((q) =>
+      q.get('cursor') === '0'
+        ? { results: [venue(1)], nextCursor: 20 }
+        : { results: [venue(2)], nextCursor: null },
+    );
+    await renderFind();
+    await screen.findByText('Venue 1');
+    await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText('Venue 2')).toBeTruthy();
+    expect(screen.getByText('Venue 1')).toBeTruthy();
+    expect(lastSearch().get('cursor')).toBe('20');
+    expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+  });
+
+  it('searches near the player when location is allowed', async () => {
+    serve(() => ({ results: [venue(1, { distanceMeters: 1500 })], nextCursor: null }));
+    mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted', canAskAgain: true });
+    mockLocation.getCurrentPositionAsync.mockResolvedValue({ coords: { latitude: 23.81, longitude: 90.41 } });
+    await renderFind();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Use my location' }));
+    expect(await screen.findByText('Using your location')).toBeTruthy();
+    expect(lastSearch().get('lat')).toBe('23.81');
+    expect(lastSearch().get('lng')).toBe('90.41');
+  });
+
+  it('location denied falls back to the text search', async () => {
+    serve((q) => ({ results: [venue(q.get('lat') ? 7 : 1)], nextCursor: null }));
+    mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'denied', canAskAgain: false });
+    mockLocation.geocodeAsync.mockResolvedValue([{ latitude: 23.7, longitude: 90.3 }]);
+    await renderFind();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Use my location' }));
+    expect(await screen.findByText('Location is off, so search by city instead.')).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText('City'), 'Dhaka');
+    await fireEvent.press(screen.getByRole('button', { name: 'Search' }));
+    expect(await screen.findByText('Venue 7')).toBeTruthy();
+    expect(mockLocation.geocodeAsync).toHaveBeenCalledWith('Dhaka');
+    expect(lastSearch().get('lat')).toBe('23.7');
+    // It does not ask again.
+    expect(screen.queryByRole('button', { name: 'Use my location' })).toBeNull();
+    expect(mockLocation.requestForegroundPermissionsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not prompt when the system already blocked location', async () => {
+    serve(() => ({ results: [venue(1)], nextCursor: null }));
+    mockLocation.getForegroundPermissionsAsync.mockResolvedValue({ status: 'denied', canAskAgain: false });
+    await renderFind();
+    expect(await screen.findByLabelText('City')).toBeTruthy();
+    expect(mockLocation.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+  });
+
+  it('says so when the city is not found', async () => {
+    serve(() => ({ results: [], nextCursor: null }));
+    mockLocation.getForegroundPermissionsAsync.mockResolvedValue({ status: 'denied', canAskAgain: false });
+    mockLocation.geocodeAsync.mockResolvedValue([]);
+    await renderFind();
+    await fireEvent.changeText(await screen.findByLabelText('City'), 'Nowhereville');
+    await fireEvent.press(screen.getByRole('button', { name: 'Search' }));
+    expect(await screen.findByText(/couldn't find that city/)).toBeTruthy();
+  });
+
+  it('empty result shows the translated empty state', async () => {
+    serve(() => ({ results: [], nextCursor: null }));
+    await renderFind();
+    expect(await screen.findByText('No turfs found')).toBeTruthy();
+    expect(screen.getByText('Try another date or sport, or loosen the filters.')).toBeTruthy();
+  });
+
+  it('network error shows retry', async () => {
+    let fail = true;
+    serve(() => (fail ? new ApiError(0, 'network_error', 'offline') : { results: [venue(1)], nextCursor: null }));
+    await renderFind();
+    expect(await screen.findByText(/connection/i)).toBeTruthy();
+    fail = false;
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    await act(async () => {});
+    expect(await screen.findByText('Venue 1')).toBeTruthy();
+  });
+});

@@ -2890,6 +2890,14 @@
       "signedOut": "Sign in to see your account and bookings.",
       "signedOutCta": "Sign in",
       "themeNote": "Light or dark follows your phone setting."
+    },
+    "find": {
+      "locationDenied": "Location is off, so search by city instead.",
+      "locationFailed": "We couldn't get your location. Search by city instead.",
+      "cityLabel": "City",
+      "cityPlaceholder": "For example Dhaka",
+      "cityNotFound": "We couldn't find that city. Check the spelling and try again.",
+      "locating": "Finding your location"
     }
   }
 }

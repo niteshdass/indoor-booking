@@ -24,6 +24,12 @@
     "plugins": [
       "expo-router",
       "expo-localization",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "BookaTurf uses your location to find turf venues near you."
+        }
+      ],
       "expo-secure-store",
       [
         "expo-splash-screen",

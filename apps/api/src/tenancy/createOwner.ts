@@ -1,3 +1,4 @@
+import type mongoose from 'mongoose';
 import { InvalidCurrencyError, currencyExponent, type Locale, type OwnerStatus } from '@booking/shared';
 import { AppError } from '../errors';
 import { runInTransaction } from '../db';
@@ -38,36 +39,44 @@ export async function createOwner(
   now: Date,
 ): Promise<{ owner: OwnerDoc; membership: MembershipDoc }> {
   validate(input);
+  return runInTransaction((session) => createOwnerIn(input, now, session));
+}
+
+/** `createOwner` inside a caller's transaction, so more can be written with the owner atomically. */
+export async function createOwnerIn(
+  input: CreateOwnerInput,
+  now: Date,
+  session: mongoose.ClientSession,
+): Promise<{ owner: OwnerDoc; membership: MembershipDoc }> {
+  validate(input);
   const role = await systemRole('owner');
-  return runInTransaction(async (session) => {
-    const [owner] = await Owner.create(
-      [
-        {
-          name: input.name.trim(),
-          country: input.country,
-          defaultCurrency: input.currency,
-          defaultLocale: input.locale ?? 'en',
-          status: input.status ?? 'active',
-        },
-      ],
-      { session },
-    );
-    const [membership] = await Membership.create(
-      [{ ownerId: owner!._id, userId: input.userId, roleId: role._id, allVenues: true }],
-      { session },
-    );
-    const ownerId = owner!.id as string;
-    await logActivity(
-      { ownerId, userId: input.userId },
+  const [owner] = await Owner.create(
+    [
       {
-        action: 'owner.create',
-        entity: 'owner',
-        entityId: ownerId,
-        after: { name: owner!.name, country: owner!.country, defaultCurrency: owner!.defaultCurrency },
+        name: input.name.trim(),
+        country: input.country,
+        defaultCurrency: input.currency,
+        defaultLocale: input.locale ?? 'en',
+        status: input.status ?? 'active',
       },
-      now,
-      session,
-    );
-    return { owner: owner!, membership: membership! };
-  });
+    ],
+    { session },
+  );
+  const [membership] = await Membership.create(
+    [{ ownerId: owner!._id, userId: input.userId, roleId: role._id, allVenues: true }],
+    { session },
+  );
+  const ownerId = owner!.id as string;
+  await logActivity(
+    { ownerId, userId: input.userId },
+    {
+      action: 'owner.create',
+      entity: 'owner',
+      entityId: ownerId,
+      after: { name: owner!.name, country: owner!.country, defaultCurrency: owner!.defaultCurrency },
+    },
+    now,
+    session,
+  );
+  return { owner: owner!, membership: membership! };
 }

@@ -168,6 +168,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
                 lat={lat}
                 lng={lng}
                 country={draft.country}
+                mapLinkPath={ownerPath(ownerId, '/map-link')}
                 onPlace={(p) =>
                   setDraft((d) => ({ ...d, city: d.city || (p.city ?? ''), address: d.address || p.label.split(', ').slice(0, 3).join(', ').slice(0, 300) }))
                 }

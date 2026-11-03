@@ -182,12 +182,6 @@
 }
 
 .link,
-.cta {
-  color: var(--primary);
-  font-weight: var(--weight-medium);
-  text-decoration: none;
-}
-
 /* Customer name in Coming up: reads as the row's name, shows it is a link on hover */
 .name {
   color: var(--text-strong);
@@ -196,7 +190,6 @@
 }
 
 .link:hover,
-.cta:hover,
 .name:hover {
   text-decoration: underline;
 }
@@ -206,7 +199,6 @@
 }
 
 .link:focus-visible,
-.cta:focus-visible,
 .name:focus-visible {
   outline: none;
   border-radius: var(--radius-sm);

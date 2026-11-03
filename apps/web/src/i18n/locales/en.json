@@ -306,6 +306,9 @@
     "customRadius": "Custom distance (km)",
     "radiusInvalid": "Enter a distance from 1 to {{max}} km.",
     "radiusNeedsLocation": "Use your location to filter by distance.",
+    "text": "Venue or area",
+    "textPlaceholder": "Name, area or address",
+    "clearText": "Clear search",
     "sport": "Sport",
     "anySport": "Any sport",
     "date": "Date",
@@ -437,6 +440,7 @@
     "closed": "Closed on this day.",
     "outsideWindow": "This date is not open for booking yet.",
     "none": "No time slots on this day.",
+    "allPast": "No more times today. Pick another day.",
     "summary": "Your selection",
     "continue": "Continue",
     "selectedCount_one": "{{count}} slot",
@@ -511,6 +515,7 @@
     "promo": {
       "toggle": "Have a promo code?",
       "label": "Promo code",
+      "placeholder": "Enter code",
       "apply": "Apply",
       "remove": "Remove",
       "removeLabel": "Remove promo code {{code}}",
@@ -1986,6 +1991,41 @@
         "order": "The end date must be on or after the start date.",
         "tooLong": "Pick at most {{max}} days."
       }
+    },
+    "firstWeek": {
+      "title": "Your first week",
+      "progress": "{{done}} of {{total}}",
+      "hide": "Hide",
+      "lead": "A few steps to move from the paper book to here.",
+      "publish": "Show the venue to players",
+      "publishHint": "Hidden venues can't be booked online.",
+      "publishGo": "Open venue",
+      "photos": "Add photos",
+      "photosHint": "Players book more when they can see the turf.",
+      "photosGo": "Add photos",
+      "paper": "Copy bookings from your paper book",
+      "paperHint": "Add the games already booked, so no one books the same time.",
+      "paperGo": "Add a booking",
+      "weekly": "Add your weekly teams",
+      "weeklyHint": "Teams that play the same time every week.",
+      "weeklyGo": "Add a weekly booking",
+      "helper": "Add a helper",
+      "helperHint": "Let your manager or staff take bookings on their own phone.",
+      "helperGo": "Add someone",
+      "doneAuto": "Done"
+    },
+    "waiting": {
+      "title": "We are checking your business",
+      "suspendedTitle": "Your business is paused",
+      "sent": "You sent your venue",
+      "sentHint": "Done. Nothing more to fill in.",
+      "check": "We check it",
+      "checkHint": "Usually within one day. You do not need to do anything.",
+      "open": "Your venue opens",
+      "openHint": "Come back here and start taking bookings.",
+      "home": "Back to home",
+      "again": "Check again",
+      "checked": "Still waiting. Try again later."
     }
   },
   "reviews": {
@@ -2655,21 +2695,14 @@
   },
   "apply": {
     "title": "List your venue",
-    "lead": "Tell us about your business. Once a platform admin approves it, you can add venues and take bookings.",
-    "name": "Business name",
-    "nameHint": "The name players see, e.g. your club or arena.",
     "country": "Country",
     "currency": "Currency",
     "currencyHint": "Prices and payouts use this currency.",
-    "language": "Language for your team",
     "locale": {
       "en": "English",
       "ru": "Русский",
       "bn": "বাংলা"
     },
-    "choose": "Choose…",
-    "submit": "Send application",
-    "review": "We usually review applications within a day.",
     "seeStatus": "See its status",
     "live": "Your business is live. Add your first venue.",
     "goToDashboard": "Open dashboard"
@@ -2715,5 +2748,179 @@
     "emptyHint": "Tap Save on a venue's page to keep it here.",
     "remove": "Remove",
     "removeLabel": "Remove {{venue}} from saved"
+  },
+  "onboarding": {
+    "addVenue": "Add a venue",
+    "notAllowed": "Only someone who manages every venue, its turfs and prices can add a venue.",
+    "stepOf": "Step {{n}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish setup",
+    "savedHere": "Your answers are saved on this phone as you go.",
+    "name": {
+      "question": "What is your venue called?",
+      "lead": "This is the name players will see.",
+      "language": "Language",
+      "label": "Venue name",
+      "hint": "For example: Dhanmondi Turf",
+      "elsewhere": "Not in Bangladesh?"
+    },
+    "place": {
+      "question": "Where is it?",
+      "lead": "Players use this to find you.",
+      "city": "City or area",
+      "address": "Address",
+      "addressHint": "Road, house or nearby landmark",
+      "map": "Place the pin on your turf",
+      "mapHint": "Standing at the turf? Tap My location. Or search, then tap the map."
+    },
+    "turfs": {
+      "question": "Tell us about your turfs",
+      "lead": "A turf is one field that one group books at a time.",
+      "count": "How many turfs?",
+      "less": "One less",
+      "more": "One more",
+      "sports": "What can people play?",
+      "sportsHint": "Pick all that apply.",
+      "roof": "Is it covered?",
+      "open": "Open air",
+      "indoor": "Indoor or roofed",
+      "rename": "Give them your own names",
+      "nameOf": "Name of turf {{n}}",
+      "numbered": "Turf {{n}}",
+      "later": "All turfs start the same. You can change each one later."
+    },
+    "hours": {
+      "question": "When are you open?",
+      "lead": "Players can only book inside these hours.",
+      "when": "Opening hours",
+      "range": "{{from}} to {{to}}",
+      "midnight": "midnight",
+      "allDay": "Open 24 hours",
+      "allDayHint": "Day and night",
+      "custom": "Other times",
+      "opens": "Opens at",
+      "closes": "Closes at",
+      "nextDay": "Closes the next day.",
+      "closed": "Closed on",
+      "closedHint": "Leave empty if you are open every day.",
+      "length": "How long is one game?",
+      "lengthHint": "Each booking is this long."
+    },
+    "length": {
+      "m60": "1 hour",
+      "m90": "1½ hours",
+      "m120": "2 hours"
+    },
+    "price": {
+      "question": "How much is one game?",
+      "lead": "Write the price you take now. You can change it any time.",
+      "label": "Price for {{length}} ({{sign}})",
+      "hint": "Numbers only, for example 1500",
+      "evening": "Evenings cost more",
+      "eveningHint": "A higher price from a set time until midnight, every day.",
+      "from": "From",
+      "eveningLabel": "Evening price ({{sign}})",
+      "example": "Players pay {{price}} for {{length}}.",
+      "exampleEvening": "Players pay {{day}} for {{length}}, and {{evening}} from {{from}}."
+    },
+    "payment": {
+      "question": "How do players pay you?",
+      "lead": "Players see these when they book.",
+      "cash": "Cash at the venue",
+      "cashHint": "Always on",
+      "wallets": "Mobile wallet numbers",
+      "walletsHint": "Players send money to these numbers. Leave empty the ones you don't use.",
+      "number": "{{provider}} number",
+      "later": "Card payments can be added later in Settings."
+    },
+    "review": {
+      "question": "Check your answers",
+      "lead": "Tap Change to fix anything.",
+      "name": "Name",
+      "place": "Place",
+      "turfs": "Turfs",
+      "hours": "Hours",
+      "price": "Price per game",
+      "payment": "Payment",
+      "closedOn": "Closed on {{days}}",
+      "everyDay": "Open every day",
+      "games": "games of {{length}}",
+      "evening": "{{price}} from {{from}}",
+      "edit": "Change",
+      "editOf": "Change {{what}}",
+      "publish": "Show my venue to players",
+      "publishPending": "It shows once we have checked your business.",
+      "publishHint": "Players can find and book it straight away."
+    },
+    "err": {
+      "name": "Write the venue name.",
+      "city": "Write the city or area.",
+      "address": "Write the address.",
+      "pin": "Place the pin on the map.",
+      "sports": "Pick at least one game.",
+      "turfNames": "Two turfs have the same name.",
+      "times": "Write both times.",
+      "allClosed": "You can't be closed every day.",
+      "price": "Write the price, for example 1500.",
+      "eveningPrice": "Write the evening price.",
+      "eveningFrom": "Write when evening starts.",
+      "wallet": "A wallet number looks wrong. It should be like 01712345678."
+    },
+    "done": {
+      "title": "Your venue is ready",
+      "lead": "Players can find and book it now.",
+      "hiddenLead": "It is hidden from players. Turn it on from the venue page when you are ready.",
+      "pendingTitle": "Your venue is saved",
+      "pendingLead": "We are checking your business. This usually takes a day. Then your venue opens for bookings.",
+      "status": "See its status",
+      "book": "Take a booking",
+      "today": "See today",
+      "share": "Share your venue",
+      "shareHint": "Send this link to your players on WhatsApp or Facebook.",
+      "copy": "Copy link",
+      "copied": "Copied"
+    }
+  },
+  "mobile": {
+    "tabs": {
+      "find": "Find",
+      "bookings": "Bookings",
+      "account": "Account"
+    },
+    "auth": {
+      "phoneHint": "Include the country code, for example +8801712345678."
+    },
+    "account": {
+      "signedOut": "Sign in to see your account and bookings.",
+      "signedOutCta": "Sign in",
+      "themeNote": "Light or dark follows your phone setting."
+    },
+    "find": {
+      "locationDenied": "Location is off. Search by venue name or area instead.",
+      "locationFailed": "We couldn't get your location. Search by venue name or area instead.",
+      "locating": "Finding your location"
+    },
+    "bookings": {
+      "signedOut": "Sign in to see your bookings.",
+      "openMaps": "Open in Maps",
+      "confirmCancel": "Confirm cancellation"
+    },
+    "venue": {
+      "back": "Back",
+      "reviewsFailed": "Reviews could not be loaded."
+    },
+    "pay": {
+      "holdExpired": "Your hold expired, so these slots were released. Pick your slots again.",
+      "waitingVerify": "Waiting for the venue to verify your payment.",
+      "checking": "Payment sent. Updating your booking…",
+      "submitted": "Payment details sent",
+      "confirming": "Confirming payment…",
+      "receivedConfirming": "Payment received, confirming…",
+      "signInToPay": "Sign in to pay"
+    },
+    "checkout": {
+      "locked": "Extras and the promo code are locked while this booking may still be going through. Tap Book again to check."
+    }
   }
 }

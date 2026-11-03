@@ -27,6 +27,7 @@ import { SeriesListPage } from './series/SeriesListPage';
 import { WalkInPage } from './walkin/WalkInPage';
 import { TurfEditorPage } from './turfs/TurfEditorPage';
 import { VenueEditorPage } from './venues/VenueEditorPage';
+import { VenueSetupPage } from './venues/VenueSetupPage';
 import { VenuesPage } from './venues/VenuesPage';
 import type { Permission } from './types';
 
@@ -82,6 +83,7 @@ export function OwnerRoutes() {
         <Route path="venues" element={<Guarded nav="venues"><VenuesPage /></Guarded>} />
         {/* Any member may open these; the pages go read-only without edit permissions. */}
         <Route path="venues/new" element={<Guarded><VenueEditorPage /></Guarded>} />
+        <Route path="venues/setup" element={<Guarded><VenueSetupPage /></Guarded>} />
         <Route path="venues/:venueId" element={<Guarded><VenueEditorPage /></Guarded>} />
         <Route path="venues/:venueId/turfs/:turfId" element={<Guarded><TurfEditorPage /></Guarded>} />
         <Route path="closures" element={<Guarded nav="closures"><ClosuresPage /></Guarded>} />

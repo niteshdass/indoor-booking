@@ -43,7 +43,7 @@ export function phoneAuthRouter({ config, services }: AuthDeps): Router {
       user.phoneVerified = true;
       await user.save();
     }
-    sendAuthResponse(res, status, user, await issueTokens(user.id, services, config), config);
+    sendAuthResponse(req, res, status, user, await issueTokens(user.id, services, config), config);
   });
 
   return router;

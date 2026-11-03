@@ -105,6 +105,23 @@ describe('findCandidates', () => {
     expect(names(near)).toEqual(['Here', 'Mid']);
   });
 
+  it('search text matches every word in name, address or city, any case', async () => {
+    await listed('Golden Arena', { address: '12 Road 4, Mirpur', city: 'Dhaka' });
+    await listed('Sky Zone', { address: '5 Lake Road', city: 'Chattogram' });
+    await listed('Арена', { address: 'ул. Ленина', city: 'Москва' });
+
+    const find = async (q: string, extra = {}) => names(await findCandidates(parseSearchQuery({ q, ...extra }), 0, 10));
+    expect(await find('golden')).toEqual(['Golden Arena']);
+    expect(await find('mirpur')).toEqual(['Golden Arena']);
+    expect(await find('chattogram')).toEqual(['Sky Zone']);
+    expect(await find('arena dhaka')).toEqual(['Golden Arena']);
+    expect(await find('arena chattogram')).toEqual([]);
+    expect(await find('москва')).toEqual(['Арена']);
+    expect(await find('road.*')).toEqual([]);
+    expect(await find('golden', { bbox: '90.2,23.6,90.6,24' })).toEqual(['Golden Arena']);
+    expect(await find('golden', HERE)).toEqual(['Golden Arena']);
+  });
+
   it('without a location: name order, distance null', async () => {
     await listed('Bravo');
     await listed('Alpha', { location: [0, 0] });

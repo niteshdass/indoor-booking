@@ -1,21 +1,7 @@
-import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingCoupon, BookingStatus, CouponType, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingCoupon, BookingStatus, CouponType, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, Sport } from '@booking/shared';
 
+export type { PublicUser, AuthResponse } from '@booking/shared';
 export type { SearchResult, SearchResponse, SavedVenueJson } from '@booking/shared';
-
-export type PublicUser = {
-  id: string;
-  name: string;
-  email: string | null;
-  emailVerified: boolean;
-  phone: string | null;
-  hasPassword: boolean;
-  hasGoogle: boolean;
-  /** Holds a platform role: the Admin portal is open to them. */
-  platformAdmin: boolean;
-};
-
-/** The refresh token never appears here: it travels only in the httpOnly `rt` cookie. */
-export type AuthResponse = { user: PublicUser; accessToken: string };
 
 export type PublicTurf = { id: string; name: string; sports: Sport[]; indoor: boolean; slotLengthMin: number };
 
@@ -34,21 +20,7 @@ export type PublicVenue = {
   rating: RatingSummary | null;
 };
 
-export type SlotJson = {
-  startAt: string;
-  endAt: string;
-  localStart: string;
-  localEnd: string;
-  price: number | null;
-  status: SlotStatus;
-};
-
-export type SlotDay = {
-  businessDate: string;
-  currency: string;
-  status: 'open' | 'closed' | 'outside_window';
-  slots: SlotJson[];
-};
+export type { SlotJson, SlotDay } from '@booking/shared';
 
 export type OfferedAddonJson = {
   id: string;

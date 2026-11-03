@@ -21,7 +21,7 @@ export function demoAuthRouter({ config, services }: AuthDeps): Router {
     const user = await User.findOne({ email: DEMO_ACCOUNTS[role] });
     if (!user) throw notSeeded();
     assertActive(user);
-    sendAuthResponse(res, 200, user, await issueTokens(user.id, services, config), config);
+    sendAuthResponse(req, res, 200, user, await issueTokens(user.id, services, config), config);
   });
   return router;
 }

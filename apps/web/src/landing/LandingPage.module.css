@@ -80,6 +80,12 @@
   font-weight: var(--weight-medium);
 }
 
+.field input::placeholder {
+  color: var(--text-muted);
+  font-weight: var(--weight-regular);
+  opacity: 1;
+}
+
 .field select:focus-visible,
 .field input:focus-visible {
   border-radius: var(--radius-sm);
@@ -1309,7 +1315,7 @@
 
 @media (min-width: 640px) {
   .search {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)) auto;
     align-items: stretch;
   }
 }

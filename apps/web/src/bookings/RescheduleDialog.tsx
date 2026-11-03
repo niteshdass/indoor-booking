@@ -11,7 +11,7 @@ import { formatDate, money } from '../lib/format';
 import type { SlotDay, SlotJson } from '../lib/types';
 import { DateStrip } from '../venue/DateStrip';
 import { SlotGrid } from '../venue/SlotGrid';
-import { isSelectable, runOfLength } from '../venue/slotSelection';
+import { isSelectable, runOfLength } from '@booking/shared';
 import styles from './RescheduleDialog.module.css';
 
 /** Refusals that no other pick can fix: the confirm button goes. */

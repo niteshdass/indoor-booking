@@ -62,6 +62,29 @@ describe('owner picker', () => {
     renderApp('/owner', { user: staffUser });
     expect(await screen.findByText(en.owner.noTeams)).toBeInTheDocument();
   });
+
+  it('/owner with only a waiting business explains the steps, checks again and links home', async () => {
+    const api = mockApi([{ path: '/me/memberships', body: { memberships: [ownerMembership({ ownerName: 'Khan Sports', ownerStatus: 'pending_approval' })] } }]);
+    const h = renderApp('/owner', { user: staffUser });
+    expect(await screen.findByRole('heading', { level: 1, name: en.owner.waiting.title })).toBeInTheDocument();
+    expect(screen.getByText('Khan Sports')).toBeInTheDocument();
+    expect(screen.getByText(en.owner.status.pending_approval)).toBeInTheDocument();
+    expect(screen.getByText(en.owner.waiting.check).closest('li')).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('link', { name: en.owner.waiting.home })).toHaveAttribute('href', '/');
+
+    await h.user.click(screen.getByRole('button', { name: en.owner.waiting.again }));
+    expect(await screen.findByRole('status')).toHaveTextContent(en.owner.waiting.checked);
+    expect(api.calls.filter((c) => c.path === '/me/memberships')).toHaveLength(2);
+  });
+
+  it('/owner with only a suspended business says so without the steps', async () => {
+    mockApi([{ path: '/me/memberships', body: { memberships: [ownerMembership({ ownerStatus: 'suspended' })] } }]);
+    renderApp('/owner', { user: staffUser });
+    expect(await screen.findByRole('heading', { level: 1, name: en.owner.waiting.suspendedTitle })).toBeInTheDocument();
+    expect(screen.getByText(en.owner.suspendedNote)).toBeInTheDocument();
+    expect(screen.queryByText(en.owner.waiting.check)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: en.owner.waiting.again })).not.toBeInTheDocument();
+  });
 });
 
 describe('OwnerProvider', () => {

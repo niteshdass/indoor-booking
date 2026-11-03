@@ -6,7 +6,7 @@ import { mockApi } from '../helpers/api';
 import { setAccessToken } from '../../src/lib/apiClient';
 import { renderApp } from '../helpers/render';
 import type { BookingJson, PublicUser, SlotDay, SlotJson } from '../../src/lib/types';
-import { runOfLength } from '../../src/venue/slotSelection';
+import { runOfLength } from '@booking/shared';
 
 const player: PublicUser = { id: 'u1', name: 'Pat', email: 'p@x.com', emailVerified: true, phone: null, hasPassword: true, hasGoogle: false, platformAdmin: false };
 

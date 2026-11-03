@@ -15,6 +15,7 @@ import { meRouter } from './auth/routes/me';
 import { ownerRouter } from './tenancy/routes/owner';
 import { myMembershipsRouter } from './tenancy/routes/myMemberships';
 import { applyOwnerRouter } from './tenancy/routes/apply';
+import { onboardingRouter } from './onboarding/routes';
 import { adminRouter } from './admin/routes';
 import { publicVenuesRouter } from './venues/routes/public';
 import { publicSlotsRouter } from './schedule/routes/publicSlots';
@@ -187,6 +188,12 @@ export function createApp(deps: AppDeps): express.Express {
   api.use(playerReviewsRouter(deps.config, deps.services));
   api.use(savedVenuesRouter(deps.config, deps.services));
   api.use(applyOwnerRouter(authDeps));
+  if (limited) {
+    // Each setup writes a business and a venue; the map lookup fetches Google for the caller.
+    api.post('/onboarding', limiter('onboarding', 10, 60 * 60_000));
+    api.post('/onboarding/map-link', limiter('map-link', 30));
+  }
+  api.use(onboardingRouter(authDeps));
   api.use('/owners/:ownerId', ownerRouter(authDeps));
   api.use('/admin', adminRouter(authDeps));
 

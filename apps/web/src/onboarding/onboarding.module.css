@@ -1,0 +1,522 @@
+/* Easy venue setup: one question per screen, big tiles, Back / Next at the bottom. */
+
+.page {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) var(--space-4) var(--space-12);
+}
+
+.wizard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: var(--container-detail);
+}
+
+/* Step N of M over a segmented bar */
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stepOf {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-muted);
+}
+
+.bar {
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar > li {
+  height: var(--meter-height);
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+}
+
+.bar > li.barDone {
+  background: var(--primary);
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.question {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-display);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.question:focus {
+  outline: none;
+}
+
+.lead {
+  margin: 0;
+  max-width: var(--container-text);
+  font-size: var(--text-md);
+  color: var(--text-muted);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Two short fields side by side (opens / closes), stacked on a phone */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr));
+  gap: var(--space-4);
+}
+
+/* The one main field of a screen (venue name, price): larger text */
+.big input {
+  font-size: var(--text-lg);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-strong);
+}
+
+.groupHint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--danger);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Tiles: segmented radio / checkbox cards, larger than the settings ones */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--choice-min), 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.tiles.wide {
+  grid-template-columns: repeat(auto-fill, minmax(var(--setup-tile-min), 1fr));
+}
+
+.tiles.chip {
+  grid-template-columns: repeat(auto-fill, minmax(var(--setup-chip-min), 1fr));
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--setup-tile-height);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-default);
+  cursor: pointer;
+}
+
+.chip .tile {
+  justify-content: center;
+  min-height: var(--control-lg);
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+}
+
+.wide .tile {
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--space-3);
+}
+
+.tile:hover {
+  background: var(--bg-hover);
+}
+
+.tile:has(.input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.tile:has(.input:focus-visible) {
+  box-shadow: var(--focus-ring);
+}
+
+/* The input stays focusable and announced; the tile shows its state. */
+.input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.art {
+  display: block;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--graphite);
+}
+
+.court {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: none;
+  stroke: var(--chalk);
+  stroke-width: var(--court-line);
+}
+
+.tileText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.tileLabel {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.chip .tileLabel {
+  font-size: var(--text-base);
+}
+
+.tileHint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.tick {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--primary);
+  visibility: hidden;
+}
+
+.tickOn {
+  visibility: visible;
+}
+
+.chip .tick,
+.wide .tick {
+  display: none;
+}
+
+/* A choice that cannot be turned off (cash at the venue) */
+.always {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--setup-tile-height);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.alwaysIcon {
+  flex: none;
+  width: var(--icon-md);
+  height: var(--icon-md);
+  color: var(--text-muted);
+}
+
+/* Turf count: minus, the number, plus */
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+}
+
+.countBtn {
+  display: inline-grid;
+  place-items: center;
+  width: var(--setup-tile-height);
+  height: var(--setup-tile-height);
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-raised);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.countBtn svg {
+  width: var(--icon-md);
+  height: var(--icon-md);
+}
+
+.countBtn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.countBtn:disabled {
+  opacity: var(--opacity-muted);
+  cursor: not-allowed;
+}
+
+.count {
+  width: var(--setup-count-width);
+  height: var(--setup-tile-height);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--control-fill);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text-strong);
+  appearance: textfield;
+}
+
+.count::-webkit-inner-spin-button,
+.count::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+/* Optional extras behind a disclosure (other country, own turf names) */
+.more {
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.moreSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-lg);
+  padding: 0 var(--space-4);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  cursor: pointer;
+}
+
+.moreSummary svg {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--text-muted);
+}
+
+.moreBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: 0 var(--space-4) var(--space-4);
+}
+
+.mapWait {
+  height: var(--venue-map-height);
+  border-radius: var(--radius-lg);
+  background: var(--bg-subtle);
+}
+
+/* The live price sentence */
+.example {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+
+/* Review: the answers as a paper sheet, one ruled line each */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-1) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.sheetRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+}
+
+.sheetRow + .sheetRow {
+  border-top: var(--hairline) solid var(--border-subtle);
+}
+
+.sheetLabel {
+  grid-column: 1;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.sheetValue {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.sheetEdit {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  margin: 0;
+}
+
+.sub {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+}
+
+/* Back on the start, Next filling the rest; both full width on a phone */
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+}
+
+.next {
+  flex: 1;
+}
+
+.saved {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Done */
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.doneMark {
+  display: grid;
+  place-items: center;
+  width: var(--setup-done-mark);
+  height: var(--setup-done-mark);
+  border-radius: var(--radius-full);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.doneMark svg {
+  width: 50%;
+  height: 50%;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr));
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+
+.linkText {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 479px) {
+  .screen {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  .nav > * {
+    flex: 1 1 100%;
+  }
+
+  .nav > .next {
+    order: -1;
+  }
+}

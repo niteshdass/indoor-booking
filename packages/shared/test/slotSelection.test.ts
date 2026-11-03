@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_SLOTS_PER_BOOKING, type SlotStatus } from '@booking/shared';
-import { keepSelectable, toggleSlot } from '../../src/venue/slotSelection';
-import type { SlotJson } from '../../src/lib/types';
+import { MAX_SLOTS_PER_BOOKING } from '../src/booking';
+import { keepSelectable, toggleSlot, type SlotJson } from '../src/slotSelection';
+import type { SlotStatus } from '../src/statuses';
 
 const BASE = Date.parse('2026-10-25T04:00:00Z');
 const HALF_HOUR = 30 * 60_000;

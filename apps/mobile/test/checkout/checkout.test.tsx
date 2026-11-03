@@ -189,7 +189,7 @@ describe('checkout screen', () => {
 
   it('a signed-out Book press goes to sign-in and keeps the checkout in next', async () => {
     serve();
-    await renderCheckout({ status: 'signedOut', user: null });
+    const view = await renderCheckout({ status: 'signedOut', user: null });
     await screen.findByTestId('quote-total');
     await fireEvent.press(screen.getByRole('button', { name: `Book and pay ${money(30000)}` }));
     expect(bookCalls()).toHaveLength(0);
@@ -197,6 +197,22 @@ describe('checkout screen', () => {
     expect(href.startsWith('/sign-in?next=')).toBe(true);
     const next = decodeURIComponent(href.slice('/sign-in?next='.length));
     expect(next).toBe(`/venue/arena-one/checkout?turfId=t1&date=2026-11-05&startAts=${encodeURIComponent(`${iso(0)},${iso(1)}`)}`);
+
+    // Sign-in pops back to this same screen (see returnAfterSignIn): it picks up the new auth and books under the
+    // Idempotency-Key it minted on arrival, so there is no second checkout and no second key.
+    await view.rerender(
+      <ThemeProvider>
+        <AuthContext.Provider value={auth}>
+          <CheckoutScreen />
+        </AuthContext.Provider>
+      </ThemeProvider>,
+    );
+    expect(screen.queryByText('Sign in or create an account to book.')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: `Book and pay ${money(30000)}` }));
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/booking/[id]/pay', params: { id: 'b1' } }));
+    expect(bookCalls()).toHaveLength(1);
+    expect((bookCalls()[0]![2] as Record<string, string>)['Idempotency-Key']).toBe('00000000-0000-4000-8000-000000000001');
+    expect(mockRouter.push).toHaveBeenCalledTimes(1);
   });
 
   it('pay at venue: no advance books with "Book" and goes to the booking, not the pay screen', async () => {

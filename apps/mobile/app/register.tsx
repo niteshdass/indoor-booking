@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { returnAfterSignIn } from '../src/auth/returnAfterSignIn';
 import { safeNext } from '../src/auth/safeNext';
 import { useAuth, type NativeAuthResponse } from '../src/auth/useAuth';
 import { useCooldown } from '../src/auth/useCooldown';
@@ -54,7 +55,7 @@ export default function RegisterScreen() {
     run(async () => {
       const res = await apiPost<NativeAuthResponse>('/auth/register', { name, email, password, phone, code });
       await signIn(res);
-      router.replace(next as never);
+      returnAfterSignIn(router, rawNext);
     });
 
   return (

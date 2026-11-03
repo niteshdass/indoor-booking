@@ -8,8 +8,9 @@ import i18n from 'i18next';
 import ru from '../../../web/src/i18n/locales/ru.json';
 import SignInScreen from '../../app/sign-in';
 import EmailSignIn from '../../app/sign-in/email';
+import RegisterScreen from '../../app/register';
 
-const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
+const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn(), dismissTo: jest.fn(), canGoBack: jest.fn(() => false) };
 let mockParams: Record<string, string> = {};
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
@@ -45,9 +46,10 @@ async function requestCode() {
 beforeEach(() => {
   jest.clearAllMocks();
   mockParams = {};
+  mockRouter.canGoBack.mockReturnValue(false);
   mockPost.mockImplementation(async (path: string) => {
-    if (path === '/auth/otp/request') return { expiresInSec: 300, resendInSec: 60 };
-    if (path === '/auth/otp/verify') return { user, accessToken: 'at', refreshToken: 'rt' };
+    if (path === '/auth/otp/request' || path === '/auth/register/otp/request') return { expiresInSec: 300, resendInSec: 60 };
+    if (path === '/auth/otp/verify' || path === '/auth/register') return { user, accessToken: 'at', refreshToken: 'rt' };
     throw new Error(path);
   });
 });
@@ -131,6 +133,74 @@ describe('sign-in', () => {
     await act(async () => {});
     expect(mockPost).toHaveBeenCalledWith('/auth/login', { email: 'a@b.c', password: 'secret123' });
     expect(mockRouter.replace).toHaveBeenCalledWith('/bookings');
+  });
+});
+
+describe('returning after sign-in', () => {
+  // What requireSignIn put in `next` when the checkout sent the player here.
+  const checkout = '/venue/arena-one/checkout?turfId=t1&date=2026-11-05&startAts=2026-11-05T13%3A00%3A00.000Z';
+
+  it('pushed over the checkout, OTP sign-in goes back to that same checkout instead of opening a second one', async () => {
+    mockParams = { next: checkout };
+    mockRouter.canGoBack.mockReturnValue(true);
+    await requestCode();
+    await fireEvent.changeText(screen.getByLabelText('Verification code'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Verify and sign in' }));
+    await act(async () => {});
+    expect(mockRouter.dismissTo).toHaveBeenCalledTimes(1);
+    expect(mockRouter.dismissTo).toHaveBeenCalledWith(checkout);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+    expect(mockRouter.push).not.toHaveBeenCalled();
+  });
+
+  it('email sign-in (one screen deeper) also goes back to the original screen', async () => {
+    mockParams = { next: '/booking/b1/pay' };
+    mockRouter.canGoBack.mockReturnValue(true);
+    mockPost.mockResolvedValueOnce({ user, accessToken: 'at', refreshToken: 'rt' });
+    await render(wrap(<EmailSignIn />));
+    await fireEvent.changeText(await screen.findByLabelText('Email address'), 'a@b.c');
+    await fireEvent.changeText(screen.getByLabelText('Password'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
+    await act(async () => {});
+    expect(mockRouter.dismissTo).toHaveBeenCalledWith('/booking/b1/pay');
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it('registering goes back to the original screen too', async () => {
+    mockParams = { next: checkout };
+    mockRouter.canGoBack.mockReturnValue(true);
+    await render(wrap(<RegisterScreen />));
+    await fireEvent.changeText(await screen.findByLabelText('Phone'), '+8801712345678');
+    await fireEvent.press(screen.getByRole('button', { name: 'Send code' }));
+    await fireEvent.changeText(await screen.findByLabelText('Verification code'), '123456');
+    await fireEvent.changeText(screen.getByLabelText('Name'), 'Asha');
+    await fireEvent.changeText(screen.getByLabelText('Email address'), 'a@b.c');
+    await fireEvent.changeText(screen.getByLabelText('Password'), 'secret123');
+    await fireEvent.press(screen.getByRole('button', { name: 'Create account' }));
+    await act(async () => {});
+    expect(signIn).toHaveBeenCalled();
+    expect(mockRouter.dismissTo).toHaveBeenCalledWith(checkout);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it('a cold sign-in (nothing underneath) replaces itself with next', async () => {
+    mockParams = { next: '/bookings' };
+    await requestCode();
+    await fireEvent.changeText(screen.getByLabelText('Verification code'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Verify and sign in' }));
+    await act(async () => {});
+    expect(mockRouter.replace).toHaveBeenCalledWith('/bookings');
+    expect(mockRouter.dismissTo).not.toHaveBeenCalled();
+  });
+
+  it('without a next from the caller it replaces, even with history', async () => {
+    mockRouter.canGoBack.mockReturnValue(true);
+    await requestCode();
+    await fireEvent.changeText(screen.getByLabelText('Verification code'), '123456');
+    await fireEvent.press(screen.getByRole('button', { name: 'Verify and sign in' }));
+    await act(async () => {});
+    expect(mockRouter.replace).toHaveBeenCalledWith('/');
+    expect(mockRouter.dismissTo).not.toHaveBeenCalled();
   });
 });
 

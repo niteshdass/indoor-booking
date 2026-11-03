@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useTranslation } from 'react-i18next';
-import { safeNext } from '../../src/auth/safeNext';
+import { returnAfterSignIn } from '../../src/auth/returnAfterSignIn';
 import { useAuth, type NativeAuthResponse } from '../../src/auth/useAuth';
 import { apiPost } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
@@ -16,7 +16,6 @@ export default function EmailSignInScreen() {
   const router = useRouter();
   const { signIn } = useAuth();
   const { next: rawNext } = useLocalSearchParams<{ next?: string }>();
-  const next = safeNext(rawNext);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +28,7 @@ export default function EmailSignInScreen() {
     try {
       const res = await apiPost<NativeAuthResponse>('/auth/login', { email, password });
       await signIn(res);
-      router.replace(next as never);
+      returnAfterSignIn(router, rawNext);
     } catch (err) {
       setError(errorMessage(err, tr));
     } finally {

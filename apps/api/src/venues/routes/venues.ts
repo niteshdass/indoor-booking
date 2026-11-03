@@ -49,9 +49,19 @@ const isCurrency = (c: string) => {
   }
 };
 
+/** Link names to try in turn for a new venue: the one asked for only, else the name, then -2 to -20, then random suffixes. */
+export function* venueSlugs(asked: string | undefined, name: string): Generator<string> {
+  const base = asked ?? slugify(name);
+  const attempts = asked !== undefined ? 1 : MAX_SLUG_SUFFIX + RANDOM_SLUG_TRIES;
+  for (let n = 1; n <= attempts; n++) {
+    const suffix = n === 1 ? '' : n <= MAX_SLUG_SUFFIX ? `-${n}` : randomSuffix();
+    yield `${base.slice(0, SLUG_MAX - suffix.length).replace(/-+$/, '')}${suffix}`;
+  }
+}
+
 const text = (max: number) => z.string().trim().min(1).max(max);
 const slugSchema = z.string().min(3).max(SLUG_MAX).regex(SLUG_RE, 'Lowercase letters, digits and dashes');
-const fields = {
+export const venueFields = {
   name: text(100),
   address: text(300),
   city: text(100),
@@ -82,31 +92,31 @@ const photosSchema = (uploads: string) =>
 
 const createSchemaFor = (photos: ReturnType<typeof photosSchema>) => z
   .object({
-    ...fields,
-    slug: fields.slug.optional(),
+    ...venueFields,
+    slug: venueFields.slug.optional(),
     photos: photos.optional(),
-    amenities: fields.amenities.optional(),
-    settings: fields.settings.optional(),
+    amenities: venueFields.amenities.optional(),
+    settings: venueFields.settings.optional(),
     currency: z.string().refine(isCurrency, 'Unknown currency').optional(),
   })
   .strict();
 
 export const venuePatchFields = {
-  name: fields.name.optional(),
-  slug: fields.slug.optional(),
-  address: fields.address.optional(),
-  city: fields.city.optional(),
-  country: fields.country.optional(),
-  timezone: fields.timezone.optional(),
-  location: fields.location.optional(),
-  amenities: fields.amenities.optional(),
-  settings: fields.settings.optional(),
+  name: venueFields.name.optional(),
+  slug: venueFields.slug.optional(),
+  address: venueFields.address.optional(),
+  city: venueFields.city.optional(),
+  country: venueFields.country.optional(),
+  timezone: venueFields.timezone.optional(),
+  location: venueFields.location.optional(),
+  amenities: venueFields.amenities.optional(),
+  settings: venueFields.settings.optional(),
   published: z.boolean().optional(),
 };
 
-const slugTaken = () => new AppError(409, 'slug_taken', 'That link is already taken');
+export const slugTaken = () => new AppError(409, 'slug_taken', 'That link is already taken');
 
-const isSlugDuplicate = (err: unknown) =>
+export const isSlugDuplicate = (err: unknown) =>
   isDuplicateKeyError(err) && Object.hasOwn((err as { keyPattern?: object }).keyPattern ?? {}, 'slug');
 
 type VenueLike = {
@@ -201,7 +211,6 @@ export function venuesRouter(config: Config, services: AppServices): Router {
     const imageIds = photoIds(input.photos ?? []);
     await assertOwnImages(t.ownerId, imageIds, null);
     const owner = await Owner.findById(t.ownerId, { defaultCurrency: 1 }).lean();
-    const base = input.slug ?? slugify(input.name);
     const doc = {
       ownerId: t.ownerId,
       name: input.name,
@@ -215,10 +224,7 @@ export function venuesRouter(config: Config, services: AppServices): Router {
       amenities: input.amenities ?? [],
       settings: applyPatch({}, input.settings ?? {}),
     };
-    const attempts = input.slug !== undefined ? 1 : MAX_SLUG_SUFFIX + RANDOM_SLUG_TRIES;
-    for (let n = 1; n <= attempts; n++) {
-      const suffix = n === 1 ? '' : n <= MAX_SLUG_SUFFIX ? `-${n}` : randomSuffix();
-      const slug = `${base.slice(0, SLUG_MAX - suffix.length).replace(/-+$/, '')}${suffix}`;
+    for (const slug of venueSlugs(input.slug, input.name)) {
       try {
         const venue = await runInTransaction(async (session) => {
           const [created] = await Venue.create([{ ...doc, slug }], { session });

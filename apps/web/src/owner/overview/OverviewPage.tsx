@@ -47,7 +47,7 @@ export function OverviewPage() {
       <div className={styles.page}>
         <EmptyState title={t('owner.today.noVenues')} />
         {can('venue.manage') && (
-          <Link to="../venues/new" relative="path" className={styles.cta}>
+          <Link to="../venues/setup" relative="path" className={styles.cta}>
             {t('owner.today.createVenue')}
           </Link>
         )}

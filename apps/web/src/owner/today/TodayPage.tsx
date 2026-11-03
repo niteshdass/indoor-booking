@@ -24,6 +24,7 @@ import { useNewIds, usePoll } from '../usePoll';
 import { useResource } from '../useResource';
 import { firstStart, summarize } from './summarize';
 import { Attention } from './Attention';
+import { FirstWeek } from './FirstWeek';
 import { BookingSheet } from './BookingSheet';
 import { nextStep } from './nextStep';
 import { CourtTimeline, courtUsage } from './CourtTimeline';
@@ -44,12 +45,16 @@ export function TodayPage() {
   if (!venue) {
     return (
       <div className={styles.page}>
-        <EmptyState title={t('owner.today.noVenues')} />
-        {can('venue.manage') && (
-          <Link to="../venues/new" className={styles.cta}>
-            {t('owner.today.createVenue')}
-          </Link>
-        )}
+        <EmptyState
+          title={t('owner.today.noVenues')}
+          action={
+            can('venue.manage') && (
+              <Button variant="brand" size="lg" icon="plus" to="../venues/setup">
+                {t('onboarding.addVenue')}
+              </Button>
+            )
+          }
+        />
       </div>
     );
   }
@@ -68,6 +73,7 @@ export function TodayPage() {
           </Link>
         )}
       </div>
+      <FirstWeek key={venue.id} venue={venue} />
       <TodayVenue venue={venue} />
     </div>
   );

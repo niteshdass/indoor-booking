@@ -1,0 +1,129 @@
+/* Today's first-week list for a new venue: a card like the other Today sections, one ruled row per step. */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-heading);
+  color: var(--text-strong);
+}
+
+.count {
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+}
+
+.item + .item {
+  border-top: var(--hairline) solid var(--border-subtle);
+}
+
+.text {
+  flex: 1 1 var(--field-min);
+  min-width: 0;
+}
+
+.auto {
+  display: flex;
+  flex: 1 1 var(--field-min);
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Same size as a checkbox, but not one: these tick themselves */
+.mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--check-size);
+  height: var(--check-size);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+.markOn {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--primary-fg);
+}
+
+.mark svg {
+  width: 75%;
+  height: 75%;
+}
+
+.label {
+  display: block;
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-strong);
+}
+
+.hint {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.done .label {
+  color: var(--text-muted);
+}
+
+.go {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-lg);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.go:hover {
+  text-decoration: underline;
+}
+
+.go:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--focus-ring);
+}

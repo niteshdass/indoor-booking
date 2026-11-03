@@ -89,6 +89,11 @@
   --fact-min: 8.5rem; /* narrowest column in a label-over-value fact grid */
   --field-min: 10rem;
   --choice-min: 8rem; /* narrowest option in a segmented choice (admin General settings) */
+  --setup-tile-min: 9rem; /* narrowest sport tile (court drawing + name) in the easy venue setup */
+  --setup-chip-min: 6rem; /* narrowest short-word tile (weekday, language) in the easy venue setup */
+  --setup-tile-height: 3.5rem; /* easy setup tiles and counter buttons: a size up from --control-lg for unsure fingers */
+  --setup-count-width: 5rem; /* the typed number between the counter buttons */
+  --setup-done-mark: 4rem; /* tick disc on the setup done screen */
   --balance-card-min: 18rem; /* narrowest platform-fee balance card on the owner page before the cards stack */
   --map-height: 32rem;
   --demo-dot: 1.5rem; /* landing demo stepper dot */

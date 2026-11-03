@@ -2876,5 +2876,12 @@
       "copy": "Copy link",
       "copied": "Copied"
     }
+  },
+  "mobile": {
+    "tabs": {
+      "find": "Find",
+      "bookings": "Bookings",
+      "account": "Account"
+    }
   }
 }

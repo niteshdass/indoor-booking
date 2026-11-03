@@ -51,6 +51,14 @@
         {
           "enableGooglePay": false
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# Stripe tap-to-add-card (push provisioning) is not used; its classes are not bundled.\n-dontwarn com.stripe.android.pushProvisioning.**"
+          }
+        }
       ]
     ],
     "experiments": {

@@ -9,9 +9,10 @@ import BookingsScreen from '../../app/(tabs)/bookings';
 import BookingDetailScreen from '../../app/booking/[id]/index';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
+let mockParams: Record<string, string> = { id: 'b1' };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
-  useLocalSearchParams: () => ({ id: 'b1' }),
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: (cb: () => void) => mockUseEffect(cb, [cb]),
 }));
 
@@ -93,6 +94,7 @@ function serveDetail(b: Record<string, unknown> = booking(), venueLocation: unkn
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockParams = { id: 'b1' };
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
   jest.setSystemTime(new Date(NOW));
 });
@@ -138,6 +140,40 @@ describe('my bookings', () => {
     expect(mockGet).not.toHaveBeenCalled();
     await fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
     expect(mockRouter.push).toHaveBeenCalledWith('/sign-in?next=%2Fbookings');
+  });
+
+  it('signing out drops the list, and the next account never sees the old one', async () => {
+    mockGet.mockResolvedValueOnce({ bookings: [booking()] });
+    const view = await render(wrap(<BookingsScreen />));
+    expect(await screen.findByText(/Court A/)).toBeTruthy();
+
+    await view.rerender(wrap(<BookingsScreen />, { status: 'signedOut', user: null }));
+    expect(await screen.findByText('Sign in to see your bookings.')).toBeTruthy();
+    expect(screen.queryByText(/Court A/)).toBeNull();
+
+    // Another player signs in; their list is still on its way.
+    let resolve!: (v: unknown) => void;
+    mockGet.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    await view.rerender(wrap(<BookingsScreen />, { user: { ...user, id: 'u2', name: 'Bilal' } }));
+    expect(screen.queryByText(/Court A/)).toBeNull();
+    expect(screen.getByLabelText('Loading')).toBeTruthy();
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    await act(async () => resolve({ bookings: [booking({ id: 'b7', reference: 'BK-7', turf: { name: 'Court B' } })] }));
+    expect(await screen.findByText(/Court B/)).toBeTruthy();
+    expect(screen.queryByText(/Court A/)).toBeNull();
+  });
+
+  it('switching accounts without signing out reloads for the new one', async () => {
+    mockGet.mockResolvedValueOnce({ bookings: [booking()] });
+    const view = await render(wrap(<BookingsScreen />));
+    expect(await screen.findByText(/Court A/)).toBeTruthy();
+    let resolve!: (v: unknown) => void;
+    mockGet.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    await view.rerender(wrap(<BookingsScreen />, { user: { ...user, id: 'u2' } }));
+    expect(screen.queryByText(/Court A/)).toBeNull();
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    await act(async () => resolve({ bookings: [] }));
+    expect(await screen.findByText('You have no upcoming bookings.')).toBeTruthy();
   });
 
   it('pull to refresh refetches', async () => {
@@ -244,6 +280,23 @@ describe('booking detail', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Pay now' }));
     expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/booking/[id]/pay', params: { id: 'b1' } });
     expect(screen.queryByRole('button', { name: 'Book again' })).toBeNull();
+  });
+
+  it('arriving from a card payment still being confirmed says so and hides Pay now', async () => {
+    mockParams = { id: 'b1', confirming: '1' };
+    serveDetail(booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0, holdExpiresAt: new Date(NOW + 10 * 60_000).toISOString() }));
+    await renderDetail();
+    expect(await screen.findByText('Payment received, confirming…')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Pay now' })).toBeNull();
+  });
+
+  it('the confirming notice goes once the booking is confirmed', async () => {
+    mockParams = { id: 'b1', confirming: '1' };
+    serveDetail();
+    await renderDetail();
+    expect(await screen.findByText('BK-1')).toBeTruthy();
+    expect(screen.getByText('Confirmed')).toBeTruthy();
+    expect(screen.queryByText('Payment received, confirming…')).toBeNull();
   });
 
   it('a manual wallet payment awaiting the venue shows provider and Transaction ID, never Pay now', async () => {

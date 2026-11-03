@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -21,8 +21,10 @@ export default function BookingsScreen() {
   const { t: tr } = useTranslation();
   const { t } = useTheme();
   const router = useRouter();
-  const { status, retry } = useAuth();
+  const { status, retry, user } = useAuth();
   const signedIn = status === 'signedIn';
+  /** Whose list this is: null while signed out. */
+  const owner = signedIn ? (user?.id ?? 'me') : null;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [tab, setTab] = useState<Tab>('upcoming');
   const [refreshing, setRefreshing] = useState(false);
@@ -39,10 +41,17 @@ export default function BookingsScreen() {
     }
   }, []);
 
+  // Signing out, or another account signing in, drops the list (and any request still in flight for the old one).
+  useEffect(() => {
+    run.current++;
+    setState({ status: 'loading' });
+    setTab('upcoming');
+  }, [owner]);
+
   useFocusEffect(
     useCallback(() => {
-      if (signedIn) void load();
-    }, [signedIn, load]),
+      if (owner) void load();
+    }, [owner, load]),
   );
 
   const onRefresh = async () => {

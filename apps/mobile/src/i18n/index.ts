@@ -24,9 +24,9 @@ async function pickLanguage(): Promise<Language> {
   return isSupported(device) ? device : 'en';
 }
 
-/** Stored choice, else the device language, else English. */
-export async function initI18n(): Promise<void> {
-  const lng = await pickLanguage();
+/** `force`, else the stored choice, else the device language, else English. */
+export async function initI18n(force?: Language): Promise<void> {
+  const lng = force ?? (await pickLanguage());
   await i18n.use(initReactI18next).init({
     lng,
     fallbackLng: 'en',

@@ -119,9 +119,11 @@ export function clearRefreshCookie(res: Response, config: Config): void {
 }
 
 /**
- * A native (mobile app) request sends `X-Client: native` and no `rt` cookie. The cookie check is the
- * security boundary: a browser holding a refresh cookie always gets the cookie flow, so a script
- * injected into the web app cannot add the header to be handed a body copy of the token it could read.
+ * A native (mobile app) request sends `X-Client: native` and no `rt` cookie. Native mode is reachable
+ * from browser JS: an injected script can send `credentials: 'omit'` plus the header. What protects
+ * the web session is that native mode never comes with the cookie, so a request carrying the refresh
+ * cookie always gets the cookie flow and cannot trade it for a body token. Getting a body token in
+ * native mode takes a credential of its own (password, OTP code or Google ID token).
  */
 export function isNativeClient(req: Request): boolean {
   const cookie = (req.cookies as Record<string, unknown> | undefined)?.[REFRESH_COOKIE];

@@ -26,7 +26,11 @@ export default function RootLayout() {
   const [i18nReady, setI18nReady] = useState(false);
 
   useEffect(() => {
-    initI18n().finally(() => setI18nReady(true));
+    // A failed init must not leave the splash screen up: fall back to English and render anyway.
+    initI18n()
+      .catch(() => initI18n('en'))
+      .catch(() => undefined)
+      .finally(() => setI18nReady(true));
   }, []);
 
   const ready = (fontsLoaded || !!fontError) && i18nReady;

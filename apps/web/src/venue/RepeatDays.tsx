@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { SlotDay } from '../lib/types';
-import { isSelectable } from './slotSelection';
+import { isSelectable } from '@booking/shared';
 import styles from './RepeatDays.module.css';
 
 type Props = {

@@ -15,7 +15,7 @@ import type { SlotDay } from '../../lib/types';
 import { DateStrip } from '../../venue/DateStrip';
 import { SlotGrid } from '../../venue/SlotGrid';
 import { RepeatDays } from '../../venue/RepeatDays';
-import { isSelectable, runsOf } from '../../venue/slotSelection';
+import { isSelectable, runsOf } from '@booking/shared';
 import { PaymentLinkDialog } from '../bookings/PaymentLinkDialog';
 import { CustomerFields, customerBody, customerErrors, type Customer } from '../CustomerFields';
 import { useOwner } from '../OwnerProvider';

@@ -2898,6 +2898,10 @@
       "cityPlaceholder": "For example Dhaka",
       "cityNotFound": "We couldn't find that city. Check the spelling and try again.",
       "locating": "Finding your location"
+    },
+    "venue": {
+      "back": "Back",
+      "reviewsFailed": "Reviews could not be loaded."
     }
   }
 }

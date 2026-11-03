@@ -13,7 +13,7 @@ import type { SlotDay, SlotJson } from '../lib/types';
 import { checkoutHref } from '../checkout/checkoutParams';
 import { RepeatDays } from './RepeatDays';
 import { SlotGrid } from './SlotGrid';
-import { isSelectable, runsOf } from './slotSelection';
+import { isSelectable, runsOf } from '@booking/shared';
 import styles from './SlotsPanel.module.css';
 
 /** How many days after the shown one are offered as copy chips. */

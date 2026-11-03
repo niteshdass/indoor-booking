@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { moneyShort } from '../lib/format';
 import type { SlotDay, SlotJson } from '../lib/types';
-import { isSelectable } from './slotSelection';
+import { isSelectable } from '@booking/shared';
 import styles from './SlotGrid.module.css';
 
 type Props = { day: SlotDay; selected: string[]; onToggle(startAt: string): void; /** `portal` paints the selection with primary instead of brand (owner portal). */ tone?: 'brand' | 'portal' };

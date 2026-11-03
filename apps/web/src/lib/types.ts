@@ -20,21 +20,7 @@ export type PublicVenue = {
   rating: RatingSummary | null;
 };
 
-export type SlotJson = {
-  startAt: string;
-  endAt: string;
-  localStart: string;
-  localEnd: string;
-  price: number | null;
-  status: SlotStatus;
-};
-
-export type SlotDay = {
-  businessDate: string;
-  currency: string;
-  status: 'open' | 'closed' | 'outside_window';
-  slots: SlotJson[];
-};
+export type { SlotJson, SlotDay } from '@booking/shared';
 
 export type OfferedAddonJson = {
   id: string;

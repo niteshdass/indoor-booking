@@ -11,6 +11,7 @@ import { ApiError, apiGet, apiPost } from '../../../src/lib/api';
 import { errorMessage } from '../../../src/lib/errors';
 import { openSslcommerz } from '../../../src/payment/sslcommerz';
 import { payWithStripe } from '../../../src/payment/stripe';
+import { useConfirmPoll } from '../../../src/payment/useConfirmPoll';
 import { usePayBooking } from '../../../src/payment/usePayBooking';
 import { WalletForm, type ManualOutcome } from '../../../src/payment/WalletForm';
 import { useTheme } from '../../../src/theme/ThemeProvider';
@@ -20,9 +21,6 @@ type Method = 'online' | 'card' | WalletProvider;
 type OptionsState = { status: 'idle' | 'loading' } | { status: 'ready'; options: PaymentOptions } | { status: 'error'; error: unknown };
 /** What the last payment attempt left to say, under the Pay button. */
 type Note = { kind: 'cancelled' } | { kind: 'failed'; message?: string } | null;
-
-/** After the SSLCommerz browser closes on a booking still awaiting payment, look once more after this long. */
-const RECHECK_MS = 3000;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const clock = (ms: number) => {
@@ -46,6 +44,7 @@ function useNow(active: boolean): number {
  * Pays a booking that is awaiting payment: online checkout (SSLCommerz), card (Stripe PaymentSheet) or a manual
  * wallet transfer. Whatever happens, the booking is fetched again afterwards (and whenever the app returns to the
  * foreground) and its status decides what shows; a settled booking goes on to its detail screen once.
+ * After a card payment or the online checkout, the booking is polled (useConfirmPoll) until the webhook lands.
  */
 export default function PayScreen() {
   const { id = '' } = useLocalSearchParams<{ id: string }>();
@@ -61,10 +60,11 @@ export default function PayScreen() {
   const [paying, setPaying] = useState(false);
   const [note, setNote] = useState<Note>(null);
   const [holdLapsed, setHoldLapsed] = useState(false);
-  /** A card payment went through: wait for the detail screen, never offer Pay again. */
-  const [completed, setCompleted] = useState(false);
-  /** The online checkout closed but the gateway may not have told us yet: say so and look once more. */
-  const [checking, setChecking] = useState(false);
+  /**
+   * A payment may have gone through and the booking is polled until the webhook confirms it. 'card': PaymentSheet said
+   * completed, so Pay is never offered again. 'online': the SSLCommerz browser closed, outcome unknown.
+   */
+  const [confirming, setConfirming] = useState<'card' | 'online' | null>(null);
   const inflight = useRef(false);
   const navigated = useRef(false);
   const signInSent = useRef(false);
@@ -78,29 +78,33 @@ export default function PayScreen() {
   const settled = !!status && status !== 'awaiting_payment' && status !== 'expired';
 
   useEffect(() => {
-    if (!checking) return;
-    const timer = setTimeout(() => {
-      void refetch().finally(() => setChecking(false));
-    }, RECHECK_MS);
-    return () => clearTimeout(timer);
-  }, [checking, refetch]);
-
-  useEffect(() => {
     if (auth.status === 'signedOut' && !signInSent.current) {
       signInSent.current = true;
       requireSignIn(router, `/booking/${encodeURIComponent(id)}/pay`);
     }
   }, [auth.status, id, router]);
 
-  const goToBooking = useCallback(() => {
-    if (navigated.current) return;
-    navigated.current = true;
-    router.replace({ pathname: '/booking/[id]', params: { id } });
-  }, [id, router]);
+  /** `stillConfirming`: the card was charged but the webhook has not landed yet, so the detail screen holds off Pay now. */
+  const goToBooking = useCallback(
+    (stillConfirming = false) => {
+      if (navigated.current) return;
+      navigated.current = true;
+      router.replace({ pathname: '/booking/[id]', params: stillConfirming ? { id, confirming: '1' } : { id } });
+    },
+    [id, router],
+  );
 
   useEffect(() => {
-    if (settled) goToBooking();
-  }, [settled, goToBooking]);
+    // After a completed card payment any change of status (even expired) is the detail screen's to show.
+    if (settled || (confirming === 'card' && !!status && !awaiting)) goToBooking();
+  }, [settled, confirming, status, awaiting, goToBooking]);
+
+  const onConfirmTimeout = useCallback(() => {
+    // A charged card goes on regardless; an online checkout the player may have just closed offers paying again.
+    if (confirming === 'card') goToBooking(true);
+    else setConfirming(null);
+  }, [confirming, goToBooking]);
+  useConfirmPoll(confirming !== null && awaiting, refetch, onConfirmTimeout);
 
   // Payment options: needed to pay, and after the hold to still take a Transaction ID for money already sent.
   const needOptions = (awaiting || status === 'expired') && !booking?.manualPayment;
@@ -135,17 +139,14 @@ export default function PayScreen() {
           merchantName: booking.venue?.name ?? 'BookaTurf',
         });
         if (out.kind === 'completed') {
-          setCompleted(true);
-          await refetch();
-          goToBooking();
+          setConfirming('card');
           return;
         }
         setNote(out.kind === 'canceled' ? { kind: 'cancelled' } : { kind: 'failed', message: out.message });
       } else {
         await openSslcommerz(start.payment.url);
         // The browser closes before the gateway's callback may have reached us: still awaiting means "not yet known".
-        const after = await refetch();
-        if (after?.status === 'awaiting_payment') setChecking(true);
+        setConfirming('online');
         return;
       }
       await refetch();
@@ -189,7 +190,13 @@ export default function PayScreen() {
   );
   const spinner = <ActivityIndicator accessibilityLabel={tr('common.loading')} />;
 
-  if (auth.status === 'loading' || auth.status === 'signedOut') return frame(spinner);
+  if (auth.status === 'loading') return frame(spinner);
+  if (auth.status === 'signedOut') {
+    // Sign-in opens by itself once; backing out of it lands here, with a way to open it again.
+    return frame(
+      <Button label={tr('mobile.pay.signInToPay')} onPress={() => requireSignIn(router, `/booking/${encodeURIComponent(id)}/pay`)} />,
+    );
+  }
   if (auth.status === 'offline') {
     return frame(
       <View style={{ gap: t.space3 }}>
@@ -229,8 +236,8 @@ export default function PayScreen() {
     </Text>
   );
 
-  const waitingResult = (completed || checking) && awaiting;
-  if (settled || completed || waitingResult) {
+  const waitingResult = confirming !== null && awaiting;
+  if (settled || confirming === 'card' || waitingResult) {
     const waiting = status === 'pending' && booking.manualPayment?.status === 'pending';
     return frame(
       <>
@@ -248,7 +255,14 @@ export default function PayScreen() {
               <Text variant="caption" tone="muted">{`${PROVIDER_NAMES[booking.manualPayment.provider]} · ${booking.manualPayment.trxId}`}</Text>
             </>
           ) : null}
-          {waitingResult ? <Text tone="muted">{tr('mobile.pay.checking')}</Text> : null}
+          {waitingResult ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.space2 }}>
+              <ActivityIndicator color={t.textMuted} />
+              <Text tone="muted" style={{ flexShrink: 1 }}>
+                {tr(confirming === 'card' ? 'mobile.pay.confirming' : 'mobile.pay.checking')}
+              </Text>
+            </View>
+          ) : null}
         </Card>
       </>,
     );

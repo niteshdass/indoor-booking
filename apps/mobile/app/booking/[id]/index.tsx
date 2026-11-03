@@ -54,9 +54,12 @@ function Fact({ label, value, strong = false }: { label: string; value: string; 
 /**
  * One booking: reference, venue, court, venue-local time, amounts and status, with Pay now (awaiting payment),
  * Open in Maps, Book again and Cancel. Refetches on foreground via usePayBooking, so a payment finished elsewhere shows.
+ * Arriving with `confirming=1` (a card payment whose confirmation is late), an awaiting booking says the payment was
+ * received and hides Pay now rather than inviting a second charge.
  */
 export default function BookingDetailScreen() {
-  const { id = '' } = useLocalSearchParams<{ id: string }>();
+  // `confirming=1`: the pay screen saw the card charged but gave up waiting for the webhook.
+  const { id = '', confirming } = useLocalSearchParams<{ id: string; confirming?: string }>();
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
   const router = useRouter();
@@ -121,7 +124,8 @@ export default function BookingDetailScreen() {
   // A wallet payment waiting on an expired booking was sent after its times were taken.
   const late = waiting && booking.status === 'expired';
   const holdLive = !booking.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();
-  const showPayNow = booking.status === 'awaiting_payment' && holdLive && !waiting;
+  const paymentConfirming = confirming === '1' && booking.status === 'awaiting_payment';
+  const showPayNow = booking.status === 'awaiting_payment' && holdLive && !waiting && !paymentConfirming;
   const due = amountDue(booking);
   const venue = booking.venue;
   const canBookAgain = !!venue && booking.slots.length > 0 && booking.status !== 'awaiting_payment';
@@ -151,6 +155,11 @@ export default function BookingDetailScreen() {
           </Text>
         ) : null}
         {booking.status === 'pending' && !waiting ? <Text tone="muted">{tr('booking.pendingNote')}</Text> : null}
+        {paymentConfirming ? (
+          <Text accessibilityRole="alert" tone="info">
+            {tr('mobile.pay.receivedConfirming')}
+          </Text>
+        ) : null}
 
         <Fact label={tr('booking.reference')} value={booking.reference} strong />
         <Fact label={tr('booking.total')} value={fmt(booking.total)} strong />

@@ -2912,7 +2912,10 @@
       "holdExpired": "Your hold expired, so these slots were released. Pick your slots again.",
       "waitingVerify": "Waiting for the venue to verify your payment.",
       "checking": "Payment sent. Updating your booking…",
-      "submitted": "Payment details sent"
+      "submitted": "Payment details sent",
+      "confirming": "Confirming payment…",
+      "receivedConfirming": "Payment received, confirming…",
+      "signInToPay": "Sign in to pay"
     },
     "checkout": {
       "locked": "Extras and the promo code are locked while this booking may still be going through. Tap Book again to check."

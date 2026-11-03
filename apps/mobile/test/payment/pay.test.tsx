@@ -85,18 +85,31 @@ function serve(bookings: Record<string, unknown>[], options: Options = cardOnly)
 
 const user = { id: 'u1', name: 'Asha', email: 'a@b.c', emailVerified: true, phone: '+8801712345678', hasPassword: true, hasGoogle: false, platformAdmin: false };
 const auth: AuthContextValue = { status: 'signedIn', user, signIn: jest.fn(), setUser: jest.fn(), signOut: jest.fn(), retry: jest.fn() };
-const renderPay = () =>
-  render(
-    <ThemeProvider>
-      <AuthContext.Provider value={auth}>
-        <PayScreen />
-      </AuthContext.Provider>
-    </ThemeProvider>,
-  );
+const payTree = (value: Partial<AuthContextValue> = {}) => (
+  <ThemeProvider>
+    <AuthContext.Provider value={{ ...auth, ...value }}>
+      <PayScreen />
+    </AuthContext.Provider>
+  </ThemeProvider>
+);
+const renderPay = (value: Partial<AuthContextValue> = {}) => render(payTree(value));
+const stripeStart = {
+  payment: { id: 'p1', amount: 15000, currency: 'BDT', gateway: 'stripe', clientSecret: 'pi_1_secret_x', publishableKey: 'pk_test_1' },
+  holdExpiresAt: booking().holdExpiresAt,
+};
 
 const money = (n: number) => formatMoney(n, 'BDT', 'en');
 const payButton = () => screen.findByRole('button', { name: `Pay ${money(15000)} now` });
 const bookingGets = () => mockGet.mock.calls.filter((c) => c[0] === '/me/bookings/b1').length;
+
+/** Moves the clock in poll-sized steps, letting each refetch settle before the next one is scheduled. */
+async function advance(ms: number) {
+  for (let left = ms; left > 0; left -= 2000) {
+    await act(async () => {
+      jest.advanceTimersByTime(Math.min(2000, left));
+    });
+  }
+}
 
 let appStateListeners: ((s: AppStateStatus) => void)[] = [];
 
@@ -268,8 +281,8 @@ describe('pay screen', () => {
     expect(screen.queryByText(/something went wrong/i)).toBeNull();
   });
 
-  it('dismissing SSLCommerz while the booking is still awaiting payment shows "checking" and refetches once more', async () => {
-    serve([booking(), booking(), booking({ status: 'confirmed' })], { wallets: [], card: false, sslcommerz: true });
+  it('dismissing SSLCommerz while the booking is still awaiting payment shows "checking" and polls until it is confirmed', async () => {
+    serve([booking(), booking(), booking(), booking({ status: 'confirmed' })], { wallets: [], card: false, sslcommerz: true });
     mockPost.mockResolvedValue({ payment: { id: 'p1', amount: 15000, currency: 'BDT', gateway: 'sslcommerz', url: 'https://sandbox.example/pay' }, holdExpiresAt: null });
     await renderPay();
     await fireEvent.press(await screen.findByRole('button', { name: 'Continue to payment' }));
@@ -278,12 +291,100 @@ describe('pay screen', () => {
     expect(screen.queryByRole('button', { name: 'Continue to payment' })).toBeNull();
     expect(screen.queryByText('Awaiting payment')).toBeNull();
     expect(bookingGets()).toBe(2);
-    // One more look a few seconds later.
+    // Every two seconds until the webhook has landed.
     await act(async () => {
-      jest.advanceTimersByTime(3000);
+      jest.advanceTimersByTime(2000);
+    });
+    expect(bookingGets()).toBe(3);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
     });
     expect(await screen.findByText('Confirmed')).toBeTruthy();
+    expect(bookingGets()).toBe(4);
+    expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/booking/[id]', params: { id: 'b1' } });
+  });
+
+  it('an SSLCommerz checkout still unknown after the poll budget offers paying again', async () => {
+    serve([booking()], { wallets: [], card: false, sslcommerz: true });
+    mockPost.mockResolvedValue({ payment: { id: 'p1', amount: 15000, currency: 'BDT', gateway: 'sslcommerz', url: 'https://sandbox.example/pay' }, holdExpiresAt: null });
+    await renderPay();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue to payment' }));
+    expect(await screen.findByText('Payment sent. Updating your booking…')).toBeTruthy();
+    await advance(60_000);
+    expect(await screen.findByRole('button', { name: 'Continue to payment' })).toBeTruthy();
+    expect(screen.queryByText('Payment sent. Updating your booking…')).toBeNull();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+    // The poll stopped with the budget.
+    const gets = bookingGets();
+    await advance(10_000);
+    expect(bookingGets()).toBe(gets);
+  });
+
+  it('a completed card payment waits on the pay screen and polls until the booking is confirmed', async () => {
+    serve([booking(), booking(), booking({ status: 'confirmed', paymentStatus: 'partially_paid', amountPaid: 15000 })]);
+    mockPost.mockResolvedValue(stripeStart);
+    mockPresent.mockResolvedValue({});
+    await renderPay();
+    await fireEvent.press(await payButton());
+
+    // The first look after the sheet still says awaiting payment: stay here, say so, no Pay button.
+    expect(await screen.findByText('Confirming payment…')).toBeTruthy();
+    expect(bookingGets()).toBe(2);
+    expect(screen.queryByRole('button', { name: /^Pay / })).toBeNull();
+    expect(screen.queryByText('Awaiting payment')).toBeNull();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
     expect(bookingGets()).toBe(3);
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/booking/[id]', params: { id: 'b1' } });
+  });
+
+  it('a completed card payment still unconfirmed after 60 s goes to the booking marked as confirming', async () => {
+    serve([booking()]);
+    mockPost.mockResolvedValue(stripeStart);
+    mockPresent.mockResolvedValue({});
+    await renderPay();
+    await fireEvent.press(await payButton());
+    expect(await screen.findByText('Confirming payment…')).toBeTruthy();
+
+    await advance(58_000);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+    expect(bookingGets()).toBeGreaterThanOrEqual(30);
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/booking/[id]', params: { id: 'b1', confirming: '1' } });
+  });
+
+  it('leaving the pay screen while confirming stops the poll', async () => {
+    serve([booking()]);
+    mockPost.mockResolvedValue(stripeStart);
+    mockPresent.mockResolvedValue({});
+    const view = await renderPay();
+    await fireEvent.press(await payButton());
+    expect(await screen.findByText('Confirming payment…')).toBeTruthy();
+    await view.unmount();
+    const gets = bookingGets();
+    await advance(120_000);
+    expect(bookingGets()).toBe(gets);
+    expect(mockRouter.replace).not.toHaveBeenCalled();
+  });
+
+  it('signed out opens sign-in once, then offers "Sign in to pay" instead of a spinner', async () => {
+    serve([booking()]);
+    await renderPay({ status: 'signedOut', user: null });
+    expect(mockRouter.push).toHaveBeenCalledTimes(1);
+    expect(mockRouter.push).toHaveBeenCalledWith('/sign-in?next=%2Fbooking%2Fb1%2Fpay');
+    expect(screen.queryByLabelText('Loading')).toBeNull();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Sign in to pay' }));
+    expect(mockRouter.push).toHaveBeenCalledTimes(2);
+    expect(mockRouter.push).toHaveBeenLastCalledWith('/sign-in?next=%2Fbooking%2Fb1%2Fpay');
+    expect(mockGet).not.toHaveBeenCalled();
   });
 
   it('has a visible Back control', async () => {

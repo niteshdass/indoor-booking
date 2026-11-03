@@ -6,8 +6,9 @@ import VenueScreen from '../../app/venue/[slug]';
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
-  useLocalSearchParams: () => ({ slug: 'arena-one' }),
+  useLocalSearchParams: () => mockParams,
 }));
+let mockParams: Record<string, string> = { slug: 'arena-one' };
 
 const mockGet = jest.fn();
 jest.mock('../../src/lib/api', () => {
@@ -71,12 +72,23 @@ const renderVenue = () =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockParams = { slug: 'arena-one' };
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
   jest.setSystemTime(new Date('2026-11-05T10:00:00Z')); // 16:00 in Dhaka, still 5 Nov
 });
 afterEach(() => jest.useRealTimers());
 
 describe('venue screen', () => {
+  it('a turfId param preselects that court (Book again)', async () => {
+    mockParams = { slug: 'arena-one', turfId: 't2' };
+    serve();
+    await renderVenue();
+    await screen.findByRole('button', { name: /^19:00/ });
+    expect(screen.getByRole('tab', { name: /Court B/ }).props.accessibilityState).toMatchObject({ selected: true });
+    expect(mockGet.mock.calls.some((c) => /turfs\/t2\/slots/.test(String(c[0])))).toBe(true);
+    expect(mockGet.mock.calls.some((c) => /turfs\/t1\/slots/.test(String(c[0])))).toBe(false);
+  });
+
   it('times render in the venue timezone', async () => {
     // The test process runs as UTC (test/globalSetup.js), so device-local formatting would say 13:00.
     expect(new Date(T0).getHours()).toBe(13);

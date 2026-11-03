@@ -18,13 +18,14 @@ import type { PublicVenue } from '../../src/venue/types';
 type State = { status: 'loading' } | { status: 'ready'; venue: PublicVenue } | { status: 'not_found' } | { status: 'error'; error: unknown };
 
 export default function VenueScreen() {
-  const { slug = '' } = useLocalSearchParams<{ slug: string }>();
+  /** `turfId` preselects a court (Book again); an id the venue does not have falls back to its first court. */
+  const { slug = '', turfId: turfParam } = useLocalSearchParams<{ slug: string; turfId?: string }>();
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
   const router = useRouter();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const [turfId, setTurfId] = useState<string | null>(null);
+  const [turfId, setTurfId] = useState<string | null>(turfParam ?? null);
   const [date, setDate] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
 

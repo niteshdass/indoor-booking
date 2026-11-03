@@ -2899,6 +2899,11 @@
       "cityNotFound": "We couldn't find that city. Check the spelling and try again.",
       "locating": "Finding your location"
     },
+    "bookings": {
+      "signedOut": "Sign in to see your bookings.",
+      "openMaps": "Open in Maps",
+      "confirmCancel": "Confirm cancellation"
+    },
     "venue": {
       "back": "Back",
       "reviewsFailed": "Reviews could not be loaded."

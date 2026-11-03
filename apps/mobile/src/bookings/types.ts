@@ -18,6 +18,7 @@ export type PlayerBooking = {
   advanceRequired: number;
   platformFee: PlatformFeeSnapshot | null;
   amountPaid: number;
+  amountRefunded: number;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
   holdExpiresAt: string | null;
@@ -42,4 +43,17 @@ export type PaymentStart = {
     | { id: string; amount: number; currency: string; gateway: 'stripe'; clientSecret: string; publishableKey: string }
     | { id: string; amount: number; currency: string; gateway: 'sslcommerz'; url: string };
   holdExpiresAt: string | null;
+};
+
+/** `GET /me/bookings/:id/cancellation` → `preview` (apps/api/src/bookings/cancel.ts `previewCancellation`). */
+export type CancellationPreview = {
+  percent: number;
+  amount: number;
+  rule: { minHoursBefore: number | null; percent: number } | null;
+  amountPaid: number;
+  amountRefunded: number;
+  currency: string;
+  card: number;
+  wallet: number;
+  cash: number;
 };

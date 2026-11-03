@@ -25,7 +25,7 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE_WITH_STAGING_API_HOST/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://bookaturf.vercel.app/api/v1"
       }
     },
     "production": {
@@ -33,7 +33,7 @@
       "autoIncrement": true,
       "android": { "buildType": "app-bundle" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://REPLACE_WITH_PRODUCTION_API_HOST/api/v1"
+        "EXPO_PUBLIC_API_URL": "https://bookaturf.vercel.app/api/v1"
       }
     }
   },

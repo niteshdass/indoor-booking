@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiQuery, criteriaToParams, type Criteria, type SearchResponse, type SearchResult } from '@booking/shared';
 import { apiGet } from '../lib/api';
 
+/** One page is this many results; a load keeps following empty or short pages up to AUTO_FOLLOW_MAX extra requests. */
+export const PAGE_SIZE = 20;
+export const AUTO_FOLLOW_MAX = 10;
+
 export type SearchStatus = 'loading' | 'idle' | 'error';
 
 type State = { key: string; results: SearchResult[]; nextCursor: number | null; status: SearchStatus; error: unknown };
@@ -26,21 +30,38 @@ export function useSearch(criteria: Criteria): {
   const busy = useRef(false);
   const run = useRef(0);
 
+  /**
+   * One load: fetch `start`, then keep following while this load's batch is shorter than a page and a cursor remains
+   * (filtered-out venues advance the cursor, so a page can be empty). Bounded like the web search.
+   */
   const fetchPage = useCallback(async (start: number, reset: boolean) => {
     const { criteria: c, key: k } = latest.current;
     const id = ++run.current;
     busy.current = true;
     setState((s) => (reset ? initial(k) : { ...s, key: k, status: 'loading', error: null }));
+    let cursor = start;
+    let batch = 0;
+    let extra = 0;
+    let first = reset;
     try {
-      const page = await apiGet<SearchResponse>(`/search${apiQuery(c, start)}`);
-      if (id !== run.current) return;
-      setState((s) => ({
-        key: k,
-        results: reset ? page.results : [...s.results, ...page.results],
-        nextCursor: page.nextCursor,
-        status: 'idle',
-        error: null,
-      }));
+      for (;;) {
+        const page = await apiGet<SearchResponse>(`/search${apiQuery(c, cursor)}`);
+        if (id !== run.current) return;
+        batch += page.results.length;
+        const follow = page.nextCursor !== null && batch < PAGE_SIZE && extra < AUTO_FOLLOW_MAX;
+        const replace = first;
+        setState((s) => ({
+          key: k,
+          results: replace ? page.results : [...s.results, ...page.results],
+          nextCursor: page.nextCursor,
+          status: follow ? 'loading' : 'idle',
+          error: null,
+        }));
+        first = false;
+        if (!follow) return;
+        cursor = page.nextCursor!;
+        extra += 1;
+      }
     } catch (error) {
       if (id !== run.current) return;
       setState((s) => ({ ...s, key: k, status: 'error', error }));
@@ -57,9 +78,9 @@ export function useSearch(criteria: Criteria): {
   }, [key, fetchPage]);
 
   const loadMore = useCallback(() => {
-    if (busy.current || state.nextCursor === null) return;
+    if (busy.current || state.key !== key || state.nextCursor === null) return;
     void fetchPage(state.nextCursor, false);
-  }, [fetchPage, state.nextCursor]);
+  }, [fetchPage, key, state.key, state.nextCursor]);
 
   // After an error the list is whatever was loaded; retry repeats the page that failed.
   const retry = useCallback(() => {

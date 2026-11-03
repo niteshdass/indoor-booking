@@ -8,7 +8,7 @@ import { apiGet } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
 import { SportChips } from '../../src/search/SportChips';
 import { useNearMe } from '../../src/search/useNearMe';
-import { useSearch } from '../../src/search/useSearch';
+import { PAGE_SIZE, useSearch } from '../../src/search/useSearch';
 import { VenueCard } from '../../src/search/VenueCard';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { Button, Field, Screen, Text } from '../../src/ui';
@@ -86,37 +86,37 @@ export default function FindScreen() {
           </Text>
           <Button label={tr('search.clearLocation')} variant="ghost" onPress={clearOrigin} />
         </View>
-      ) : near.blocked ? (
-        <View style={{ gap: t.space2 }}>
-          <Text tone="muted">{tr('mobile.find.locationDenied')}</Text>
-          <Field
-            label={tr('mobile.find.cityLabel')}
-            placeholder={tr('mobile.find.cityPlaceholder')}
-            value={city}
-            onChangeText={(v) => {
-              setCity(v);
-              setCityError(false);
-            }}
-            onSubmitEditing={() => void searchCity()}
-            returnKeyType="search"
-            error={cityError ? tr('mobile.find.cityNotFound') : undefined}
-          />
-          <Button label={tr('search.submit')} loading={geocoding} disabled={!city.trim()} onPress={() => void searchCity()} />
-        </View>
       ) : (
         <>
-          {near.failed ? (
-            <Text tone="muted" accessibilityRole="alert">
-              {tr('mobile.find.locationFailed')}
-            </Text>
+          {near.blocked || near.failed ? (
+            <View style={{ gap: t.space2 }}>
+              <Text tone="muted" accessibilityRole="alert">
+                {near.blocked ? tr('mobile.find.locationDenied') : tr('mobile.find.locationFailed')}
+              </Text>
+              <Field
+                label={tr('mobile.find.cityLabel')}
+                placeholder={tr('mobile.find.cityPlaceholder')}
+                value={city}
+                onChangeText={(v) => {
+                  setCity(v);
+                  setCityError(false);
+                }}
+                onSubmitEditing={() => void searchCity()}
+                returnKeyType="search"
+                error={cityError ? tr('mobile.find.cityNotFound') : undefined}
+              />
+              <Button label={tr('search.submit')} loading={geocoding} disabled={!city.trim()} onPress={() => void searchCity()} />
+            </View>
           ) : null}
-          <Button
-            label={tr('search.useMyLocation')}
-            variant="secondary"
-            loading={near.locating}
-            accessibilityHint={near.locating ? tr('mobile.find.locating') : undefined}
-            onPress={() => void locate()}
-          />
+          {near.blocked ? null : (
+            <Button
+              label={tr('search.useMyLocation')}
+              variant="secondary"
+              loading={near.locating}
+              accessibilityHint={near.locating ? tr('mobile.find.locating') : undefined}
+              onPress={() => void locate()}
+            />
+          )}
         </>
       )}
     </View>
@@ -137,7 +137,7 @@ export default function FindScreen() {
     ) : null;
 
   const empty =
-    status === 'idle' ? (
+    status === 'idle' && !hasMore ? (
       <View style={{ gap: t.space1 }}>
         <Text variant="title" tone="strong">
           {tr('search.emptyTitle')}
@@ -159,6 +159,7 @@ export default function FindScreen() {
         contentContainerStyle={{ paddingBottom: t.space4 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        initialNumToRender={PAGE_SIZE * 2}
         style={{ flex: 1 }}
       />
     </Screen>

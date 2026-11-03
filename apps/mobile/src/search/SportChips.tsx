@@ -25,9 +25,9 @@ export function SportChips({ sports, value, onChange }: SportChipsProps) {
         return (
           <Pressable
             key={sport ?? 'any'}
-            accessibilityRole="button"
+            accessibilityRole="radio"
             accessibilityLabel={label}
-            accessibilityState={{ selected }}
+            accessibilityState={{ checked: selected }}
             onPress={() => onChange(sport)}
             style={{
               minHeight: t.controlLg,

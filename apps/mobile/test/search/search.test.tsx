@@ -80,7 +80,7 @@ describe('find tab', () => {
     serve((q) => ({ results: q.get('sport') === 'cricket' ? [venue(2, { sports: ['cricket'] })] : [venue(1)], nextCursor: null }));
     await renderFind();
     expect(await screen.findByText('Venue 1')).toBeTruthy();
-    await fireEvent.press(await screen.findByRole('button', { name: 'Cricket' }));
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Cricket' }));
     expect(await screen.findByText('Venue 2')).toBeTruthy();
     expect(screen.queryByText('Venue 1')).toBeNull();
     expect(lastSearch().get('sport')).toBe('cricket');
@@ -96,13 +96,13 @@ describe('find tab', () => {
   it('load more appends the next page', async () => {
     serve((q) =>
       q.get('cursor') === '0'
-        ? { results: [venue(1)], nextCursor: 20 }
-        : { results: [venue(2)], nextCursor: null },
+        ? { results: Array.from({ length: 20 }, (_, i) => venue(i + 1)), nextCursor: 20 }
+        : { results: [venue(21)], nextCursor: null },
     );
     await renderFind();
     await screen.findByText('Venue 1');
     await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
-    expect(await screen.findByText('Venue 2')).toBeTruthy();
+    expect(await screen.findByText('Venue 21')).toBeTruthy();
     expect(screen.getByText('Venue 1')).toBeTruthy();
     expect(lastSearch().get('cursor')).toBe('20');
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
@@ -170,5 +170,67 @@ describe('find tab', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
     await act(async () => {});
     expect(await screen.findByText('Venue 1')).toBeTruthy();
+  });
+
+  it('offers the city search when the location fix fails, and keeps retry', async () => {
+    serve(() => ({ results: [venue(1)], nextCursor: null }));
+    mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted', canAskAgain: true });
+    mockLocation.getCurrentPositionAsync.mockRejectedValue(new Error('no fix'));
+    await renderFind();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Use my location' }));
+    expect(await screen.findByText("We couldn't get your location. Search by city instead.")).toBeTruthy();
+    expect(screen.getByLabelText('City')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Use my location' })).toBeTruthy();
+  });
+
+  it('follows an empty page that still has a cursor', async () => {
+    serve((q) =>
+      q.get('cursor') === '0'
+        ? { results: [], nextCursor: 20 }
+        : { results: [venue(3)], nextCursor: null },
+    );
+    await renderFind();
+    expect(await screen.findByText('Venue 3')).toBeTruthy();
+    expect(searches()).toHaveLength(2);
+    expect(screen.queryByText('No turfs found')).toBeNull();
+  });
+
+  it('does not show the empty state next to load more when follow gives up', async () => {
+    serve((q) => ({ results: [], nextCursor: Number(q.get('cursor')) + 20 }));
+    await renderFind();
+    expect(await screen.findByRole('button', { name: 'Load more' })).toBeTruthy();
+    expect(screen.queryByText('No turfs found')).toBeNull();
+    expect(searches()).toHaveLength(11);
+  });
+
+  it('drops a stale response after the criteria changed', async () => {
+    let releaseFirst: (v: unknown) => void = () => undefined;
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === '/sports') return { sports: ['futsal', 'cricket'] };
+      if (!path.includes('sport=')) return new Promise((r) => (releaseFirst = r));
+      return { results: [venue(2)], nextCursor: null };
+    });
+    await renderFind();
+    await fireEvent.press(await screen.findByRole('radio', { name: 'Cricket' }));
+    expect(await screen.findByText('Venue 2')).toBeTruthy();
+    await act(async () => releaseFirst({ results: [venue(1)], nextCursor: null }));
+    expect(screen.getByText('Venue 2')).toBeTruthy();
+    expect(screen.queryByText('Venue 1')).toBeNull();
+  });
+
+  it('retries a failed load more and keeps the loaded venues', async () => {
+    let fail = true;
+    serve((q) => {
+      if (q.get('cursor') === '0') return { results: Array.from({ length: 20 }, (_, i) => venue(i + 1)), nextCursor: 20 };
+      return fail ? new ApiError(0, 'network_error', 'offline') : { results: [venue(21)], nextCursor: null };
+    });
+    await renderFind();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Load more' }));
+    expect(await screen.findByText(/connection/i)).toBeTruthy();
+    expect(screen.getByText('Venue 1')).toBeTruthy();
+    fail = false;
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Venue 21')).toBeTruthy();
+    expect(screen.getByText('Venue 1')).toBeTruthy();
   });
 });

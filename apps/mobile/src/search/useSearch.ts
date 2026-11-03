@@ -74,7 +74,6 @@ export function useSearch(criteria: Criteria): {
     latest.current = { criteria, key };
     void fetchPage(0, true);
     // The key is the criteria's identity; `criteria` itself changes identity on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, fetchPage]);
 
   const loadMore = useCallback(() => {

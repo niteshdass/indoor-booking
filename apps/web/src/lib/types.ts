@@ -1,4 +1,4 @@
-import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingCoupon, BookingStatus, CouponType, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, SlotStatus, Sport } from '@booking/shared';
+import type { OwnReviewJson, RatingSummary, Amenity, AddonLine, AddonPricingType, AutoApplyRule, BookingCoupon, BookingStatus, CouponType, ManualWallet, PlatformFeeSnapshot, WalletProvider, PaymentStatus, Sport } from '@booking/shared';
 
 export type { PublicUser, AuthResponse } from '@booking/shared';
 export type { SearchResult, SearchResponse, SavedVenueJson } from '@booking/shared';

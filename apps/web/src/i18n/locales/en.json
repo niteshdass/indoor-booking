@@ -2882,6 +2882,14 @@
       "find": "Find",
       "bookings": "Bookings",
       "account": "Account"
+    },
+    "auth": {
+      "phoneHint": "Include the country code, for example +8801712345678."
+    },
+    "account": {
+      "signedOut": "Sign in to see your account and bookings.",
+      "signedOutCta": "Sign in",
+      "themeNote": "Light or dark follows your phone setting."
     }
   }
 }

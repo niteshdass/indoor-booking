@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@booking/shared": "workspace:^",
     "@expo-google-fonts/ibm-plex-sans": "0.4.1",
     "@expo-google-fonts/ibm-plex-sans-condensed": "0.4.1",
     "@expo-google-fonts/noto-sans-bengali": "0.4.4",

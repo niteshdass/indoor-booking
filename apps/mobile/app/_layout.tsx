@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from '../src/auth/AuthProvider';
 import { initI18n } from '../src/i18n';
 import { fontAssets } from '../src/theme/fonts';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
@@ -37,7 +38,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <Shell />
+        <AuthProvider>
+          <Shell />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

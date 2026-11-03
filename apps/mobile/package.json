@@ -45,8 +45,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "tokens": "tsx scripts/gen-tokens.ts",
     "icons": "tsx scripts/gen-icons.ts",
     "test": "jest",

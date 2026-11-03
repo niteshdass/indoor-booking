@@ -1,4 +1,4 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import type { Config } from '../config';
 import { AppError } from '../errors';
 import type { AppServices } from '../services';
@@ -118,13 +118,30 @@ export function clearRefreshCookie(res: Response, config: Config): void {
   });
 }
 
+/**
+ * A native (mobile app) request sends `X-Client: native` and no `rt` cookie. The cookie check is the
+ * security boundary: a browser holding a refresh cookie always gets the cookie flow, so a script
+ * injected into the web app cannot add the header to be handed a body copy of the token it could read.
+ */
+export function isNativeClient(req: Request): boolean {
+  const cookie = (req.cookies as Record<string, unknown> | undefined)?.[REFRESH_COOKIE];
+  if (typeof cookie === 'string' && cookie) return false;
+  return req.get('x-client')?.toLowerCase() === 'native';
+}
+
 export function sendAuthResponse(
+  req: Request,
   res: Response,
   status: number,
   user: UserDoc,
   tokens: Tokens,
   config: Config,
 ): void {
+  if (isNativeClient(req)) {
+    // The app keeps the token in the OS secure store, not a cookie jar.
+    res.status(status).json({ user: toPublicUser(user), ...tokens });
+    return;
+  }
   // The refresh token lives only in the httpOnly cookie; a body copy would be readable by any injected script.
   setRefreshCookie(res, tokens.refreshToken, config);
   res.status(status).json({ user: toPublicUser(user), accessToken: tokens.accessToken });

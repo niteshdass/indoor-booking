@@ -44,7 +44,7 @@ export function googleAuthRouter({ config, services }: AuthDeps): Router {
       }
     }
     assertActive(user);
-    sendAuthResponse(res, status, user, await issueTokens(user.id, services, config), config);
+    sendAuthResponse(req, res, status, user, await issueTokens(user.id, services, config), config);
   });
 
   return router;

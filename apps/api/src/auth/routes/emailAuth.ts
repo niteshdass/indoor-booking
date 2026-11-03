@@ -70,7 +70,7 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
       }
       throw err;
     }
-    sendAuthResponse(res, 201, user, await issueTokens(user.id, services, config), config);
+    sendAuthResponse(req, res, 201, user, await issueTokens(user.id, services, config), config);
   });
 
   router.post('/login', async (req, res) => {
@@ -80,7 +80,7 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
     const ok = await verifyPassword(input.password, user?.passwordHash ?? (await DUMMY_HASH));
     if (!user?.passwordHash || !ok) throw invalidCredentials();
     assertActive(user);
-    sendAuthResponse(res, 200, user, await issueTokens(user.id, services, config), config);
+    sendAuthResponse(req, res, 200, user, await issueTokens(user.id, services, config), config);
   });
 
   // Answers 202 before mailing, whether or not the account exists, so neither the status nor the

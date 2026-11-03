@@ -37,6 +37,12 @@ afterEach(() => {
 });
 
 describe('SearchForm', () => {
+  it('search text is sent with the other criteria, Enter submits', async () => {
+    const { onChange, user } = setup();
+    await user.type(screen.getByRole('searchbox', { name: s.text }), 'Golden Mirpur{Enter}');
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ text: 'Golden Mirpur' }));
+  });
+
   it('geolocation fills near', async () => {
     stubGeo((ok) => ok({ coords: { latitude: 23.81234, longitude: 90.41234 } } as GeolocationPosition));
     const { onChange, user } = setup();

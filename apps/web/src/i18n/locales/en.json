@@ -306,6 +306,9 @@
     "customRadius": "Custom distance (km)",
     "radiusInvalid": "Enter a distance from 1 to {{max}} km.",
     "radiusNeedsLocation": "Use your location to filter by distance.",
+    "text": "Venue or area",
+    "textPlaceholder": "Name, area or address",
+    "clearText": "Clear search",
     "sport": "Sport",
     "anySport": "Any sport",
     "date": "Date",
@@ -437,6 +440,7 @@
     "closed": "Closed on this day.",
     "outsideWindow": "This date is not open for booking yet.",
     "none": "No time slots on this day.",
+    "allPast": "No more times today. Pick another day.",
     "summary": "Your selection",
     "continue": "Continue",
     "selectedCount_one": "{{count}} slot",
@@ -511,6 +515,7 @@
     "promo": {
       "toggle": "Have a promo code?",
       "label": "Promo code",
+      "placeholder": "Enter code",
       "apply": "Apply",
       "remove": "Remove",
       "removeLabel": "Remove promo code {{code}}",
@@ -2875,6 +2880,47 @@
       "shareHint": "Send this link to your players on WhatsApp or Facebook.",
       "copy": "Copy link",
       "copied": "Copied"
+    }
+  },
+  "mobile": {
+    "tabs": {
+      "find": "Find",
+      "bookings": "Bookings",
+      "account": "Account"
+    },
+    "auth": {
+      "phoneHint": "Include the country code, for example +8801712345678."
+    },
+    "account": {
+      "signedOut": "Sign in to see your account and bookings.",
+      "signedOutCta": "Sign in",
+      "themeNote": "Light or dark follows your phone setting."
+    },
+    "find": {
+      "locationDenied": "Location is off. Search by venue name or area instead.",
+      "locationFailed": "We couldn't get your location. Search by venue name or area instead.",
+      "locating": "Finding your location"
+    },
+    "bookings": {
+      "signedOut": "Sign in to see your bookings.",
+      "openMaps": "Open in Maps",
+      "confirmCancel": "Confirm cancellation"
+    },
+    "venue": {
+      "back": "Back",
+      "reviewsFailed": "Reviews could not be loaded."
+    },
+    "pay": {
+      "holdExpired": "Your hold expired, so these slots were released. Pick your slots again.",
+      "waitingVerify": "Waiting for the venue to verify your payment.",
+      "checking": "Payment sent. Updating your booking…",
+      "submitted": "Payment details sent",
+      "confirming": "Confirming payment…",
+      "receivedConfirming": "Payment received, confirming…",
+      "signInToPay": "Sign in to pay"
+    },
+    "checkout": {
+      "locked": "Extras and the promo code are locked while this booking may still be going through. Tap Book again to check."
     }
   }
 }

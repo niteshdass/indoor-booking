@@ -14,7 +14,9 @@ export class InvalidMoneyError extends Error {
   }
 }
 
-const SUPPORTED_CURRENCIES = new Set(Intl.supportedValuesOf('currency'));
+// Hermes (React Native) has no Intl.supportedValuesOf; there only the code shape is checked.
+const SUPPORTED_CURRENCIES: ReadonlySet<string> | null =
+  typeof Intl.supportedValuesOf === 'function' ? new Set(Intl.supportedValuesOf('currency')) : null;
 
 // ISO 4217 minor-unit exponents that differ from the default of 2. Kept explicit so stored
 // amounts never depend on the runtime's ICU data (which e.g. reports 0 digits for IDR/HUF).
@@ -46,7 +48,7 @@ const ISO_4217_EXPONENTS: Readonly<Record<string, number>> = {
 };
 
 export function currencyExponent(currency: string): number {
-  if (!/^[A-Z]{3}$/.test(currency) || !SUPPORTED_CURRENCIES.has(currency)) {
+  if (!/^[A-Z]{3}$/.test(currency) || (SUPPORTED_CURRENCIES !== null && !SUPPORTED_CURRENCIES.has(currency))) {
     throw new InvalidCurrencyError(currency);
   }
   return ISO_4217_EXPONENTS[currency] ?? 2;

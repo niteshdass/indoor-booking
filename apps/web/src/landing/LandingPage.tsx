@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import type { Sport } from '@booking/shared';
+import { MAX_SEARCH_TEXT, type Sport } from '@booking/shared';
 import { Button } from '../components/ui/Button';
 import { moneyShort } from '../lib/format';
 import { EMPTY_CRITERIA, criteriaToParams } from '../search/searchParams';
@@ -68,6 +68,7 @@ function HeroSearch() {
   const [sport, setSport] = useState<Sport | ''>('');
   const sports = useSports();
   const [date, setDate] = useState('');
+  const [text, setText] = useState('');
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -76,12 +77,25 @@ function HeroSearch() {
       sport: sport || null,
       date: date || null,
       available: true,
+      text,
     });
     navigate(`/search?${p.toString()}`);
   }
 
   return (
     <form className={styles.search} onSubmit={submit} aria-label={t('landing.searchLabel')}>
+      <div className={styles.field}>
+        <label htmlFor={`${id}-text`}>{t('search.text')}</label>
+        <input
+          id={`${id}-text`}
+          type="search"
+          enterKeyHint="search"
+          maxLength={MAX_SEARCH_TEXT}
+          placeholder={t('search.textPlaceholder')}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      </div>
       <div className={styles.field}>
         <label htmlFor={`${id}-sport`}>{t('search.sport')}</label>
         <span className={styles.selectWrap}>

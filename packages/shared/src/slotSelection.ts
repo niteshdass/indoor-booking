@@ -1,5 +1,22 @@
-import { MAX_SLOTS_PER_BOOKING } from '@booking/shared';
-import type { SlotJson } from '../lib/types';
+import { MAX_SLOTS_PER_BOOKING } from './booking';
+import type { SlotStatus } from './statuses';
+
+/** One bookable slot as `GET /venues/:slug/turfs/:turfId/slots` returns it. */
+export type SlotJson = {
+  startAt: string;
+  endAt: string;
+  localStart: string;
+  localEnd: string;
+  price: number | null;
+  status: SlotStatus;
+};
+
+export type SlotDay = {
+  businessDate: string;
+  currency: string;
+  status: 'open' | 'closed' | 'outside_window';
+  slots: SlotJson[];
+};
 
 export function isSelectable(s: SlotJson): boolean {
   return s.status === 'available' && s.price !== null;

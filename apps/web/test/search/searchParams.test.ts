@@ -18,6 +18,7 @@ const full: Criteria = {
   maxPrice: 5050,
   available: true,
   sort: 'rating',
+  text: 'Golden Arena',
 };
 const parse = (qs: string) => criteriaFromParams(new URLSearchParams(qs));
 
@@ -26,6 +27,7 @@ describe('search params', () => {
     expect(criteriaFromParams(criteriaToParams(full))).toEqual(full);
     expect(criteriaFromParams(criteriaToParams(EMPTY_CRITERIA))).toEqual(EMPTY_CRITERIA);
     expect(criteriaToParams(EMPTY_CRITERIA).toString()).toBe('');
+    expect(criteriaFromParams(new URLSearchParams(`q=${'x'.repeat(120)}`)).text).toHaveLength(100);
   });
   it('bbox parses and drops anything the API would reject', () => {
     expect(parse('bbox=170,-10,-170,10').bbox).toEqual({ west: 170, south: -10, east: -170, north: 10 });

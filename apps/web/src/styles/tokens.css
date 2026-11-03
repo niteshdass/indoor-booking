@@ -107,6 +107,8 @@
   --result-time-hover: inset 0 0 0 1px currentColor; /* hover ring of a free-time chip on a search result card */
   --icon-sm: 1rem; /* inline icon next to small text */
   --icon-md: 1.125rem; /* glyph in an icon-only button */
+  --icon-lg: 1.5rem; /* tab bar icon in the player app */
+  --icon-stroke: 1.75; /* line width of every icon, in its 24-unit grid */
   --empty-court: 7.5rem; /* court drawing in an empty table or list (EmptyState) */
   --empty-court-sm: 4.5rem; /* court drawing in a small EmptyState inside a section */
   --tab-underline: 2px;
@@ -116,6 +118,7 @@
   --court-thumb: 3.5rem; /* court drawing in a venue page court tab */
   --venue-map-height: 15rem; /* location map on the venue page and the owner venue form */
   --photo-thumb: 5rem; /* photo thumbnail in the owner venue form and the My bookings Saved rows */
+  --photo-thumb-sm: 4rem; /* venue photo on the compact mobile Find cards */
   --avatar-sm: 2rem; /* reviewer initial disc */
   --avatar-lg: 4rem; /* initials disc at the top of the profile page */
   --side-card-width: 20rem;
@@ -131,7 +134,7 @@
   --hero-panel-max: 40rem;
   --auth-split-min: 36rem; /* sign-in / sign-up: lowest the court panel + card row gets from lg */
   --auth-scene-min: 18rem; /* court drawing on the sign-in panel from lg */
-  --auth-ball: 1.25rem; /* ball on the sign-in court panel */
+  --auth-ball: 1.25rem; /* ball on the sign-in court panel and the player app Find hero */
   --meter-height: 6px;
   --chart-height: 15rem; /* plot area of a dashboard trend chart */
   --chart-axis: 3rem; /* value labels left of a chart */

@@ -16,6 +16,8 @@ export async function seedVenue(
     currency: string;
     settings: Record<string, unknown>;
     location: [number, number];
+    address: string;
+    city: string;
   }> = {},
 ): Promise<VenueDoc> {
   seq += 1;
@@ -23,8 +25,8 @@ export async function seedVenue(
     ownerId,
     name: over.name ?? `Venue ${seq}`,
     slug: over.slug ?? `venue-seed-${seq}`,
-    address: 'Road 1',
-    city: 'Dhaka',
+    address: over.address ?? 'Road 1',
+    city: over.city ?? 'Dhaka',
     country: 'BD',
     currency: over.currency ?? 'BDT',
     timezone: over.timezone ?? 'Asia/Dhaka',

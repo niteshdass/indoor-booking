@@ -1,9 +1,9 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
 import { PageLoader } from '../components/ui/PageLoader';
-import { ApiError } from '../lib/apiClient';
+import { ApiError, apiGet } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { ownerPath } from './ownerApi';
 import { useResource, type ResourceState } from './useResource';
@@ -21,7 +21,8 @@ export type OwnerContextValue = {
   memberships: OwnerMembership[];
   venues: OwnerVenue[];
   can(p: Permission): boolean;
-  reloadVenues(): void;
+  /** Refetches the venue list; resolves once the new list is in context (or the old one stays, if the fetch fails). */
+  reloadVenues(): Promise<void>;
 };
 
 /** Exported so tests can mount owner-portal parts without loading the whole provider. */
@@ -44,8 +45,17 @@ export function OwnerProvider({ children }: { children: ReactNode }) {
   const { ownerId = '' } = useParams();
   const info = useResource<{ owner: OwnerInfo; membership: Membership }>(ownerPath(ownerId));
   const mine = useResource<{ memberships: OwnerMembership[] }>('/me/memberships');
-  const venues = useResource<{ venues: OwnerVenue[] }>(ownerPath(ownerId, '/venues'));
-  const { reload: reloadVenues } = venues;
+  const venuesPath = ownerPath(ownerId, '/venues');
+  const venues = useResource<{ venues: OwnerVenue[] }>(venuesPath);
+  const { set: setVenues } = venues;
+  // Awaitable, so a page that just added a venue can wait until the new venue is in the list before linking to it.
+  const reloadVenues = useCallback(
+    () =>
+      apiGet<{ venues: OwnerVenue[] }>(venuesPath).then(setVenues, () => {
+        // The current list stays; the next page load fetches it again.
+      }),
+    [venuesPath, setVenues],
+  );
 
   const ready = info.state.status === 'ready' && mine.state.status === 'ready' && venues.state.status === 'ready';
   useEffect(() => {

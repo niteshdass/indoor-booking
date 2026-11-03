@@ -14,7 +14,7 @@ import { MyBookingsPage } from './bookings/MyBookingsPage';
 import { VenuePage } from './venue/VenuePage';
 import { BookingDetailPage } from './bookings/BookingDetailPage';
 import { LookupPage } from './lookup/LookupPage';
-import { ApplyPage } from './apply/ApplyPage';
+import { ListYourVenuePage } from './onboarding/ListYourVenuePage';
 import { RequestSeriesPage } from './series/RequestSeriesPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { Skeleton } from './components/ui/Skeleton';
@@ -53,7 +53,7 @@ export function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/list-your-venue" element={<RequireAuth><ApplyPage /></RequireAuth>} />
+        <Route path="/list-your-venue" element={<RequireAuth><ListYourVenuePage /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
         <Route path="/me/bookings" element={<RequireAuth><MyBookingsPage /></RequireAuth>} />
         <Route path="/me/bookings/:id" element={<RequireAuth><BookingDetailPage /></RequireAuth>} />

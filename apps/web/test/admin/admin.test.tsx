@@ -15,7 +15,7 @@ import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
 import type { PublicUser } from '../../src/lib/types';
 import { mockApi, type Route } from '../helpers/api';
 import { renderApp } from '../helpers/render';
-import { ownerMembership, staffUser } from '../owner/fixtures';
+import { staffUser } from '../owner/fixtures';
 
 const admin: PublicUser = { ...staffUser, id: 'u-admin', name: 'Ada Admin', platformAdmin: true };
 const ME = { role: { key: 'super_admin', name: 'Super Admin' }, permissions: ['platform.view', 'platform.owners', 'platform.users', 'platform.reviews'] };
@@ -458,49 +458,7 @@ describe('admin payouts and balances', () => {
   });
 });
 
-describe('list your venue', () => {
-  it('sends the application and goes to the owner page', async () => {
-    const api = mockApi([
-      { method: 'POST', path: '/owners', status: 201, body: { owner: { id: 'o9', name: 'New Club', status: 'pending_approval' } } },
-      {
-        path: '/me/memberships',
-        body: { memberships: [ownerMembership({ ownerId: 'o9', ownerName: 'New Club', ownerStatus: 'pending_approval' })] },
-      },
-    ]);
-    const h = renderApp('/list-your-venue', { user: staffUser });
-    await h.user.type(await screen.findByRole('textbox', { name: new RegExp(en.apply.name) }), 'New Club');
-    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.country) }), 'BD');
-    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.currency) }), 'BDT');
-    await h.user.click(screen.getByRole('button', { name: en.apply.submit }));
-    await waitFor(() => expect(h.location().pathname).toBe('/owner'));
-    expect(api.calls.find((c) => c.method === 'POST')?.body).toEqual({ name: 'New Club', country: 'BD', currency: 'BDT', locale: 'en' });
-    expect(await screen.findByText(en.owner.pendingNote)).toBeInTheDocument();
-  });
-
-  it('shows the live notice when the application is approved at once', async () => {
-    mockApi([
-      { method: 'POST', path: '/owners', status: 201, body: { owner: { id: 'o9', name: 'New Club', status: 'active' } } },
-      { path: '/me/memberships', body: { memberships: [ownerMembership({ ownerId: 'o1', ownerName: 'Old Club', ownerStatus: 'active' }), ownerMembership({ ownerId: 'o9', ownerName: 'New Club', ownerStatus: 'active' })] } },
-    ]);
-    const h = renderApp('/list-your-venue', { user: staffUser });
-    await h.user.type(await screen.findByRole('textbox', { name: new RegExp(en.apply.name) }), 'New Club');
-    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.country) }), 'BD');
-    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.currency) }), 'BDT');
-    await h.user.click(screen.getByRole('button', { name: en.apply.submit }));
-    expect(await screen.findByText(en.apply.live)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: en.apply.goToDashboard })).toHaveAttribute('href', '/owner/o9');
-  });
-
-  it('says so when an application is already waiting', async () => {
-    mockApi([{ method: 'POST', path: '/owners', status: 409, body: { error: { code: 'application_pending', message: 'x' } } }]);
-    const h = renderApp('/list-your-venue', { user: staffUser });
-    await h.user.type(await screen.findByRole('textbox', { name: new RegExp(en.apply.name) }), 'New Club');
-    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.country) }), 'BD');
-    await h.user.selectOptions(screen.getByRole('combobox', { name: new RegExp(en.apply.currency) }), 'BDT');
-    await h.user.click(screen.getByRole('button', { name: en.apply.submit }));
-    expect(await screen.findByText(en.errors.application_pending)).toBeInTheDocument();
-  });
-
+describe('profile', () => {
   it('profile links a platform admin to the admin portal', async () => {
     mockApi([{ path: '/me/memberships', body: { memberships: [] } }]);
     renderApp('/profile', { user: admin });

@@ -29,11 +29,16 @@ export function VenuesPage() {
     <div className={styles.page}>
       {canCreate && (
         <div className={styles.toolbar}>
-          <Button icon="plus" to="new">{t('owner.venues.new')}</Button>
+          <Button icon="plus" to="setup">{t('onboarding.addVenue')}</Button>
+          <Button variant="secondary" icon="edit" to="new">{t('owner.venues.new')}</Button>
         </div>
       )}
       {venues.length === 0 ? (
-        <EmptyState sport="futsal" title={t('owner.venues.empty')} />
+        <EmptyState
+          sport="futsal"
+          title={t('owner.venues.empty')}
+          action={canCreate && <Button variant="brand" size="lg" icon="plus" to="setup">{t('onboarding.addVenue')}</Button>}
+        />
       ) : (
         <Paged items={venues}>
           {(rows) => (

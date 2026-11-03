@@ -9,8 +9,6 @@ import { TextField } from '../../components/ui/TextField';
 import { apiPost } from '../../lib/apiClient';
 import { coordsFromText, isShortMapLink, searchPlaces, type Place } from '../../lib/geo';
 import { MAP_TILES, SATELLITE_TILES } from '../../lib/mapTiles';
-import { useOwner } from '../OwnerProvider';
-import { ownerPath } from '../ownerApi';
 
 export type LocationPickerProps = {
   lat: number | null;
@@ -20,6 +18,8 @@ export type LocationPickerProps = {
   onChange(lat: number, lng: number): void;
   /** A searched place was picked; the form may fill an empty city from it. */
   onPlace?(place: Place): void;
+  /** API path that expands a short map link (goo.gl and the like) on the server. */
+  mapLinkPath: string;
 };
 
 const EMPTY_ZOOM = 2;
@@ -52,9 +52,8 @@ function makeIcon(): L.DivIcon {
  * link or coordinates, or using the device's location; then fine-tunes by clicking or dragging, on aerial photos
  * if they like.
  */
-export function LocationPicker({ lat, lng, country, onChange, onPlace }: LocationPickerProps) {
+export function LocationPicker({ lat, lng, country, onChange, onPlace, mapLinkPath }: LocationPickerProps) {
   const { t, i18n } = useTranslation();
-  const { ownerId } = useOwner();
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const marker = useRef<L.Marker | null>(null);
@@ -110,7 +109,7 @@ export function LocationPicker({ lat, lng, country, onChange, onPlace }: Locatio
     setStatus({ kind: 'busy', what: 'find' });
     try {
       if (isShortMapLink(text)) {
-        const { url } = await apiPost<{ url: string }>(ownerPath(ownerId, '/map-link'), { url: text });
+        const { url } = await apiPost<{ url: string }>(mapLinkPath, { url: text });
         const c = coordsFromText(url);
         if (ctrl.signal.aborted) return;
         if (c) {

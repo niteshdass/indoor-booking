@@ -144,8 +144,8 @@ describe('Today page', () => {
     mockApi(ownerRoutes({ venues: [], permissions: ['booking.view', 'venue.manage'] }));
     renderApp(`/owner/${OWNER_ID}`, { user: staffUser });
     expect(await screen.findByText(en.owner.today.noVenues)).toBeTruthy();
-    const link = screen.getByRole('link', { name: en.owner.today.createVenue });
-    expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/venues/new`);
+    const link = screen.getByRole('link', { name: en.onboarding.addVenue });
+    expect(link.getAttribute('href')).toBe(`/owner/${OWNER_ID}/venues/setup`);
   });
 
   it('Today links to the Overview trends only with reports.view', async () => {

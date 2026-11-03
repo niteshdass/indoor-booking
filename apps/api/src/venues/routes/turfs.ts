@@ -19,7 +19,7 @@ import { activeTurfCount, lockTurf, lockVenue, scopedTurf } from '../guards';
 import { changedFields, scopedVenue } from './venues';
 
 /** New sports must be switched on in the catalog; ones a turf already has stay even after an admin turns them off. */
-async function checkSports(next: readonly string[], kept: readonly string[] = []): Promise<void> {
+export async function checkSports(next: readonly string[], kept: readonly string[] = []): Promise<void> {
   const on = new Set<string>(await enabledSports());
   if (next.some((s) => !kept.includes(s) && !on.has(s))) throw new AppError(400, 'sport_disabled', 'That sport is not offered on this platform');
 }

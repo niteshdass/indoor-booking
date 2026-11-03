@@ -20,3 +20,4 @@ export * from './platformPayouts';
 export * from './sms';
 export * from './coupons';
 export * from './reschedule';
+export * from './onboarding';

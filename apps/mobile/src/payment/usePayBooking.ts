@@ -10,7 +10,10 @@ export type BookingState = { status: 'loading' } | { status: 'ready'; booking: P
  * payment attempt) and whenever the app comes back to the foreground, since a payment may finish in the browser or a
  * bank app meanwhile. The latest request wins: an older one that lands late is ignored.
  */
-export function usePayBooking(id: string, enabled: boolean): { state: BookingState; refetch(): Promise<PlayerBooking | null> } {
+export function usePayBooking(
+  id: string,
+  enabled: boolean,
+): { state: BookingState; refetch(): Promise<PlayerBooking | null>; setBooking(booking: PlayerBooking): void } {
   const [state, setState] = useState<BookingState>({ status: 'loading' });
   const run = useRef(0);
   const live = useRef(true);
@@ -30,6 +33,12 @@ export function usePayBooking(id: string, enabled: boolean): { state: BookingSta
     }
   }, [id]);
 
+  /** Show a booking the server just returned (e.g. from a submit); any request still in flight is dropped. */
+  const setBooking = useCallback((booking: PlayerBooking) => {
+    run.current++;
+    if (live.current) setState({ status: 'ready', booking });
+  }, []);
+
   useEffect(() => {
     live.current = true;
     return () => {
@@ -47,5 +56,5 @@ export function usePayBooking(id: string, enabled: boolean): { state: BookingSta
     return () => sub.remove();
   }, [enabled, refetch]);
 
-  return { state, refetch };
+  return { state, refetch, setBooking };
 }

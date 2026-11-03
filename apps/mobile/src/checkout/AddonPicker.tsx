@@ -11,6 +11,8 @@ export interface AddonPickerProps {
   currency: string;
   value: AddonSelection[];
   onChange(next: AddonSelection[]): void;
+  /** Nothing can change (e.g. while a booking may still be going through). */
+  disabled?: boolean;
 }
 
 const qty = (value: AddonSelection[], id: string) => value.find((s) => s.addonId === id)?.quantity ?? 0;
@@ -23,7 +25,7 @@ function setQty(addons: OfferedAddon[], value: AddonSelection[], id: string, qua
 }
 
 /** Per-unit extras get a stepper, the rest a checkbox. Checked state shows a ✓ and a border, never color alone. */
-export function AddonPicker({ addons, currency, value, onChange }: AddonPickerProps) {
+export function AddonPicker({ addons, currency, value, onChange, disabled = false }: AddonPickerProps) {
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
 
@@ -45,7 +47,7 @@ export function AddonPicker({ addons, currency, value, onChange }: AddonPickerPr
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: t.space2 }}>
-                <StepButton label={tr('checkout.decrease', { name: a.name })} glyph="−" disabled={n <= 0} onPress={() => step(-1)} />
+                <StepButton label={tr('checkout.decrease', { name: a.name })} glyph="−" disabled={disabled || n <= 0} onPress={() => step(-1)} />
                 <Text
                   weight="semibold"
                   tone="strong"
@@ -55,7 +57,7 @@ export function AddonPicker({ addons, currency, value, onChange }: AddonPickerPr
                 >
                   {String(n)}
                 </Text>
-                <StepButton label={tr('checkout.increase', { name: a.name })} glyph="+" disabled={n >= a.maxQuantity} onPress={() => step(1)} />
+                <StepButton label={tr('checkout.increase', { name: a.name })} glyph="+" disabled={disabled || n >= a.maxQuantity} onPress={() => step(1)} />
               </View>
             </View>
           );
@@ -66,9 +68,10 @@ export function AddonPicker({ addons, currency, value, onChange }: AddonPickerPr
             key={a.id}
             accessibilityRole="checkbox"
             accessibilityLabel={`${a.name}, ${price}`}
-            accessibilityState={{ checked: on }}
+            accessibilityState={{ checked: on, disabled }}
+            disabled={disabled}
             onPress={() => onChange(setQty(addons, value, a.id, on ? 0 : 1))}
-            style={{ minHeight: t.controlLg, flexDirection: 'row', alignItems: 'center', gap: t.space3 }}
+            style={{ minHeight: t.controlLg, flexDirection: 'row', alignItems: 'center', gap: t.space3, opacity: disabled ? t.opacityMuted : 1 }}
           >
             <View
               style={{

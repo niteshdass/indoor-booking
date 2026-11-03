@@ -51,6 +51,11 @@ export default function CheckoutScreen() {
 
   const [submitting, setSubmitting] = useState(false);
   const [bookError, setBookError] = useState<unknown>(null);
+  /**
+   * Book failed without a definite answer (offline, 5xx): it may have gone through under the Idempotency-Key, and a
+   * retry with that key replays the first body. Extras and the code stay as sent until a definite answer comes back.
+   */
+  const [locked, setLocked] = useState(false);
   const inflight = useRef(false);
   const mounted = useRef(true);
   const idempotencyKey = useRef<string | null>(null);
@@ -118,11 +123,15 @@ export default function CheckoutScreen() {
         { 'Idempotency-Key': idempotencyKey.current! },
       );
       if (!mounted.current) return;
+      setLocked(false);
       const id = res.booking.id;
       if (res.booking.status === 'awaiting_payment') router.replace({ pathname: '/booking/[id]/pay', params: { id } });
       else router.replace({ pathname: '/booking/[id]', params: { id } });
     } catch (err) {
       if (!mounted.current) return;
+      // A 4xx is a definite "no": the server checks the key first, so nothing was kept under it.
+      const status = err instanceof ApiError ? err.status : 0;
+      setLocked(status === 0 || status >= 500);
       // The code ran out between quote and booking: say so at the field and quote again without it.
       if (isCouponError(err)) quote.refuseCode(err);
       else setBookError(err);
@@ -255,7 +264,7 @@ export default function CheckoutScreen() {
           {addonsFailed ? (
             <Text tone="muted">{tr('checkout.addonsUnavailable')}</Text>
           ) : (
-            <AddonPicker addons={offered} currency={venue.currency} value={selection} onChange={setSelection} />
+            <AddonPicker addons={offered} currency={venue.currency} value={selection} onChange={setSelection} disabled={locked} />
           )}
         </Card>
       ) : null}
@@ -268,7 +277,13 @@ export default function CheckoutScreen() {
           error={quote.promoError}
           onApply={quote.applyCode}
           onRemove={quote.removeCode}
+          disabled={locked}
         />
+        {locked ? (
+          <Text variant="caption" tone="muted" accessibilityLiveRegion="polite">
+            {tr('mobile.checkout.locked')}
+          </Text>
+        ) : null}
       </Card>
     </>,
     footer,

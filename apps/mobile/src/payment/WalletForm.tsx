@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Trans, useTranslation } from 'react-i18next';
 import { bdMobileDigits, formatBdMobile, formatMoney, normalizeTrxId, PROVIDER_NAMES, type ManualWallet } from '@booking/shared';
+import type { PlayerBooking } from '../bookings/types';
 import { ApiError, apiPost } from '../lib/api';
 import { errorMessage } from '../lib/errors';
 import { useTheme } from '../theme/ThemeProvider';
@@ -21,7 +22,8 @@ export interface WalletFormProps {
   holdEnded: boolean;
   /** True while the screen is busy with another payment; the submit waits. */
   disabled?: boolean;
-  onDone(outcome: ManualOutcome): void;
+  /** The submission was accepted; `booking` is the server's copy after it. The form stays busy until this settles. */
+  onDone(outcome: ManualOutcome, booking: PlayerBooking): Promise<void> | void;
 }
 
 /** Send money to the venue's wallet number, then tell us the Transaction ID. Mirrors apps/web/src/payment/WalletPayForm.tsx. */
@@ -35,6 +37,13 @@ export function WalletForm({ bookingId, wallet, amount, currency, holdEnded, dis
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const inflight = useRef(false);
+  const mounted = useRef(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
   const provider = PROVIDER_NAMES[wallet.provider];
   const sum = formatMoney(amount, currency, i18n.language);
   const number = formatBdMobile(wallet.number);
@@ -50,17 +59,20 @@ export function WalletForm({ bookingId, wallet, amount, currency, holdEnded, dis
     inflight.current = true;
     setBusy(true);
     try {
-      const res = await apiPost<{ outcome: ManualOutcome }>(`/bookings/${encodeURIComponent(bookingId)}/payments/manual`, {
+      const res = await apiPost<{ booking: PlayerBooking; outcome: ManualOutcome }>(`/bookings/${encodeURIComponent(bookingId)}/payments/manual`, {
         provider: wallet.provider,
         trxId,
         senderNumber: sender.trim(),
       });
-      onDone(res.outcome);
+      await onDone(res.outcome, res.booking);
     } catch (err) {
+      if (!mounted.current) return;
       if (err instanceof ApiError && err.code === 'trx_id_used') setTrxError(errorMessage(err, tr));
       else setError(errorMessage(err, tr));
+    } finally {
+      // Whatever came after the submit (the screen usually moves on), never leave the button spinning.
       inflight.current = false;
-      setBusy(false);
+      if (mounted.current) setBusy(false);
     }
   };
 

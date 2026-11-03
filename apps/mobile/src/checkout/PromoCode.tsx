@@ -18,13 +18,15 @@ export interface PromoCodeProps {
   error: unknown;
   onApply(code: string): void;
   onRemove(): void;
+  /** The code cannot change (e.g. while a booking may still be going through). */
+  disabled?: boolean;
 }
 
 /**
  * "Have a promo code?" disclosure: a code field and Apply, or once applied the code with Remove.
  * Mirrors apps/web/src/checkout/PromoCode.tsx; a code that cannot match the pattern is refused without a request.
  */
-export function PromoCode({ applied, currency, pending, error, onApply, onRemove }: PromoCodeProps) {
+export function PromoCode({ applied, currency, pending, error, onApply, onRemove, disabled = false }: PromoCodeProps) {
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
   const [open, setOpen] = useState(error !== null && error !== undefined);
@@ -52,7 +54,13 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
         <Text variant="caption" tone="muted" accessibilityLiveRegion="polite" style={{ flexGrow: 1 }}>
           {tr('checkout.promo.applied')}
         </Text>
-        <Button variant="secondary" label={tr('checkout.promo.remove')} accessibilityLabel={tr('checkout.promo.removeLabel', { code: applied.code })} onPress={onRemove} />
+        <Button
+          variant="secondary"
+          label={tr('checkout.promo.remove')}
+          accessibilityLabel={tr('checkout.promo.removeLabel', { code: applied.code })}
+          disabled={disabled}
+          onPress={onRemove}
+        />
       </View>
     );
   }
@@ -66,7 +74,7 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
 
   const submit = () => {
     const code = normalizeCouponCode(text);
-    if (code === '') return;
+    if (disabled || code === '') return;
     if (!COUPON_CODE_PATTERN.test(code)) {
       setLocalError(true);
       return;
@@ -81,9 +89,10 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={tr('checkout.promo.toggle')}
-        accessibilityState={{ expanded: open }}
+        accessibilityState={{ expanded: open, disabled }}
+        disabled={disabled}
         onPress={() => setOpen((o) => !o)}
-        style={{ minHeight: t.controlLg, flexDirection: 'row', alignItems: 'center', gap: t.space2 }}
+        style={{ minHeight: t.controlLg, flexDirection: 'row', alignItems: 'center', gap: t.space2, opacity: disabled ? t.opacityMuted : 1 }}
       >
         <Text variant="label" weight="semibold" tone="primary">
           {tr('checkout.promo.toggle')}
@@ -102,6 +111,7 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
             autoComplete="off"
             autoCorrect={false}
             returnKeyType="done"
+            editable={!disabled}
             onSubmitEditing={submit}
             error={message ?? undefined}
             onChangeText={(v) => {
@@ -111,7 +121,7 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
             }}
           />
           <View style={{ alignItems: 'flex-start' }}>
-            <Button variant="secondary" label={tr('checkout.promo.apply')} loading={pending} disabled={pending || text.trim() === ''} onPress={submit} />
+            <Button variant="secondary" label={tr('checkout.promo.apply')} loading={pending} disabled={disabled || pending || text.trim() === ''} onPress={submit} />
           </View>
         </View>
       ) : null}

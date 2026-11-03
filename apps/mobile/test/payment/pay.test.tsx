@@ -5,6 +5,7 @@ import { AuthContext, type AuthContextValue } from '../../src/auth/useAuth';
 import { ApiError } from '../../src/lib/api';
 import { ThemeProvider } from '../../src/theme/ThemeProvider';
 import PayScreen from '../../app/booking/[id]/pay';
+import { openAuthSessionAsync } from 'expo-web-browser';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
 jest.mock('expo-router', () => ({
@@ -59,6 +60,14 @@ const booking = (over: Record<string, unknown> = {}) => ({
 
 type Options = { wallets: { provider: string; number: string; accountType: string }[]; card: boolean; sslcommerz: boolean };
 const cardOnly: Options = { wallets: [], card: true, sslcommerz: false };
+const twoWallets: Options = {
+  wallets: [
+    { provider: 'bkash', number: '01711111111', accountType: 'personal' },
+    { provider: 'nagad', number: '01822222222', accountType: 'personal' },
+  ],
+  card: true,
+  sslcommerz: true,
+};
 const bkashOnly: Options = { wallets: [{ provider: 'bkash', number: '01711111111', accountType: 'personal' }], card: false, sslcommerz: false };
 
 /** Each GET of the booking takes the next status from `bookings` (the last one repeats). */
@@ -173,5 +182,115 @@ describe('pay screen', () => {
 
     expect(await screen.findByText(/waiting for the venue to verify/i)).toBeTruthy();
     expect(mockPost).toHaveBeenCalledWith('/bookings/b1/payments/manual', { provider: 'bkash', trxId: 'ABCD1234EF', senderNumber: '01712345678' });
+  });
+
+  it('the clock running out keeps the chosen wallet and the typed Transaction ID, and submits under that wallet', async () => {
+    const sent = { provider: 'nagad', trxId: 'NAGAD12345', amount: 15000, status: 'pending', submittedAt: new Date(NOW).toISOString() };
+    serve([booking(), booking({ status: 'pending', manualPayment: sent })], twoWallets);
+    mockPost.mockImplementation(async (path: string) => {
+      if (path === '/bookings/b1/payments/manual') return { booking: booking({ status: 'pending', manualPayment: sent }), outcome: 'pending' };
+      throw new Error(`unexpected POST ${path}`);
+    });
+    await renderPay();
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Nagad' }));
+    await fireEvent.changeText(screen.getByLabelText('Transaction ID'), 'nagad12345');
+
+    await act(async () => {
+      jest.advanceTimersByTime(11 * 60_000);
+    });
+    expect(await screen.findByText(/hold expired/i)).toBeTruthy();
+    // Card and online checkout are gone once the hold ends; the wallets stay, on the one the player picked.
+    expect(screen.queryByRole('tab', { name: 'Card' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Nagad' })).toHaveProp('accessibilityState', expect.objectContaining({ selected: true }));
+    expect(screen.getByLabelText('Transaction ID')).toHaveProp('value', 'nagad12345');
+
+    await fireEvent.changeText(screen.getByLabelText('Sent from'), '01712345678');
+    await fireEvent.press(screen.getByRole('button', { name: 'I have sent the money' }));
+    expect(await screen.findByText(/waiting for the venue to verify/i)).toBeTruthy();
+    expect(mockPost).toHaveBeenCalledWith('/bookings/b1/payments/manual', { provider: 'nagad', trxId: 'NAGAD12345', senderNumber: '01712345678' });
+  });
+
+  it('a late wallet submission whose slots were taken says so, with the Transaction ID, instead of "pick again"', async () => {
+    const sent = { provider: 'nagad', trxId: 'NAGAD12345', amount: 15000, status: 'pending', submittedAt: new Date(NOW).toISOString() };
+    const late = booking({ status: 'expired', manualPayment: sent });
+    serve([booking({ status: 'expired' }), late], twoWallets);
+    mockPost.mockImplementation(async (path: string) => {
+      if (path === '/bookings/b1/payments/manual') return { booking: late, outcome: 'slots_taken' };
+      throw new Error(`unexpected POST ${path}`);
+    });
+    await renderPay();
+    await fireEvent.press(await screen.findByRole('tab', { name: 'Nagad' }));
+    await fireEvent.changeText(screen.getByLabelText('Transaction ID'), 'nagad12345');
+    await fireEvent.changeText(screen.getByLabelText('Sent from'), '01712345678');
+    await fireEvent.press(screen.getByRole('button', { name: 'I have sent the money' }));
+
+    expect(await screen.findByText('These times were taken while you paid. The venue will send your money back once they check it.')).toBeTruthy();
+    expect(screen.getByText(/Nagad · NAGAD12345/)).toBeTruthy();
+    expect(screen.queryByText(/hold expired/i)).toBeNull();
+    expect(screen.queryByLabelText('Transaction ID')).toBeNull();
+    expect(mockPost).toHaveBeenCalledWith('/bookings/b1/payments/manual', { provider: 'nagad', trxId: 'NAGAD12345', senderNumber: '01712345678' });
+  });
+
+  it('the wallet form recovers when the refetch after a submit fails', async () => {
+    const sent = { provider: 'bkash', trxId: 'ABCD1234EF', amount: 15000, status: 'pending', submittedAt: new Date(NOW).toISOString() };
+    let gets = 0;
+    mockGet.mockImplementation(async (path: string) => {
+      if (path === '/me/bookings/b1') {
+        if (++gets > 1) throw new ApiError(0, 'network_error', 'offline');
+        return { booking: booking(), refunds: [], group: null };
+      }
+      return { ...bkashOnly, amount: 15000, currency: 'BDT', holdExpiresAt: booking().holdExpiresAt };
+    });
+    mockPost.mockResolvedValue({ booking: booking({ status: 'pending', manualPayment: sent }), outcome: 'pending' });
+    await renderPay();
+    await fireEvent.changeText(await screen.findByLabelText('Transaction ID'), 'abcd1234ef');
+    await fireEvent.changeText(screen.getByLabelText('Sent from'), '01712345678');
+    await fireEvent.press(screen.getByRole('button', { name: 'I have sent the money' }));
+    // The booking from the submit response is shown even though the refetch failed.
+    expect(await screen.findByText(/waiting for the venue to verify/i)).toBeTruthy();
+  });
+
+  it('the hold running out while the Stripe sheet is open shows the expired panel, not an error', async () => {
+    serve([booking()]);
+    mockPost.mockResolvedValue({
+      payment: { id: 'p1', amount: 15000, currency: 'BDT', gateway: 'stripe', clientSecret: 'pi_1_secret_x', publishableKey: 'pk_test_1' },
+      holdExpiresAt: booking().holdExpiresAt,
+    });
+    mockPresent.mockImplementation(async () => {
+      jest.setSystemTime(new Date(NOW + 11 * 60_000));
+      return { error: { code: 'Failed', message: 'Your card was declined' } };
+    });
+    await renderPay();
+    await fireEvent.press(await payButton());
+    expect(await screen.findByText(/hold expired/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Back to venue' })).toBeTruthy();
+    expect(screen.queryByText('Your card was declined')).toBeNull();
+    expect(screen.queryByText(/something went wrong/i)).toBeNull();
+  });
+
+  it('dismissing SSLCommerz while the booking is still awaiting payment shows "checking" and refetches once more', async () => {
+    serve([booking(), booking(), booking({ status: 'confirmed' })], { wallets: [], card: false, sslcommerz: true });
+    mockPost.mockResolvedValue({ payment: { id: 'p1', amount: 15000, currency: 'BDT', gateway: 'sslcommerz', url: 'https://sandbox.example/pay' }, holdExpiresAt: null });
+    await renderPay();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Continue to payment' }));
+    expect(openAuthSessionAsync).toHaveBeenCalledWith('https://sandbox.example/pay', 'bookaturf://payment-return');
+    expect(await screen.findByText('Payment sent. Updating your booking…')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Continue to payment' })).toBeNull();
+    expect(screen.queryByText('Awaiting payment')).toBeNull();
+    expect(bookingGets()).toBe(2);
+    // One more look a few seconds later.
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(await screen.findByText('Confirmed')).toBeTruthy();
+    expect(bookingGets()).toBe(3);
+  });
+
+  it('has a visible Back control', async () => {
+    serve([booking()]);
+    await renderPay();
+    await payButton();
+    await fireEvent.press(screen.getByRole('button', { name: 'Back' }));
+    expect(mockRouter.back.mock.calls.length + mockRouter.replace.mock.calls.length).toBe(1);
   });
 });

@@ -21,6 +21,7 @@ jest.mock('expo-router', () => ({
 }));
 
 let mockUuid = 0;
+let advancePct = 10;
 jest.mock('expo-crypto', () => ({ randomUUID: () => `00000000-0000-4000-8000-00000000000${++mockUuid}` }));
 
 const mockGet = jest.fn();
@@ -71,7 +72,7 @@ function quoteFor(body: Body) {
       addonsTotal,
       discount,
       total,
-      advanceRequired: Math.round(total / 10),
+      advanceRequired: Math.round((total * advancePct) / 100),
       platformFee: null,
     },
     coupon: discount ? { code: 'GOOD10', type: 'fixed', value: 10000, discount } : null,
@@ -122,6 +123,7 @@ const bookCalls = () => mockPost.mock.calls.filter((c) => String(c[0]).endsWith(
 beforeEach(() => {
   jest.clearAllMocks();
   mockUuid = 0;
+  advancePct = 10;
   jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'queueMicrotask'] });
   jest.setSystemTime(new Date('2026-11-05T10:00:00Z'));
 });
@@ -195,5 +197,34 @@ describe('checkout screen', () => {
     expect(href.startsWith('/sign-in?next=')).toBe(true);
     const next = decodeURIComponent(href.slice('/sign-in?next='.length));
     expect(next).toBe(`/venue/arena-one/checkout?turfId=t1&date=2026-11-05&startAts=${encodeURIComponent(`${iso(0)},${iso(1)}`)}`);
+  });
+
+  it('pay at venue: no advance books with "Book" and goes to the booking, not the pay screen', async () => {
+    advancePct = 0;
+    serve(() => ({ booking: { ...booking('confirmed'), advanceRequired: 0 } }));
+    await renderCheckout();
+    await screen.findByTestId('quote-total');
+    expect(screen.queryByText('Due now')).toBeNull();
+    await fireEvent.press(screen.getByRole('button', { name: 'Book' }));
+    await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: '/booking/[id]', params: { id: 'b1' } }));
+  });
+
+  it('after an ambiguous Book failure, extras and promo code are locked so a retry matches what may have been booked', async () => {
+    let n = 0;
+    serve(() => (++n === 1 ? new ApiError(0, 'network_error', 'offline') : new ApiError(409, 'too_many_holds', 'holds')));
+    await renderCheckout();
+    await screen.findByTestId('quote-total');
+    await fireEvent.press(screen.getByRole('button', { name: `Book and pay ${money(30000)}` }));
+    await screen.findByText("Can't reach the server. Check your connection and try again.");
+
+    expect(screen.getByRole('checkbox', { name: /Bibs/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Increase Water' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Have a promo code?' })).toBeDisabled();
+    expect(screen.getByText('Extras and the promo code are locked while this booking may still be going through. Tap Book again to check.')).toBeTruthy();
+
+    // A definite answer (here a refusal) means nothing was booked under the key: editing opens again.
+    await fireEvent.press(screen.getByRole('button', { name: `Book and pay ${money(30000)}` }));
+    await screen.findByText('You have too many unpaid or unconfirmed bookings. Pay for or cancel one first.');
+    expect(screen.getByRole('checkbox', { name: /Bibs/ })).not.toBeDisabled();
   });
 });

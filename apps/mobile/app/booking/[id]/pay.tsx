@@ -6,13 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { formatMoney, localParts, PROVIDER_NAMES, type WalletProvider } from '@booking/shared';
 import { requireSignIn } from '../../../src/auth/requireSignIn';
 import { useAuth } from '../../../src/auth/useAuth';
-import type { PaymentOptions, PaymentStart } from '../../../src/bookings/types';
+import type { PaymentOptions, PaymentStart, PlayerBooking } from '../../../src/bookings/types';
 import { ApiError, apiGet, apiPost } from '../../../src/lib/api';
 import { errorMessage } from '../../../src/lib/errors';
 import { openSslcommerz } from '../../../src/payment/sslcommerz';
 import { payWithStripe } from '../../../src/payment/stripe';
 import { usePayBooking } from '../../../src/payment/usePayBooking';
-import { WalletForm } from '../../../src/payment/WalletForm';
+import { WalletForm, type ManualOutcome } from '../../../src/payment/WalletForm';
 import { useTheme } from '../../../src/theme/ThemeProvider';
 import { Button, Card, Text } from '../../../src/ui';
 
@@ -20,6 +20,9 @@ type Method = 'online' | 'card' | WalletProvider;
 type OptionsState = { status: 'idle' | 'loading' } | { status: 'ready'; options: PaymentOptions } | { status: 'error'; error: unknown };
 /** What the last payment attempt left to say, under the Pay button. */
 type Note = { kind: 'cancelled' } | { kind: 'failed'; message?: string } | null;
+
+/** After the SSLCommerz browser closes on a booking still awaiting payment, look once more after this long. */
+const RECHECK_MS = 3000;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const clock = (ms: number) => {
@@ -50,7 +53,7 @@ export default function PayScreen() {
   const { t } = useTheme();
   const router = useRouter();
   const auth = useAuth();
-  const { state, refetch } = usePayBooking(id, auth.status === 'signedIn');
+  const { state, refetch, setBooking } = usePayBooking(id, auth.status === 'signedIn');
 
   const [options, setOptions] = useState<OptionsState>({ status: 'idle' });
   const [optionsAttempt, setOptionsAttempt] = useState(0);
@@ -60,6 +63,8 @@ export default function PayScreen() {
   const [holdLapsed, setHoldLapsed] = useState(false);
   /** A card payment went through: wait for the detail screen, never offer Pay again. */
   const [completed, setCompleted] = useState(false);
+  /** The online checkout closed but the gateway may not have told us yet: say so and look once more. */
+  const [checking, setChecking] = useState(false);
   const inflight = useRef(false);
   const navigated = useRef(false);
   const signInSent = useRef(false);
@@ -71,6 +76,14 @@ export default function PayScreen() {
   const holdMs = booking?.holdExpiresAt ? Date.parse(booking.holdExpiresAt) - now : null;
   const expired = status === 'expired' || (awaiting && (holdLapsed || (holdMs !== null && holdMs <= 0)));
   const settled = !!status && status !== 'awaiting_payment' && status !== 'expired';
+
+  useEffect(() => {
+    if (!checking) return;
+    const timer = setTimeout(() => {
+      void refetch().finally(() => setChecking(false));
+    }, RECHECK_MS);
+    return () => clearTimeout(timer);
+  }, [checking, refetch]);
 
   useEffect(() => {
     if (auth.status === 'signedOut' && !signInSent.current) {
@@ -130,6 +143,10 @@ export default function PayScreen() {
         setNote(out.kind === 'canceled' ? { kind: 'cancelled' } : { kind: 'failed', message: out.message });
       } else {
         await openSslcommerz(start.payment.url);
+        // The browser closes before the gateway's callback may have reached us: still awaiting means "not yet known".
+        const after = await refetch();
+        if (after?.status === 'awaiting_payment') setChecking(true);
+        return;
       }
       await refetch();
     } catch (err) {
@@ -142,10 +159,13 @@ export default function PayScreen() {
     }
   };
 
-  const onWalletDone = async () => {
+  const onWalletDone = async (_outcome: ManualOutcome, next: PlayerBooking) => {
+    // Show what the submit returned straight away, so a failed refetch cannot leave the old form up.
+    setBooking(next);
     setHoldLapsed(false);
     await refetch();
   };
+  const goBack = () => (router.canGoBack?.() ? router.back() : router.replace('/'));
 
   const backToVenue = () => {
     if (booking?.venue) router.replace({ pathname: '/venue/[slug]', params: { slug: booking.venue.slug } });
@@ -156,6 +176,9 @@ export default function PayScreen() {
     <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={{ flex: 1, backgroundColor: t.bgPage }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: t.space4, gap: t.space4 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={{ alignItems: 'flex-start' }}>
+            <Button label={tr('mobile.venue.back')} variant="ghost" onPress={goBack} />
+          </View>
           <Text variant="heading" tone="strong" accessibilityRole="header">
             {tr('payment.title')}
           </Text>
@@ -206,13 +229,15 @@ export default function PayScreen() {
     </Text>
   );
 
-  if (settled || completed) {
+  const waitingResult = (completed || checking) && awaiting;
+  if (settled || completed || waitingResult) {
     const waiting = status === 'pending' && booking.manualPayment?.status === 'pending';
     return frame(
       <>
         {header}
         <Card accessibilityLiveRegion="polite">
-          {status ? (
+          {/* While a payment is being confirmed, "Awaiting payment" would read as if nothing happened. */}
+          {status && !waitingResult ? (
             <Text variant="title" tone={status === 'confirmed' ? 'success' : 'strong'}>
               {tr(`status.${status}`)}
             </Text>
@@ -223,60 +248,65 @@ export default function PayScreen() {
               <Text variant="caption" tone="muted">{`${PROVIDER_NAMES[booking.manualPayment.provider]} · ${booking.manualPayment.trxId}`}</Text>
             </>
           ) : null}
-          {completed && awaiting ? <Text tone="muted">{tr('mobile.pay.checking')}</Text> : null}
+          {waitingResult ? <Text tone="muted">{tr('mobile.pay.checking')}</Text> : null}
         </Card>
       </>,
     );
   }
 
-  const lateWallet = expired && !booking.manualPayment ? opts?.wallets[0] : undefined;
-  if (expired) {
+  // A Transaction ID came in after the hold ended; if the slots went meanwhile the venue refunds it.
+  if (expired && booking.manualPayment) {
     return frame(
       <>
         {header}
+        <Card accessibilityLiveRegion="polite">
+          <Text variant="title" tone="strong">
+            {tr('mobile.pay.submitted')}
+          </Text>
+          <Text>{tr('booking.manualLate')}</Text>
+          <Text variant="caption" tone="muted">{`${PROVIDER_NAMES[booking.manualPayment.provider]} · ${booking.manualPayment.trxId}`}</Text>
+          <Button label={tr('payment.backToVenue')} variant="secondary" onPress={backToVenue} />
+        </Card>
+      </>,
+    );
+  }
+
+  // Awaiting payment, or a hold that ran out: once it has, only a wallet transfer already made can still come in.
+  const tabs: { key: Method; label: string }[] = opts
+    ? [
+        ...(!expired && opts.sslcommerz ? [{ key: 'online' as const, label: tr('payment.online.tab') }] : []),
+        ...(!expired && opts.card ? [{ key: 'card' as const, label: tr('payment.wallet.card') }] : []),
+        ...opts.wallets.map((w) => ({ key: w.provider, label: PROVIDER_NAMES[w.provider] })),
+      ]
+    : [];
+  const current: Method | null = expired && (method === null || method === 'card' || method === 'online') ? (opts?.wallets[0]?.provider ?? null) : method;
+  const wallet = opts?.wallets.find((w) => w.provider === current);
+
+  // Every branch below keeps its place, so the wallet form (and a typed Transaction ID) survives the hold running out.
+  return frame(
+    <>
+      {header}
+      {expired ? (
         <Card>
           <Text tone="strong" accessibilityRole="alert">
             {tr('mobile.pay.holdExpired')}
           </Text>
-          <Button label={tr('payment.backToVenue')} onPress={backToVenue} />
+          <Button label={tr('payment.backToVenue')} variant={wallet ? 'secondary' : 'primary'} onPress={backToVenue} />
         </Card>
-        {lateWallet && opts ? (
-          <Card>
-            <Text variant="label" tone="muted">
-              {tr('booking.lateEntry')}
-            </Text>
-            <WalletForm bookingId={id} wallet={lateWallet} amount={amount} currency={currency} holdEnded onDone={() => void onWalletDone()} />
-          </Card>
-        ) : null}
-      </>,
-    );
-  }
-
-  // Awaiting payment with time left on the hold.
-  const tabs: { key: Method; label: string }[] = opts
-    ? [
-        ...(opts.sslcommerz ? [{ key: 'online' as const, label: tr('payment.online.tab') }] : []),
-        ...(opts.card ? [{ key: 'card' as const, label: tr('payment.wallet.card') }] : []),
-        ...opts.wallets.map((w) => ({ key: w.provider, label: PROVIDER_NAMES[w.provider] })),
-      ]
-    : [];
-  const wallet = opts?.wallets.find((w) => w.provider === method);
-
-  return frame(
-    <>
-      {header}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: t.space2 }}>
-        <Text variant="title" tone="strong">
-          {tr('payment.payNow', { amount: sum })}
-        </Text>
-        {holdMs !== null ? (
-          <View style={{ paddingHorizontal: t.space3, paddingVertical: t.space1, borderRadius: t.radiusMd, backgroundColor: t.warningSoft }}>
-            <Text variant="caption" weight="semibold" tone="warning" accessibilityLabel={tr('payment.holdEndsIn', { time: clock(holdMs) })}>
-              {`⏱ ${tr('payment.holdEndsIn', { time: clock(holdMs) })}`}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: t.space2 }}>
+          <Text variant="title" tone="strong">
+            {tr('payment.payNow', { amount: sum })}
+          </Text>
+          {holdMs !== null ? (
+            <View style={{ paddingHorizontal: t.space3, paddingVertical: t.space1, borderRadius: t.radiusMd, backgroundColor: t.warningSoft }}>
+              <Text variant="caption" weight="semibold" tone="warning" accessibilityLabel={tr('payment.holdEndsIn', { time: clock(holdMs) })}>
+                {`⏱ ${tr('payment.holdEndsIn', { time: clock(holdMs) })}`}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      )}
 
       {options.status === 'loading' || options.status === 'idle' ? spinner : null}
       {options.status === 'error' ? (
@@ -287,12 +317,12 @@ export default function PayScreen() {
           <Button label={tr('search.retry')} onPress={() => setOptionsAttempt((n) => n + 1)} />
         </View>
       ) : null}
-      {opts && tabs.length === 0 ? <Text tone="muted">{tr('checkout.noMethods')}</Text> : null}
+      {opts && tabs.length === 0 && !expired ? <Text tone="muted">{tr('checkout.noMethods')}</Text> : null}
 
       {tabs.length > 1 ? (
         <View accessibilityRole="tablist" accessibilityLabel={tr('payment.wallet.tabs')} style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.space2 }}>
           {tabs.map((tab) => {
-            const active = tab.key === method;
+            const active = tab.key === current;
             return (
               <Pressable
                 key={tab.key}
@@ -324,20 +354,34 @@ export default function PayScreen() {
 
       {opts && wallet ? (
         <Card>
-          <WalletForm bookingId={id} wallet={wallet} amount={amount} currency={currency} holdEnded={false} disabled={paying} onDone={() => void onWalletDone()} />
+          {expired ? (
+            <Text variant="label" tone="muted">
+              {tr('booking.lateEntry')}
+            </Text>
+          ) : null}
+          <WalletForm
+            key={wallet.provider}
+            bookingId={id}
+            wallet={wallet}
+            amount={amount}
+            currency={currency}
+            holdEnded={expired}
+            disabled={paying}
+            onDone={onWalletDone}
+          />
         </Card>
       ) : null}
 
-      {opts && (method === 'card' || method === 'online') ? (
+      {opts && !expired && (current === 'card' || current === 'online') ? (
         <Card>
-          {method === 'online' ? <Text tone="muted">{tr('payment.online.body')}</Text> : null}
+          {current === 'online' ? <Text tone="muted">{tr('payment.online.body')}</Text> : null}
           {note ? (
             <Text tone={note.kind === 'cancelled' ? 'strong' : 'danger'} accessibilityRole="alert">
               {note.kind === 'cancelled' ? tr('payment.returned.cancelled') : (note.message ?? tr('payment.returned.failed'))}
             </Text>
           ) : null}
           <Button
-            label={method === 'card' ? tr('payment.payNow', { amount: sum }) : tr('payment.online.continue')}
+            label={current === 'card' ? tr('payment.payNow', { amount: sum }) : tr('payment.online.continue')}
             loading={paying}
             disabled={paying}
             onPress={() => void pay()}

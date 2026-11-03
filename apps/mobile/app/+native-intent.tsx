@@ -9,7 +9,7 @@ const SCHEME = 'bookaturf://';
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string | null {
   const url = path.startsWith(SCHEME) ? path : `${SCHEME}${path.replace(/^\/+/, '')}`;
   if (url.startsWith(`${SCHEME}stripe-redirect`)) {
-    void handleStripeUrl(url);
+    handleStripeUrl(url).catch(() => {});
     return null;
   }
   if (url.startsWith(`${SCHEME}payment-return`)) return null;

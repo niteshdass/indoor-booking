@@ -94,6 +94,32 @@ describe('AuthProvider', () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
+  it('keeps the rotated refresh token in memory when the SecureStore write fails', async () => {
+    getItem.mockResolvedValue('rt1');
+    setItem.mockRejectedValueOnce(new Error('keychain locked'));
+    const bodies: unknown[] = [];
+    let n = 0;
+    fetchMock.mockImplementation(async (url: string, init: RequestInit) => {
+      if (url.endsWith('/auth/refresh')) {
+        bodies.push(JSON.parse(init.body as string));
+        n += 1;
+        return json(200, { user, accessToken: `at${n}`, refreshToken: n === 1 ? 'rt1b' : 'rt1c' });
+      }
+      return json(401, { error: { code: 'invalid_token' } });
+    });
+    await render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(ctx.status).toBe('signedIn'));
+    expect(delItem).not.toHaveBeenCalled();
+    // A 401 forces a second refresh, which must present the rotated token, not the spent one.
+    await expect(apiGet('/x')).rejects.toBeDefined();
+    expect(bodies).toEqual([{ refreshToken: 'rt1' }, { refreshToken: 'rt1b' }]);
+    expect(ctx.status).toBe('signedIn');
+  });
+
   it('signIn stores the refresh token', async () => {
     await render(
       <AuthProvider>

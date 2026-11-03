@@ -15,10 +15,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Bumped by every sign-in/sign-out so a refresh that was in flight meanwhile cannot overwrite the newer state.
   const generation = useRef(0);
+  // The newest refresh token, held in memory so a failed SecureStore write cannot strand us on a spent one.
+  // undefined = not read from storage yet.
+  const memToken = useRef<string | null | undefined>(undefined);
+  const readToken = useCallback(async () => (memToken.current !== undefined ? memToken.current : getRefreshToken()), []);
 
   const clear = useCallback(async () => {
     generation.current += 1;
     setAccessToken(null);
+    memToken.current = null;
     setSession({ status: 'signedOut', user: null });
     await setRefreshToken(null).catch(() => undefined);
   }, []);
@@ -28,7 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const run = async (): Promise<string | null> => {
       const gen = generation.current;
       try {
-        const stored = await getRefreshToken();
+        const stored = await readToken();
         if (generation.current !== gen) return null;
         if (!stored) {
           setSession({ status: 'signedOut', user: null });
@@ -37,7 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const res = await apiPost<NativeAuthResponse>('/auth/refresh', { refreshToken: stored });
         if (generation.current !== gen) return null;
         // Persist the rotated token before anything else: the old one is now spent.
-        await setRefreshToken(res.refreshToken);
+        // The server has already spent the old token, so a failed write must not discard the new pair.
+        await setRefreshToken(res.refreshToken).catch(() => undefined);
+        if (generation.current !== gen) return null;
+        memToken.current = res.refreshToken;
         setAccessToken(res.accessToken);
         setSession({ status: 'signedIn', user: res.user });
         return res.accessToken;
@@ -58,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     inflight = p;
     return p;
-  }, [clear]);
+  }, [clear, readToken]);
 
   useLayoutEffect(() => {
     setRefreshHandler(refresh);
@@ -82,7 +90,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(async (res: NativeAuthResponse) => {
     generation.current += 1;
-    await setRefreshToken(res.refreshToken);
+    memToken.current = res.refreshToken;
+    await setRefreshToken(res.refreshToken).catch(() => undefined);
     setAccessToken(res.accessToken);
     setSession({ status: 'signedIn', user: res.user });
   }, []);
@@ -92,13 +101,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     generation.current += 1;
     try {
-      const refreshToken = await getRefreshToken();
+      const refreshToken = await readToken();
       if (refreshToken) await apiPost('/auth/logout', { refreshToken });
     } catch {
       // Local state is cleared regardless.
     }
     await clear();
-  }, [clear]);
+  }, [clear, readToken]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ ...session, signIn, setUser, signOut, retry }),

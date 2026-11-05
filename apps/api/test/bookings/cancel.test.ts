@@ -231,6 +231,16 @@ describe('cancelBooking', () => {
     expect(res.body.refund).toMatchObject({ method: 'cash', status: 'succeeded', amount: 3000, paymentId: String(b._id) });
   });
 
+  it('a card payment with no gateway account answers 409 and changes nothing', async () => {
+    const { bookingId, payment } = await paid(2000);
+    await Payment.updateOne({ _id: payment._id }, { $set: { gatewayAccountId: null } }).setOptions(cross);
+    ctx.services.clock.advance(50 * HOUR);
+    expect(await codeOf(cancelBooking(await bookingOf(bookingId), staff(), {}, deps()))).toEqual({ status: 409, code: 'card_refund_unavailable' });
+    expect(await bookingOf(bookingId)).toMatchObject({ status: 'confirmed', amountRefunded: 0 });
+    expect(await refundRows()).toEqual([]);
+    expect((await Payment.findById(payment._id).setOptions(cross))!.refundedAmount).toBe(0);
+  });
+
   it('staff cancel inside a tier still records no rule, at 100%', async () => {
     const { bookingId } = await paid();
     ctx.services.clock.advance(28 * HOUR);

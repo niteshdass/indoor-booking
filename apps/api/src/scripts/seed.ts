@@ -413,6 +413,11 @@ const POLICIES: PaymentPolicy[] = [
   { type: 'full' },
 ];
 
+/**
+ * Seeded card payments never went through a real gateway. They still name an account, as every card payment does,
+ * so cancelling one records its refund; with no such connected account the refund then fails and shows up to retry.
+ */
+const SEED_STRIPE_ACCOUNT = 'acct_seed';
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /** Rounds minor units to whole BDT 50. */
 const round50 = (n: number) => Math.round(n / 5000) * 5000;
@@ -568,7 +573,7 @@ async function settle(b: BookingDoc, s: Seeded, now: Date, d: Dice, stats: Recor
       amount,
       status: 'succeeded',
       ...(method === 'card'
-        ? { gateway: 'stripe', kind: 'intent', gatewayRef: `pi_seed_${String(b._id)}` }
+        ? { gateway: 'stripe', gatewayAccountId: SEED_STRIPE_ACCOUNT, gatewayMode: 'test', kind: 'intent', gatewayRef: `pi_seed_${String(b._id)}` }
         : { recordedBy: s.deskId }),
       createdAt: at,
       updatedAt: at,

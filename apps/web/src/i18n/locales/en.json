@@ -253,7 +253,8 @@
     "turf_change_not_allowed": "The turf can't be changed for this booking.",
     "booking_changed": "The booking changed meanwhile. Check it and try again.",
     "export_too_large": "Too many rows for one file. Pick a shorter date range.",
-    "saved_venues_full": "Your saved list is full. Remove a venue to save another."
+    "saved_venues_full": "Your saved list is full. Remove a venue to save another.",
+    "card_refund_unavailable": "This card payment has no linked payment account, so it can’t be refunded automatically. Contact support."
   },
   "myBookings": {
     "title": "My bookings",

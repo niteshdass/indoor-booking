@@ -1,29 +1,8 @@
-import { View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { Icon, Text, type IconName } from '../../src/ui';
-
-/** Label with an underline the width of the text; only the current tab's underline shows. */
-function TabLabel({ label, focused }: { label: string; focused: boolean }) {
-  const { t } = useTheme();
-  return (
-    <View style={{ alignItems: 'center', gap: t.space1 }}>
-      <Text variant="caption" weight="semibold" tone={focused ? 'primary' : 'muted'} numberOfLines={1}>
-        {label}
-      </Text>
-      <View
-        style={{
-          alignSelf: 'stretch',
-          height: t.tabUnderline,
-          borderRadius: t.radiusFull,
-          backgroundColor: focused ? t.primary : 'transparent',
-        }}
-      />
-    </View>
-  );
-}
+import { Icon, TabLabel, type IconName } from '../../src/ui';
 
 export default function TabsLayout() {
   const { t } = useTheme();

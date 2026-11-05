@@ -102,6 +102,14 @@ export function apiPatch<T>(path: string, body: unknown): Promise<T> {
   });
 }
 
+export function apiPut<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
 /** DELETE answers 204 with no body. */
 export async function apiDelete(path: string): Promise<void> {
   await request<undefined>(path, { method: 'DELETE' });

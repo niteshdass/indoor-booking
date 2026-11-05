@@ -2921,6 +2921,207 @@
     },
     "checkout": {
       "locked": "বুকিং হয়তো এখনও চলছে, তাই অ্যাড-অন ও প্রোমো কোড লক করা আছে। দেখতে আবার «বুক করুন» চাপুন।"
+    },
+    "owner": {
+      "shell": {
+        "cardHint": "আজকের খেলা, ওয়াক-ইন ও পেমেন্ট।",
+        "teams_one": "{{count}}টি টিম",
+        "teams_other": "{{count}}টি টিম",
+        "insights": "রিপোর্ট",
+        "more": "আরও",
+        "newWalkIn": "নতুন ওয়াক-ইন",
+        "toPlayer": "খেলোয়াড় অ্যাপে যান"
+      },
+      "team": {
+        "staff": {
+          "add": "যোগ করুন",
+          "contact": "ফোন বা ইমেইল",
+          "contactErr": "ফোন নম্বর বা ইমেইল দিন।",
+          "role": {
+            "manager": "ম্যানেজার",
+            "managerHint": "স্টাফ ও টাকার সেটিং ছাড়া সব",
+            "staff": "ডেস্ক",
+            "staffHint": "বুকিং, ওয়াক-ইন, চেক-ইন, ক্যাশ",
+            "customHint": "নিজস্ব রোল। ওয়েবে বদলান।"
+          },
+          "removeFromTeam": "টিম থেকে সরান",
+          "removeAsk": "সাথে সাথে টিমে প্রবেশ বন্ধ হবে।",
+          "webNote": "নিজস্ব রোল ও কাজের লগ ওয়েবে।"
+        },
+        "reviews": {
+          "report": "রিপোর্ট",
+          "reportHint": "প্ল্যাটফর্ম টিম না দেখা পর্যন্ত রিভিউ থাকবে।"
+        }
+      },
+      "settings": {
+        "teamDefault": "টিমের ডিফল্ট",
+        "useTeamDefault": "টিমের ডিফল্ট রাখুন",
+        "booking": "বুকিং",
+        "rules": "নিয়ম",
+        "gettingPaid": "টাকা নেওয়া",
+        "deposit": "অগ্রিম",
+        "windowDetail_one": "{{count}} দিন আগে পর্যন্ত বুকিং",
+        "windowDetail_other": "{{count}} দিন আগে পর্যন্ত বুকিং",
+        "refundRule": "{{hours}} ঘ+ {{percent}}%",
+        "noRefunds": "ফেরত নেই",
+        "on": "চালু",
+        "off": "বন্ধ",
+        "notSet": "দেওয়া হয়নি",
+        "walletUse": "{{provider}}-এ টাকা নিন",
+        "depositNone": "অনলাইনে কিছু না, সব ডেস্কে",
+        "depositFull": "পুরো টাকা অনলাইনে",
+        "depositPercent": "{{percent}}% অনলাইনে, বাকি ডেস্কে",
+        "depositFixed": "{{amount}} অনলাইনে, বাকি ডেস্কে",
+        "webNote": "কার্ড গেটওয়ে (SSLCommerz, Stripe), খোলার সময় ও SMS ওয়েবে সেট করুন।",
+        "fee": {
+          "payWeb": "ফি এখন শুধু ওয়েবে দেওয়া যায়। ওনার পোর্টাল খুলে দিন।"
+        }
+      },
+      "more": {
+        "switchTeam": "{{role}} · দল বদলান",
+        "seriesWaiting_one": "{{count}}টি অনুরোধ বাকি",
+        "seriesWaiting_other": "{{count}}টি অনুরোধ বাকি"
+      },
+      "venues": {
+        "webNote": "নতুন ভেন্যু, ম্যাপ পিন ও সেটআপ ওয়েবে।",
+        "courts_one": "{{count}}টি মাঠ",
+        "courts_other": "{{count}}টি মাঠ",
+        "show": "খেলোয়াড়দের দেখান",
+        "showHint": "বন্ধ = সার্চে লুকানো",
+        "courtsTitle": "মাঠ",
+        "venueTitle": "ভেন্যু",
+        "address": "ঠিকানা",
+        "photos_one": "{{count}}টি ছবি",
+        "photos_other": "{{count}}টি ছবি",
+        "noPhotos": "এখনো ছবি নেই",
+        "hours": "খোলার সময়",
+        "everyDay": "প্রতিদিন {{hours}}",
+        "variesByDay": "দিনভেদে আলাদা",
+        "closedAllWeek": "সারা সপ্তাহ বন্ধ",
+        "detailsNote": "নাম, ঠিকানা, ছবি ও সময় ওয়েবে বদলান।",
+        "addCourt": "মাঠ যোগ",
+        "newCourt": "নতুন মাঠ",
+        "perSlot": "{{price}} / {{minutes}} মি.",
+        "noPrice": "দাম নেই",
+        "off": "বন্ধ",
+        "sameAsVenue": "ভেন্যুর মতো",
+        "ownHours": "নিজস্ব সময়",
+        "basePrice": "স্লটের দাম ({{currency}})",
+        "priceErr": "যেমন 900 লিখুন।",
+        "shorter": "ছোট স্লট",
+        "longer": "বড় স্লট",
+        "rulesNote_one": "এই মাঠে {{count}}টি দামের নিয়ম আছে। নিয়ম, সময় ও এককালীন বদল ওয়েবে।",
+        "rulesNote_other": "এই মাঠে {{count}}টি দামের নিয়ম আছে। নিয়ম, সময় ও এককালীন বদল ওয়েবে।",
+        "noRulesNote": "দামের নিয়ম, সময় ও এককালীন বদল ওয়েবে।",
+        "create": "মাঠ যোগ"
+      },
+      "setup": {
+        "closures": {
+          "wholeVenue": "পুরো ভেন্যু",
+          "oneCourt": "একটি মাঠ",
+          "allCourts": "সব মাঠ",
+          "allDay": "সারাদিন",
+          "note": "এই দিনের বুকিং থাকবে। বুকিং-এ দেখুন।",
+          "deleteLabel": "বন্ধ মুছুন {{dates}}",
+          "dayBefore": "আগের দিন",
+          "dayAfter": "পরের দিন"
+        },
+        "coupons": {
+          "used_one": "{{count}} বার",
+          "used_other": "{{count}} বার",
+          "usedOf": "{{max}}-এর {{used}} ব্যবহৃত",
+          "percentOff": "{{percent}} ছাড়",
+          "typePercent": "% ছাড়",
+          "typeFixed": "{{currency}} ছাড়",
+          "discount": "ছাড়",
+          "starts": "শুরু",
+          "ends": "শেষ",
+          "now": "এখন",
+          "noEnd": "শেষ নেই",
+          "clear": "মুছুন",
+          "webOnly": "ন্যূনতম খরচ, প্রতি-খেলোয়াড় সীমা ও সর্বোচ্চ ছাড়: শুধু ওয়েবে।",
+          "toggleLabel": "{{code}} চালু"
+        },
+        "extras": {
+          "catalogue": "তালিকায় {{price}}",
+          "tapHint": "দাম বদলাতে সারিতে চাপুন।",
+          "webNote": "নতুন এক্সট্রা ওয়েবে যোগ করুন।",
+          "priceTitle": "{{name}} · {{venue}}",
+          "priceLabel": "এখানে দাম ({{currency}})",
+          "priceHint": "খালি রাখলে তালিকার দাম {{price}}।",
+          "needPrice": "এর দাম অন্য মুদ্রায়। আগে এই ভেন্যুর দাম দিন।",
+          "offerLabel": "{{name}} দিন"
+        },
+        "save": "সংরক্ষণ",
+        "dateNote": "তারিখ বাছুন"
+      },
+      "insights": {
+        "noAccess": "আপনার ভূমিকায় পরিসংখ্যান দেখা যায় না।",
+        "days_one": "{{count}} দিন",
+        "days_other": "{{count}} দিন",
+        "revenueByWeek": "সাপ্তাহিক আয়",
+        "revenueByDay": "দৈনিক আয়",
+        "noRevenue": "এই সময়ে কোনো আয় নেই।",
+        "busiest": "সবচেয়ে ব্যস্ত মাঠ",
+        "courtUse": "{{use}} ব্যবহৃত · {{hours}}",
+        "noCourts": "এই সময়ে মাঠের তথ্য নেই।",
+        "venues": "ভেন্যু"
+      },
+      "series": {
+        "intro": "একই মাঠ, একই সময়, প্রতি সপ্তাহে।",
+        "filterLabel": "দেখান",
+        "requests": "অনুরোধ",
+        "all": "সব",
+        "more": "আরও দেখুন",
+        "games_one": "{{count}}টি খেলা",
+        "games_other": "{{count}}টি খেলা",
+        "free_one": "{{count}}টি খালি",
+        "free_other": "{{count}}টি খালি",
+        "clash_one": "{{count}}টি বাধা",
+        "clash_other": "{{count}}টি বাধা",
+        "freeBadge": "খালি",
+        "clashBadge": "বাধা · {{reason}}",
+        "clashNote": "গ্রহণ করলে বাধার তারিখগুলো বাদ যাবে।",
+        "accept_one": "{{count}}টি খেলা গ্রহণ",
+        "accept_other": "{{count}}টি খেলা গ্রহণ",
+        "preview": "পূর্বরূপ",
+        "earlier": "আগে",
+        "later": "পরে",
+        "noAccess": "আপনার ভূমিকায় নিয়মিত বুকিং যোগ করা যায় না।",
+        "customerPlayer": "নিবন্ধিত খেলোয়াড়",
+        "perGame": "প্রতি খেলা",
+        "listNoAccess": "আপনার ভূমিকায় নিয়মিত বুকিং দেখা যায় না।"
+      },
+      "bookings": {
+        "series": "সিরিজ",
+        "show_one": "{{count}}টি বুকিং দেখুন",
+        "show_other": "{{count}}টি বুকিং দেখুন",
+        "datePlaceholder": "YYYY-MM-DD",
+        "dateInvalid": "YYYY-MM-DD ফরম্যাটে দিন।"
+      },
+      "walkin": {
+        "whoPlaying": "কে খেলবেন?",
+        "noAccess": "এই টিমে আপনি বুকিং করতে পারবেন না।",
+        "linkTitle": "পেমেন্ট লিংক তৈরি",
+        "linkBody": "{{name}}-কে পাঠান, {{amount}} দিতে।",
+        "shareLink": "শেয়ার করুন",
+        "openBooking": "বুকিং খুলুন"
+      },
+      "booking": {
+        "holdToCopy": "কপি করতে চেপে ধরুন",
+        "full": "পুরো টাকা",
+        "saveCash": "{{amount}} নগদ লিখুন",
+        "shareLink": "লিংক শেয়ার"
+      },
+      "today": {
+        "view": "দেখুন",
+        "summary": "সারাংশ",
+        "schedule": "সময়সূচি",
+        "free": "খালি · {{price}}",
+        "noCourts": "কোনো সক্রিয় মাঠ নেই",
+        "nowAt": "এখন {{time}}",
+        "dueAmount": "বাকি {{amount}}"
+      }
     }
   }
 }

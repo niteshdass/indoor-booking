@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { EMPTY_CRITERIA, type Criteria, type SearchResult, type Sport } from '@booking/shared';
 import { apiGet } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
-import { Chip } from '../../src/search/Chip';
+import { Chip } from '../../src/ui/Chip';
 import { FindHero } from '../../src/search/FindHero';
 import { SearchBox } from '../../src/search/SearchBox';
 import { SportChips } from '../../src/search/SportChips';

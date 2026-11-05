@@ -13,6 +13,7 @@ export const MENU_GROUPS: MenuGroup[] = ['daily', 'setup', 'team'];
  */
 export const MENU: MenuItem[] = [
   { route: '/series', key: 'owner.nav.series', icon: 'repeat', group: 'daily', perms: ['booking.view'] },
+  { route: '/refunds', key: 'mobile.owner.refunds.title', icon: 'wallet', group: 'daily', perms: ['payment.verify'] },
   { route: '/reviews', key: 'owner.nav.reviews', icon: 'star', group: 'daily', perms: ['review.manage'] },
   { route: '/venues', key: 'owner.nav.venues', icon: 'venue', group: 'setup', perms: [] },
   { route: '/closures', key: 'owner.nav.closures', icon: 'calendar', group: 'setup', perms: ['slot.override', 'settings.edit'], any: true },

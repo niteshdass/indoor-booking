@@ -76,8 +76,8 @@ export function TodayScreen() {
 function TodayVenue({ venue }: { venue: OwnerVenue }) {
   const { t: tr, i18n } = useTranslation();
   const { t } = useTheme();
-  const { ownerId } = useOwner();
-  const data = useToday(ownerId, venue);
+  const { ownerId, can } = useOwner();
+  const data = useToday(ownerId, venue, can('payment.verify'));
   const [view, setView] = useState<View_>('summary');
   const [date, setDate] = useState(data.today);
   const [open, setOpen] = useState<Open>(null);
@@ -206,7 +206,7 @@ function Summary({
   const money = (n: number) => formatMoney(n, venue.currency, lang);
   const hours = new Intl.NumberFormat(lang, { maximumFractionDigits: 1 });
   const pct = new Intl.NumberFormat(lang, { style: 'percent', maximumFractionDigits: 0 });
-  const items = buildAttention({ venue, bookings, toVerifyAll: data.toVerify, requests: data.requests, tr, lang, now });
+  const items = buildAttention({ venue, bookings, toVerifyAll: data.toVerify, requests: data.requests, refunds: data.refunds, tr, lang, now });
 
   return (
     <>

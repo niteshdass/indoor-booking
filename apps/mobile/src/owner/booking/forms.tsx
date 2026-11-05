@@ -22,6 +22,7 @@ import { SlotGrid } from '../../venue/SlotGrid';
 import type { CancellationPreview } from '../../bookings/types';
 import { ownerPath } from '../labels';
 import { useOwner } from '../OwnerProvider';
+import { PaymentLinkCard } from '../PaymentLinkCard';
 import type { OwnerBooking, OwnerSlotDay, OwnerTurf, PaymentLink, RefundJson } from '../types';
 import { dateTime, dayLabel, forInput } from './model';
 import { usePost } from './usePost';
@@ -463,7 +464,7 @@ export function MoveForm({ booking, onDone, onBack }: FormProps) {
   );
 }
 
-/** Create (or fetch) a pay link for an unpaid walk-in and hand it to the share sheet; web shows a QR here. */
+/** Create (or fetch) a pay link for an unpaid walk-in and show it as a QR with Copy and Share. */
 export function LinkForm({ booking, onDone, onBack }: FormProps) {
   const { t: tr } = useTranslation();
   const { t } = useTheme();
@@ -489,15 +490,7 @@ export function LinkForm({ booking, onDone, onBack }: FormProps) {
       {link ? (
         <>
           <Line label={tr('owner.link.amount')} value={fmt(link.amount)} strong />
-          <View style={{ gap: t.space1 }}>
-            <Text variant="label" tone="muted">
-              {tr('owner.link.url')}
-            </Text>
-            <Text tone="primary" selectable>
-              {link.url}
-            </Text>
-          </View>
-          <Button label={tr('mobile.owner.booking.shareLink')} onPress={() => void Share.share({ message: link.url, url: link.url })} />
+          <PaymentLinkCard url={link.url} shareLabel={tr('mobile.owner.booking.shareLink')} />
         </>
       ) : null}
       <Button label={tr('owner.link.close')} variant="ghost" onPress={onBack} />

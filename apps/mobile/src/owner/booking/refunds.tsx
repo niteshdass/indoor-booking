@@ -14,7 +14,7 @@ import { usePost } from './usePost';
 const REFUND_TONE: Record<RefundJson['status'], BadgeTone> = { pending: 'warning', succeeded: 'success', failed: 'danger' };
 
 /** Ask for the TrxID of the money staff sent by hand, then mark the wallet refund sent (web MarkSentDialog). */
-function MarkSentSheet({ refund, onClose, onSent }: { refund: RefundJson | null; onClose(): void; onSent(): void }) {
+export function MarkSentSheet({ refund, onClose, onSent }: { refund: RefundJson | null; onClose(): void; onSent(): void }) {
   const { t: tr } = useTranslation();
   const { t } = useTheme();
   const { ownerId } = useOwner();

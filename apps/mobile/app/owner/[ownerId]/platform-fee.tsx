@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { STRIPE_PAYOUT_HOLD_MS, formatBdMobile, formatMoney, type OwnerPlatformFeeJson, type PlatformBalanceJson, type PlatformPayoutJson } from '@booking/shared';
 import { useResource } from '../../../src/lib/useResource';
 import { useOwner } from '../../../src/owner/OwnerProvider';
 import { ownerPath } from '../../../src/owner/labels';
+import { PayPlatformSheet, walletMethods } from '../../../src/owner/settings/PayPlatformSheet';
 import { useTheme } from '../../../src/theme/ThemeProvider';
-import { BackButton, Badge, type BadgeTone, Card, Empty, ErrorState, Group, GroupLabel, Loading, Row, Screen, Text, WebNote } from '../../../src/ui';
+import { BackButton, Badge, type BadgeTone, Button, Card, Empty, ErrorState, Group, GroupLabel, Loading, Row, Screen, Text, WebNote } from '../../../src/ui';
 
 type Shown = PlatformPayoutJson['status'] | 'stale';
 const TONE: Record<Shown, BadgeTone> = { pending: 'warning', confirmed: 'success', rejected: 'danger', stale: 'neutral' };
@@ -13,13 +15,15 @@ const TONE: Record<Shown, BadgeTone> = { pending: 'warning', confirmed: 'success
 const shownStatus = (p: PlatformPayoutJson, now: number): Shown =>
   p.status === 'pending' && p.method === 'stripe' && now - Date.parse(p.createdAt) > STRIPE_PAYOUT_HOLD_MS ? 'stale' : p.status;
 
-/** What the team owes the platform and what it has sent (`settings.edit`). Read only: paying is on the web. */
+/** What the team owes the platform and what it has sent (`settings.edit`). bKash/Nagad are paid here; card stays on the web. */
 export default function PlatformFeeScreen() {
   const { t: tr, i18n } = useTranslation();
   const lang = i18n.language;
   const { ownerId, can } = useOwner();
   const allowed = can('settings.edit');
   const res = useResource<OwnerPlatformFeeJson>(allowed ? ownerPath(ownerId, '/platform-fee') : null, { keepOnError: true });
+  // Each open gets a fresh sheet (key `n`), like the web dialog.
+  const [pay, setPay] = useState<{ currency: string; n: number; open: boolean } | null>(null);
 
   const head = (
     <>
@@ -56,6 +60,9 @@ export default function PlatformFeeScreen() {
   const data = res.state.data;
   const now = Date.now();
   const owes = data.balances.some((b) => b.payable > 0);
+  const wallets = walletMethods(data.methods);
+  const canPayHere = wallets.length > 0;
+  const payBalance = pay ? data.balances.find((b) => b.currency === pay.currency) : undefined;
 
   return (
     <Screen scroll>
@@ -68,9 +75,19 @@ export default function PlatformFeeScreen() {
           </Text>
         </Card>
       ) : (
-        data.balances.map((b) => <BalanceCard key={b.currency} balance={b} lang={lang} />)
+        data.balances.map((b) => (
+          <BalanceCard
+            key={b.currency}
+            balance={b}
+            lang={lang}
+            onPay={canPayHere ? () => setPay((p) => ({ currency: b.currency, n: (p?.n ?? 0) + 1, open: true })) : undefined}
+          />
+        ))
       )}
-      {owes && <WebNote>{tr('mobile.owner.settings.fee.payWeb')}</WebNote>}
+      {owes && data.methods.stripe !== null && (
+        <WebNote>{tr(canPayHere ? 'mobile.owner.settings.fee.cardWeb' : 'mobile.owner.settings.fee.payWeb')}</WebNote>
+      )}
+      {owes && !canPayHere && data.methods.stripe === null && <Text tone="muted">{tr('owner.platformFee.dialog.noMethods')}</Text>}
 
       <GroupLabel>{tr('owner.platformFee.history')}</GroupLabel>
       {data.payouts.length === 0 ? (
@@ -93,11 +110,21 @@ export default function PlatformFeeScreen() {
           })}
         </Group>
       )}
+      {pay && payBalance && (
+        <PayPlatformSheet
+          key={pay.n}
+          visible={pay.open}
+          balance={payBalance}
+          methods={data.methods}
+          onClose={() => setPay((p) => p && { ...p, open: false })}
+          onChanged={res.reload}
+        />
+      )}
     </Screen>
   );
 }
 
-function BalanceCard({ balance, lang }: { balance: PlatformBalanceJson; lang: string }) {
+function BalanceCard({ balance, lang, onPay }: { balance: PlatformBalanceJson; lang: string; onPay?: () => void }) {
   const { t } = useTheme();
   const { t: tr } = useTranslation();
   const fmt = (minor: number) => formatMoney(minor, balance.currency, lang);
@@ -129,6 +156,11 @@ function BalanceCard({ balance, lang }: { balance: PlatformBalanceJson; lang: st
         {balance.pending > 0 && <Text tone="warning">{tr('owner.platformFee.pending', { pending: fmt(balance.pending) })}</Text>}
         {balance.payable === 0 && balance.pending > 0 && <Text tone="muted">{tr('owner.platformFee.allPending')}</Text>}
       </View>
+      {balance.payable > 0 && onPay && (
+        <View style={{ flexDirection: 'row', marginTop: t.space2 }}>
+          <Button label={tr('owner.platformFee.payNow')} onPress={onPay} />
+        </View>
+      )}
     </Card>
   );
 }

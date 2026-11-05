@@ -30,6 +30,7 @@ beforeEach(() => {
   mockGet.mockImplementation(async (path: string) => {
     if (path.startsWith('/owners/o1/series')) return { series: [{ id: 's1' }, { id: 's2' }], nextBefore: null };
     if (path === '/owners/o1/platform-fee') return { feeActive: false, balances: [] };
+    if (path === '/owners/o1/refunds?method=wallet&status=pending') return { refunds: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }], nextBefore: 'r3' };
     throw new Error(`unexpected ${path}`);
   });
 });
@@ -52,6 +53,15 @@ describe('owner More tab', () => {
     expect(mockGet).toHaveBeenCalledWith('/owners/o1/series?status=requested');
   });
 
+  it('counts refunds to send, with + when more pages follow', async () => {
+    await show();
+    expect(screen.getByText('Refunds to send')).toBeTruthy();
+    expect(screen.getByText('3+')).toBeTruthy();
+    expect(screen.getByText('3+ waiting to be sent')).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: /Refunds to send/ }));
+    expect(mockRouter.push).toHaveBeenCalledWith('/owner/o1/refunds');
+  });
+
   it('opens a section by its owner route', async () => {
     await show();
     await fireEvent.press(screen.getByRole('button', { name: 'Venues' }));
@@ -63,6 +73,8 @@ describe('owner More tab', () => {
     expect(screen.getByText('Venues')).toBeTruthy();
     for (const label of ['Closures', 'Coupons', 'Staff', 'Settings']) expect(screen.queryByText(label)).toBeNull();
     expect(mockGet).not.toHaveBeenCalledWith('/owners/o1/platform-fee');
+    expect(screen.queryByText('Refunds to send')).toBeNull();
+    expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining('/refunds'));
   });
 
   it('signs out after confirming', async () => {
@@ -91,7 +103,9 @@ describe('visibleMenu', () => {
     expect(visibleMenu(can(['settings.edit']), false).map((m) => m.route)).not.toContain('/platform-fee');
     expect(visibleMenu(can(['settings.edit']), true).map((m) => m.route)).toContain('/platform-fee');
   });
-  it('has no refunds row', () => {
-    expect(MENU.map((m) => m.route)).not.toContain('/refunds');
+  it('shows refunds to send only with payment.verify', () => {
+    expect(MENU.find((m) => m.route === '/refunds')).toMatchObject({ group: 'daily' });
+    expect(visibleMenu(can(['payment.verify']), false).map((m) => m.route)).toContain('/refunds');
+    expect(visibleMenu(can(['booking.view']), false).map((m) => m.route)).not.toContain('/refunds');
   });
 });

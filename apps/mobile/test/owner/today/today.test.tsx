@@ -16,12 +16,14 @@ jest.mock('../../../src/lib/api', () => {
 });
 
 let today: OwnerBooking[] = [];
+let toSend: { id: string }[] = [];
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockGet.mockImplementation(async (path: string) => {
     if (path.endsWith('/turfs')) return { turfs: [] };
     if (path.startsWith('/owners/o1/series?')) return { series: [] };
+    if (path.startsWith('/owners/o1/refunds?')) return { refunds: toSend, nextBefore: null };
     if (path.includes('scope=to_verify')) return { bookings: [], total: 0 };
     if (path.includes('from=')) return { bookings: [] };
     if (path === '/owners/o1/bookings?venueId=v1') return { bookings: today };
@@ -63,6 +65,27 @@ describe('today tab', () => {
     expect(await screen.findByText('Bookings today')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
     expect(screen.queryByText('Waiting for confirmation')).toBeNull();
+  });
+
+  it('lists wallet refunds to send under Needs you and opens the list', async () => {
+    today = [];
+    toSend = [{ id: 'r1' }, { id: 'r2' }];
+    await renderToday();
+    expect(await screen.findByText('2 waiting to be sent')).toBeTruthy();
+    expect(mockGet).toHaveBeenCalledWith('/owners/o1/refunds?method=wallet&status=pending&venueId=v1');
+    await fireEvent.press(screen.getByRole('button', { name: 'Refunds to send, 2 waiting to be sent' }));
+    expect(mockRouter.push).toHaveBeenCalledWith('/owner/o1/refunds');
+    toSend = [];
+  });
+
+  it('skips refunds to send without payment.verify', async () => {
+    today = [];
+    toSend = [{ id: 'r1' }];
+    await renderToday({ perms: SYSTEM_ROLES.staff });
+    expect(await screen.findByText('Bookings today')).toBeTruthy();
+    expect(screen.queryByText('Refunds to send')).toBeNull();
+    expect(mockGet).not.toHaveBeenCalledWith(expect.stringContaining('/refunds'));
+    toSend = [];
   });
 
   it('switches to the schedule', async () => {

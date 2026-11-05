@@ -2974,7 +2974,8 @@
         "depositFixed": "{{amount}} online, rest at the desk",
         "webNote": "Card gateways (SSLCommerz, Stripe), opening hours and SMS are set up on the web.",
         "fee": {
-          "payWeb": "Paying the fee is on the web for now. Open the owner portal to pay."
+          "payWeb": "Paying the fee is on the web for now. Open the owner portal to pay.",
+          "cardWeb": "Paying by card is on the web. Open the owner portal to pay by card."
         }
       },
       "more": {
@@ -3121,6 +3122,17 @@
         "noCourts": "No active courts",
         "nowAt": "Now, {{time}}",
         "dueAmount": "{{amount}} due"
+      },
+      "refunds": {
+        "title": "Refunds to send",
+        "intro": "Send the money from your wallet app, then mark it sent with the Transaction ID.",
+        "waiting_one": "{{n}} waiting to be sent",
+        "waiting_other": "{{n}} waiting to be sent",
+        "empty": "No refunds to send. You're all caught up.",
+        "noAccess": "Only members who check payments can send refunds.",
+        "booking": "{{customer}} · {{reference}} · {{date}}",
+        "openBooking": "Open booking {{reference}}",
+        "more": "Show more"
       }
     }
   }

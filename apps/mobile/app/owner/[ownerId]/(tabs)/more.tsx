@@ -7,6 +7,7 @@ import { useAuth } from '../../../../src/auth/useAuth';
 import { useResource } from '../../../../src/lib/useResource';
 import { ownerHref, ownerPath, roleLabel } from '../../../../src/owner/labels';
 import { initials, MENU_GROUPS, platformFeeShown, visibleMenu } from '../../../../src/owner/more/menu';
+import { refundsCount, refundsToSendPath, refundsWaiting, type RefundsPage } from '../../../../src/owner/refunds/api';
 import { useOwner } from '../../../../src/owner/OwnerProvider';
 import { TeamSwitcher } from '../../../../src/owner/TeamSwitcher';
 import { useTheme } from '../../../../src/theme/ThemeProvider';
@@ -23,21 +24,36 @@ export default function OwnerMoreScreen() {
   const requests = useResource<{ series: SeriesJson[]; nextBefore: string | null }>(
     can('booking.view') ? ownerPath(ownerId, '/series?status=requested') : null,
   );
+  const refunds = useResource<RefundsPage>(can('payment.verify') ? refundsToSendPath(ownerId) : null);
   const fee = useResource<OwnerPlatformFeeJson>(can('settings.edit') ? ownerPath(ownerId, '/platform-fee') : null);
   const { reload } = requests;
+  const { reload: reloadRefunds } = refunds;
   // The open-request count moves while the owner works elsewhere, so refresh it each time the tab shows.
   const focused = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (focused.current) reload();
+      if (focused.current) {
+        reload();
+        reloadRefunds();
+      }
       focused.current = true;
-    }, [reload]),
+    }, [reload, reloadRefunds]),
   );
 
   const feeShown = fee.state.status === 'ready' && platformFeeShown(fee.state.data);
   const items = visibleMenu(can, feeShown);
   const waiting = requests.state.status === 'ready' ? requests.state.data.series.length : 0;
   const waitingMore = requests.state.status === 'ready' && requests.state.data.nextBefore !== null;
+  const toSend = refunds.state.status === 'ready' ? refunds.state.data : null;
+  const toSendCount = refundsCount(toSend);
+
+  /** The count shown on a row: open series requests, refunds to send. */
+  const countFor = (route: string) =>
+    route === '/series' && waiting > 0
+      ? { detail: tr('mobile.owner.more.seriesWaiting', { count: waiting }), badge: waitingMore ? `${waiting}+` : String(waiting) }
+      : route === '/refunds' && toSend && toSendCount
+        ? { detail: refundsWaiting(toSend, tr), badge: toSendCount }
+        : null;
 
   const confirmSignOut = () =>
     Alert.alert(tr('profile.signOutConfirm.title'), tr('profile.signOutConfirm.body'), [
@@ -96,20 +112,19 @@ export default function OwnerMoreScreen() {
           <View key={g} style={{ gap: t.space2 }}>
             <GroupLabel>{tr(`owner.nav.groups.${g}`)}</GroupLabel>
             <Group>
-              {rows.map((m) => (
-                <Row
-                  key={m.route}
-                  icon={m.icon}
-                  title={tr(m.key)}
-                  detail={m.route === '/series' && waiting > 0 ? tr('mobile.owner.more.seriesWaiting', { count: waiting }) : undefined}
-                  right={
-                    m.route === '/series' && waiting > 0 ? (
-                      <Badge tone="warning" label={waitingMore ? `${waiting}+` : String(waiting)} />
-                    ) : undefined
-                  }
-                  onPress={() => router.push(ownerHref(ownerId, m.route))}
-                />
-              ))}
+              {rows.map((m) => {
+                const count = countFor(m.route);
+                return (
+                  <Row
+                    key={m.route}
+                    icon={m.icon}
+                    title={tr(m.key)}
+                    detail={count?.detail}
+                    right={count ? <Badge tone="warning" label={count.badge} /> : undefined}
+                    onPress={() => router.push(ownerHref(ownerId, m.route))}
+                  />
+                );
+              })}
             </Group>
           </View>
         );

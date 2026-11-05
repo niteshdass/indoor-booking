@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 import { formatMoney, type SeriesJson } from '@booking/shared';
 import { awaitsVerification, dateTime, endOf, hm, SOON_MS, startOf, type Action } from '../booking/model';
+import { refundsWaiting, type RefundsPage } from '../refunds/api';
 import type { OwnerBooking, OwnerVenue } from '../types';
 
 /** One "Needs you" row. With a booking and a primary action it acts inline; otherwise it opens `href` (an app path). */
@@ -11,7 +12,7 @@ export type AttentionItem = {
   tone: 'warning' | 'danger' | 'info';
   booking?: OwnerBooking;
   primary?: Action;
-  /** App path under the owner, for rows without a booking action (series requests). */
+  /** App path under the owner, for rows without a booking action (series requests, refunds to send). */
   href?: string;
 };
 
@@ -22,14 +23,15 @@ const VERIFY_URGENT_MS = 60 * 60_000;
 
 /**
  * Port of apps/web/src/owner/today/Attention.tsx without the low-review rows: wallet payments to check, bookings
- * waiting for confirmation, games starting soon that still owe, started games nobody checked in, weekly requests and
- * unpaid holds.
+ * waiting for confirmation, wallet refunds to send, games starting soon that still owe, started games nobody checked in,
+ * weekly requests and unpaid holds.
  */
 export function buildAttention({
   venue,
   bookings,
   toVerifyAll,
   requests,
+  refunds = null,
   tr,
   lang,
   now = Date.now(),
@@ -38,6 +40,8 @@ export function buildAttention({
   bookings: OwnerBooking[];
   toVerifyAll: { total: number; first: OwnerBooking | null } | null;
   requests: SeriesJson[] | null;
+  /** First page of wallet refunds to send; null when not loaded or not allowed. */
+  refunds?: RefundsPage | null;
   tr: TFunction;
   lang: string;
   now?: number;
@@ -66,6 +70,15 @@ export function buildAttention({
       tone: startOf(verifyNext) <= now + VERIFY_URGENT_MS ? 'danger' : 'warning',
       booking: verifyNext,
       primary: 'verify',
+    });
+  }
+  if (refunds && refunds.refunds.length > 0) {
+    out.push({
+      key: 'refunds',
+      title: tr('mobile.owner.refunds.title'),
+      detail: refundsWaiting(refunds, tr),
+      tone: 'warning',
+      href: '/refunds',
     });
   }
   if (oldest) {

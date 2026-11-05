@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { Permission } from '../../../src/owner/types';
 import { SYSTEM_ROLES, type OwnerPlatformFeeJson } from '@booking/shared';
 import PlatformFeeScreen from '../../../app/owner/[ownerId]/platform-fee';
@@ -11,10 +11,13 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
 }));
 
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn(async () => true) }));
+
 const mockGet = jest.fn();
+const mockPost = jest.fn();
 jest.mock('../../../src/lib/api', () => {
   const actual = jest.requireActual('../../../src/lib/api');
-  return { ...actual, apiGet: (...a: unknown[]) => mockGet(...a) };
+  return { ...actual, apiGet: (...a: unknown[]) => mockGet(...a), apiPost: (...a: unknown[]) => mockPost(...a) };
 });
 
 const fee: OwnerPlatformFeeJson = {
@@ -73,8 +76,18 @@ const renderFee = (perms?: readonly Permission[]) =>
     </OwnerWrap>,
   );
 
+const withWallets: OwnerPlatformFeeJson = {
+  ...fee,
+  methods: {
+    bkash: { provider: 'bkash', number: '01711000111', accountType: 'personal', note: 'Reference: your team name' },
+    nagad: { provider: 'nagad', number: '01811000222', accountType: 'merchant' },
+    stripe: { publishableKey: 'pk_test' },
+  },
+};
+
 describe('platform fee', () => {
-  it('shows what is owed, the pay-on-web note and the history', async () => {
+  it('shows what is owed, the pay-on-web note and the history (card only)', async () => {
+    mockGet.mockResolvedValue({ ...fee, methods: { bkash: null, nagad: null, stripe: { publishableKey: 'pk_test' } } });
     await renderFee();
     expect(await screen.findByText(/^You owe /)).toBeTruthy();
     expect(screen.getByText(/^Awaiting check /)).toBeTruthy();
@@ -85,6 +98,66 @@ describe('platform fee', () => {
     expect(screen.getByText('Rejected')).toBeTruthy();
     expect(screen.getByText(/Wrong TrxID/)).toBeTruthy();
     expect(mockGet).toHaveBeenCalledWith('/owners/o1/platform-fee');
+    expect(screen.queryByRole('button', { name: 'Pay now' })).toBeNull();
+  });
+
+  it('pays with bKash: sheet shows the number, sends the exact body, reloads', async () => {
+    mockGet.mockResolvedValue(withWallets);
+    mockPost.mockResolvedValue({});
+    await renderFee();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pay now' }));
+    expect(screen.getByText('Pay the platform fee')).toBeTruthy();
+    expect(screen.getByText('Paying by card is on the web. Open the owner portal to pay by card.')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'bKash' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Nagad' })).toBeTruthy();
+    expect(screen.getByText('Reference: your team name')).toBeTruthy();
+    expect(screen.getByDisplayValue('1200.00')).toBeTruthy();
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Nagad' }));
+    await fireEvent.changeText(screen.getByLabelText('Amount'), '500');
+    await fireEvent.changeText(screen.getByLabelText('Transaction ID'), ' abc12345xy ');
+    await fireEvent.changeText(screen.getByLabelText('Sent from'), '01712345678');
+    await act(async () => {
+      await fireEvent.press(screen.getByRole('button', { name: 'Send for checking' }));
+    });
+    expect(mockPost).toHaveBeenCalledWith('/owners/o1/platform-payouts', {
+      currency: 'BDT',
+      amount: 50000,
+      method: 'nagad',
+      trxId: 'ABC12345XY',
+      senderNumber: '01712345678',
+    });
+    expect(await screen.findByText("Sent. It shows as paid once the platform checks your TrxID.")).toBeTruthy();
+    expect(mockGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks an empty TrxID and an amount over what can be paid', async () => {
+    mockGet.mockResolvedValue(withWallets);
+    await renderFee();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pay now' }));
+    await fireEvent.changeText(screen.getByLabelText('Amount'), '5000');
+    await fireEvent.changeText(screen.getByLabelText('Sent from'), '01712345678');
+    await act(async () => {
+      await fireEvent.press(screen.getByRole('button', { name: 'Send for checking' }));
+    });
+    expect(screen.getByText('Enter the Transaction ID: 8 to 12 letters and numbers.')).toBeTruthy();
+    expect(screen.getByText(/^You can pay at most /)).toBeTruthy();
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('method_unavailable shows the error and reloads', async () => {
+    mockGet.mockResolvedValue(withWallets);
+    const { ApiError } = jest.requireActual('../../../src/lib/api');
+    mockPost.mockRejectedValue(new ApiError(409, 'method_unavailable', 'gone'));
+    await renderFee();
+    await fireEvent.press(await screen.findByRole('button', { name: 'Pay now' }));
+    await fireEvent.changeText(screen.getByLabelText('Transaction ID'), 'ABC12345XY');
+    await fireEvent.changeText(screen.getByLabelText('Sent from'), '01712345678');
+    await act(async () => {
+      await fireEvent.press(screen.getByRole('button', { name: 'Send for checking' }));
+    });
+    expect(await screen.findByText('This way to pay is not available now. Pick another one.')).toBeTruthy();
+    expect(mockGet).toHaveBeenCalledTimes(2);
   });
 
   it('needs settings.edit', async () => {

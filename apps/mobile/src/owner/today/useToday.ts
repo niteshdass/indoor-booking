@@ -4,6 +4,7 @@ import { apiGet } from '../../lib/api';
 import { useResource } from '../../lib/useResource';
 import { awaitsVerification } from '../booking/model';
 import { ownerPath } from '../labels';
+import { refundsToSendPath, type RefundsPage } from '../refunds/api';
 import type { OwnerBooking, OwnerSlotDay, OwnerTurf, OwnerVenue } from '../types';
 import type { Courts } from './model';
 
@@ -37,8 +38,11 @@ export function useCourts(ownerId: string, venueId: string, date: string | null)
   return { courts: tracked.key === key ? tracked.courts : null, reload };
 }
 
-/** Everything the Today tab reads for one venue (web TodayVenue + useTodayExtras, without reviews). */
-export function useToday(ownerId: string, venue: OwnerVenue) {
+/**
+ * Everything the Today tab reads for one venue (web TodayVenue + useTodayExtras, without reviews). With `canVerify`
+ * it also reads the venue's wallet refunds still to send.
+ */
+export function useToday(ownerId: string, venue: OwnerVenue, canVerify = false) {
   const v = encodeURIComponent(venue.id);
   const today = localParts(new Date(), venue.timezone).date;
   const lastWeekDate = addDays(today, -7);
@@ -49,17 +53,20 @@ export function useToday(ownerId: string, venue: OwnerVenue) {
   );
   const lastWeek = useResource<{ bookings: OwnerBooking[] }>(ownerPath(ownerId, `/bookings?venueId=${v}&from=${lastWeekDate}&to=${lastWeekDate}`));
   const series = useResource<{ series: SeriesJson[] }>(ownerPath(ownerId, `/series?venueId=${v}&status=requested`));
+  const refunds = useResource<RefundsPage>(canVerify ? refundsToSendPath(ownerId, { venueId: venue.id }) : null);
   const courts = useCourts(ownerId, venue.id, today);
   const { reload: reloadBookings } = bookings;
   const { reload: reloadToVerify } = toVerify;
   const { reload: reloadSeries } = series;
   const { reload: reloadCourts } = courts;
+  const { reload: reloadRefunds } = refunds;
   const refresh = useCallback(() => {
     reloadBookings();
     reloadToVerify();
     reloadSeries();
     reloadCourts();
-  }, [reloadBookings, reloadToVerify, reloadSeries, reloadCourts]);
+    reloadRefunds();
+  }, [reloadBookings, reloadToVerify, reloadSeries, reloadCourts, reloadRefunds]);
   return {
     today,
     bookings,
@@ -71,6 +78,7 @@ export function useToday(ownerId: string, venue: OwnerVenue) {
         : null,
     lastWeek: lastWeek.state.status === 'ready' ? lastWeek.state.data.bookings : null,
     requests: series.state.status === 'ready' ? series.state.data.series : null,
+    refunds: refunds.state.status === 'ready' ? refunds.state.data : null,
   };
 }
 

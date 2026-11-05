@@ -161,3 +161,85 @@ describe('wallet refunds', () => {
     expect(detail.body.refunds[0]).toMatchObject({ provider: 'bkash', sendTo: '+8801812345678' });
   });
 });
+
+describe('refunds to send list', () => {
+  const list = (token: string, query = '') =>
+    request(ctx.app).get(`/api/v1/owners/${owner.ownerId}/refunds${query}`).set(...bearer(token));
+
+  it('lists pending wallet refunds with where to send them and their booking', async () => {
+    const { booking, refund } = await cancelled();
+    const res = await list(owner.token);
+    expect(res.status).toBe(200);
+    expect(res.body.nextBefore).toBeNull();
+    expect(res.body.refunds).toHaveLength(1);
+    expect(res.body.refunds[0]).toMatchObject({
+      id: String(refund._id),
+      method: 'wallet',
+      status: 'pending',
+      amount: 3000,
+      currency: 'BDT',
+      trxId: null,
+      provider: 'bkash',
+      sendTo: '+8801812345678',
+      booking: {
+        id: String(booking._id),
+        reference: booking.reference,
+        businessDate: '2026-01-05',
+        venueId,
+        turf: { name: expect.any(String) },
+        customer: { name: 'Player', phone: null },
+      },
+    });
+    // The same item the booking detail carries.
+    const detail = await request(ctx.app).get(`/api/v1/owners/${owner.ownerId}/bookings/${booking._id}`).set(...bearer(owner.token));
+    const { booking: _summary, ...item } = res.body.refunds[0];
+    expect(item).toEqual(detail.body.refunds[0]);
+  });
+
+  it('leaves out sent refunds and other methods by default; filters pick them', async () => {
+    const { booking, payment, refund } = await cancelled();
+    await Refund.create({
+      ownerId: owner.ownerId, venueId, bookingId: booking._id, paymentId: payment._id, amount: 100, currency: 'BDT',
+      reason: 'overpayment', method: 'cash', status: 'pending',
+    });
+    expect((await list(owner.token)).body.refunds.map((r: { id: string }) => r.id)).toEqual([String(refund._id)]);
+    expect((await list(owner.token, '?method=cash&status=pending')).body.refunds).toMatchObject([{ method: 'cash', amount: 100 }]);
+    expect((await send(`/refunds/${refund._id}/mark-sent`, owner.token, { trxId: '8K2M3N4P5Q' })).status).toBe(200);
+    expect((await list(owner.token, '?method=wallet&status=pending')).body.refunds).toEqual([]);
+    expect((await list(owner.token, '?status=succeeded')).body.refunds).toMatchObject([{ id: String(refund._id), trxId: '8K2M3N4P5Q' }]);
+  });
+
+  it('pages with before / nextBefore, newest first', async () => {
+    const { booking, payment } = await walletBooking();
+    const docs = Array.from({ length: 52 }, () => ({
+      ownerId: owner.ownerId, venueId, bookingId: booking._id, paymentId: payment._id, amount: 10, currency: 'BDT',
+      reason: 'cancellation', method: 'wallet', status: 'pending',
+    }));
+    const made = await Refund.insertMany(docs);
+    const first = await list(owner.token);
+    expect(first.body.refunds).toHaveLength(50);
+    expect(first.body.refunds[0].id).toBe(String(made[51]!._id));
+    expect(first.body.nextBefore).toBe(first.body.refunds[49].id);
+    const second = await list(owner.token, `?before=${first.body.nextBefore}`);
+    expect(second.body.refunds.map((r: { id: string }) => r.id)).toEqual([String(made[1]!._id), String(made[0]!._id)]);
+    expect(second.body.nextBefore).toBeNull();
+  });
+
+  it('respects the member venue scope', async () => {
+    await cancelled();
+    const other = await seedVenue(owner.ownerId, { published: true });
+    const scoped = await addMember(ctx.services, owner.ownerId, { roleKey: 'manager', venueIds: [other.id as string] });
+    const res = await list(scoped.token);
+    expect(res.status).toBe(200);
+    expect(res.body.refunds).toEqual([]);
+    expect((await list(scoped.token, `?venueId=${venueId}`)).status).toBe(404);
+    const all = await addMember(ctx.services, owner.ownerId, { roleKey: 'manager' });
+    expect((await list(all.token)).body.refunds).toHaveLength(1);
+  });
+
+  it('needs payment.verify and valid filters', async () => {
+    expect((await list(staff.token)).status).toBe(403);
+    expect((await list(owner.token, '?method=bank')).status).toBe(400);
+    expect((await list(owner.token, '?before=nope')).status).toBe(400);
+  });
+});

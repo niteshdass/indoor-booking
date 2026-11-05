@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Sport } from '@booking/shared';
 import { useTheme } from '../theme/ThemeProvider';
 import { Button, Text } from '../ui';
-import { Chip } from './Chip';
+import { Chip } from '../ui/Chip';
 
 export interface SportChipsProps {
   sports: Sport[];

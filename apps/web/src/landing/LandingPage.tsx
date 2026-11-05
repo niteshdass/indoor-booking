@@ -125,8 +125,8 @@ function HeroSearch() {
           onChange={(e) => setDate(e.target.value)}
         />
       </div>
-      <Button type="submit" size="lg" icon="search" className={styles.searchButton}>
-        {t('landing.submit')}
+      <Button type="submit" size="lg" icon="search" className={styles.searchButton} title={t('landing.submit')}>
+        <span className={styles.searchLabel}>{t('landing.submit')}</span>
       </Button>
     </form>
   );

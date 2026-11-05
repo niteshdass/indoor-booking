@@ -1,6 +1,7 @@
 import type { ClientSession } from 'mongoose';
 import { bookingPaymentStatus } from '@booking/shared';
 import type { Config } from '../config';
+import { AppError } from '../errors';
 import { Booking, type BookingDoc } from '../bookings/booking.model';
 import { Payment, type PaymentDoc } from '../bookings/payment.model';
 import { runInTransaction } from '../db';
@@ -84,6 +85,10 @@ export async function reserveRefunds(
     const room = reason === 'amount_mismatch' || (payment != null && part.amount <= payment.amount - payment.refundedAmount);
     if (!payment || !room) throw new Error('Refund exceeds what was paid');
     if (part.method === 'card' && payment.method !== 'card') throw new Error('A card refund needs a card payment');
+    // A card payment with no recorded gateway account (e.g. imported or seeded) cannot be sent back through any gateway.
+    if (part.method === 'card' && !payment.gatewayAccountId) {
+      throw new AppError(409, 'card_refund_unavailable', 'This card payment has no linked payment account, so it cannot be refunded automatically');
+    }
     // Staff send a wallet refund by hand: it is never dispatched, so it needs a transfer that arrived.
     if (part.method === 'wallet' && (payment.method !== 'wallet' || payment.status !== 'succeeded')) {
       throw new Error('A wallet refund needs a received wallet payment');

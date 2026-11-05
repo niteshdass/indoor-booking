@@ -3,18 +3,33 @@ import { z } from 'zod';
 import { bookingPaymentStatus, normalizeTrxId } from '@booking/shared';
 import type { Config } from '../../config';
 import { Booking } from '../../bookings/booking.model';
+import { ownerBookingsJson } from '../../bookings/ownerJson';
 import { Payment } from '../../bookings/payment.model';
 import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
 import type { AppServices } from '../../services';
 import { requirePermission, tenantOf } from '../../tenancy/context';
 import { tenantRepo } from '../../tenancy/repo';
+import { scopedVenue } from '../../venues/routes/venues';
 import { gatewayFor } from '../gateway';
 import { loadGateway, type GatewayMode } from '../gateway.model';
-import { Refund, type RefundDoc } from '../refund.model';
+import { Refund, REFUND_METHODS, type RefundDoc } from '../refund.model';
 import { dispatchRefund, ownerRefundsJson, reserveRefunds, settleRefund } from '../refunds';
 
 const markSentSchema = z.object({ trxId: z.string() });
+
+/** Refunds per list page. */
+export const REFUNDS_PAGE_SIZE = 50;
+
+const idQuery = z.string().regex(/^[0-9a-f]{24}$/i, 'Must be an id');
+
+/** Without filters the list is the wallet refunds staff still have to send by hand. */
+const listQuery = z.object({
+  method: z.enum(REFUND_METHODS).default('wallet'),
+  status: z.enum(['pending', 'succeeded', 'failed']).default('pending'),
+  venueId: idQuery.optional(),
+  before: idQuery.optional(),
+});
 const invalid = () => new AppError(409, 'invalid_transition', 'This refund cannot be changed that way');
 
 /** Mounted on ownerRouter. */
@@ -26,6 +41,50 @@ export function refundsRouter(config: Config, services: AppServices): Router {
     if (!refund) throw new AppError(404, 'not_found', 'Refund not found');
     return refund;
   };
+
+  /**
+   * Refunds across bookings, newest first, each with a short summary of its booking. Paged by
+   * `before` (the last id of the previous page); `nextBefore` is null on the last page.
+   */
+  router.get('/refunds', requirePermission('payment.verify'), async (req, res) => {
+    const t = tenantOf(req);
+    const q = listQuery.parse(req.query);
+    const filter: Record<string, unknown> = { method: q.method, status: q.status };
+    if (q.venueId) {
+      await scopedVenue(t, q.venueId);
+      filter.venueId = q.venueId;
+    }
+    if (q.before) filter._id = { $lt: q.before };
+    const rows = await tenantRepo(Refund, t, { venueField: 'venueId' })
+      .find(filter)
+      .sort({ _id: -1 })
+      .limit(REFUNDS_PAGE_SIZE + 1);
+    const page = rows.slice(0, REFUNDS_PAGE_SIZE);
+    const bookings = page.length
+      ? await ownerBookingsJson(await Booking.find({ ownerId: t.ownerId, _id: { $in: page.map((r) => r.bookingId) } }))
+      : [];
+    const bookingById = new Map(bookings.map((b) => [b.id, b]));
+    const json = await ownerRefundsJson(page);
+    res.json({
+      refunds: page.map((r, i) => {
+        const b = bookingById.get(String(r.bookingId));
+        return {
+          ...json[i]!,
+          booking: b
+            ? {
+                id: b.id,
+                reference: b.reference,
+                businessDate: b.businessDate,
+                venueId: b.venueId,
+                turf: b.turf,
+                customer: b.customer ? { name: b.customer.name, phone: b.customer.phone } : null,
+              }
+            : null,
+        };
+      }),
+      nextBefore: rows.length > REFUNDS_PAGE_SIZE ? String(page[page.length - 1]!._id) : null,
+    });
+  });
 
   /**
    * Inside the transaction: replaces a failed refund with a new row (`method` card or cash) against

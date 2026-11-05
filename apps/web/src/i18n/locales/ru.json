@@ -253,7 +253,8 @@
     "turf_change_not_allowed": "Для этой брони нельзя сменить поле.",
     "booking_changed": "Бронь изменилась. Проверьте её и повторите.",
     "export_too_large": "Слишком много строк для одного файла. Выберите период короче.",
-    "saved_venues_full": "Список сохранённых заполнен. Уберите площадку, чтобы сохранить другую."
+    "saved_venues_full": "Список сохранённых заполнен. Уберите площадку, чтобы сохранить другую.",
+    "card_refund_unavailable": "У этой оплаты картой нет привязанного платёжного аккаунта, вернуть её автоматически нельзя. Напишите в поддержку."
   },
   "myBookings": {
     "title": "Мои брони",
@@ -3009,6 +3010,247 @@
     },
     "checkout": {
       "locked": "Дополнения и промокод заблокированы, пока бронь, возможно, ещё оформляется. Нажмите «Забронировать» ещё раз, чтобы проверить."
+    },
+    "owner": {
+      "shell": {
+        "cardHint": "Игры на сегодня, гости без записи и оплаты.",
+        "teams_one": "{{count}} команда",
+        "teams_few": "{{count}} команды",
+        "teams_many": "{{count}} команд",
+        "teams_other": "{{count}} команды",
+        "insights": "Сводка",
+        "more": "Ещё",
+        "newWalkIn": "Новая бронь без записи",
+        "toPlayer": "Режим игрока"
+      },
+      "team": {
+        "staff": {
+          "add": "Добавить",
+          "contact": "Телефон или email",
+          "contactErr": "Введите телефон или email.",
+          "role": {
+            "manager": "Менеджер",
+            "managerHint": "Всё, кроме команды и настроек оплаты",
+            "staff": "Администратор",
+            "staffHint": "Брони, гости без брони, отметка прихода, наличные",
+            "customHint": "Своя роль. Меняется в веб-версии."
+          },
+          "removeFromTeam": "Убрать из команды",
+          "removeAsk": "Доступ к команде пропадёт сразу.",
+          "webNote": "Свои роли и журнал действий — в веб-версии."
+        },
+        "reviews": {
+          "report": "Пожаловаться",
+          "reportHint": "Отзыв останется на сайте, пока его не проверит команда платформы."
+        }
+      },
+      "settings": {
+        "teamDefault": "Для всей команды",
+        "useTeamDefault": "Как для всей команды",
+        "booking": "Бронирование",
+        "rules": "Правила",
+        "gettingPaid": "Приём оплаты",
+        "deposit": "Предоплата",
+        "windowDetail_one": "Бронь до {{count}} дня вперёд",
+        "windowDetail_few": "Бронь до {{count}} дней вперёд",
+        "windowDetail_many": "Бронь до {{count}} дней вперёд",
+        "windowDetail_other": "Бронь до {{count}} дня вперёд",
+        "refundRule": "{{hours}} ч+ {{percent}}%",
+        "noRefunds": "Без возврата",
+        "on": "Вкл.",
+        "off": "Выкл.",
+        "notSet": "Не задан",
+        "walletUse": "Принимать оплату через {{provider}}",
+        "depositNone": "Онлайн ничего, всё на месте",
+        "depositFull": "Вся сумма онлайн",
+        "depositPercent": "{{percent}}% онлайн, остальное на месте",
+        "depositFixed": "{{amount}} онлайн, остальное на месте",
+        "webNote": "Платёжные шлюзы (SSLCommerz, Stripe), часы работы и SMS настраиваются в веб-версии.",
+        "fee": {
+          "payWeb": "Оплатить комиссию пока можно только в веб-версии кабинета.",
+          "cardWeb": "Оплатить картой можно только в веб-версии кабинета."
+        }
+      },
+      "more": {
+        "switchTeam": "{{role}} · сменить команду",
+        "seriesWaiting_one": "{{count}} заявка ждёт",
+        "seriesWaiting_few": "{{count}} заявки ждут",
+        "seriesWaiting_many": "{{count}} заявок ждут",
+        "seriesWaiting_other": "{{count}} заявки ждут"
+      },
+      "venues": {
+        "webNote": "Новые площадки, метка на карте и мастер настройки — на веб-портале.",
+        "courts_one": "{{count}} поле",
+        "courts_few": "{{count}} поля",
+        "courts_many": "{{count}} полей",
+        "courts_other": "{{count}} поля",
+        "show": "Показывать игрокам",
+        "showHint": "Выкл. — скрыто из поиска",
+        "courtsTitle": "Поля",
+        "venueTitle": "Площадка",
+        "address": "Адрес",
+        "photos_one": "{{count}} фото",
+        "photos_few": "{{count}} фото",
+        "photos_many": "{{count}} фото",
+        "photos_other": "{{count}} фото",
+        "noPhotos": "Фото пока нет",
+        "hours": "Часы работы",
+        "everyDay": "Каждый день {{hours}}",
+        "variesByDay": "По дням по-разному",
+        "closedAllWeek": "Закрыто всю неделю",
+        "detailsNote": "Название, адрес, фото и часы меняются на сайте.",
+        "addCourt": "Добавить поле",
+        "newCourt": "Новое поле",
+        "perSlot": "{{price}} / {{minutes}} мин",
+        "noPrice": "Цены пока нет",
+        "off": "Выкл.",
+        "sameAsVenue": "Как у площадки",
+        "ownHours": "Свои часы",
+        "basePrice": "Цена за слот ({{currency}})",
+        "priceErr": "Введите сумму, например 900.",
+        "shorter": "Короче слот",
+        "longer": "Длиннее слот",
+        "rulesNote_one": "На этом поле действует {{count}} правило цены. Правила, часы и разовые изменения — на сайте.",
+        "rulesNote_few": "На этом поле действуют {{count}} правила цены. Правила, часы и разовые изменения — на сайте.",
+        "rulesNote_many": "На этом поле действуют {{count}} правил цены. Правила, часы и разовые изменения — на сайте.",
+        "rulesNote_other": "На этом поле действуют {{count}} правила цены. Правила, часы и разовые изменения — на сайте.",
+        "noRulesNote": "Правила цен, часы и разовые изменения — на сайте.",
+        "create": "Добавить поле"
+      },
+      "setup": {
+        "closures": {
+          "wholeVenue": "Вся площадка",
+          "oneCourt": "Одно поле",
+          "allCourts": "Все поля",
+          "allDay": "Весь день",
+          "note": "Уже сделанные брони на эти дни остаются. Проверьте их в «Бронированиях».",
+          "deleteLabel": "Удалить закрытие {{dates}}",
+          "dayBefore": "День раньше",
+          "dayAfter": "День позже"
+        },
+        "coupons": {
+          "used_one": "Использован {{count}} раз",
+          "used_few": "Использован {{count}} раза",
+          "used_many": "Использован {{count}} раз",
+          "used_other": "Использован {{count}} раза",
+          "usedOf": "{{used}} из {{max}} использовано",
+          "percentOff": "Скидка {{percent}}",
+          "typePercent": "Скидка %",
+          "typeFixed": "Скидка {{currency}}",
+          "discount": "Скидка",
+          "starts": "Начало",
+          "ends": "Конец",
+          "now": "Сейчас",
+          "noEnd": "Без конца",
+          "clear": "Сбросить",
+          "webOnly": "Мин. сумма, лимит на игрока и потолок скидки — только на сайте.",
+          "toggleLabel": "{{code}} включён"
+        },
+        "extras": {
+          "catalogue": "в каталоге {{price}}",
+          "tapHint": "Нажмите на строку, чтобы изменить цену для этой площадки.",
+          "webNote": "Новые допы добавляются в каталог на сайте.",
+          "priceTitle": "{{name}} — {{venue}}",
+          "priceLabel": "Цена здесь ({{currency}})",
+          "priceHint": "Оставьте пустым для цены каталога: {{price}}.",
+          "needPrice": "Цена этого допа в другой валюте. Сначала задайте цену для площадки.",
+          "offerLabel": "Предлагать {{name}}"
+        },
+        "save": "Сохранить",
+        "dateNote": "Выберите дату"
+      },
+      "insights": {
+        "noAccess": "Вашей роли аналитика недоступна.",
+        "days_one": "{{count}} день",
+        "days_few": "{{count}} дня",
+        "days_many": "{{count}} дней",
+        "days_other": "{{count}} дня",
+        "revenueByWeek": "Выручка по неделям",
+        "revenueByDay": "Выручка по дням",
+        "noRevenue": "За этот период выручки нет.",
+        "busiest": "Самые загруженные поля",
+        "courtUse": "занято {{use}} · {{hours}}",
+        "noCourts": "За этот период нет данных по полям.",
+        "venues": "Площадка"
+      },
+      "series": {
+        "intro": "То же поле, то же время, каждую неделю.",
+        "filterLabel": "Показать",
+        "requests": "Заявки",
+        "all": "Все",
+        "more": "Показать ещё",
+        "games_one": "{{count}} игра",
+        "games_few": "{{count}} игры",
+        "games_many": "{{count}} игр",
+        "games_other": "{{count}} игры",
+        "free_one": "свободно: {{count}}",
+        "free_few": "свободно: {{count}}",
+        "free_many": "свободно: {{count}}",
+        "free_other": "свободно: {{count}}",
+        "clash_one": "накладок: {{count}}",
+        "clash_few": "накладок: {{count}}",
+        "clash_many": "накладок: {{count}}",
+        "clash_other": "накладок: {{count}}",
+        "freeBadge": "Свободно",
+        "clashBadge": "Накладка · {{reason}}",
+        "clashNote": "Если принять, даты с накладками будут пропущены.",
+        "accept_one": "Принять {{count}} игру",
+        "accept_few": "Принять {{count}} игры",
+        "accept_many": "Принять {{count}} игр",
+        "accept_other": "Принять {{count}} игры",
+        "preview": "Проверка дат",
+        "earlier": "Раньше",
+        "later": "Позже",
+        "noAccess": "Ваша роль не может добавлять серии.",
+        "customerPlayer": "Зарегистрированный игрок",
+        "perGame": "За игру",
+        "listNoAccess": "Вашей роли серии недоступны."
+      },
+      "bookings": {
+        "series": "Серия",
+        "show_one": "Показать {{count}} бронь",
+        "show_few": "Показать {{count}} брони",
+        "show_many": "Показать {{count}} броней",
+        "show_other": "Показать {{count}} брони",
+        "datePlaceholder": "ГГГГ-ММ-ДД",
+        "dateInvalid": "Формат даты: ГГГГ-ММ-ДД."
+      },
+      "walkin": {
+        "whoPlaying": "Кто играет?",
+        "noAccess": "В этой команде вы не можете создавать брони.",
+        "linkTitle": "Ссылка на оплату готова",
+        "linkBody": "Отправьте её {{name}}, сумма {{amount}}.",
+        "shareLink": "Поделиться",
+        "openBooking": "Открыть бронь"
+      },
+      "booking": {
+        "holdToCopy": "Удерживайте, чтобы скопировать",
+        "full": "Вся сумма",
+        "saveCash": "Записать {{amount}} наличными",
+        "shareLink": "Поделиться ссылкой"
+      },
+      "today": {
+        "view": "Вид",
+        "summary": "Сводка",
+        "schedule": "Расписание",
+        "free": "Свободно · {{price}}",
+        "noCourts": "Нет активных полей",
+        "nowAt": "Сейчас {{time}}",
+        "dueAmount": "К оплате {{amount}}"
+      },
+      "refunds": {
+        "title": "Возвраты к отправке",
+        "intro": "Отправьте деньги из приложения кошелька, затем отметьте возврат с ID транзакции.",
+        "waiting_one": "{{n}} ждёт отправки",
+        "waiting_few": "{{n}} ждут отправки",
+        "waiting_many": "{{n}} ждут отправки",
+        "waiting_other": "{{n}} ждут отправки",
+        "empty": "Нет возвратов к отправке. Всё сделано.",
+        "noAccess": "Отправлять возвраты могут только те, кто проверяет платежи.",
+        "booking": "{{customer}} · {{reference}} · {{date}}",
+        "openBooking": "Открыть бронь {{reference}}",
+        "more": "Показать ещё"
+      }
     }
   }
 }

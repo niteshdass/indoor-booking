@@ -8,6 +8,7 @@ import { useAuth } from '../../src/auth/useAuth';
 import { setLanguage, SUPPORTED_LANGUAGES } from '../../src/i18n';
 import { apiPatch } from '../../src/lib/api';
 import { errorMessage } from '../../src/lib/errors';
+import { OwnerEntryCard } from '../../src/owner/OwnerEntryCard';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { Button, Card, Field, Screen, Text } from '../../src/ui';
 
@@ -98,6 +99,8 @@ function SignedInAccount({ user }: { user: PublicUser }) {
       <Text variant="heading" tone="strong" accessibilityRole="header">
         {tr('mobile.tabs.account')}
       </Text>
+
+      <OwnerEntryCard />
 
       <Card>
         <Text variant="title" tone="strong">

@@ -22,7 +22,11 @@ type Tab = (typeof TABS)[number];
 const startMs = (b: BookingJson) => Math.min(...b.slots.map((s) => Date.parse(s.startAt)));
 const endMs = (b: BookingJson) => Math.max(...b.slots.map((s) => Date.parse(s.endAt)));
 
-type State = { status: 'loading' } | { status: 'ready'; bookings: BookingJson[]; series: PlayerSeries[] } | { status: 'error'; error: unknown };
+type State =
+  | { status: 'loading' }
+  | { status: 'ready'; bookings: BookingJson[]; series: PlayerSeries[]; pastCursor: string | null }
+  | { status: 'error'; error: unknown };
+type Page = { bookings: BookingJson[]; pastCursor?: string | null };
 
 export function MyBookingsPage() {
   const { t } = useTranslation();
@@ -35,7 +39,7 @@ export function MyBookingsPage() {
   const fetchAll = useCallback(
     () =>
       Promise.all([
-        apiGet<{ bookings: BookingJson[] }>('/me/bookings'),
+        apiGet<Page>('/me/bookings'),
         apiGet<{ series: PlayerSeries[] }>('/me/series').catch(() => ({ series: [] as PlayerSeries[] })),
       ]),
     [],
@@ -45,7 +49,7 @@ export function MyBookingsPage() {
     let live = true;
     setState({ status: 'loading' });
     fetchAll().then(
-      ([b, s]) => live && setState({ status: 'ready', bookings: b.bookings, series: s.series }),
+      ([b, s]) => live && setState({ status: 'ready', bookings: b.bookings, series: s.series, pastCursor: b.pastCursor ?? null }),
       (error) => live && setState({ status: 'error', error }),
     );
     return () => {
@@ -56,11 +60,30 @@ export function MyBookingsPage() {
   // After a series action: refetch in place, keeping what is on screen (no spinner, cards keep their state).
   const refresh = useCallback(() => {
     fetchAll().then(
-      ([b, s]) => setState({ status: 'ready', bookings: b.bookings, series: s.series }),
+      ([b, s]) => setState({ status: 'ready', bookings: b.bookings, series: s.series, pastCursor: b.pastCursor ?? null }),
       // A failed reload must not leave the stale card's actions usable: show the page error with retry instead.
       (error) => setState({ status: 'error', error }),
     );
   }, [fetchAll]);
+
+  // Older past bookings come a page at a time; a failure leaves the button to try again.
+  const [older, setOlder] = useState<{ busy: boolean; error: unknown }>({ busy: false, error: null });
+  const cursor = state.status === 'ready' ? state.pastCursor : null;
+  const showOlder = () => {
+    if (!cursor || older.busy) return;
+    setOlder({ busy: true, error: null });
+    apiGet<Page>(`/me/bookings?${new URLSearchParams({ pastBefore: cursor }).toString()}`).then(
+      (page) => {
+        setOlder({ busy: false, error: null });
+        setState((s) => {
+          if (s.status !== 'ready' || s.pastCursor !== cursor) return s;
+          const have = new Set(s.bookings.map((b) => b.id));
+          return { ...s, bookings: [...s.bookings, ...page.bookings.filter((b) => !have.has(b.id))], pastCursor: page.pastCursor ?? null };
+        });
+      },
+      (error: unknown) => setOlder({ busy: false, error }),
+    );
+  };
 
   const { upcoming, past } = useMemo(() => {
     const up: BookingJson[] = [];
@@ -156,6 +179,14 @@ export function MyBookingsPage() {
               ))}
             </ul>
           ))}
+        {tab === 'past' && state.status === 'ready' && cursor && (
+          <div className={styles.older}>
+            {older.error != null && <Alert tone="danger">{errorMessage(older.error, t)}</Alert>}
+            <Button variant="secondary" icon="chevronDown" loading={older.busy} onClick={showOlder}>
+              {t('myBookings.showOlder')}
+            </Button>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -264,7 +264,8 @@
     "noUpcoming": "You have no upcoming bookings.",
     "noPast": "No past bookings yet.",
     "findVenues": "Find a venue",
-    "saved": "Saved"
+    "saved": "Saved",
+    "showOlder": "Show older bookings"
   },
   "profile": {
     "title": "Profile",

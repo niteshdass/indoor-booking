@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import i18n from '../../src/i18n';
 import en from '../../src/i18n/locales/en.json';
-import { mockApi } from '../helpers/api';
+import { mockApi, type Call } from '../helpers/api';
 import { setAccessToken } from '../../src/lib/apiClient';
 import { renderApp } from '../helpers/render';
 import type { BookingJson, PublicUser } from '../../src/lib/types';
@@ -75,6 +75,26 @@ describe('my bookings', () => {
     const past = within(screen.getByRole('tabpanel')).getAllByRole('link');
     expect(past.map((l) => l.textContent)).toEqual([expect.stringContaining('Arena cx'), expect.stringContaining('Arena old')]);
     expect(past[0]).toHaveAttribute('href', '/me/bookings/cx');
+  });
+
+  it('past tab fetches older bookings a page at a time', async () => {
+    const { calls } = mockApi([
+      {
+        path: '/me/bookings',
+        body: (c: Call) =>
+          c.query.get('pastBefore') === 'CUR1'
+            ? { bookings: [booking('older', '2026-10-01')], pastCursor: null }
+            : { bookings: [booking('old', '2026-11-09')], pastCursor: 'CUR1' },
+      },
+    ]);
+    const { user } = renderApp('/me/bookings', { user: player });
+    await user.click(await screen.findByRole('tab', { name: en.myBookings.past }));
+    await screen.findByText(/Arena old/);
+    await user.click(screen.getByRole('button', { name: en.myBookings.showOlder }));
+    expect(await screen.findByText(/Arena older/)).toBeInTheDocument();
+    expect(within(screen.getByRole('tabpanel')).getAllByRole('link')).toHaveLength(2);
+    expect(screen.queryByRole('button', { name: en.myBookings.showOlder })).not.toBeInTheDocument();
+    expect(calls.filter((c) => c.path === '/me/bookings')).toHaveLength(2);
   });
 
   it('rows show venue-zone time', async () => {

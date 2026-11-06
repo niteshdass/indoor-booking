@@ -3128,7 +3128,8 @@
         "free": "Free · {{price}}",
         "noCourts": "No active courts",
         "nowAt": "Now, {{time}}",
-        "dueAmount": "{{amount}} due"
+        "dueAmount": "{{amount}} due",
+        "noAccess": "Your role cannot see bookings. Open More for the pages you can use."
       },
       "refunds": {
         "title": "Refunds to send",

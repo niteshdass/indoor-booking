@@ -28,7 +28,7 @@ type Open = { id: string; start?: Action } | null;
 export function TodayScreen() {
   const { t: tr } = useTranslation();
   const { t } = useTheme();
-  const { owner, venues } = useOwner();
+  const { owner, venues, can } = useOwner();
   const [switcher, setSwitcher] = useState(false);
   const [venueId, setVenueId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
@@ -48,11 +48,18 @@ export function TodayScreen() {
           </Text>
           <Icon name="chevronDown" color={t.textMuted} size={t.iconSm} />
         </Pressable>
-        {venue && venues.length > 1 ? (
+        {venue && venues.length > 1 && can('booking.view') ? (
           <LabelChip label={venue.name} selected={false} onPress={() => setPicking(true)} />
         ) : null}
       </View>
-      {venue ? <TodayVenue key={venue.id} venue={venue} /> : <Empty>{tr('owner.today.noVenues')}</Empty>}
+      {/* Everything on Today is bookings, which the API only shows to booking.view (the web hides Today too). */}
+      {!can('booking.view') ? (
+        <Text tone="muted">{tr('mobile.owner.today.noAccess')}</Text>
+      ) : venue ? (
+        <TodayVenue key={venue.id} venue={venue} />
+      ) : (
+        <Empty>{tr('owner.today.noVenues')}</Empty>
+      )}
       <TeamSwitcher visible={switcher} onClose={() => setSwitcher(false)} />
       <Sheet visible={picking} onClose={() => setPicking(false)} title={tr('owner.venue')}>
         <Group>

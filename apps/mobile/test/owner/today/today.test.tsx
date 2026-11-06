@@ -50,6 +50,12 @@ const renderToday = (over?: Parameters<typeof ownerValue>[0]) =>
   );
 
 describe('today tab', () => {
+  it('says so, and loads nothing, for a role that cannot see bookings', async () => {
+    await renderToday({ perms: ['venue.manage'] });
+    expect(await screen.findByText('Your role cannot see bookings. Open More for the pages you can use.')).toBeTruthy();
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+
   it('reloads when the tab comes back into focus', async () => {
     today = [makeBooking('b2', 'Mina', {}, 3)];
     await renderToday();

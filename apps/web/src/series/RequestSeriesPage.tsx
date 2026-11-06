@@ -18,6 +18,7 @@ import { SeriesPreviewList } from './SeriesPreviewList';
 import type { SeriesJson, SeriesPattern, SeriesPreview } from './types';
 import styles from './RequestSeriesPage.module.css';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { scrollBehavior } from '../lib/motion';
 
 /** Player: ask a venue for a weekly booking after checking which dates are free. */
 export function RequestSeriesPage() {
@@ -75,8 +76,7 @@ function Request({ venue }: { venue: PublicVenue }) {
   // Bring the new dates and the Send button into view once they load.
   useEffect(() => {
     if (!preview) return;
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    previewRef.current?.scrollIntoView?.({ block: 'end', behavior: reduce ? 'auto' : 'smooth' });
+    previewRef.current?.scrollIntoView?.({ block: 'end', behavior: scrollBehavior() });
   }, [preview]);
 
   const turf = venue.turfs.find((x) => x.id === turfId);

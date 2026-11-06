@@ -30,6 +30,7 @@ import { walkInEstimate, type WalkInEstimate } from './walkInEstimate';
 import common from '../ownerForm.module.css';
 import styles from './WalkInPage.module.css';
 import { useRetryKey } from '../../lib/useRetryKey';
+import { scrollBehavior } from '../../lib/motion';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Errors that mean the slot grid on screen is stale. */
@@ -469,7 +470,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
               size="sm"
               icon="arrowRight"
               onClick={() => {
-                side.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                side.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
                 side.current?.querySelector('input')?.focus({ preventScroll: true });
               }}
             >

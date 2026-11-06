@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@booking/shared';
 import { ApiError, apiGet, apiPost } from '../lib/api';
 import { errorMessage } from '../lib/errors';
 import { useTheme } from '../theme/ThemeProvider';
-import { Button, Field, Text } from '../ui';
+import { Button, Field, Sheet, Text } from '../ui';
 import type { CancellationPreview, PlayerBooking } from './types';
 
 const REASON_MAX = 300;
@@ -20,7 +20,6 @@ type Load = { status: 'loading' } | { status: 'ready'; preview: CancellationPrev
  */
 export function CancelSheet({ visible, bookingId, onClose, onCancelled }: { visible: boolean; bookingId: string; onClose(): void; onCancelled(booking: PlayerBooking): void }) {
   const { t: tr, i18n } = useTranslation();
-  const { t } = useTheme();
   const [load, setLoad] = useState<Load>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [reason, setReason] = useState('');
@@ -66,42 +65,32 @@ export function CancelSheet({ visible, bookingId, onClose, onCancelled }: { visi
   const final = error instanceof ApiError && FINAL_ERRORS.has(error.code);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <Pressable accessibilityElementsHidden importantForAccessibility="no" onPress={close} style={{ flex: 1, backgroundColor: t.overlay }} />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View accessibilityViewIsModal style={{ maxHeight: '90%', backgroundColor: t.bgSurfaceRaised, borderTopLeftRadius: t.radiusLg, borderTopRightRadius: t.radiusLg, ...t.shadowMd }}>
-          <ScrollView contentContainerStyle={{ padding: t.space4, gap: t.space3 }} keyboardShouldPersistTaps="handled">
-            <Text variant="title" tone="strong" accessibilityRole="header">
-              {tr('cancel.title')}
-            </Text>
-            {load.status === 'loading' ? <ActivityIndicator accessibilityLabel={tr('common.loading')} /> : null}
-            {load.status === 'error' ? (
-              <>
-                <Text tone="danger" accessibilityRole="alert">
-                  {errorMessage(load.error, tr)}
-                </Text>
-                <Button label={tr('search.retry')} variant="secondary" onPress={() => setAttempt((n) => n + 1)} />
-              </>
-            ) : null}
-            {load.status === 'ready' ? (
-              <>
-                <Preview preview={load.preview} lang={i18n.language} />
-                <Field label={tr('cancel.reason')} value={reason} onChangeText={setReason} maxLength={REASON_MAX} multiline />
-              </>
-            ) : null}
-            {error !== null ? (
-              <Text tone="danger" accessibilityRole="alert">
-                {errorMessage(error, tr)}
-              </Text>
-            ) : null}
-            <Button label={tr('cancel.keep')} variant="secondary" disabled={busy} onPress={close} />
-            {load.status === 'ready' && !final ? (
-              <Button label={tr('mobile.bookings.confirmCancel')} tone="danger" loading={busy} disabled={busy} onPress={() => void confirm()} />
-            ) : null}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    <Sheet visible={visible} onClose={close} title={tr('cancel.title')}>
+      {load.status === 'loading' ? <ActivityIndicator accessibilityLabel={tr('common.loading')} /> : null}
+      {load.status === 'error' ? (
+        <>
+          <Text tone="danger" accessibilityRole="alert">
+            {errorMessage(load.error, tr)}
+          </Text>
+          <Button label={tr('search.retry')} variant="secondary" onPress={() => setAttempt((n) => n + 1)} />
+        </>
+      ) : null}
+      {load.status === 'ready' ? (
+        <>
+          <Preview preview={load.preview} lang={i18n.language} />
+          <Field label={tr('cancel.reason')} value={reason} onChangeText={setReason} maxLength={REASON_MAX} multiline />
+        </>
+      ) : null}
+      {error !== null ? (
+        <Text tone="danger" accessibilityRole="alert">
+          {errorMessage(error, tr)}
+        </Text>
+      ) : null}
+      <Button label={tr('cancel.keep')} variant="secondary" disabled={busy} onPress={close} />
+      {load.status === 'ready' && !final ? (
+        <Button label={tr('mobile.bookings.confirmCancel')} tone="danger" loading={busy} disabled={busy} onPress={() => void confirm()} />
+      ) : null}
+    </Sheet>
   );
 }
 

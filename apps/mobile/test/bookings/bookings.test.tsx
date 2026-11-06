@@ -4,6 +4,7 @@ import { Linking } from 'react-native';
 import { formatMoney } from '@booking/shared';
 import { AuthContext, type AuthContextValue } from '../../src/auth/useAuth';
 import { ApiError } from '../../src/lib/api';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '../../src/theme/ThemeProvider';
 import BookingsScreen from '../../app/(tabs)/bookings';
 import BookingDetailScreen from '../../app/booking/[id]/index';
@@ -64,10 +65,13 @@ const past = (id: string, over: Record<string, unknown> = {}) =>
 
 const user = { id: 'u1', name: 'Asha', email: 'a@b.c', emailVerified: true, phone: '+8801712345678', hasPassword: true, hasGoogle: false, platformAdmin: false };
 const auth: AuthContextValue = { status: 'signedIn', user, signIn: jest.fn(), setUser: jest.fn(), signOut: jest.fn(), retry: jest.fn() };
+const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 const wrap = (node: React.ReactNode, value: Partial<AuthContextValue> = {}) => (
-  <ThemeProvider>
-    <AuthContext.Provider value={{ ...auth, ...value }}>{node}</AuthContext.Provider>
-  </ThemeProvider>
+  <SafeAreaProvider initialMetrics={metrics}>
+    <ThemeProvider>
+      <AuthContext.Provider value={{ ...auth, ...value }}>{node}</AuthContext.Provider>
+    </ThemeProvider>
+  </SafeAreaProvider>
 );
 
 const preview = (over: Record<string, unknown> = {}) => ({

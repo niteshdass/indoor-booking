@@ -1,5 +1,5 @@
 .dialog {
-  width: min(90vw, 480px);
+  width: min(90vw, var(--dialog-width));
   padding: var(--space-6);
   border-radius: var(--radius-xl);
   background: var(--bg-surface-raised);

@@ -214,6 +214,7 @@
   --border-subtle: #e0e4e3;
   --border-default: #d2d8d9;
   --border-strong: #b6bec3;
+  --field-edge: #7d878c; /* bottom edge of a filled field: 3:1 on page, surface and raised */
   --text-strong: #14181e;
   --text-default: #2a313b;
   --text-muted: #5a6370;
@@ -275,6 +276,7 @@
   --border-subtle: #262e37;
   --border-default: #313b46;
   --border-strong: #43505d;
+  --field-edge: #6f7c88; /* bottom edge of a filled field: 3:1 on page, surface and raised */
   --star-empty: #7b8696;
   --text-strong: #f3f5f2;
   --text-default: #d3d8de;
@@ -320,6 +322,7 @@
     --border-subtle: #262e37;
     --border-default: #313b46;
     --border-strong: #43505d;
+    --field-edge: #6f7c88;
     --star-empty: #7b8696;
     --text-strong: #f3f5f2;
     --text-default: #d3d8de;

@@ -68,7 +68,8 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
   const tz = venues.find((v) => v.id === booking.venueId)?.timezone ?? 'UTC';
   const [text, setText] = useState('');
   const [invalid, setInvalid] = useState(false);
-  const [asking, setAsking] = useState(false);
+  /** A second step inside the dialog: confirming "not received", or a short amount. */
+  const [asking, setAsking] = useState<false | 'reject' | 'short'>(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const busy = useRef(false);
@@ -91,7 +92,7 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
   }
   const fmt = (n: number) => money(n, booking.currency, lang);
 
-  const post = async (segment: 'verify' | 'reject', body: { amountReceived?: number }) => {
+  const post = async (segment: 'verify' | 'reject', body: { amountReceived?: number; acceptShort?: boolean }) => {
     if (busy.current) return;
     busy.current = true;
     setSubmitting(true);
@@ -117,6 +118,10 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
       return;
     }
     setInvalid(false);
+    if (received < due && booking.status !== 'expired') {
+      setAsking('short');
+      return;
+    }
     void post('verify', received === due ? {} : { amountReceived: received });
   };
 
@@ -153,7 +158,27 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
             <dd>{formatDateTime(mp.submittedAt, tz, lang)}</dd>
           </dl>
 
-          {asking ? (
+          {asking === 'short' && received !== null ? (
+            <>
+              <p className={shared.description}>
+                {t('owner.verify.shortAsk', { received: fmt(received), due: fmt(due), rest: fmt(due - received) })}
+              </p>
+              {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
+              <div className={shared.actions}>
+                <Button type="button" variant="secondary" icon="arrowLeft" disabled={submitting} onClick={() => setAsking(false)}>
+                  {t('owner.verify.back')}
+                </Button>
+                <Button
+                  type="button"
+                  icon="check"
+                  loading={submitting}
+                  onClick={() => void post('verify', { amountReceived: received, acceptShort: true })}
+                >
+                  {t('owner.verify.shortConfirm')}
+                </Button>
+              </div>
+            </>
+          ) : asking ? (
             <>
               <p className={shared.description}>{t('owner.verify.notReceivedAsk')}</p>
               {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
@@ -187,7 +212,7 @@ export function VerifyPaymentDialog({ open, booking, onClose, onDone, onConflict
               />
               {error !== null && <Alert tone="danger">{errorMessage(error, t)}</Alert>}
               <div className={shared.actions}>
-                <Button type="button" variant="danger" icon="ban" disabled={submitting} onClick={() => setAsking(true)}>
+                <Button type="button" variant="danger" icon="ban" disabled={submitting} onClick={() => setAsking('reject')}>
                   {t('owner.verify.notReceived')}
                 </Button>
                 <Button icon="check" type="submit" loading={submitting}>

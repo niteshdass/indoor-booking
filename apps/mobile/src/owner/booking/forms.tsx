@@ -117,7 +117,7 @@ export function VerifyForm({ booking, onDone, onBack }: FormProps) {
   const due = mp?.amount ?? 0;
   const [text, setText] = useState(forInput(due, booking.currency));
   const [invalid, setInvalid] = useState(false);
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState<false | 'reject' | 'short'>(false);
   const { post, busy, error } = usePost(() => onDone());
   if (!mp) return null;
   const received = parsed(text, booking.currency);
@@ -129,6 +129,7 @@ export function VerifyForm({ booking, onDone, onBack }: FormProps) {
   const verify = () => {
     if (received === null) return setInvalid(true);
     setInvalid(false);
+    if (received < due && booking.status !== 'expired') return setAsking('short');
     void send('verify', received === due ? {} : { amountReceived: received });
   };
   const hint =
@@ -156,7 +157,19 @@ export function VerifyForm({ booking, onDone, onBack }: FormProps) {
         <Line label={tr('owner.verify.due')} value={fmt(due)} />
         <Line label={tr('owner.verify.submitted')} value={dateTime(mp.submittedAt, tz, i18n.language)} />
       </View>
-      {asking ? (
+      {asking === 'short' && received !== null ? (
+        <>
+          <Text>{tr('owner.verify.shortAsk', { received: fmt(received), due: fmt(due), rest: fmt(due - received) })}</Text>
+          <ErrorLine error={error} />
+          <Button
+            label={tr('owner.verify.shortConfirm')}
+            loading={busy}
+            disabled={busy}
+            onPress={() => void send('verify', { amountReceived: received, acceptShort: true })}
+          />
+          <Button label={tr('owner.verify.back')} variant="secondary" disabled={busy} onPress={() => setAsking(false)} />
+        </>
+      ) : asking ? (
         <>
           <Text>{tr('owner.verify.notReceivedAsk')}</Text>
           <ErrorLine error={error} />
@@ -175,7 +188,7 @@ export function VerifyForm({ booking, onDone, onBack }: FormProps) {
           />
           <ErrorLine error={error} />
           <Button label={tr('owner.verify.received')} loading={busy} disabled={busy} onPress={verify} />
-          <Button label={tr('owner.verify.notReceived')} variant="secondary" tone="danger" disabled={busy} onPress={() => setAsking(true)} />
+          <Button label={tr('owner.verify.notReceived')} variant="secondary" tone="danger" disabled={busy} onPress={() => setAsking('reject')} />
           <Button label={tr('owner.verify.back')} variant="ghost" disabled={busy} onPress={onBack} />
         </>
       )}

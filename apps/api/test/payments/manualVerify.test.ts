@@ -137,9 +137,17 @@ describe('POST /bookings/:id/payments/manual/verify', () => {
     expect(JSON.stringify(logs)).not.toContain('8801812345678');
   });
 
+  it('less received needs staff to accept it, so a typo does not confirm a barely-paid booking', async () => {
+    const { bookingId } = await submitted();
+    const res = await verify(bookingId, { amountReceived: 1 });
+    expect([res.status, res.body.error.code]).toEqual([409, 'short_payment']);
+    expect(await bookingOf(bookingId)).toMatchObject({ status: 'pending', amountPaid: 0 });
+    expect((await paymentsOf(bookingId))[0]).toMatchObject({ status: 'pending' });
+  });
+
   it('verify with less received leaves the rest due', async () => {
     const { bookingId } = await submitted();
-    const res = await verify(bookingId, { amountReceived: ADVANCE - 10000 });
+    const res = await verify(bookingId, { amountReceived: ADVANCE - 10000, acceptShort: true });
     expect(res.status).toBe(200);
     expect(await bookingOf(bookingId)).toMatchObject({ status: 'confirmed', amountPaid: ADVANCE - 10000 });
     expect((await paymentsOf(bookingId))[0]).toMatchObject({ status: 'succeeded', amount: ADVANCE - 10000 });
@@ -183,7 +191,7 @@ describe('POST /bookings/:id/payments/manual/verify', () => {
     expect((await submit(player, ids[1]!)).status).toBe(201);
 
     // Verified from the second booking; the received amount covers the first in full and half the second.
-    const res = await verify(ids[1]!, { amountReceived: ADVANCE + ADVANCE / 2 });
+    const res = await verify(ids[1]!, { amountReceived: ADVANCE + ADVANCE / 2, acceptShort: true });
     expect(res.status).toBe(200);
     expect(res.body.booking).toMatchObject({ id: ids[1], status: 'confirmed' });
     expect(await bookingOf(ids[0]!)).toMatchObject({ status: 'confirmed', amountPaid: ADVANCE });

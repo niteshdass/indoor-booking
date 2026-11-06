@@ -169,6 +169,7 @@
     "too_many_slots": "You can book at most 12 slots at once.",
     "invalid_transition": "This booking has changed and can't be updated that way.",
     "already_paid": "This booking has already been paid in full.",
+    "short_payment": "Less than the amount due arrived. Check the amount and confirm again.",
     "invalid_amount": "That amount is not valid for this booking.",
     "player_not_found": "No player account matches that customer.",
     "nothing_to_pay": "This booking has nothing to pay, so a payment link is not needed.",
@@ -1879,6 +1880,8 @@
       "notReceived": "Not received",
       "notReceivedAsk": "Mark this payment as not received? The player will be told we couldn't find it.",
       "notReceivedConfirm": "Yes, not received",
+      "shortAsk": "Only {{received}} of {{due}} arrived. Confirm the booking with {{rest}} still due at the venue?",
+      "shortConfirm": "Yes, confirm",
       "back": "Back",
       "lateHint": "These times were taken, so everything received will be listed to send back."
     },

@@ -105,7 +105,9 @@ const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() })
 /** Omitting turfId keeps the booking on its court. */
 const rescheduleSchema = z.object({ turfId: idQuery.optional(), date: isoDateSchema, startAts: startAtsSchema }).strict();
 const cashSchema = z.object({ amount: z.number().int().optional() }).strict();
-const verifySchema = z.object({ amountReceived: z.number().int().min(1).optional() }).strict();
+const verifySchema = z
+  .object({ amountReceived: z.number().int().min(1).optional(), acceptShort: z.boolean().optional() })
+  .strict();
 
 const invalidAmount = (max: number) =>
   new AppError(400, 'invalid_amount', `Amount must be between 1 and ${max}`);

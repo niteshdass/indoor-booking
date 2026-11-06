@@ -66,8 +66,11 @@ describe('VerifyPaymentDialog', () => {
     await user.type(field, '6.00');
     expect(within(dialog).getByText(sp(i18n.t('owner.verify.shortfall', { rest: money(400, 'BDT', 'en') })))).toBeTruthy();
     await user.click(within(dialog).getByRole('button', { name: V.received }));
+    // A short amount asks first, so a typo cannot confirm the booking.
+    expect(api.calls.find((c) => c.path === `${POST}/verify`)).toBeUndefined();
+    await user.click(within(dialog).getByRole('button', { name: V.shortConfirm }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
-    expect(api.calls.find((c) => c.path === `${POST}/verify`)!.body).toEqual({ amountReceived: 600 });
+    expect(api.calls.find((c) => c.path === `${POST}/verify`)!.body).toEqual({ amountReceived: 600, acceptShort: true });
   });
 
   it('verify dialog shows the excess hint when more arrived', async () => {

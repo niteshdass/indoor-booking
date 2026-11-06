@@ -297,6 +297,13 @@ describe('notifications', () => {
     expect(await Refund.countDocuments({ paymentId: tranId }).setOptions({ crossTenant: true })).toBe(1);
   });
 
+  it('credits what settled, not what the session asked for', async () => {
+    const { tranId } = await openSession();
+    const valId = fake().pay(tranId, { settled: '1.00' });
+    expect((await ipn({ tran_id: tranId, val_id: valId, status: 'VALID' })).status).toBe(200);
+    expect(await Payment.findById(tranId).setOptions({ crossTenant: true })).toMatchObject({ status: 'failed', failureCode: 'amount_mismatch' });
+  });
+
   it('404 for an owner without SSLCommerz', async () => {
     await setup();
     expect((await ipn({ tran_id: 'x', status: 'VALID' })).status).toBe(404);

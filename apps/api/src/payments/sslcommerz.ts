@@ -75,7 +75,11 @@ async function validated(http: SslcommerzHttp, c: SslcommerzCredentials, valId: 
   if (!status || !PAID.has(status) || !tranId || !bankTranId) throw new GatewayError('gateway_error');
   // `currency_type`/`currency_amount` are what the session asked for; `currency`/`amount` the settlement.
   const currency = (str(body, 'currency_type') ?? str(body, 'currency') ?? '').toUpperCase();
-  const decimal = str(body, 'currency_amount') ?? str(body, 'amount') ?? '';
+  const settledCurrency = (str(body, 'currency') ?? '').toUpperCase();
+  // In the session's own currency the settlement is what arrived, so a short one is credited as short. A
+  // converted settlement cannot be compared, so the requested amount stands (SSLCommerz did the conversion).
+  const decimal =
+    settledCurrency === currency ? (str(body, 'amount') ?? str(body, 'currency_amount') ?? '') : (str(body, 'currency_amount') ?? str(body, 'amount') ?? '');
   let amount: number;
   try {
     amount = toMinor(decimal, currency);

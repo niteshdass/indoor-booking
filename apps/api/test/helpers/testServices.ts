@@ -145,7 +145,15 @@ export function makeFakeStripe(now: () => Date = () => new Date()): FakeStripe {
   return factory;
 }
 
-export type SslcommerzAttempt = { status: string; valId: string | null; bankTranId: string | null; amount: string; currency: string };
+export type SslcommerzAttempt = {
+  status: string;
+  valId: string | null;
+  bankTranId: string | null;
+  amount: string;
+  currency: string;
+  /** What actually settled, when it differs from what the session asked for. */
+  settled?: string;
+};
 export type SslcommerzSession = { host: string; storeId: string; form: Record<string, string> };
 
 export type FakeSslcommerz = SslcommerzHttp & {
@@ -154,7 +162,7 @@ export type FakeSslcommerz = SslcommerzHttp & {
   /** Makes the next request to a path containing `path` throw, like a timeout. */
   fail(path: string): void;
   /** The customer pays the last session for `tranId`; returns its val_id. Defaults to the session's amount. */
-  pay(tranId: string, o?: { amount?: string; currency?: string }): string;
+  pay(tranId: string, o?: { amount?: string; currency?: string; settled?: string }): string;
   /** An unpaid attempt (FAILED, CANCELLED, UNATTEMPTED) for `tranId`. */
   attempt(tranId: string, status: string): void;
   /** Status the fake gives new refunds ('success' is accepted, not yet paid out); and what a later query answers. */
@@ -214,7 +222,7 @@ export function makeFakeSslcommerz(): FakeSslcommerz {
           tran_id: v.tranId,
           val_id: v.attempt.valId,
           bank_tran_id: v.attempt.bankTranId,
-          amount: v.attempt.amount,
+          amount: v.attempt.settled ?? v.attempt.amount,
           currency: v.attempt.currency,
           currency_type: v.attempt.currency,
           currency_amount: v.attempt.amount,
@@ -250,6 +258,7 @@ export function makeFakeSslcommerz(): FakeSslcommerz {
         bankTranId: `bank${seq}`,
         amount: o.amount ?? session.form.total_amount!,
         currency: o.currency ?? session.form.currency!,
+        ...(o.settled ? { settled: o.settled } : {}),
       };
       const key = `${session.host}|${session.storeId}`;
       attempts.set(`${key}|${tranId}`, [...(attempts.get(`${key}|${tranId}`) ?? []), attempt]);

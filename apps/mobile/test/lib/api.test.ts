@@ -1,4 +1,4 @@
-import { ApiError, apiGet, apiPost, setAccessToken } from '../../src/lib/api';
+import { ApiError, apiGet, apiPost, REQUEST_TIMEOUT_MS, setAccessToken } from '../../src/lib/api';
 
 const json = (status: number, body?: unknown) =>
   ({ ok: status >= 200 && status < 300, status, json: async () => body }) as Response;
@@ -25,5 +25,21 @@ describe('api client', () => {
     fetchMock.mockRejectedValue(new TypeError('fail'));
     await expect(apiGet('/x')).rejects.toMatchObject({ status: 0, code: 'network_error' });
     expect(ApiError).toBeDefined();
+  });
+
+  it('gives up on a request that never answers', async () => {
+    jest.useFakeTimers();
+    try {
+      fetchMock.mockImplementation(
+        (_url: string, init: RequestInit) =>
+          new Promise((_resolve, reject) => init.signal!.addEventListener('abort', () => reject(new Error('aborted')))),
+      );
+      const pending = apiGet('/x');
+      const settled = expect(pending).rejects.toMatchObject({ status: 0, code: 'network_error' });
+      jest.advanceTimersByTime(REQUEST_TIMEOUT_MS);
+      await settled;
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

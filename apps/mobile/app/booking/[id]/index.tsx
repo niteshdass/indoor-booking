@@ -12,6 +12,7 @@ import { StatusBadge } from '../../../src/bookings/StatusBadge';
 import type { PlayerBooking } from '../../../src/bookings/types';
 import { apiGet, ApiError } from '../../../src/lib/api';
 import { errorMessage } from '../../../src/lib/errors';
+import { serverNow } from '../../../src/lib/serverClock';
 import { usePayBooking } from '../../../src/payment/usePayBooking';
 import { useTheme } from '../../../src/theme/ThemeProvider';
 import { Button, Card, Text } from '../../../src/ui';
@@ -123,7 +124,7 @@ export default function BookingDetailScreen() {
   const waiting = manualPending(booking);
   // A wallet payment waiting on an expired booking was sent after its times were taken.
   const late = waiting && booking.status === 'expired';
-  const holdLive = !booking.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();
+  const holdLive = !booking.holdExpiresAt || Date.parse(booking.holdExpiresAt) > serverNow();
   const paymentConfirming = confirming === '1' && booking.status === 'awaiting_payment';
   const showPayNow = booking.status === 'awaiting_payment' && holdLive && !waiting && !paymentConfirming;
   const due = amountDue(booking);

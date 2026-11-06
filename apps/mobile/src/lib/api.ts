@@ -1,3 +1,5 @@
+import { noteServerDate } from './serverClock';
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -46,6 +48,7 @@ export const REQUEST_TIMEOUT_MS = 20_000;
 async function send<T>(path: string, init: RequestInit | undefined, token: string | null): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const sentAt = Date.now();
   try {
     let res: Response;
     try {
@@ -64,6 +67,7 @@ async function send<T>(path: string, init: RequestInit | undefined, token: strin
     } catch {
       throw new ApiError(0, 'network_error', 'Network request failed');
     }
+    noteServerDate(res.headers?.get('Date') ?? null, sentAt, Date.now());
 
     const body: unknown = await res.json().catch(() => undefined);
     // The body stalled past the timeout: what arrived can't be trusted as the answer.

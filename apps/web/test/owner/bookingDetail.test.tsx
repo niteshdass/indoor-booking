@@ -115,7 +115,7 @@ describe('owner booking detail', () => {
 
   it('an owner-paid fee is shown apart, below the total', async () => {
     const platformFee = { mode: 'fixed' as const, value: 50, payer: 'owner' as const, amount: 5000 };
-    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ platformFee }) }) }]);
+    mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ status: 'confirmed', platformFee }) }) }]);
     renderApp(URL_, { user: staffUser });
     const row = (await screen.findByText(feeLabel(en.owner.bookings.feePayer.owner))).closest('div')!;
     expect(row).toHaveTextContent(/BDT\s50\.00/);
@@ -124,7 +124,7 @@ describe('owner booking detail', () => {
     expect(row.closest('dl')).not.toBe(screen.getByText(en.owner.bookings.total).closest('dl'));
   });
 
-  it.each(['rejected', 'cancelled', 'expired', 'awaiting_payment'] as const)('an owner-paid fee is hidden once the booking does not owe it (%s)', async (status) => {
+  it.each(['pending', 'rejected', 'cancelled', 'expired', 'awaiting_payment'] as const)('an owner-paid fee is hidden once the booking does not owe it (%s)', async (status) => {
     const platformFee = { mode: 'fixed' as const, value: 50, payer: 'owner' as const, amount: 5000 };
     mockApi([...ownerRoutes(), { path: GET, body: detail({ booking: ownerBooking({ status, platformFee }) }) }]);
     renderApp(URL_, { user: staffUser });

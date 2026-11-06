@@ -92,7 +92,7 @@ async function booking(status: string, over: Record<string, unknown> = {}) {
 }
 
 async function owing() {
-  for (const s of ['confirmed', 'pending', 'cancelled', 'awaiting_payment']) await booking(s);
+  for (const s of ['confirmed', 'completed', 'cancelled', 'awaiting_payment']) await booking(s);
 }
 
 describe('owner platform balance', () => {
@@ -100,7 +100,8 @@ describe('owner platform balance', () => {
     await owing();
     await booking('completed');
     await booking('no_show');
-    for (const s of ['rejected', 'expired']) await booking(s);
+    // Pending may still be rejected, so it owes nothing yet.
+    for (const s of ['pending', 'rejected', 'expired']) await booking(s);
     await booking('completed', { platformFee: null });
     const res = await fee();
     expect(res.status).toBe(200);

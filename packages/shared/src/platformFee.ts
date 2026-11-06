@@ -32,9 +32,11 @@ export type PlatformFeeSnapshot = {
   amount: number;
 };
 
-/** Statuses in which a booking owes its fee to the platform. */
+/**
+ * Statuses in which a booking owes its fee to the platform. Not pending: staff may still reject it,
+ * and a fee paid on it would then turn into a credit the owner never asked for.
+ */
 export const FEE_OWING_STATUSES: readonly BookingStatus[] = [
-  'pending',
   'confirmed',
   'completed',
   'no_show',

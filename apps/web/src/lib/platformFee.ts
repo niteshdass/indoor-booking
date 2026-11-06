@@ -7,7 +7,7 @@ export function playerFee(fee: PlatformFeeSnapshot | null | undefined): number {
 
 /**
  * The fee an owner pays the platform on a booking: its snapshot when the owner pays and the
- * booking's status still owes it (not rejected, cancelled, expired or awaiting payment), else null.
+ * booking's status owes it (confirmed or after; not pending, rejected, cancelled, expired or awaiting payment), else null.
  */
 export function ownerOwedFee(b: { status: BookingStatus; platformFee: PlatformFeeSnapshot | null }): PlatformFeeSnapshot | null {
   return b.platformFee?.payer === 'owner' && FEE_OWING_STATUSES.includes(b.status) ? b.platformFee : null;

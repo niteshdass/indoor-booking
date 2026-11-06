@@ -284,7 +284,8 @@ describe('overview platform fees', () => {
     await payout('PEND', 'pending', 222, null);
     const res = await get('/admin/overview');
     expect(res.body.earned).toEqual([{ currency: 'BDT', amount: 9500 + 700 }]);
-    expect(res.body.fees).toEqual({ owed: [{ currency: 'BDT', amount: 800 }], collected: [{ currency: 'BDT', amount: 600 }] });
+    // The pending booking's fee is not owed until staff confirm it.
+    expect(res.body.fees).toEqual({ owed: [{ currency: 'BDT', amount: 500 }], collected: [{ currency: 'BDT', amount: 600 }] });
   });
 });
 

@@ -124,6 +124,9 @@ export async function submitManualPayment(
             : await transition(actor, b, 'pending', now, session, { holdExpiresAt: null }, { via: 'manual_payment' }),
         );
       }
+      // Staff must check the TrxID by hand; until they do the slots stay held, so tell them now.
+      // One notice for the whole group, keyed on the claim so a later claim on the same booking tells them again.
+      await noticeBooking('staff_new_pending', moved[0]!, now, session, { repeatKey: String(payments[0]!._id) });
       return { bookings: moved, payment: payments[0]!, outcome: 'pending' as const };
     });
   } catch (err) {

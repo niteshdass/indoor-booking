@@ -513,7 +513,8 @@ describe('CheckoutPage', () => {
     });
     await user.click(await screen.findByRole('button', { name: /Remove/ }));
     await waitFor(() => expect(new URLSearchParams(location().search).get('turf')).toBe('t2'));
-    expect(await screen.findByRole('button', { name: en.checkout.book })).toBeEnabled();
+    // The re-quote for the new court runs after the URL changes; Book enables once it lands.
+    await waitFor(() => expect(screen.getByRole('button', { name: en.checkout.book })).toBeEnabled());
     expect(quoteCalls(calls).at(-1)!).toMatchObject({ path: '/venues/arena-one/turfs/t2/quote', body: { addons: [] } });
   });
 

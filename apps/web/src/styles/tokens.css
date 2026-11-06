@@ -54,6 +54,7 @@
   --table-row-compact: 2.5rem; /* dense table row (series games) */
   --sidebar-width: 15rem;
   --sheet-width: 26rem; /* side sheet from tablet up (Today booking sheet) */
+  --dialog-width: 30rem; /* every dialog unless it is wide */
   --dialog-wide: 40rem; /* dialog that holds a slot grid (move a booking) */
   --topbar-height: 3.5rem;
   --header-height: 4rem;
@@ -105,8 +106,10 @@
   --result-min: 10rem; /* shortest search result card (rows) */
   --result-grid-min: 16rem; /* narrowest search result card column (grid) */
   --result-time-hover: inset 0 0 0 1px currentColor; /* hover ring of a free-time chip on a search result card */
+  --icon-xs: 0.75rem; /* tick inside a small step dot */
   --icon-sm: 1rem; /* inline icon next to small text */
   --icon-md: 1.125rem; /* glyph in an icon-only button */
+  --icon-feature: 1.25rem; /* glyph in a landing feature tile */
   --icon-lg: 1.5rem; /* tab bar icon in the player app */
   --icon-stroke: 1.75; /* line width of every icon, in its 24-unit grid */
   --empty-court: 7.5rem; /* court drawing in an empty table or list (EmptyState) */
@@ -211,6 +214,7 @@
   --border-subtle: #e0e4e3;
   --border-default: #d2d8d9;
   --border-strong: #b6bec3;
+  --field-edge: #7d878c; /* bottom edge of a filled field: 3:1 on page, surface and raised */
   --text-strong: #14181e;
   --text-default: #2a313b;
   --text-muted: #5a6370;
@@ -272,6 +276,7 @@
   --border-subtle: #262e37;
   --border-default: #313b46;
   --border-strong: #43505d;
+  --field-edge: #6f7c88; /* bottom edge of a filled field: 3:1 on page, surface and raised */
   --star-empty: #7b8696;
   --text-strong: #f3f5f2;
   --text-default: #d3d8de;
@@ -317,6 +322,7 @@
     --border-subtle: #262e37;
     --border-default: #313b46;
     --border-strong: #43505d;
+    --field-edge: #6f7c88;
     --star-empty: #7b8696;
     --text-strong: #f3f5f2;
     --text-default: #d3d8de;

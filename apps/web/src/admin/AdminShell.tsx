@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Icon } from '../components/ui/Icon';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import type { AdminOverviewJson } from '@booking/shared';
@@ -100,9 +101,7 @@ export function AdminShell() {
         <div className={styles.switcher}>
           <div className={[styles.switcherButton, styles.static].join(' ')}>
             <span className={styles.orgMark} aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false" className={styles.icon}>
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+              <Icon name="shield" className={styles.icon} />
             </span>
             <span className={styles.switcherText}>
               <span className={styles.switcherName}>{t('admin.portal')}</span>
@@ -117,9 +116,7 @@ export function AdminShell() {
                 <a key={n.key} href={`/admin/${n.to}`} target="_blank" rel="noopener" className={styles.link}>
                   <NavIcon navKey={n.icon} />
                   {t(n.key)}
-                  <svg className={styles.linkTrail} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M7 17 17 7M8 7h9v9" />
-                  </svg>
+                  <Icon name="arrowUpRight" className={styles.linkTrail} />
                   <span className={styles.srOnly}>, {t('admin.docs.newTab')}</span>
                 </a>
               ) : (
@@ -136,9 +133,7 @@ export function AdminShell() {
           <Link to="/" className={styles.link}>
             <NavIcon navKey="playerSite" />
             {t('owner.nav.playerSite')}
-            <svg className={styles.linkTrail} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M7 17 17 7M8 7h9v9" />
-            </svg>
+            <Icon name="arrowUpRight" className={styles.linkTrail} />
           </Link>
           {user && (
             <div className={styles.account}>
@@ -149,9 +144,7 @@ export function AdminShell() {
                 <span className={styles.accountName}>{user.name}</span>
               </Link>
               <button type="button" className={styles.signOut} aria-label={t('profile.signOut')} title={t('profile.signOut')} onClick={() => setConfirmOut(true)}>
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10" />
-                </svg>
+                <Icon name="logout" />
               </button>
             </div>
           )}

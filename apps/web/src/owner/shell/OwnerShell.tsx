@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { Icon } from '../../components/ui/Icon';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { SignOutDialog } from '../../auth/SignOutDialog';
@@ -132,9 +133,7 @@ export function OwnerShell() {
           <Link to="/" className={styles.link}>
             <NavIcon navKey="playerSite" />
             {t('owner.nav.playerSite')}
-            <svg className={styles.linkTrail} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M7 17 17 7M8 7h9v9" />
-            </svg>
+            <Icon name="arrowUpRight" className={styles.linkTrail} />
           </Link>
           {user && (
             <div className={styles.account}>
@@ -145,9 +144,7 @@ export function OwnerShell() {
                 <span className={styles.accountName}>{user.name}</span>
               </Link>
               <button type="button" className={styles.signOut} aria-label={t('profile.signOut')} title={t('profile.signOut')} onClick={() => setConfirmOut(true)}>
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10" />
-                </svg>
+                <Icon name="logout" />
               </button>
             </div>
           )}

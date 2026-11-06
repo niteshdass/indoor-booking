@@ -92,6 +92,7 @@
   min-height: var(--control-md);
   padding-inline: var(--space-3);
   border: 1px solid transparent;
+  border-bottom-color: var(--field-edge);
   border-radius: var(--radius-md);
   background: var(--control-fill);
   color: var(--text-strong);

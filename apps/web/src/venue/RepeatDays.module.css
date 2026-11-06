@@ -119,3 +119,10 @@
     transition: none;
   }
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .chip {
+    min-height: var(--control-lg);
+  }
+}

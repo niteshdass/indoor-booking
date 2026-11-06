@@ -124,6 +124,9 @@ export async function submitManualPayment(
             : await transition(actor, b, 'pending', now, session, { holdExpiresAt: null }, { via: 'manual_payment' }),
         );
       }
+      // Staff must check the TrxID by hand; until they do the slots stay held, so tell them now.
+      // One notice for the whole group, keyed on the claim so a later claim on the same booking tells them again.
+      await noticeBooking('staff_new_pending', moved[0]!, now, session, { repeatKey: String(payments[0]!._id) });
       return { bookings: moved, payment: payments[0]!, outcome: 'pending' as const };
     });
   } catch (err) {
@@ -205,7 +208,7 @@ const checkedMeanwhile = () => new AppError(409, 'invalid_transition', 'This pay
 export async function verifyManualPayment(
   t: TenantContext,
   booking: BookingDoc,
-  input: { amountReceived?: number },
+  input: { amountReceived?: number; acceptShort?: boolean },
   now: Date,
 ): Promise<BookingDoc[]> {
   const { ownerId } = t;
@@ -213,6 +216,12 @@ export async function verifyManualPayment(
     const { lead, days } = await pendingSubmission(ownerId, booking, session);
     const amountDue = sum(days);
     const amountReceived = input.amountReceived ?? amountDue;
+    // Less than was sent for still confirms (the rest is due at the venue), but only when staff
+    // say so: a mistyped amount must not quietly confirm a booking that is barely paid.
+    const confirms = days.some((d) => d.booking.status === 'pending');
+    if (confirms && amountReceived < amountDue && input.acceptShort !== true) {
+      throw new AppError(409, 'short_payment', 'Less than the amount due arrived; confirm to accept it', { amountDue, amountReceived });
+    }
 
     let left = amountReceived;
     const shares = days.map((d) => {

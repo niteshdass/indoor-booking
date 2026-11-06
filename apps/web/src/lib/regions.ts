@@ -94,3 +94,43 @@ export function localTimeZone(): string {
     return '';
   }
 }
+
+/** Main zone for markets where the runtime cannot list a country's zones (Firefox has no getTimeZones). */
+const MAIN_ZONE: Readonly<Record<string, string>> = {
+  BD: 'Asia/Dhaka',
+  IN: 'Asia/Kolkata',
+  PK: 'Asia/Karachi',
+  NP: 'Asia/Kathmandu',
+  LK: 'Asia/Colombo',
+  AE: 'Asia/Dubai',
+  SA: 'Asia/Riyadh',
+  QA: 'Asia/Qatar',
+  MY: 'Asia/Kuala_Lumpur',
+  SG: 'Asia/Singapore',
+  GB: 'Europe/London',
+  RU: 'Europe/Moscow',
+};
+
+/** The zones Intl lists for `country`, current names only; empty when the runtime cannot say. */
+export function countryTimeZones(country: string): string[] {
+  try {
+    const loc = new Intl.Locale(`und-${country}`) as Intl.Locale & { getTimeZones?(): string[]; timeZones?: string[] };
+    const zones = loc.getTimeZones?.() ?? loc.timeZones ?? [];
+    return zones.map((z) => ZONE_RENAMES[z] ?? z).filter(isTimeZone);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The zone a new venue in `country` most likely runs on: the browser's when it is one of that
+ * country's (an owner setting up on site), else the country's main zone. Never the browser's zone
+ * for another country: an owner abroad would shift every slot by hours.
+ */
+export function defaultZoneFor(country: string): string {
+  const zones = countryTimeZones(country);
+  const local = localTimeZone();
+  const main = MAIN_ZONE[country];
+  if (local && (zones.includes(local) || (zones.length === 0 && !main))) return local;
+  return main ?? zones[0] ?? (local || 'UTC');
+}

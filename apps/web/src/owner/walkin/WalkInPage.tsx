@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '../../components/ui/Icon';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { addDays, localParts, MAX_BOOKINGS_PER_GROUP, parseMoney, type AddonLine, type AddonSelection } from '@booking/shared';
@@ -29,6 +30,8 @@ import { useResource } from '../useResource';
 import { walkInEstimate, type WalkInEstimate } from './walkInEstimate';
 import common from '../ownerForm.module.css';
 import styles from './WalkInPage.module.css';
+import { useRetryKey } from '../../lib/useRetryKey';
+import { scrollBehavior } from '../../lib/motion';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Errors that mean the slot grid on screen is stale. */
@@ -322,6 +325,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     }
   }
 
+  const retry = useRetryKey();
   const submit = async () => {
     if (busy.current || !ready) return;
     setTried(true);
@@ -335,14 +339,19 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     const [first, ...more] = runs as [Run, ...Run[]];
     const sent = addons.filter((s) => pickedTurfs.some((id) => selectionOn(id).includes(s)));
     try {
-      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(`${turfPath(first.turfId)}/bookings`, {
+      const path = `${turfPath(first.turfId)}/bookings`;
+      const body = {
         date: first.date,
         startAts: first.slots.map((s) => s.startAt),
         addons: sent,
         ...(more.length > 0 ? { more: more.map((r) => ({ turfId: r.turfId, date: r.date, startAts: r.slots.map((s) => s.startAt) })) } : {}),
         customer: customerBody(customer),
         payment,
+      };
+      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(path, body, {
+        'Idempotency-Key': retry.keyFor(`${path} ${JSON.stringify(body)}`),
       });
+      retry.done();
       // Several bookings open their group page; one opens the booking itself.
       const to = res.bookings && res.booking.groupId
         ? `/owner/${encodeURIComponent(ownerId)}/booking-groups/${encodeURIComponent(res.booking.groupId)}`
@@ -462,7 +471,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
               size="sm"
               icon="arrowRight"
               onClick={() => {
-                side.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                side.current?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
                 side.current?.querySelector('input')?.focus({ preventScroll: true });
               }}
             >
@@ -503,9 +512,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
                       ))}
                   </span>
                   <button type="button" className={styles.pickRemove} aria-label={t('slots.clearDay', { date: label })} onClick={() => setDay(p.turfId, p.date, [])}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M6 6l12 12M18 6L6 18" />
-                    </svg>
+                    <Icon name="close" />
                   </button>
                 </li>
               );

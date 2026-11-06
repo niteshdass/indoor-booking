@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useRef, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import { ApiError, apiPost, setAccessToken, setRefreshHandler } from '../lib/apiClient';
 import type { AuthResponse, PublicUser } from '../lib/types';
+import { forgetUserStorage } from '../lib/userStorage';
 
 type Status = 'loading' | 'signedIn' | 'signedOut' | 'offline';
 
@@ -114,6 +115,7 @@ export function AuthProvider({ children, initialUser }: { children: ReactNode; i
     } catch {
       // Local state is cleared regardless.
     }
+    forgetUserStorage();
     clear();
   }, [clear]);
 

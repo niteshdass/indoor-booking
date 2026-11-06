@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Icon } from '../components/ui/Icon';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { addDays, MAX_BOOKINGS_PER_GROUP } from '@booking/shared';
@@ -339,9 +340,7 @@ export function SlotsPanel({ slug, turfs, turfId, date, tabId, onOpen, onPicked,
           aria-label={t('slots.clearDay', { date: label })}
           onClick={() => setDay(p.turfId, p.date, [])}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <Icon name="close" />
         </button>
       </li>
     );

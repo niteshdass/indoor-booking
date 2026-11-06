@@ -167,6 +167,27 @@ describe('start a Stripe payout', () => {
     expect(await bdt()).toMatchObject({ owed: 10000, paid: 0, pending: 6000, balance: 10000, payable: 4000 });
   });
 
+  it('a retried start returns the same payout and intent instead of holding the amount twice', async () => {
+    const keyed = () =>
+      request(ctx.app)
+        .post(api(`/owners/${a.ownerId}/platform-payouts/stripe`))
+        .set(...bearer(a.token))
+        .set('Idempotency-Key', 'payout-retry-1')
+        .send({ currency: 'BDT', amount: 6000 });
+    const first = await keyed();
+    const again = await keyed();
+    expect([first.status, again.status]).toEqual([201, 201]);
+    expect(again.body.payout.id).toBe(first.body.payout.id);
+    expect(again.body.clientSecret).toBe(first.body.clientSecret);
+    expect(await bdt()).toMatchObject({ pending: 6000, payable: 4000 });
+    const other = await request(ctx.app)
+      .post(api(`/owners/${a.ownerId}/platform-payouts/stripe`))
+      .set(...bearer(a.token))
+      .set('Idempotency-Key', 'payout-retry-1')
+      .send({ currency: 'BDT', amount: 1000 });
+    expect([other.status, other.body.error.code]).toEqual([422, 'idempotency_key_reused']);
+  });
+
   it('checks the amount against what can be paid', async () => {
     expect((await start({ amount: 10001 })).body.error.code).toBe('amount_exceeds_balance');
     expect((await start({ amount: 0 })).body.error.code).toBe('amount_exceeds_balance');

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { PAYOUT_METHODS, normalizeTrxId, type OwnerPlatformFeeJson, type OwnerStripePayoutJson, type PayoutMethod } from '@booking/shared';
 import { normalizeBdMobile } from '../../auth/normalize';
 import { keyHas } from '../../bookings/create';
+import { idempotencyKeySchema } from '../../bookings/routes/public';
 import type { Config } from '../../config';
 import { runInTransaction } from '../../db';
 import { AppError } from '../../errors';
@@ -38,12 +39,30 @@ const exceeds = () => new AppError(400, 'amount_exceeds_balance', 'The amount is
 /** Writes a pending payout if it fits in what the owner can pay now; throws amount_exceeds_balance otherwise. */
 async function createPending(
   t: Pick<TenantContext, 'ownerId' | 'userId'>,
-  fields: { currency: string; amount: number; method: PayoutMethod; trxId?: string; senderNumber?: string; stripeMode?: 'test' | 'live' },
+  fields: {
+    currency: string;
+    amount: number;
+    method: PayoutMethod;
+    trxId?: string;
+    senderNumber?: string;
+    stripeMode?: 'test' | 'live';
+    requestKey?: string;
+  },
   now: Date,
 ): Promise<PlatformPayoutDoc> {
   return runInTransaction(async (session) => {
     // Touch the owner first: two submits at once write-conflict here, and the retry sees the other's payout.
     await Owner.updateOne({ _id: t.ownerId }, { $set: { payoutLockAt: now } }, { session });
+    if (fields.requestKey !== undefined) {
+      // A retry of a request whose response was lost: the payout it already started, not a second hold.
+      const earlier = await PlatformPayout.findOne({ ownerId: t.ownerId, requestKey: fields.requestKey, status: 'pending' }).session(session);
+      if (earlier) {
+        if (earlier.amount !== fields.amount || earlier.currency !== fields.currency) {
+          throw new AppError(422, 'idempotency_key_reused', 'This Idempotency-Key was used for a different payment');
+        }
+        return earlier;
+      }
+    }
     const balance = (await platformBalances(t.ownerId, now, session)).find((b) => b.currency === fields.currency);
     if (!balance || fields.amount > balance.payable) throw exceeds();
     const [row] = await PlatformPayout.create([{ ownerId: t.ownerId, ...fields, status: 'pending', by: t.userId, createdAt: now }], { session });
@@ -111,7 +130,14 @@ export function ownerPayoutsRouter(config: Config, services: AppServices): Route
     if (!stripe || !gateway || !owner || !gateway.supports(owner.country, body.currency)) throw unavailable();
     if (body.amount < 1) throw exceeds();
     const now = services.now();
-    const created = await createPending(t, { currency: body.currency, amount: body.amount, method: 'stripe', stripeMode: stripe.mode }, now);
+    const header = req.get('Idempotency-Key');
+    const requestKey = header === undefined ? undefined : `staff:${t.ownerId}:${t.userId}:${idempotencyKeySchema.parse(header)}`;
+    // Stripe replays the intent of a retried payout by its idempotency key below.
+    const created = await createPending(
+      t,
+      { currency: body.currency, amount: body.amount, method: 'stripe', stripeMode: stripe.mode, requestKey },
+      now,
+    );
     const payoutId = String(created._id);
 
     let intent: { gatewayRef: string; clientSecret: string };

@@ -231,6 +231,16 @@ describe('cancelBooking', () => {
     expect(res.body.refund).toMatchObject({ method: 'cash', status: 'succeeded', amount: 3000, paymentId: String(b._id) });
   });
 
+  it('a card payment with no gateway account answers 409 and changes nothing', async () => {
+    const { bookingId, payment } = await paid(2000);
+    await Payment.updateOne({ _id: payment._id }, { $set: { gatewayAccountId: null } }).setOptions(cross);
+    ctx.services.clock.advance(50 * HOUR);
+    expect(await codeOf(cancelBooking(await bookingOf(bookingId), staff(), {}, deps()))).toEqual({ status: 409, code: 'card_refund_unavailable' });
+    expect(await bookingOf(bookingId)).toMatchObject({ status: 'confirmed', amountRefunded: 0 });
+    expect(await refundRows()).toEqual([]);
+    expect((await Payment.findById(payment._id).setOptions(cross))!.refundedAmount).toBe(0);
+  });
+
   it('staff cancel inside a tier still records no rule, at 100%', async () => {
     const { bookingId } = await paid();
     ctx.services.clock.advance(28 * HOUR);
@@ -261,6 +271,21 @@ describe('cancelBooking', () => {
     expect(out.refunds).toHaveLength(0);
     expect(await refundRows()).toHaveLength(0);
     expect(await locksOf(bookingId)).toBe(0);
+  });
+
+  it('money paid into a payment closed by the cancel is refunded in full, once', async () => {
+    // SSLCommerz sessions cannot really be closed; a success can still arrive for one.
+    const { player, bookingId, payment } = await hold();
+    await cancelBooking(await bookingOf(bookingId), playerBy(player), {}, deps());
+    const event = piSucceeded(payment);
+    expect((await postEvent(ctx.app, owner.ownerId, secret, event)).status).toBe(200);
+    expect((await bookingOf(bookingId)).status).toBe('cancelled');
+    const rows = await refundRows();
+    expect(rows.map((r) => [r.reason, r.amount])).toEqual([['late_payment', payment.amount]]);
+    expect(await Payment.findById(payment._id).setOptions(cross)).toMatchObject({ status: 'failed', failureCode: 'paid_after_close' });
+    // A second notice of the same money (another event id) refunds nothing more.
+    expect((await postEvent(ctx.app, owner.ownerId, secret, { ...event, id: `${event.id}_again` })).status).toBe(200);
+    expect(await refundRows()).toHaveLength(1);
   });
 
   it('a hold whose payment already went through cannot be cancelled', async () => {

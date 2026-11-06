@@ -86,7 +86,7 @@ describe('list your venue', () => {
     expect(body.turfs).toHaveLength(2);
     expect(body.turfs[0]).toMatchObject({ name: 'Turf 1', sports: ['football'], indoor: true, slotLengthMin: 60, pricing: { base: 120_000, rules: [] } });
     expect(body.settings.paymentMethods.manualWallets).toEqual([{ provider: 'bkash', number: '01712345678', accountType: 'personal' }]);
-    expect(localStorage.getItem('setup-draft')).toBeNull();
+    expect(localStorage.getItem(`setup-draft:user:${staffUser.id}`)).toBeNull();
   });
 
   it('keeps the answers when the page is opened again', async () => {

@@ -12,7 +12,7 @@ import { apiPatch, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
-import { CODE_MAX, couponBody, draftFromCoupon, EMPTY_COUPON_DRAFT, type CouponDraft } from './couponForm';
+import { CODE_MAX, couponBody, couponZone, draftFromCoupon, EMPTY_COUPON_DRAFT, type CouponDraft } from './couponForm';
 import styles from './coupons.module.css';
 
 type Props = { open: boolean; coupon: CouponJson | null; onClose(): void; onSaved(): void };
@@ -31,7 +31,9 @@ function CouponFormBody({ coupon, onClose, onSaved }: Omit<Props, 'open'>) {
   const { t } = useTranslation();
   const { ownerId, owner, venues } = useOwner();
   const currency = coupon?.currency ?? owner.defaultCurrency;
-  const [d, setD] = useState<CouponDraft>(coupon ? draftFromCoupon(coupon) : EMPTY_COUPON_DRAFT);
+  // Fixed for the dialog's life, so a date picked against one zone is read back in the same one.
+  const [timeZone] = useState(() => couponZone(venues, coupon?.venueIds));
+  const [d, setD] = useState<CouponDraft>(coupon ? draftFromCoupon(coupon, timeZone) : EMPTY_COUPON_DRAFT);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -44,7 +46,7 @@ function CouponFormBody({ coupon, onClose, onSaved }: Omit<Props, 'open'>) {
     e.preventDefault();
     if (busy) return;
     setError(null);
-    const res = couponBody(d, coupon, currency);
+    const res = couponBody(d, coupon, currency, timeZone);
     if (!res.ok) {
       setErrors(res.errors);
       return;

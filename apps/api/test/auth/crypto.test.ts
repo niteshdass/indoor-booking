@@ -25,6 +25,7 @@ describe('tokens', () => {
     const tok = await signAccessToken('u1', SECRET, t0);
     expect(await verifyAccessToken(tok, SECRET, new Date(t0.getTime() + 14 * 60_000))).toEqual({
       userId: 'u1',
+      issuedAt: t0.getTime() / 1000,
     });
     await expect(
       verifyAccessToken(tok, SECRET, new Date(t0.getTime() + 16 * 60_000)),

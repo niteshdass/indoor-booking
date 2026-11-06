@@ -145,7 +145,7 @@ async function assertGuestRoom(phone: string, now: Date) {
 }
 
 /** A client-made id for one checkout, sent again on every retry of it. */
-const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/, 'Use 8 to 100 letters, digits, - or _');
+export const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/, 'Use 8 to 100 letters, digits, - or _');
 
 /** The Idempotency-Key header scoped to the booker, so one client's key can never reach another's bookings. */
 function requestKeyOf(header: string | undefined, who: { playerId: string } | { phone: string }): string | undefined {
@@ -155,7 +155,7 @@ function requestKeyOf(header: string | undefined, who: { playerId: string } | { 
 }
 
 /** The bookings an earlier request with this key made (the whole group for a group), or null. */
-async function bookingsForKey(requestKey: string | undefined, turf: TurfDoc): Promise<BookingDoc[] | null> {
+export async function bookingsForKey(requestKey: string | undefined, turf: TurfDoc): Promise<BookingDoc[] | null> {
   if (requestKey === undefined) return null;
   const lead = await Booking.findOne({ requestKey }).setOptions({ crossTenant: true });
   if (!lead) return null;
@@ -228,6 +228,17 @@ const methodsJson = (m: Awaited<ReturnType<typeof offeredMethods>>) => ({
 const paymentStartSchema = z.object({ gateway: z.enum(['stripe', 'sslcommerz']).default('stripe') });
 
 /** Player-facing booking routes. The app rate-limits the code-sending and lookup routes. */
+const ME_PAGE = 100;
+
+/** `<startAt ISO>_<booking id>`, else null (a bad cursor reads as none: the first page). */
+function parsePastCursor(raw: unknown): { startAt: Date; id: mongoose.Types.ObjectId } | null {
+  if (typeof raw !== 'string') return null;
+  const [at, id] = raw.split('_');
+  const startAt = new Date(at ?? '');
+  if (Number.isNaN(startAt.getTime()) || !id || !mongoose.isValidObjectId(id)) return null;
+  return { startAt, id: new mongoose.Types.ObjectId(id) };
+}
+
 export function publicBookingsRouter(config: Config, services: AppServices): Router {
   const router = Router();
 
@@ -423,12 +434,19 @@ export function publicBookingsRouter(config: Config, services: AppServices): Rou
     // Rejected series games are summarized by the series card. Window around now so a long series cannot hide near bookings.
     const now = services.now();
     const mine = { playerId: req.auth!.userId, $nor: [{ seriesId: { $ne: null }, status: 'rejected' }] };
-    const [upcoming, past] = await Promise.all([
-      Booking.find({ ...mine, endAt: { $gt: now } }).setOptions({ crossTenant: true }).sort({ startAt: 1 }).limit(100),
-      Booking.find({ ...mine, endAt: { $lte: now } }).setOptions({ crossTenant: true }).sort({ startAt: -1 }).limit(100),
+    // `pastBefore` (the `pastCursor` of the previous page) asks for the next page of past bookings only.
+    const cursor = parsePastCursor(req.query.pastBefore);
+    const pastQuery = cursor
+      ? { ...mine, endAt: { $lte: now }, $or: [{ startAt: { $lt: cursor.startAt } }, { startAt: cursor.startAt, _id: { $lt: cursor.id } }] }
+      : { ...mine, endAt: { $lte: now } };
+    const [upcoming, pastPage] = await Promise.all([
+      cursor ? [] : Booking.find({ ...mine, endAt: { $gt: now } }).setOptions({ crossTenant: true }).sort({ startAt: 1 }).limit(ME_PAGE),
+      Booking.find(pastQuery).setOptions({ crossTenant: true }).sort({ startAt: -1, _id: -1 }).limit(ME_PAGE + 1),
     ]);
-    const bookings = [...upcoming, ...past];
-    res.json({ bookings: await playerBookingsJson(bookings, services.now()) });
+    const past = pastPage.slice(0, ME_PAGE);
+    const last = past[past.length - 1];
+    const pastCursor = pastPage.length > ME_PAGE && last ? `${last.startAt.toISOString()}_${String(last._id)}` : null;
+    res.json({ bookings: await playerBookingsJson([...upcoming, ...past], services.now()), pastCursor });
   });
 
   /** The player's own booking, else 404 (never 403, so ids don't leak). */

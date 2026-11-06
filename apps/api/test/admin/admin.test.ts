@@ -121,6 +121,15 @@ describe('owner applications and approval', () => {
     expect(actions).toEqual(expect.arrayContaining(['owner.applied', 'owner.auto_approved']));
   });
 
+  it('a suspended business cannot apply again, which automatic approval would make live', async () => {
+    const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
+    const first = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);
+    await Owner.updateOne({ _id: first.body.owner.id }, { $set: { status: 'suspended' } });
+    await setApproval('automatic');
+    const again = await post('/owners', { name: 'Smash Club 2', country: 'BD', currency: 'BDT' }, applicant.token);
+    expect([again.status, again.body.error.code]).toEqual([403, 'owner_suspended']);
+  });
+
   it('manual stays pending', async () => {
     const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
     const res = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);
@@ -275,7 +284,8 @@ describe('overview platform fees', () => {
     await payout('PEND', 'pending', 222, null);
     const res = await get('/admin/overview');
     expect(res.body.earned).toEqual([{ currency: 'BDT', amount: 9500 + 700 }]);
-    expect(res.body.fees).toEqual({ owed: [{ currency: 'BDT', amount: 800 }], collected: [{ currency: 'BDT', amount: 600 }] });
+    // The pending booking's fee is not owed until staff confirm it.
+    expect(res.body.fees).toEqual({ owed: [{ currency: 'BDT', amount: 500 }], collected: [{ currency: 'BDT', amount: 600 }] });
   });
 });
 

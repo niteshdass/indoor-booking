@@ -141,3 +141,10 @@
     height: calc(var(--gallery-height) * 0.75);
   }
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .more {
+    min-height: var(--control-lg);
+  }
+}

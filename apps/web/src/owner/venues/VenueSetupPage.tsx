@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { SetupResult, VenueSetup } from '@booking/shared';
 import { Alert } from '../../components/ui/Alert';
 import { apiPost } from '../../lib/apiClient';
-import { localTimeZone } from '../../lib/regions';
+import { defaultZoneFor } from '../../lib/regions';
 import { defaultAnswers, toVenueSetup } from '../../onboarding/answers';
 import { SetupDone } from '../../onboarding/SetupDone';
 import { SetupWizard } from '../../onboarding/SetupWizard';
@@ -26,7 +26,7 @@ export function VenueSetupPage() {
       initial={defaultAnswers(owner.country, owner.defaultCurrency)}
       mapLinkPath={ownerPath(ownerId, '/map-link')}
       submit={async (a) => {
-        const body: VenueSetup = toVenueSetup(a, localTimeZone() || 'UTC', (n) => t('onboarding.turfs.numbered', { n }));
+        const body: VenueSetup = toVenueSetup(a, a.timezone || defaultZoneFor(a.country), (n) => t('onboarding.turfs.numbered', { n }));
         const r = await apiPost<SetupResult>(ownerPath(ownerId, '/onboarding'), body);
         await reloadVenues();
         return r;

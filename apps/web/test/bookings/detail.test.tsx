@@ -226,6 +226,19 @@ describe('booking detail', () => {
     expect(m.calls.length).toBeGreaterThan(n);
   });
 
+  it('hides Pay now and refetches when the hold runs out with the page open', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const holdExpiresAt = new Date(Date.now() + 60_000).toISOString();
+    const m = api(() => booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0, holdExpiresAt }));
+    renderApp('/me/bookings/b1', { user: player });
+    expect(await screen.findByRole('link', { name: en.booking.payNow })).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(62_000);
+    });
+    await waitFor(() => expect(screen.queryByRole('link', { name: en.booking.payNow })).not.toBeInTheDocument());
+    expect(m.calls.length).toBeGreaterThan(1);
+  });
+
   it('failed Stripe redirect shows an error, Pay now, and does not poll', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const m = api(() =>

@@ -9,6 +9,7 @@ import { useAuth } from '../../../src/auth/useAuth';
 import type { PaymentOptions, PaymentStart, PlayerBooking } from '../../../src/bookings/types';
 import { ApiError, apiGet, apiPost } from '../../../src/lib/api';
 import { errorMessage } from '../../../src/lib/errors';
+import { serverNow } from '../../../src/lib/serverClock';
 import { openSslcommerz } from '../../../src/payment/sslcommerz';
 import { payWithStripe } from '../../../src/payment/stripe';
 import { useConfirmPoll } from '../../../src/payment/useConfirmPoll';
@@ -73,7 +74,8 @@ export default function PayScreen() {
   const status = booking?.status;
   const awaiting = status === 'awaiting_payment';
   const now = useNow(awaiting && !holdLapsed);
-  const holdMs = booking?.holdExpiresAt ? Date.parse(booking.holdExpiresAt) - now : null;
+  // Holds end on the server's clock, which this phone's may not match.
+  const holdMs = booking?.holdExpiresAt ? Date.parse(booking.holdExpiresAt) - serverNow(now) : null;
   const expired = status === 'expired' || (awaiting && (holdLapsed || (holdMs !== null && holdMs <= 0)));
   const settled = !!status && status !== 'awaiting_payment' && status !== 'expired';
 

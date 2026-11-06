@@ -223,3 +223,14 @@
     top: calc(var(--header-height) + var(--space-4));
   }
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .toggleBtn {
+    min-height: var(--control-lg);
+  }
+  .iconBtn {
+    min-width: var(--control-lg);
+    min-height: var(--control-lg);
+  }
+}

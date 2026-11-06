@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { Icon } from '../components/ui/Icon';
 import type { SlotDay } from '../lib/types';
 import { isSelectable } from '@booking/shared';
 import styles from './RepeatDays.module.css';
@@ -60,9 +61,7 @@ export function RepeatDays({ days, localStarts, value, full, onToggle }: Props) 
               onClick={() => onToggle(d.businessDate)}
             >
               {on && (
-                <svg className={styles.check} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path d="M5 12.5l4.5 4.5L19 7.5" />
-                </svg>
+                <Icon name="check" className={styles.check} />
               )}
               <span className={styles.weekday}>{weekday.format(at(d.businessDate))}</span>
               <span className={styles.date}>{dayMonth.format(at(d.businessDate))}</span>

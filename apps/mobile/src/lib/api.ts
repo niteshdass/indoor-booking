@@ -1,3 +1,5 @@
+import { noteServerDate } from './serverClock';
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -11,7 +13,17 @@ export class ApiError extends Error {
 }
 
 // e.g. http://192.168.x.x:4000/api/v1 (a device cannot reach the dev machine as localhost).
-const BASE_URL: string = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+// Set per profile in eas.json. A release build made without it talks to production, never to the phone
+// itself; a dev build falls back to localhost (simulator) and says so.
+const PRODUCTION_API_URL = 'https://bookaturf.vercel.app/api/v1';
+function baseUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+  if (fromEnv) return fromEnv;
+  if (!__DEV__) return PRODUCTION_API_URL;
+  console.warn('EXPO_PUBLIC_API_URL is not set: using http://localhost:4000/api/v1, which a real device cannot reach.');
+  return 'http://localhost:4000/api/v1';
+}
+const BASE_URL: string = baseUrl();
 
 type ErrorBody = { error?: { code?: string; message?: string; details?: unknown } };
 
@@ -30,35 +42,49 @@ export function setRefreshHandler(fn: (() => Promise<string | null>) | null): vo
 
 const REFRESHABLE_CODES = ['invalid_token', 'unauthenticated'];
 
-async function send<T>(path: string, init: RequestInit | undefined, token: string | null): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(BASE_URL + path, {
-      ...init,
-      // Native clients authenticate with bearer/body tokens; cookies are never used.
-      credentials: 'omit',
-      headers: {
-        Accept: 'application/json',
-        'X-Client': 'native',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...init?.headers,
-      },
-    });
-  } catch {
-    throw new ApiError(0, 'network_error', 'Network request failed');
-  }
+/** A request still unanswered after this long fails like a dropped connection instead of spinning forever. */
+export const REQUEST_TIMEOUT_MS = 20_000;
 
-  const body: unknown = await res.json().catch(() => undefined);
-  if (!res.ok) {
-    const err = (body as ErrorBody | undefined)?.error;
-    throw new ApiError(
-      res.status,
-      err?.code ?? 'network_error',
-      err?.message ?? `Request failed with status ${res.status}`,
-      err?.details,
-    );
+async function send<T>(path: string, init: RequestInit | undefined, token: string | null): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const sentAt = Date.now();
+  try {
+    let res: Response;
+    try {
+      res = await fetch(BASE_URL + path, {
+        ...init,
+        signal: controller.signal,
+        // Native clients authenticate with bearer/body tokens; cookies are never used.
+        credentials: 'omit',
+        headers: {
+          Accept: 'application/json',
+          'X-Client': 'native',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...init?.headers,
+        },
+      });
+    } catch {
+      throw new ApiError(0, 'network_error', 'Network request failed');
+    }
+    noteServerDate(res.headers?.get('Date') ?? null, sentAt, Date.now());
+
+    const body: unknown = await res.json().catch(() => undefined);
+    // The body stalled past the timeout: what arrived can't be trusted as the answer.
+    if (controller.signal.aborted) throw new ApiError(0, 'network_error', 'Network request timed out');
+    if (!res.ok) {
+      const err = (body as ErrorBody | undefined)?.error;
+      throw new ApiError(
+        res.status,
+        err?.code ?? 'network_error',
+        err?.message ?? `Request failed with status ${res.status}`,
+        err?.details,
+      );
+    }
+    return body as T;
+  } finally {
+    clearTimeout(timer);
   }
-  return body as T;
 }
 
 /** Retries once with a fresh token when an authenticated call answers 401 with a refreshable code. */
@@ -97,6 +123,14 @@ export function apiPost<T>(path: string, body: unknown, headers?: Record<string,
 export function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return request<T>(path, {
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function apiPut<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });

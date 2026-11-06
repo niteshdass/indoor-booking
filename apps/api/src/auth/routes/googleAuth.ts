@@ -29,7 +29,15 @@ export function googleAuthRouter({ config, services }: AuthDeps): Router {
     if (!user) {
       // Only a Google-verified email is stored; it is never used to auto-link an existing account.
       const email = profile.email && profile.emailVerified ? normalizeEmail(profile.email) : undefined;
-      if (email && (await User.exists({ email }))) throw accountExists();
+      if (email) {
+        // Google has proved this inbox is theirs; an account that only typed the address in and
+        // never verified it gives it up (it keeps its phone or Google sign-in).
+        await User.updateOne(
+          { email, emailVerified: { $ne: true }, $or: [{ phone: { $exists: true, $ne: null } }, { googleSub: { $exists: true, $ne: null } }] },
+          { $unset: { email: 1, passwordHash: 1 }, $set: { emailVerified: false } },
+        );
+        if (await User.exists({ email })) throw accountExists();
+      }
       try {
         user = await User.create({
           googleSub: profile.sub,

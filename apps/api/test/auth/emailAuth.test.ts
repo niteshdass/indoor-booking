@@ -102,6 +102,14 @@ describe('register', () => {
     const fixed = await postRegister({ ...body, email: 'bo@x.com', phone: other });
     expect(fixed.status).toBe(201);
   });
+  it('a wrong code is refused before the email is looked at, so register does not reveal accounts', async () => {
+    await register(body);
+    const other = '+8801812345678';
+    await requestCode(other);
+    const probe = await postRegister({ ...body, phone: other, code: '000000' });
+    expect(probe.status).toBe(400);
+    expect(probe.body.error.code).toBe('otp_invalid');
+  });
   it('concurrent duplicate registrations → one 201, the other refused', async () => {
     await requestCode();
     const [a, b] = await Promise.all([postRegister(body), postRegister(body)]);
@@ -173,6 +181,19 @@ describe('password reset', () => {
     expect(again.status).toBe(400);
     expect(again.body.error.code).toBe('invalid_reset_token');
   });
+  it('reset also ends access tokens issued before it', async () => {
+    const reg = await register(body);
+    const me = () => request(ctx.app).get('/api/v1/me').set('Authorization', `Bearer ${reg.body.accessToken}`);
+    expect((await me()).status).toBe(200);
+    ctx.services.clock.advance(5_000);
+    await forgot('ana@x.com');
+    expect((await reset(resetTokenFromEmail(), 'newsecret1')).status).toBe(204);
+    expect((await me()).status).toBe(401);
+    // The sign-in right after the reset works, even in the same second.
+    const fresh = await login({ email: 'ana@x.com', password: 'newsecret1' });
+    const meFresh = await request(ctx.app).get('/api/v1/me').set('Authorization', `Bearer ${fresh.body.accessToken}`);
+    expect(meFresh.status).toBe(200);
+  });
   it('forgot for unknown email → 202 and no email', async () => {
     const res = await forgot('ghost@x.com');
     expect(res.status).toBe(202);
@@ -220,7 +241,16 @@ describe('rate limit', () => {
     expect(res.status).toBe(429);
     expect(res.body.error.code).toBe('rate_limited');
   });
-  it('locks an account after 10 failed logins, whatever address they come from', async () => {
+  it('a stranger guessing from other IPs does not lock the owner out of their own IP', async () => {
+    await register(body);
+    const limited = buildTestApp({ services: ctx.services, rateLimit: true, config: { trustProxy: 1 } });
+    const attempt = (from: string, password: string) =>
+      request(limited.app).post('/api/v1/auth/login').set('X-Forwarded-For', from).send({ email: 'ana@x.com', password });
+    for (let i = 0; i < 10; i++) expect((await attempt('198.51.100.7', 'wrong-pass')).status).toBe(401);
+    expect((await attempt('198.51.100.7', body.password)).status).toBe(429);
+    expect((await attempt('203.0.113.9', body.password)).status).toBe(200);
+  });
+  it('caps guesses at one address spread over many IPs', async () => {
     await register(body);
     const limited = buildTestApp({ services: ctx.services, rateLimit: true, config: { trustProxy: 1 } });
     let ip = 0;
@@ -231,7 +261,7 @@ describe('rate limit', () => {
         .send({ email, password });
     // Successful sign-ins do not count towards the lockout.
     expect((await attempt('ana@x.com', body.password)).status).toBe(200);
-    for (let i = 0; i < 10; i++) expect((await attempt(i % 2 ? 'ana@x.com' : ' ANA@x.com', 'wrong-pass')).status).toBe(401);
+    for (let i = 0; i < 100; i++) expect((await attempt(i % 2 ? 'ana@x.com' : ' ANA@x.com', 'wrong-pass')).status).toBe(401);
     const locked = await attempt('ana@x.com', body.password);
     expect(locked.status).toBe(429);
     expect(locked.body.error.code).toBe('rate_limited');

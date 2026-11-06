@@ -59,9 +59,7 @@ export function Select({
             </option>
           ))}
         </select>
-        <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="m6 9 6 6 6-6" />
-        </svg>
+        <Icon name="chevronDown" className={styles.chevron} />
       </span>
       {hint && (
         <p id={hintId} className={styles.hint}>

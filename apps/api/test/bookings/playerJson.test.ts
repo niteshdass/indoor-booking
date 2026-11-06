@@ -72,6 +72,34 @@ describe('player booking JSON', () => {
     });
   });
 
+  it('pages past bookings with a cursor, so a long history is not cut off at 100', async () => {
+    const created = await book();
+    const raw = await Booking.collection.findOne({ _id: new mongoose.Types.ObjectId(created.body.booking.id as string) });
+    const { _id: _ignored, ...base } = raw!;
+    // 150 past games, an hour apart, the newest a day before now.
+    const start = ctx.services.now().getTime() - 24 * 3600_000;
+    await Booking.collection.insertMany(
+      Array.from({ length: 150 }, (_, i) => ({
+        ...base,
+        _id: new mongoose.Types.ObjectId(),
+        status: 'completed',
+        reference: `P${String(i).padStart(7, '0')}`,
+        startAt: new Date(start - i * 3600_000),
+        endAt: new Date(start - i * 3600_000 + 3600_000),
+        slots: [{ ...(base.slots as object[])[0], startAt: new Date(start - i * 3600_000), endAt: new Date(start - i * 3600_000 + 3600_000) }],
+      })),
+    );
+    const first = await request(ctx.app).get('/api/v1/me/bookings').set(...bearer(token));
+    expect(first.status).toBe(200);
+    expect(first.body.bookings).toHaveLength(101);
+    expect(first.body.pastCursor).toEqual(expect.any(String));
+    const second = await request(ctx.app).get('/api/v1/me/bookings').query({ pastBefore: first.body.pastCursor }).set(...bearer(token));
+    expect(second.body.bookings).toHaveLength(50);
+    expect(second.body.pastCursor).toBeNull();
+    const ids = new Set([...first.body.bookings, ...second.body.bookings].map((b: { id: string }) => b.id));
+    expect(ids.size).toBe(151);
+  });
+
   it('single booking, create and guest lookup carry them', async () => {
     const created = await book();
     expect(created.body.booking.venue.name).toBe('Arena');

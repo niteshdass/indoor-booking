@@ -70,6 +70,23 @@ describe('ProfilePage', () => {
     expect(await screen.findByRole('link', { name: en.nav.signIn })).toBeInTheDocument();
   });
 
+  it('sign out forgets this user\'s setup drafts and last business, not device choices', async () => {
+    localStorage.setItem('setup-draft:user:u1', '{}');
+    localStorage.setItem('setup-draft:o1', '{}');
+    localStorage.setItem('owner.last', 'o1');
+    localStorage.setItem('theme', 'dark');
+    mockApi([{ method: 'POST', path: '/auth/logout', status: 204 }]);
+    const h = renderApp('/profile', { user });
+    await h.user.click(screen.getByRole('button', { name: en.profile.signOut }));
+    await h.user.click(within(screen.getByRole('dialog')).getByRole('button', { name: en.profile.signOut }));
+    await waitFor(() => expect(h.location().pathname).toBe('/'));
+    expect(localStorage.getItem('setup-draft:user:u1')).toBeNull();
+    expect(localStorage.getItem('setup-draft:o1')).toBeNull();
+    expect(localStorage.getItem('owner.last')).toBeNull();
+    expect(localStorage.getItem('theme')).toBe('dark');
+    localStorage.removeItem('theme');
+  });
+
   it('cancel keeps the user signed in', async () => {
     const api = mockApi([{ method: 'POST', path: '/auth/logout', status: 204 }]);
     const h = renderApp('/profile', { user });

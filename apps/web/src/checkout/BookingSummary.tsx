@@ -49,6 +49,13 @@ function byDay(items: Item[]): [string, Item[]][] {
   return out;
 }
 
+/** Every add-on line across the bookings, once each: courts can offer different add-ons. */
+function allAddons(items: Item[]): AddonLine[] {
+  const seen = new Map<string, AddonLine>();
+  for (const item of items) for (const a of item.quote.addons) if (!seen.has(`${a.addonId}-${a.auto}`)) seen.set(`${a.addonId}-${a.auto}`, a);
+  return [...seen.values()];
+}
+
 type Props = {
   venue: PublicVenue;
   turf: PublicTurf;
@@ -130,7 +137,7 @@ export function BookingSummary({ venue, turf, date, quote, items, groupTotal, gr
         </ul>
 
         <dl className={[styles.rows, busy ? styles.busy : ''].filter(Boolean).join(' ')}>
-          {quote.addons.map((a) => (
+          {allAddons(multi).map((a) => (
             <div key={`${a.addonId}-${a.auto}`} className={styles.row}>
               <dt>
                 {addonLabel(a, t)}

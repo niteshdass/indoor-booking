@@ -346,6 +346,54 @@ describe('walk-in unpaid, then cash later', () => {
   });
 });
 
+describe('Idempotency-Key on staff writes', () => {
+  const keyed = (key: string) => (r: request.Test) => r.set('Idempotency-Key', key);
+
+  it('a retried walk-in returns the first booking instead of refusing the slot', async () => {
+    const first = await keyed('walkin-key-1')(api().post(walkinUrl()).set(...bearer(staff.token))).send({
+      date: D, startAts: [at('18:00').toISOString()], customer: { name: 'Walk In', phone: PHONE }, payment: { method: 'cash' },
+    });
+    expect(first.status).toBe(201);
+    const again = await keyed('walkin-key-1')(api().post(walkinUrl()).set(...bearer(staff.token))).send({
+      date: D, startAts: [at('18:00').toISOString()], customer: { name: 'Walk In', phone: PHONE }, payment: { method: 'cash' },
+    });
+    expect([again.status, again.body.booking.id]).toEqual([201, first.body.booking.id]);
+    expect(await Booking.countDocuments({ ownerId: a.ownerId })).toBe(1);
+    expect(await Payment.countDocuments({ ownerId: a.ownerId, method: 'cash' })).toBe(1);
+  });
+
+  it('a retried part cash payment is recorded once', async () => {
+    const id = (await walkin(staff.token)).body.booking.id as string;
+    const pay = () => keyed('cash-key-1')(api().post(url(`/bookings/${id}/payments/cash`)).set(...bearer(staff.token))).send({ amount: 1000 });
+    const first = await pay();
+    const again = await pay();
+    expect([first.status, again.status]).toEqual([201, 201]);
+    expect(again.body.payment.id).toBe(first.body.payment.id);
+    expect(again.body.booking.amountPaid).toBe(1000);
+    expect(await Payment.countDocuments({ ownerId: a.ownerId, method: 'cash' })).toBe(1);
+    // A new key is a new payment.
+    const next = await keyed('cash-key-2')(api().post(url(`/bookings/${id}/payments/cash`)).set(...bearer(staff.token))).send({ amount: 1000 });
+    expect(next.body.booking.amountPaid).toBe(2000);
+  });
+
+  it('two concurrent copies of one cash request record it once and both succeed', async () => {
+    const id = (await walkin(staff.token)).body.booking.id as string;
+    const rs = await Promise.all(
+      [1, 2].map(() => keyed('cash-race-1')(api().post(url(`/bookings/${id}/payments/cash`)).set(...bearer(staff.token))).send({ amount: 500 })),
+    );
+    expect(rs.map((r) => r.status)).toEqual([201, 201]);
+    expect((await Booking.findOne({ ownerId: a.ownerId, _id: id }))!.amountPaid).toBe(500);
+  });
+
+  it('refuses a key reused for another booking', async () => {
+    const one = (await walkin(staff.token)).body.booking.id as string;
+    const two = (await walkin(staff.token, { startAts: [at('20:00').toISOString()] })).body.booking.id as string;
+    await keyed('cash-key-x')(api().post(url(`/bookings/${one}/payments/cash`)).set(...bearer(staff.token))).send({ amount: 100 });
+    const res = await keyed('cash-key-x')(api().post(url(`/bookings/${two}/payments/cash`)).set(...bearer(staff.token))).send({ amount: 100 });
+    expect([res.status, res.body.error.code]).toEqual([422, 'idempotency_key_reused']);
+  });
+});
+
 describe('confirm and reject a pending guest booking', () => {
   it('confirms once, rejects another and frees its slot', async () => {
     const id = await pendingBooking();

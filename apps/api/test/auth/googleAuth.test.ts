@@ -41,6 +41,22 @@ describe('Google sign-in', () => {
     expect(second.body.user.id).toBe(first.body.user.id);
   });
 
+  it('an unverified copy of the email on a phone account gives way to Google, which proved it', async () => {
+    const squatter = await User.create({ email: 'ana@gmail.com', passwordHash: 'x', phone: '+8801712345678', phoneVerified: true });
+    const res = await google('tok-1');
+    expect(res.status).toBe(201);
+    expect(res.body.user.email).toBe('ana@gmail.com');
+    const left = await User.findById(squatter._id).lean();
+    expect(left?.email).toBeUndefined();
+    expect(left?.passwordHash).toBeUndefined();
+    expect(left?.phone).toBe('+8801712345678');
+  });
+  it('a verified copy of the email still blocks Google sign-up', async () => {
+    await User.create({ email: 'ana@gmail.com', emailVerified: true, passwordHash: 'x', phone: '+8801712345678' });
+    const res = await google('tok-1');
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('account_exists');
+  });
   it('Google email matching an email/password account → 409 account_exists, no link made', async () => {
     await User.create({ email: 'ana@gmail.com', passwordHash: 'x' });
     const res = await google('tok-1');

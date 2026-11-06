@@ -18,12 +18,13 @@ import { SlotLock } from '../../src/bookings/slotLock.model';
 import { Payment } from '../../src/bookings/payment.model';
 import { PaymentGatewayAccount } from '../../src/payments/gateway.model';
 import { expireHolds } from '../../src/jobs/sweeps';
+import { Notification } from '../../src/notifications/notification.model';
 
 beforeAll(async () => {
   await startTestDb();
   await Promise.all([
     User.init(), Owner.init(), Role.init(), Membership.init(), ActivityLog.init(), Venue.init(), Turf.init(),
-    Booking.init(), SlotLock.init(), Payment.init(), PaymentGatewayAccount.init(),
+    Booking.init(), SlotLock.init(), Payment.init(), PaymentGatewayAccount.init(), Notification.init(),
   ]);
   await ensureSystemRoles();
 });
@@ -57,7 +58,7 @@ const resign = async (p: Player) => ({ ...p, token: await signAccessToken(p.user
 beforeEach(async () => {
   await Promise.all([
     User.deleteMany({}), Owner.deleteMany({}), Membership.deleteMany({ ownerId: { $exists: true } }),
-    ...[ActivityLog, Venue, Turf, Booking, SlotLock, Payment, PaymentGatewayAccount].map(
+    ...[ActivityLog, Venue, Turf, Booking, SlotLock, Payment, PaymentGatewayAccount, Notification].map(
       (m) => (m as typeof Venue).deleteMany({}).setOptions(cross),
     ),
   ]);
@@ -126,6 +127,9 @@ describe('POST /bookings/:id/payments/manual', () => {
     const logs = await ActivityLog.find({ ownerId: owner.ownerId, action: 'booking.pending' }).lean();
     expect(logs).toHaveLength(1);
     expect(String(logs[0]!.actorId)).toBe(player.userId);
+    // Staff hear about it at once: until they check the TrxID the slot stays held.
+    const notices = await Notification.find({ event: 'staff_new_pending', bookingId: booking.id }).setOptions({ crossTenant: true }).lean();
+    expect(notices.length).toBeGreaterThan(0);
 
     // A second submit for the same booking is refused while the first waits.
     const again = await submit(player, booking.id, { ...SUBMIT, trxId: 'ZZZZ99998888' });

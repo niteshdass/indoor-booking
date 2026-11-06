@@ -18,6 +18,7 @@ import { ownerPath } from '../ownerApi';
 import { useOwnerTitle } from '../shell/OwnerShell';
 import { useResource } from '../useResource';
 import { CouponForm } from './CouponFormDialog';
+import { couponZone } from './couponForm';
 import styles from './coupons.module.css';
 
 /** "10% · max ৳500.00" or "৳300.00 off". */
@@ -27,13 +28,14 @@ export function discountSummary(c: Pick<CouponJson, 'type' | 'value' | 'currency
   return c.maxDiscount === null ? percent : t('owner.coupons.percentMax', { percent, amount: money(c.maxDiscount, c.currency, lang) });
 }
 
-/** Dates were picked as whole days in the browser's zone, so they are shown in it too. */
-const day = (iso: string, lang: string) => new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso));
+/** Dates were picked as whole days in the venues' zone, so they are shown in it too. */
+const day = (iso: string, lang: string, timeZone: string) =>
+  new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', year: 'numeric', timeZone }).format(new Date(iso));
 
-function validity(c: CouponJson, t: TFunction, lang: string): string {
-  if (c.validFrom && c.validUntil) return `${day(c.validFrom, lang)} – ${day(c.validUntil, lang)}`;
-  if (c.validFrom) return t('owner.coupons.from', { date: day(c.validFrom, lang) });
-  if (c.validUntil) return t('owner.coupons.until', { date: day(c.validUntil, lang) });
+function validity(c: CouponJson, t: TFunction, lang: string, tz: string): string {
+  if (c.validFrom && c.validUntil) return `${day(c.validFrom, lang, tz)} – ${day(c.validUntil, lang, tz)}`;
+  if (c.validFrom) return t('owner.coupons.from', { date: day(c.validFrom, lang, tz) });
+  if (c.validUntil) return t('owner.coupons.until', { date: day(c.validUntil, lang, tz) });
   return t('owner.coupons.always');
 }
 
@@ -136,7 +138,7 @@ export function CouponsPage() {
                           )}
                         </td>
                         <td>{venueNames(c.venueIds)}</td>
-                        <td className={styles.nowrap}>{validity(c, t, lang)}</td>
+                        <td className={styles.nowrap}>{validity(c, t, lang, couponZone(venues, c.venueIds))}</td>
                         <td className={styles.num}>
                           {c.maxUses === null ? c.uses : `${c.uses} / ${c.maxUses}`}
                           {c.maxUsesPerCustomer !== null && (

@@ -358,3 +358,11 @@
   stroke-width: var(--court-line);
   stroke-linecap: round;
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .dayRemove {
+    min-width: var(--control-lg);
+    min-height: var(--control-lg);
+  }
+}

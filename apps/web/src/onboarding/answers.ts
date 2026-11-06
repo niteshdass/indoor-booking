@@ -30,6 +30,8 @@ export const SLOT_LENGTHS = [60, 90, 120] as const;
 export type Answers = {
   name: string;
   country: string;
+  /** IANA zone; empty means the country's default (defaultZoneFor), so a country change follows it. */
+  timezone: string;
   currency: string;
   city: string;
   address: string;
@@ -57,6 +59,7 @@ export function defaultAnswers(country = 'BD', currency = 'BDT'): Answers {
   return {
     name: '',
     country,
+    timezone: '',
     currency,
     city: '',
     address: '',

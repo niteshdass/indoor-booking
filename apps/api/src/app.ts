@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import type { Config } from './config';
 import type { AppServices } from './services';
 import { AppError, errorHandler, notFound } from './errors';
@@ -55,6 +55,7 @@ const CODE_SEND_PATHS = [
   '/auth/register/otp/request',
   '/me/link/phone/request',
   '/me/email/verify/request',
+  '/auth/password/forgot',
   '/venues/:slug/bookings/otp',
   '/bookings/lookup/otp',
 ];
@@ -163,7 +164,14 @@ export function createApp(deps: AppDeps): express.Express {
     // Failed sign-ins also count against the account, so spreading guesses over many addresses does not help.
     auth.post(
       '/login',
+      // Keyed on address and IP, so a stranger's wrong guesses do not lock the owner out...
       limiter('login-account', 10, WINDOW_MS, {
+        keyGenerator: (req) => `email:${loginEmailOf(req)}:ip:${ipKeyGenerator(req.ip ?? '')}`,
+        skip: (req) => loginEmailOf(req) === undefined,
+        skipSuccessfulRequests: true,
+      }),
+      // ...while a looser per-address ceiling still caps guesses spread over many IPs.
+      limiter('login-account-all', 100, WINDOW_MS, {
         keyGenerator: (req) => `email:${loginEmailOf(req)}`,
         skip: (req) => loginEmailOf(req) === undefined,
         skipSuccessfulRequests: true,

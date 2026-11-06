@@ -4,6 +4,8 @@ import { Linking } from 'react-native';
 import { formatMoney } from '@booking/shared';
 import { AuthContext, type AuthContextValue } from '../../src/auth/useAuth';
 import { ApiError } from '../../src/lib/api';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { noteServerDate, resetServerClock } from '../../src/lib/serverClock';
 import { ThemeProvider } from '../../src/theme/ThemeProvider';
 import BookingsScreen from '../../app/(tabs)/bookings';
 import BookingDetailScreen from '../../app/booking/[id]/index';
@@ -64,10 +66,13 @@ const past = (id: string, over: Record<string, unknown> = {}) =>
 
 const user = { id: 'u1', name: 'Asha', email: 'a@b.c', emailVerified: true, phone: '+8801712345678', hasPassword: true, hasGoogle: false, platformAdmin: false };
 const auth: AuthContextValue = { status: 'signedIn', user, signIn: jest.fn(), setUser: jest.fn(), signOut: jest.fn(), retry: jest.fn() };
+const metrics = { frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } };
 const wrap = (node: React.ReactNode, value: Partial<AuthContextValue> = {}) => (
-  <ThemeProvider>
-    <AuthContext.Provider value={{ ...auth, ...value }}>{node}</AuthContext.Provider>
-  </ThemeProvider>
+  <SafeAreaProvider initialMetrics={metrics}>
+    <ThemeProvider>
+      <AuthContext.Provider value={{ ...auth, ...value }}>{node}</AuthContext.Provider>
+    </ThemeProvider>
+  </SafeAreaProvider>
 );
 
 const preview = (over: Record<string, unknown> = {}) => ({
@@ -280,6 +285,19 @@ describe('booking detail', () => {
     await fireEvent.press(await screen.findByRole('button', { name: 'Pay now' }));
     expect(mockRouter.push).toHaveBeenCalledWith({ pathname: '/booking/[id]/pay', params: { id: 'b1' } });
     expect(screen.queryByRole('button', { name: 'Book again' })).toBeNull();
+  });
+
+  it('hides Pay now when the hold is over on the server clock, even if this phone runs behind', async () => {
+    // The phone is 10 minutes slow: by the server, the hold ended 5 minutes ago.
+    noteServerDate(new Date(NOW + 10 * 60_000).toUTCString(), NOW, NOW);
+    try {
+      serveDetail(booking({ status: 'awaiting_payment', paymentStatus: 'unpaid', amountPaid: 0, holdExpiresAt: new Date(NOW + 5 * 60_000).toISOString() }));
+      await renderDetail();
+      expect(await screen.findByText('BK-1')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Pay now' })).toBeNull();
+    } finally {
+      resetServerClock();
+    }
   });
 
   it('arriving from a card payment still being confirmed says so and hides Pay now', async () => {

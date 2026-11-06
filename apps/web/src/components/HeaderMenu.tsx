@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Icon } from './ui/Icon';
 import styles from './HeaderMenu.module.css';
 
 export type HeaderMenuOption = { value: string; label: string; icon?: ReactNode };
@@ -106,9 +107,7 @@ export function HeaderMenu({ label, icon, badge, value, options, onChange }: Pro
             >
               {o.icon}
               <span className={styles.itemLabel}>{o.label}</span>
-              <svg className={styles.check} viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m5 12 5 5 9-10" />
-              </svg>
+              <Icon name="check" className={styles.check} />
             </button>
           ))}
         </div>

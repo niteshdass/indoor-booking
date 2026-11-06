@@ -97,11 +97,17 @@ export function CheckoutPage() {
         if (!live) return;
         setOffered(r.addons);
         setAddonsFailed(false);
+        // A choice made on another lead court that this one doesn't offer can't be unticked here.
+        setSelection((sel) => {
+          const kept = sel.filter((x) => r.addons.some((a) => a.id === x.addonId && a.autoApply === null));
+          return kept.length === sel.length ? sel : kept;
+        });
       },
       () => {
         if (!live) return;
         setOffered([]);
         setAddonsFailed(true);
+        setSelection((sel) => (sel.length === 0 ? sel : []));
       },
     );
     return () => {

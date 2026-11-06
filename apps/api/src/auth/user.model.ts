@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema(
     phoneVerified: { type: Boolean, default: false },
     googleSub: { type: String },
     status: { type: String, enum: ['active', 'disabled'], default: 'active' },
+    /** Access tokens issued before this (a password reset) are refused, not left to run out. */
+    sessionsValidFrom: { type: Date, default: null },
     /** A platform-scope Role (Super Admin); platform access never comes from a Membership. */
     platformRoleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Role', default: null },
   },

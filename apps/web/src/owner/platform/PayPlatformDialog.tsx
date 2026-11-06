@@ -15,6 +15,7 @@ import { CopyNumber } from '../../payment/WalletPayForm';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import styles from './PlatformFeePage.module.css';
+import { useRetryKey } from '../../lib/useRetryKey';
 
 type Methods = OwnerPlatformFeeJson['methods'];
 type Stage = { kind: 'form' } | { kind: 'card'; start: OwnerStripePayoutJson } | { kind: 'done'; method: PayoutMethod };
@@ -123,6 +124,7 @@ export function PayPlatformDialog({
   const [stage, setStage] = useState<Stage>({ kind: 'form' });
   // The card payout the API already made; when only the Stripe load failed, Retry reuses it instead of making another.
   const [created, setCreated] = useState<OwnerStripePayoutJson | null>(null);
+  const retry = useRetryKey();
   const inflight = useRef(false);
   const fmt = (minor: number) => money(minor, balance.currency, i18n.language);
   const max = fmt(balance.payable);
@@ -191,7 +193,10 @@ export function PayPlatformDialog({
       void run(async () => {
         let start = created;
         if (!start) {
-          start = await apiPost<OwnerStripePayoutJson>(ownerPath(ownerId, '/platform-payouts/stripe'), { currency: balance.currency, amount });
+          const path = ownerPath(ownerId, '/platform-payouts/stripe');
+          const body = { currency: balance.currency, amount };
+          start = await apiPost<OwnerStripePayoutJson>(path, body, { 'Idempotency-Key': retry.keyFor(`${path} ${JSON.stringify(body)}`) });
+          retry.done();
           setCreated(start);
           // The pending card payout holds the amount back now.
           onChanged();

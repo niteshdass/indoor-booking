@@ -169,6 +169,7 @@
     "too_many_slots": "You can book at most 12 slots at once.",
     "invalid_transition": "This booking has changed and can't be updated that way.",
     "already_paid": "This booking has already been paid in full.",
+    "short_payment": "Less than the amount due arrived. Check the amount and confirm again.",
     "invalid_amount": "That amount is not valid for this booking.",
     "player_not_found": "No player account matches that customer.",
     "nothing_to_pay": "This booking has nothing to pay, so a payment link is not needed.",
@@ -253,7 +254,8 @@
     "turf_change_not_allowed": "The turf can't be changed for this booking.",
     "booking_changed": "The booking changed meanwhile. Check it and try again.",
     "export_too_large": "Too many rows for one file. Pick a shorter date range.",
-    "saved_venues_full": "Your saved list is full. Remove a venue to save another."
+    "saved_venues_full": "Your saved list is full. Remove a venue to save another.",
+    "card_refund_unavailable": "This card payment has no linked payment account, so it can’t be refunded automatically. Contact support."
   },
   "myBookings": {
     "title": "My bookings",
@@ -262,7 +264,8 @@
     "noUpcoming": "You have no upcoming bookings.",
     "noPast": "No past bookings yet.",
     "findVenues": "Find a venue",
-    "saved": "Saved"
+    "saved": "Saved",
+    "showOlder": "Show older bookings"
   },
   "profile": {
     "title": "Profile",
@@ -1878,6 +1881,8 @@
       "notReceived": "Not received",
       "notReceivedAsk": "Mark this payment as not received? The player will be told we couldn't find it.",
       "notReceivedConfirm": "Yes, not received",
+      "shortAsk": "Only {{received}} of {{due}} arrived. Confirm the booking with {{rest}} still due at the venue?",
+      "shortConfirm": "Yes, confirm",
       "back": "Back",
       "lateHint": "These times were taken, so everything received will be listed to send back."
     },
@@ -2772,7 +2777,9 @@
       "address": "Address",
       "addressHint": "Road, house or nearby landmark",
       "map": "Place the pin on your turf",
-      "mapHint": "Standing at the turf? Tap My location. Or search, then tap the map."
+      "mapHint": "Standing at the turf? Tap My location. Or search, then tap the map.",
+      "timezone": "Time zone",
+      "timezoneHint": "Slot times and prices follow this clock."
     },
     "turfs": {
       "question": "Tell us about your turfs",
@@ -2921,6 +2928,225 @@
     },
     "checkout": {
       "locked": "Extras and the promo code are locked while this booking may still be going through. Tap Book again to check."
+    },
+    "owner": {
+      "shell": {
+        "cardHint": "Today's games, walk-ins and payments.",
+        "teams_one": "{{count}} team",
+        "teams_other": "{{count}} teams",
+        "insights": "Insights",
+        "more": "More",
+        "newWalkIn": "New walk-in",
+        "toPlayer": "Switch to player app"
+      },
+      "team": {
+        "staff": {
+          "add": "Add",
+          "contact": "Phone or email",
+          "contactErr": "Enter a phone number or email.",
+          "role": {
+            "manager": "Manager",
+            "managerHint": "Everything except staff and money settings",
+            "staff": "Desk",
+            "staffHint": "Bookings, walk-ins, check-in, cash",
+            "customHint": "Custom role. Change it on the web."
+          },
+          "removeFromTeam": "Remove from team",
+          "removeAsk": "They lose access to this team right away.",
+          "webNote": "Custom roles and the activity log are on the web."
+        },
+        "reviews": {
+          "report": "Report",
+          "reportHint": "The review stays up until the platform team checks it."
+        }
+      },
+      "settings": {
+        "teamDefault": "Team default",
+        "useTeamDefault": "Use team default",
+        "booking": "Booking",
+        "rules": "Rules",
+        "gettingPaid": "Getting paid",
+        "deposit": "Deposit",
+        "windowDetail_one": "Book up to {{count}} day ahead",
+        "windowDetail_other": "Book up to {{count}} days ahead",
+        "refundRule": "{{hours}} h+ {{percent}}%",
+        "noRefunds": "No refunds",
+        "on": "On",
+        "off": "Off",
+        "notSet": "Not set",
+        "walletUse": "Take payments on {{provider}}",
+        "depositNone": "Nothing online, all at the desk",
+        "depositFull": "Full amount online",
+        "depositPercent": "{{percent}}% online, rest at the desk",
+        "depositFixed": "{{amount}} online, rest at the desk",
+        "webNote": "Card gateways (SSLCommerz, Stripe), opening hours and SMS are set up on the web.",
+        "fee": {
+          "payWeb": "Paying the fee is on the web for now. Open the owner portal to pay.",
+          "cardWeb": "Paying by card is on the web. Open the owner portal to pay by card."
+        }
+      },
+      "more": {
+        "switchTeam": "{{role}} · switch team",
+        "seriesWaiting_one": "{{count}} request waiting",
+        "seriesWaiting_other": "{{count}} requests waiting"
+      },
+      "venues": {
+        "webNote": "New venues, the map pin and the setup wizard are on the web portal.",
+        "courts_one": "{{count}} court",
+        "courts_other": "{{count}} courts",
+        "show": "Show to players",
+        "showHint": "Off = hidden from search",
+        "courtsTitle": "Courts",
+        "venueTitle": "Venue",
+        "address": "Address",
+        "photos_one": "{{count}} photo",
+        "photos_other": "{{count}} photos",
+        "noPhotos": "No photos yet",
+        "hours": "Opening hours",
+        "everyDay": "Every day {{hours}}",
+        "variesByDay": "Differs by day",
+        "closedAllWeek": "Closed all week",
+        "detailsNote": "Edit the name, address, photos and hours on the web.",
+        "addCourt": "Add court",
+        "newCourt": "New court",
+        "perSlot": "{{price}} / {{minutes}} min",
+        "noPrice": "No price yet",
+        "off": "Off",
+        "sameAsVenue": "Same as venue",
+        "ownHours": "Own hours",
+        "basePrice": "Price per slot ({{currency}})",
+        "priceErr": "Enter an amount such as 900.",
+        "shorter": "Shorter slot",
+        "longer": "Longer slot",
+        "rulesNote_one": "{{count}} price rule runs on this court. Edit price rules, hours and one-off changes on the web.",
+        "rulesNote_other": "{{count}} price rules run on this court. Edit price rules, hours and one-off changes on the web.",
+        "noRulesNote": "Price rules, hours and one-off changes are on the web.",
+        "create": "Add court"
+      },
+      "setup": {
+        "closures": {
+          "wholeVenue": "Whole venue",
+          "oneCourt": "One court",
+          "allCourts": "All courts",
+          "allDay": "All day",
+          "note": "Bookings already made on these days stay. Check them in Bookings.",
+          "deleteLabel": "Delete closure {{dates}}",
+          "dayBefore": "Day before",
+          "dayAfter": "Day after"
+        },
+        "coupons": {
+          "used_one": "{{count}} used",
+          "used_other": "{{count}} used",
+          "usedOf": "{{used}} of {{max}} used",
+          "percentOff": "{{percent}} off",
+          "typePercent": "% off",
+          "typeFixed": "{{currency}} off",
+          "discount": "Discount",
+          "starts": "Starts",
+          "ends": "Ends",
+          "now": "Now",
+          "noEnd": "No end",
+          "clear": "Clear",
+          "webOnly": "Min spend, per-player limit and discount cap: web only.",
+          "toggleLabel": "{{code}} on"
+        },
+        "extras": {
+          "catalogue": "catalogue {{price}}",
+          "tapHint": "Tap a row to change this venue's price.",
+          "webNote": "Add new extras to the catalogue on the web.",
+          "priceTitle": "{{name}} at {{venue}}",
+          "priceLabel": "Price here ({{currency}})",
+          "priceHint": "Leave blank for the catalogue price, {{price}}.",
+          "needPrice": "This extra is priced in another currency. Set a price for this venue first.",
+          "offerLabel": "Offer {{name}}"
+        },
+        "save": "Save",
+        "dateNote": "Pick a date",
+        "calendar": {
+          "open": "Choose from calendar",
+          "prevMonth": "Previous month",
+          "nextMonth": "Next month"
+        }
+      },
+      "insights": {
+        "noAccess": "Your role cannot see insights.",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days",
+        "revenueByWeek": "Revenue by week",
+        "revenueByDay": "Revenue by day",
+        "noRevenue": "No revenue in this period.",
+        "busiest": "Busiest turfs",
+        "courtUse": "{{use}} used · {{hours}}",
+        "noCourts": "No turf data for this period.",
+        "venues": "Venue"
+      },
+      "series": {
+        "intro": "Same turf, same time, every week.",
+        "filterLabel": "Show",
+        "requests": "Requests",
+        "all": "All",
+        "more": "Show more",
+        "games_one": "{{count}} game",
+        "games_other": "{{count}} games",
+        "free_one": "{{count}} free",
+        "free_other": "{{count}} free",
+        "clash_one": "{{count}} clash",
+        "clash_other": "{{count}} clashes",
+        "freeBadge": "Free",
+        "clashBadge": "Clash · {{reason}}",
+        "clashNote": "Clashing dates are skipped if you accept.",
+        "accept_one": "Accept {{count}} game",
+        "accept_other": "Accept {{count}} games",
+        "preview": "Preview",
+        "earlier": "Earlier",
+        "later": "Later",
+        "noAccess": "Your role cannot add series.",
+        "customerPlayer": "Registered player",
+        "perGame": "Per game",
+        "listNoAccess": "Your role cannot see series."
+      },
+      "bookings": {
+        "series": "Series",
+        "show_one": "Show {{count}} booking",
+        "show_other": "Show {{count}} bookings",
+        "datePlaceholder": "YYYY-MM-DD",
+        "dateInvalid": "Use the format YYYY-MM-DD."
+      },
+      "walkin": {
+        "whoPlaying": "Who's playing?",
+        "noAccess": "You can't create bookings in this team.",
+        "linkTitle": "Payment link ready",
+        "linkBody": "Send it to {{name}} to pay {{amount}}.",
+        "shareLink": "Share link",
+        "openBooking": "Open booking"
+      },
+      "booking": {
+        "holdToCopy": "Press and hold to copy",
+        "full": "Full amount",
+        "saveCash": "Save {{amount}} cash",
+        "shareLink": "Share link"
+      },
+      "today": {
+        "view": "View",
+        "summary": "Summary",
+        "schedule": "Schedule",
+        "free": "Free · {{price}}",
+        "noCourts": "No active courts",
+        "nowAt": "Now, {{time}}",
+        "dueAmount": "{{amount}} due",
+        "noAccess": "Your role cannot see bookings. Open More for the pages you can use."
+      },
+      "refunds": {
+        "title": "Refunds to send",
+        "intro": "Send the money from your wallet app, then mark it sent with the Transaction ID.",
+        "waiting_one": "{{n}} waiting to be sent",
+        "waiting_other": "{{n}} waiting to be sent",
+        "empty": "No refunds to send. You're all caught up.",
+        "noAccess": "Only members who check payments can send refunds.",
+        "booking": "{{customer}} · {{reference}} · {{date}}",
+        "openBooking": "Open booking {{reference}}",
+        "more": "Show more"
+      }
     }
   }
 }

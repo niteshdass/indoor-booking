@@ -202,6 +202,20 @@ describe('venue editor', () => {
     });
   });
 
+  it("new venue's zone follows a country change until a zone is picked by hand", async () => {
+    mockApi(ownerRoutes({ permissions: [...MANAGE] }));
+    const { user } = renderApp(`/owner/${OWNER_ID}/venues/new`, { user: staffUser });
+    const country = await screen.findByLabelText(en.owner.venues.country);
+    const zone = screen.getByLabelText(en.owner.venues.timezone);
+    await user.selectOptions(country, 'BD');
+    expect(zone).toHaveValue('Asia/Dhaka');
+    await user.selectOptions(country, 'IN');
+    expect(zone).toHaveValue('Asia/Kolkata');
+    await user.selectOptions(zone, 'Asia/Dhaka');
+    await user.selectOptions(country, 'PK');
+    expect(zone).toHaveValue('Asia/Dhaka');
+  });
+
   it('uploads compressed photos, marks the cover and sends them with the venue', async () => {
     URL.createObjectURL = vi.fn(() => 'blob:preview');
     URL.revokeObjectURL = vi.fn();

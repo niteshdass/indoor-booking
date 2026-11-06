@@ -49,6 +49,8 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
   const [error, setError] = useState<unknown>(null);
   const [done, setDone] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // A new venue's zone follows its country until the owner picks one by hand.
+  const [zonePicked, setZonePicked] = useState(!isNew);
 
   const lang = i18n.language;
   const countries = useMemo(() => countryOptions(lang, draft.country), [lang, draft.country]);
@@ -128,7 +130,11 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
             value={draft.country}
             disabled={readOnly}
             error={msg('country')}
-            onChange={(e) => set('country', e.target.value)}
+            onChange={(e) => {
+              const country = e.target.value;
+              set('country', country);
+              if (!zonePicked && country) set('timezone', defaultZoneFor(country));
+            }}
           />
           <Select
             layout="stacked"
@@ -139,7 +145,10 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
             value={draft.timezone}
             disabled={readOnly}
             error={msg('timezone')}
-            onChange={(e) => set('timezone', e.target.value)}
+            onChange={(e) => {
+              setZonePicked(true);
+              set('timezone', e.target.value);
+            }}
           />
           <Select
             layout="stacked"

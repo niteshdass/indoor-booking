@@ -5,7 +5,7 @@ import { isDuplicateKeyError } from '../../db';
 import type { AuthDeps } from '../deps';
 import { hashPassword, randomToken, sha256, verifyPassword } from '../crypto';
 import { normalizeEmail, normalizePhone } from '../normalize';
-import { otpCodeSchema, requestOtp, verifyOtp } from '../otp';
+import { checkOtp, otpCodeSchema, requestOtp } from '../otp';
 import { PasswordReset } from '../passwordReset.model';
 import { issueTokens, revokeAllForUser, sendAuthResponse } from '../tokens';
 import { User, assertActive } from '../user.model';
@@ -51,10 +51,12 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
     const input = registerSchema.parse(req.body);
     const email = normalizeEmail(input.email);
     const phone = normalizePhone(input.phone);
-    // Checked before the code is used up, so fixing a taken email does not need a new SMS.
-    if (await User.exists({ email })) throw emailInUse();
     if (await User.exists({ phone })) throw phoneInUse();
-    await verifyOtp(phone, 'register', input.code, services);
+    // The code is checked before the email, so only the phone's owner learns whether an email has
+    // an account; it is used up after, so fixing a taken email does not need a new SMS.
+    const consumeCode = await checkOtp(phone, 'register', input.code, services);
+    if (await User.exists({ email })) throw emailInUse();
+    await consumeCode();
     let user;
     try {
       user = await User.create({
@@ -119,7 +121,7 @@ export function emailAuthRouter({ config, services }: AuthDeps): Router {
     await User.updateOne(
       { _id: reset.userId },
       // Receiving the reset email proves ownership of the address.
-      { $set: { passwordHash: await hashPassword(input.password), emailVerified: true } },
+      { $set: { passwordHash: await hashPassword(input.password), emailVerified: true, sessionsValidFrom: now } },
     );
     await revokeAllForUser(String(reset.userId), now);
     res.status(204).end();

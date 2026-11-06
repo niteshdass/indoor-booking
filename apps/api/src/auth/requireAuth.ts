@@ -10,11 +10,16 @@ import { User, assertActive } from './user.model';
 async function authenticate(header: string, config: Config, services: AppServices): Promise<string> {
   const match = header.match(/^Bearer\s+(.+)$/i);
   if (!match?.[1]) throw new AppError(401, 'unauthenticated', 'Sign in required');
-  const { userId } = await verifyAccessToken(match[1], config.jwtSecret, services.now());
+  const { userId, issuedAt } = await verifyAccessToken(match[1], config.jwtSecret, services.now());
   const user = mongoose.isValidObjectId(userId)
-    ? await User.findById(userId, { status: 1 }).lean()
+    ? await User.findById(userId, { status: 1, sessionsValidFrom: 1 }).lean()
     : null;
   if (!user) throw new AppError(401, 'invalid_token', 'Invalid or expired access token');
+  // `iat` is in whole seconds: tokens from earlier seconds die; one from the reset's own second
+  // (the sign-in right after it) lives.
+  if (user.sessionsValidFrom && issuedAt < Math.floor(user.sessionsValidFrom.getTime() / 1000)) {
+    throw new AppError(401, 'invalid_token', 'Invalid or expired access token');
+  }
   assertActive(user);
   return userId;
 }

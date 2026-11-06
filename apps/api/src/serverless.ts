@@ -6,6 +6,7 @@ import { loadConfig } from './config';
 import { connectDb, dbState } from './db';
 import { AppError, errorHandler } from './errors';
 import { JOBS, runDueJobs } from './jobs/runner';
+import { cronAuthorized } from './jobs/tick';
 import { runMigrations } from './migrations';
 import { defaultServices } from './services';
 import { ensureSystemRoles } from './tenancy/role.model';
@@ -24,8 +25,8 @@ async function boot(): Promise<express.Express> {
 
   const app = express();
   app.get('/api/v1/jobs/tick', async (req, res) => {
-    const secret = process.env.CRON_SECRET;
-    if (!secret || req.get('authorization') !== `Bearer ${secret}`) {
+    // config.cronSecret has passed the length check; compared in constant time.
+    if (!cronAuthorized(req.get('authorization'), config.cronSecret)) {
       throw new AppError(401, 'unauthorized', 'Missing or wrong cron secret');
     }
     const ran = await runDueJobs(JOBS, { config, services }, `vercel:${randomBytes(4).toString('hex')}`);

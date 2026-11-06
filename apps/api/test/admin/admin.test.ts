@@ -121,6 +121,15 @@ describe('owner applications and approval', () => {
     expect(actions).toEqual(expect.arrayContaining(['owner.applied', 'owner.auto_approved']));
   });
 
+  it('a suspended business cannot apply again, which automatic approval would make live', async () => {
+    const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
+    const first = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);
+    await Owner.updateOne({ _id: first.body.owner.id }, { $set: { status: 'suspended' } });
+    await setApproval('automatic');
+    const again = await post('/owners', { name: 'Smash Club 2', country: 'BD', currency: 'BDT' }, applicant.token);
+    expect([again.status, again.body.error.code]).toEqual([403, 'owner_suspended']);
+  });
+
   it('manual stays pending', async () => {
     const applicant = await seedUser(ctx.services, { name: 'Rafiq' });
     const res = await post('/owners', { name: 'Smash Club', country: 'BD', currency: 'BDT' }, applicant.token);

@@ -73,6 +73,21 @@ export async function verifyOtp(
   code: string,
   services: AppServices,
 ): Promise<void> {
+  const consume = await checkOtp(phone, purpose, code, services);
+  await consume();
+}
+
+/**
+ * Counts the attempt and checks the code without using it up; call the returned function to
+ * consume it. Lets a caller run its own checks between the two, so a failure there (say, an
+ * email already taken) does not cost the person a new code.
+ */
+export async function checkOtp(
+  phone: string,
+  purpose: OtpPurpose,
+  code: string,
+  services: AppServices,
+): Promise<() => Promise<void>> {
   const now = services.now();
   const latest = await OtpCode.findOne({ phone, purpose }).sort({ createdAt: -1, _id: -1 });
   if (!latest || latest.consumedAt) throw invalid();
@@ -85,11 +100,13 @@ export async function verifyOtp(
     throw new AppError(429, 'otp_attempts_exceeded', 'Too many wrong attempts; request a new code');
   }
   if (counted.codeHash !== hashCode(phone, code)) throw invalid();
-  const consumed = await OtpCode.updateOne(
-    { _id: latest._id, consumedAt: { $exists: false } },
-    { $set: { consumedAt: now } },
-  );
-  if (consumed.modifiedCount !== 1) throw invalid();
+  return async () => {
+    const consumed = await OtpCode.updateOne(
+      { _id: latest._id, consumedAt: { $exists: false } },
+      { $set: { consumedAt: services.now() } },
+    );
+    if (consumed.modifiedCount !== 1) throw invalid();
+  };
 }
 
 /**

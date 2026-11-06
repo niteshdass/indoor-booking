@@ -47,6 +47,11 @@ export function onboardingRouter({ config, services }: AuthDeps): Router {
     if (await Owner.exists({ _id: { $in: ownerIds }, status: 'pending_approval' })) {
       throw new AppError(409, 'application_pending', 'You already have an application waiting for approval');
     }
+    // A suspended (or rejected) business does not get a fresh one, which automatic approval would
+    // make live at once.
+    if (await Owner.exists({ _id: { $in: ownerIds }, status: 'suspended' })) {
+      throw new AppError(403, 'owner_suspended', 'Your business is suspended; contact support to reopen it');
+    }
     const now = services.now();
     const automatic = (await resolveGeneral(config)).ownerApproval === 'automatic';
     const { business } = input;

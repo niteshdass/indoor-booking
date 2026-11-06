@@ -21,14 +21,14 @@ export async function verifyAccessToken(
   token: string,
   secret: string,
   now: Date,
-): Promise<{ userId: string }> {
+): Promise<{ userId: string; issuedAt: number }> {
   try {
     const { payload } = await jwtVerify(token, key(secret), {
       algorithms: ['HS256'],
       currentDate: now,
     });
     if (payload.typ !== 'access' || typeof payload.sub !== 'string') throw new Error('bad claims');
-    return { userId: payload.sub };
+    return { userId: payload.sub, issuedAt: payload.iat ?? 0 };
   } catch {
     throw new AppError(401, 'invalid_token', 'Invalid or expired access token');
   }

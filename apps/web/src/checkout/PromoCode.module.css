@@ -128,3 +128,11 @@
   font-size: var(--text-sm);
   color: var(--text-muted);
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .toggle,
+  .chip {
+    min-height: var(--control-lg);
+  }
+}

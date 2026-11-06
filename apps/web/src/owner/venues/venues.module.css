@@ -545,3 +545,15 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .place,
+  .mapStyleBtn {
+    min-height: var(--control-lg);
+  }
+  .photoRemove {
+    min-width: var(--control-lg);
+    min-height: var(--control-lg);
+  }
+}

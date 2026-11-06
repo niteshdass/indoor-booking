@@ -75,3 +75,10 @@
 .player {
   color: var(--info);
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .option {
+    min-height: var(--control-lg);
+  }
+}

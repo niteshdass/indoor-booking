@@ -413,3 +413,10 @@
     display: block;
   }
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .navLink {
+    min-height: var(--control-lg);
+  }
+}

@@ -123,3 +123,10 @@
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .step {
+    min-height: var(--control-lg);
+  }
+}

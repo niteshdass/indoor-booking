@@ -354,3 +354,16 @@
     grid-column: auto;
   }
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .chip,
+  .chipSelect,
+  .check {
+    min-height: var(--control-lg);
+  }
+  .chipClear {
+    min-width: var(--control-lg);
+    min-height: var(--control-lg);
+  }
+}

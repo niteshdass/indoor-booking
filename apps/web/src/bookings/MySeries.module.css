@@ -137,3 +137,11 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
+
+/* Finger-sized on touch screens, like every button (design doc: coarse pointers get --control-lg). */
+@media (pointer: coarse) {
+  .summary,
+  a.game {
+    min-height: var(--control-lg);
+  }
+}

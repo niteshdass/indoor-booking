@@ -4,7 +4,7 @@ import type { CouponJson } from '@booking/shared';
 import en from '../../src/i18n/locales/en.json';
 import i18n from '../../src/i18n';
 import { setAccessToken, setRefreshHandler } from '../../src/lib/apiClient';
-import { couponBody, EMPTY_COUPON_DRAFT, type CouponDraft } from '../../src/owner/coupons/couponForm';
+import { couponBody, couponZone, dateInputToIso, EMPTY_COUPON_DRAFT, isoToDateInput, type CouponDraft } from '../../src/owner/coupons/couponForm';
 import { renderApp } from '../helpers/render';
 import { mockApi } from '../helpers/api';
 import { OWNER_ID, ownerRoutes, staffUser } from './fixtures';
@@ -45,7 +45,7 @@ const draft = (over: Partial<CouponDraft> = {}): CouponDraft => ({ ...EMPTY_COUP
 
 describe('couponBody', () => {
   it('builds the POST body in minor units with blanks as null', () => {
-    expect(couponBody(draft({ code: ' eid10 ', maxDiscount: '500', minSubtotal: '1000' }), null, 'BDT')).toEqual({
+    expect(couponBody(draft({ code: ' eid10 ', maxDiscount: '500', minSubtotal: '1000' }), null, 'BDT', 'Asia/Dhaka')).toEqual({
       ok: true,
       body: {
         code: 'EID10',
@@ -61,14 +61,14 @@ describe('couponBody', () => {
         active: true,
       },
     });
-    expect(couponBody(draft({ type: 'fixed', value: '300', maxDiscount: '500' }), null, 'BDT')).toMatchObject({
+    expect(couponBody(draft({ type: 'fixed', value: '300', maxDiscount: '500' }), null, 'BDT', 'Asia/Dhaka')).toMatchObject({
       ok: true,
       body: { type: 'fixed', value: 30000, maxDiscount: null },
     });
   });
 
   it('refuses a bad code, percent, limits and an empty venue choice', () => {
-    const res = couponBody(draft({ code: 'X', value: '120', maxUses: '0', allVenues: false, venueIds: [] }), null, 'BDT');
+    const res = couponBody(draft({ code: 'X', value: '120', maxUses: '0', allVenues: false, venueIds: [] }), null, 'BDT', 'Asia/Dhaka');
     expect(res.ok).toBe(false);
     if (!res.ok) {
       expect(res.errors).toEqual({
@@ -82,11 +82,27 @@ describe('couponBody', () => {
 
   it('on edit sends only the changed keys', () => {
     const orig = coupon();
-    expect(couponBody(draft({ maxDiscount: '500.00', maxUses: '50' }), orig, 'BDT')).toEqual({ ok: true, body: {} });
-    expect(couponBody(draft({ maxDiscount: '500.00', maxUses: '', active: false }), orig, 'BDT')).toEqual({
+    expect(couponBody(draft({ maxDiscount: '500.00', maxUses: '50' }), orig, 'BDT', 'Asia/Dhaka')).toEqual({ ok: true, body: {} });
+    expect(couponBody(draft({ maxDiscount: '500.00', maxUses: '', active: false }), orig, 'BDT', 'Asia/Dhaka')).toEqual({
       ok: true,
       body: { maxUses: null, active: false },
     });
+  });
+});
+
+describe('coupon dates', () => {
+  it('counts whole days in the venue zone, not the browser one', () => {
+    expect(dateInputToIso('2026-11-30', 'from', 'Asia/Dhaka')).toBe('2026-11-29T18:00:00.000Z');
+    expect(dateInputToIso('2026-11-30', 'until', 'Asia/Dhaka')).toBe('2026-11-30T17:59:59.999Z');
+    expect(isoToDateInput('2026-11-30T17:59:59.999Z', 'Asia/Dhaka')).toBe('2026-11-30');
+    expect(isoToDateInput('2026-11-29T18:00:00.000Z', 'Asia/Dhaka')).toBe('2026-11-30');
+    expect(couponBody(draft({ validUntil: '2026-11-30' }), null, 'BDT', 'Asia/Dhaka')).toMatchObject({ body: { validUntil: '2026-11-30T17:59:59.999Z' } });
+  });
+
+  it('takes the zone of a chosen venue, else the first one', () => {
+    const venues = [{ id: 'v1', timezone: 'Asia/Dhaka' }, { id: 'v2', timezone: 'Asia/Dubai' }];
+    expect(couponZone(venues)).toBe('Asia/Dhaka');
+    expect(couponZone(venues, ['v2'])).toBe('Asia/Dubai');
   });
 });
 

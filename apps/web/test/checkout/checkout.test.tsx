@@ -469,6 +469,54 @@ describe('CheckoutPage', () => {
     expect(new URLSearchParams(location().search).get('slots')).toBe(MORE2.slice(11));
   });
 
+  it('several courts: the summary lists an add-on only the second court has', async () => {
+    const twoCourts = { ...venue, turfs: [...venue.turfs, { id: 't2', name: 'Court B', sports: ['futsal'], indoor: false, slotLengthMin: 60 }] };
+    const flood = { addonId: 'a3', name: 'Floodlights', pricingType: 'per_hour' as const, unitPrice: 200, quantity: 1, minutes: 60, total: 200, auto: true };
+    mockApi([
+      { path: '/venues/arena-one', body: { venue: twoCourts } },
+      { path: '/venues/arena-one/turfs/t1/addons', body: { currency: 'BDT', addons: offered } },
+      {
+        method: 'POST',
+        path: '/venues/arena-one/turfs/t1/quote',
+        body: () => ({
+          ...qr(quote(), false),
+          items: [
+            { turfId: 't1', date: '2026-01-01', quote: quote() },
+            { turfId: 't2', date: '2026-01-02', quote: quote({ addons: [flood], addonsTotal: 200, total: 2200 }) },
+          ],
+          total: 4200,
+          advanceRequired: 0,
+        }),
+      },
+    ]);
+    renderApp(`${PATH}&more=2026-01-02@t2:${MORE2.slice(11)}`, { user: player });
+    const summary = await screen.findByRole('region', { name: en.checkout.summary });
+    const row = (await within(summary).findByText(/Floodlights/)).closest('div')!;
+    expect(row).toHaveTextContent(m(200));
+  });
+
+  it('an add-on the new first court lacks is dropped from the choice', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const twoCourts = { ...venue, turfs: [...venue.turfs, { id: 't2', name: 'Court B', sports: ['futsal'], indoor: false, slotLengthMin: 60 }] };
+    const taken = { status: 409, body: { error: { code: 'slot_taken', message: 'x', details: { turfId: 't1', date: '2026-01-01', itemStart: START } } } };
+    const { calls } = mockApi([
+      { path: '/venues/arena-one', body: { venue: twoCourts } },
+      { path: '/venues/arena-one/turfs/t1/addons', body: { currency: 'BDT', addons: offered } },
+      { path: '/venues/arena-one/turfs/t2/addons', body: { currency: 'BDT', addons: offered.filter((a) => a.id !== 'a2') } },
+      { method: 'POST', path: '/venues/arena-one/turfs/t1/quote', body: (c: Call) => ((c.body as { addons: unknown[] }).addons.length > 0 ? taken : qr(quote())) },
+      { method: 'POST', path: '/venues/arena-one/turfs/t2/quote', body: () => qr(quote()) },
+    ]);
+    const { user, location } = renderApp(`${PATH}&more=2026-01-02@t2:${MORE2.slice(11)}`, { user: player });
+    await user.click(await screen.findByRole('checkbox', { name: /Ball/ }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(250);
+    });
+    await user.click(await screen.findByRole('button', { name: /Remove/ }));
+    await waitFor(() => expect(new URLSearchParams(location().search).get('turf')).toBe('t2'));
+    expect(await screen.findByRole('button', { name: en.checkout.book })).toBeEnabled();
+    expect(quoteCalls(calls).at(-1)!).toMatchObject({ path: '/venues/arena-one/turfs/t2/quote', body: { addons: [] } });
+  });
+
   it('has the new strings in ru too', () => {
     expect(Object.keys(ru.addons).sort()).toEqual(Object.keys(en.addons).sort());
     for (const k of ['addon_unavailable', 'addon_auto', 'invalid_quantity', 'addon_out_of_stock', 'too_many_slots']) {

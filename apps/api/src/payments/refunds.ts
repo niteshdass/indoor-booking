@@ -81,8 +81,10 @@ export async function reserveRefunds(
   const rows: RefundDoc[] = [];
   for (const part of parts) {
     const payment = await Payment.findOne({ ownerId, _id: part.paymentId }).session(session);
-    // A mismatched charge may have taken more than the payment row says; the gateway holds the received amount.
-    const room = reason === 'amount_mismatch' || (payment != null && part.amount <= payment.amount - payment.refundedAmount);
+    // A mismatched charge, or one paid into a session we had closed, may have taken more than the payment row
+    // says (a group's session pays for every day); the gateway holds the received amount.
+    const received = reason === 'amount_mismatch' || (reason === 'late_payment' && payment?.status === 'failed');
+    const room = received || (payment != null && part.amount <= payment.amount - payment.refundedAmount);
     if (!payment || !room) throw new Error('Refund exceeds what was paid');
     if (part.method === 'card' && payment.method !== 'card') throw new Error('A card refund needs a card payment');
     // A card payment with no recorded gateway account (e.g. imported or seeded) cannot be sent back through any gateway.

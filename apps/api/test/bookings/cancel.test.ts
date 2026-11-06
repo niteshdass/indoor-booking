@@ -273,6 +273,21 @@ describe('cancelBooking', () => {
     expect(await locksOf(bookingId)).toBe(0);
   });
 
+  it('money paid into a payment closed by the cancel is refunded in full, once', async () => {
+    // SSLCommerz sessions cannot really be closed; a success can still arrive for one.
+    const { player, bookingId, payment } = await hold();
+    await cancelBooking(await bookingOf(bookingId), playerBy(player), {}, deps());
+    const event = piSucceeded(payment);
+    expect((await postEvent(ctx.app, owner.ownerId, secret, event)).status).toBe(200);
+    expect((await bookingOf(bookingId)).status).toBe('cancelled');
+    const rows = await refundRows();
+    expect(rows.map((r) => [r.reason, r.amount])).toEqual([['late_payment', payment.amount]]);
+    expect(await Payment.findById(payment._id).setOptions(cross)).toMatchObject({ status: 'failed', failureCode: 'paid_after_close' });
+    // A second notice of the same money (another event id) refunds nothing more.
+    expect((await postEvent(ctx.app, owner.ownerId, secret, { ...event, id: `${event.id}_again` })).status).toBe(200);
+    expect(await refundRows()).toHaveLength(1);
+  });
+
   it('a hold whose payment already went through cannot be cancelled', async () => {
     const { player, bookingId, payment } = await hold();
     ctx.services.stripe.settle(payment.gatewayRef!, 'succeeded');

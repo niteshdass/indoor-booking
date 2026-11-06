@@ -57,6 +57,9 @@ export async function applyEvent(
     return done(res.matchedCount > 0 ? 'applied' : 'ignored');
   }
 
+  if (payment.status === 'failed' && CLOSED_BY_US.includes(payment.failureCode ?? '')) {
+    return paidAfterClose({ ownerId, event, payment, ctx, session });
+  }
   if (payment.status !== 'pending') return done('ignored');
   const booking = await Booking.findOne({ ownerId, _id: payment.bookingId }).session(session);
   const others = payment.groupId
@@ -118,6 +121,55 @@ type Succeeded = {
 };
 
 /** The gateway took a different amount or currency than the payment asked for: fail it and give the money back. */
+/**
+ * Failure codes we set ourselves when closing a payment the gateway may still take: SSLCommerz sessions cannot
+ * be cancelled, only left to expire, so a player can still pay one after its booking (or one day of its group)
+ * was cancelled or a new checkout replaced it.
+ */
+const CLOSED_BY_US = ['booking_cancelled', 'superseded'];
+
+/** Money arrived on a payment we had closed: nothing is confirmed by it, so all of it goes back. */
+async function paidAfterClose(s: Omit<Succeeded, 'booking'>): Promise<ApplyResult> {
+  const { ownerId, event, payment, ctx, session } = s;
+  // Claimed by its failure code, so a repeated notice refunds nothing twice.
+  const claimed = await Payment.updateOne(
+    { ownerId, _id: payment._id, status: 'failed', failureCode: payment.failureCode },
+    { $set: { failureCode: 'paid_after_close', gatewayRef: event.gatewayRef } },
+    { session },
+  );
+  if (claimed.matchedCount !== 1) return done('ignored');
+  const booking = await Booking.findOne({ ownerId, _id: payment.bookingId }).session(session);
+  if (!booking) {
+    console.error(`[payments] payment ${String(payment._id)} was paid after it was closed and has no booking; not refunded`);
+    return done('mismatch');
+  }
+  const [row] = await reserveRefunds(
+    {
+      booking,
+      parts: [{ paymentId: payment._id, method: 'card', amount: event.amount }],
+      reason: 'late_payment',
+      ruleApplied: null,
+      by: null,
+      now: ctx.now,
+      currency: event.currency,
+    },
+    session,
+  );
+  await logSystemActivity(
+    ownerId,
+    {
+      action: 'payment.after_close',
+      entity: 'payment',
+      entityId: String(payment._id),
+      venueId: String(booking.venueId),
+      after: { received: { amount: event.amount, currency: event.currency }, closedAs: payment.failureCode },
+    },
+    ctx.now,
+    session,
+  );
+  return done('applied', [String(row!._id)]);
+}
+
 async function mismatch(s: Omit<Succeeded, 'booking'> & { booking: BookingDoc | null }): Promise<ApplyResult> {
   const { ownerId, event, payment, booking, ctx, session } = s;
   const failed = await Payment.updateOne(

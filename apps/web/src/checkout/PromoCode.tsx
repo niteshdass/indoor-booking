@@ -53,7 +53,7 @@ export function PromoCode({ applied, currency, pending, error, onApply, onRemove
       <div className={styles.applied}>
         <span className={styles.chip}>
           <Icon name="tag" className={styles.chipIcon} />
-          <span className={styles.code}>{applied.code}</span>
+          <span className={styles.code} title={applied.code}>{applied.code}</span>
           <span className={styles.saved}>{money(-applied.discount, currency, i18n.language)}</span>
         </span>
         <span className={styles.note} role="status">

@@ -5,7 +5,7 @@ import type { Addon, Assignment, Closure, OwnerTurf, Permission } from '../../..
 import ClosuresScreen from '../../../app/owner/[ownerId]/closures';
 import CouponsScreen from '../../../app/owner/[ownerId]/coupons';
 import ExtrasScreen from '../../../app/owner/[ownerId]/extras';
-import { couponBody, draftFromCoupon } from '../../../src/owner/setup/couponForm';
+import { couponBody, couponZone, dateInputToIso, draftFromCoupon, isoToDateInput } from '../../../src/owner/setup/couponForm';
 import { todayIso } from '../../../src/owner/setup/dates';
 import { OwnerWrap, ownerValue } from '../ownerFixture';
 
@@ -146,8 +146,22 @@ describe('coupons', () => {
     });
   });
 
+  it('counts coupon days at the venue, not on the phone', () => {
+    // Dhaka is UTC+6: 30 Nov there runs from 29 Nov 18:00 UTC to 30 Nov 17:59:59.999 UTC.
+    expect(dateInputToIso('2026-11-30', 'from', 'Asia/Dhaka')).toBe('2026-11-29T18:00:00.000Z');
+    expect(dateInputToIso('2026-11-30', 'until', 'Asia/Dhaka')).toBe('2026-11-30T17:59:59.999Z');
+    expect(isoToDateInput('2026-11-29T18:30:00.000Z', 'Asia/Dhaka')).toBe('2026-11-30');
+    expect(todayIso(new Date('2026-11-05T19:00:00.000Z'), 'Asia/Dhaka')).toBe('2026-11-06');
+    const venues = [
+      { id: 'v1', timezone: 'Asia/Dhaka' },
+      { id: 'v2', timezone: 'Asia/Kolkata' },
+    ];
+    expect(couponZone(venues)).toBe('Asia/Dhaka');
+    expect(couponZone(venues, ['v2'])).toBe('Asia/Kolkata');
+  });
+
   it('patches only what changed, keeping web-only fields', () => {
-    const res = couponBody({ ...draftFromCoupon(coupon), maxUses: '100' }, coupon, 'BDT');
+    const res = couponBody({ ...draftFromCoupon(coupon, 'Asia/Dhaka'), maxUses: '100' }, coupon, 'BDT', 'Asia/Dhaka');
     expect(res).toEqual({ ok: true, body: { maxUses: 100 } });
   });
 

@@ -185,8 +185,10 @@ function ClosureForm({ turfsByVenue, onClose, onCreated }: { turfsByVenue: Recor
   const [scope, setScope] = useState<Scope>(scopes.includes('venue') ? 'venue' : (scopes[0] ?? 'venue'));
   const [venueId, setVenueId] = useState(venues[0]?.id ?? '');
   const [turfId, setTurfId] = useState('');
-  const [from, setFrom] = useState(todayIso());
-  const [to, setTo] = useState(todayIso());
+  // Closures are whole days at the venue, so they start from the venue's today, not this phone's.
+  const zone = (scope === 'owner' ? venues[0] : venues.find((v) => v.id === venueId))?.timezone;
+  const [from, setFrom] = useState(() => todayIso(new Date(), venues[0]?.timezone));
+  const [to, setTo] = useState(() => todayIso(new Date(), venues[0]?.timezone));
   const [reason, setReason] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -264,13 +266,14 @@ function ClosureForm({ turfsByVenue, onClose, onCreated }: { turfsByVenue: Recor
         <DateStepper
           label={tr('owner.closures.from')}
           value={from}
+          timeZone={zone}
           onChange={(v) => {
             setFrom(v);
             if (to < v) setTo(v);
           }}
           error={err('from')}
         />
-        <DateStepper label={tr('owner.closures.to')} value={to} onChange={setTo} error={err('to')} />
+        <DateStepper label={tr('owner.closures.to')} value={to} onChange={setTo} error={err('to')} timeZone={zone} />
       </View>
       <Field label={tr('owner.closures.reason')} value={reason} onChangeText={setReason} maxLength={REASON_MAX} error={err('reason')} />
       <Text variant="caption" tone="muted">

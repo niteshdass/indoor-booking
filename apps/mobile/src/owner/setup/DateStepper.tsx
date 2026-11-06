@@ -13,17 +13,19 @@ type Props = {
   onChange(value: string): void;
   emptyLabel?: string;
   error?: string;
+  /** The venue's zone, so "today" (the first step from blank, the calendar's marker) is the venue's day. */
+  timeZone?: string;
 };
 
 /**
  * A whole-day picker without a native date dependency: ‹ day › steppers for small moves, the date itself opens a month
  * calendar for far ones, plus "Clear" when the date is optional.
  */
-export function DateStepper({ label, value, onChange, emptyLabel, error }: Props) {
+export function DateStepper({ label, value, onChange, emptyLabel, error, timeZone }: Props) {
   const { t } = useTheme();
   const { t: tr, i18n } = useTranslation();
   const shown = value === '' ? (emptyLabel ?? tr('mobile.owner.setup.dateNote')) : formatDay(value, i18n.language);
-  const step = (n: number) => onChange(value === '' ? todayIso() : addDays(value, n));
+  const step = (n: number) => onChange(value === '' ? todayIso(new Date(), timeZone) : addDays(value, n));
   const [calendar, setCalendar] = useState(false);
   return (
     <View style={{ gap: t.space1 }}>
@@ -77,6 +79,7 @@ export function DateStepper({ label, value, onChange, emptyLabel, error }: Props
         <MonthSheet
           title={label}
           value={value}
+          today={todayIso(new Date(), timeZone)}
           onClose={() => setCalendar(false)}
           onPick={(d) => {
             onChange(d);
@@ -89,11 +92,10 @@ export function DateStepper({ label, value, onChange, emptyLabel, error }: Props
 }
 
 /** One month at a time, Monday first; tapping a day picks it. Opens on the chosen day's month, else this month. */
-function MonthSheet({ title, value, onClose, onPick }: { title: string; value: string; onClose(): void; onPick(date: string): void }) {
+function MonthSheet({ title, value, today, onClose, onPick }: { title: string; value: string; today: string; onClose(): void; onPick(date: string): void }) {
   const { t } = useTheme();
   const { t: tr, i18n } = useTranslation();
   const lang = i18n.language;
-  const today = todayIso();
   const [month, setMonth] = useState(() => monthOf(value || today));
   const cell = { flex: 1, minHeight: t.controlLg, alignItems: 'center', justifyContent: 'center' } as const;
   return (

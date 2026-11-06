@@ -8,7 +8,7 @@ import { errorMessage } from '../../../src/lib/errors';
 import { useResource } from '../../../src/lib/useResource';
 import { ownerPath } from '../../../src/owner/labels';
 import { useOwner } from '../../../src/owner/OwnerProvider';
-import { CODE_MAX, couponBody, couponState, draftFromCoupon, EMPTY_COUPON_DRAFT, type CouponDraft } from '../../../src/owner/setup/couponForm';
+import { CODE_MAX, couponBody, couponState, couponZone, draftFromCoupon, EMPTY_COUPON_DRAFT, type CouponDraft } from '../../../src/owner/setup/couponForm';
 import { DateStepper } from '../../../src/owner/setup/DateStepper';
 import { ToggleRow } from '../../../src/owner/setup/ToggleRow';
 import { useTheme } from '../../../src/theme/ThemeProvider';
@@ -23,14 +23,14 @@ function discountSummary(c: CouponJson, tr: TFunction, lang: string): string {
     : tr('owner.coupons.percentMax', { percent, amount: formatMoney(c.maxDiscount, c.currency, lang) });
 }
 
-const day = (iso: string, lang: string) => new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short' }).format(new Date(iso));
+const day = (iso: string, lang: string, timeZone: string) => new Intl.DateTimeFormat(lang, { day: 'numeric', month: 'short', timeZone }).format(new Date(iso));
 
 /** "10% off · 3 of 50 used · until 30 Nov". */
-function couponLine(c: CouponJson, tr: TFunction, lang: string): string {
+function couponLine(c: CouponJson, tr: TFunction, lang: string, timeZone: string): string {
   const parts = [discountSummary(c, tr, lang)];
   parts.push(c.maxUses === null ? tr('mobile.owner.setup.coupons.used', { count: c.uses }) : tr('mobile.owner.setup.coupons.usedOf', { used: c.uses, max: c.maxUses }));
-  if (c.validUntil) parts.push(tr('owner.coupons.until', { date: day(c.validUntil, lang) }));
-  else if (c.validFrom && Date.parse(c.validFrom) > Date.now()) parts.push(tr('owner.coupons.from', { date: day(c.validFrom, lang) }));
+  if (c.validUntil) parts.push(tr('owner.coupons.until', { date: day(c.validUntil, lang, timeZone) }));
+  else if (c.validFrom && Date.parse(c.validFrom) > Date.now()) parts.push(tr('owner.coupons.from', { date: day(c.validFrom, lang, timeZone) }));
   return parts.join(' · ');
 }
 
@@ -38,7 +38,7 @@ function couponLine(c: CouponJson, tr: TFunction, lang: string): string {
 export default function OwnerCouponsScreen() {
   const { t } = useTheme();
   const { t: tr, i18n } = useTranslation();
-  const { ownerId, membership } = useOwner();
+  const { ownerId, membership, venues } = useOwner();
   const writable = membership.venueIds === 'all';
   const { state, reload } = useResource<{ coupons: CouponJson[] }>(ownerPath(ownerId, '/coupons'));
   const [editing, setEditing] = useState<CouponJson | 'new' | null>(null);
@@ -89,7 +89,7 @@ export default function OwnerCouponsScreen() {
                 <ToggleRow
                   key={c.id}
                   title={c.code}
-                  detail={couponLine(c, tr, i18n.language)}
+                  detail={couponLine(c, tr, i18n.language, couponZone(venues, c.venueIds))}
                   right={badge}
                   onPress={() => setEditing(c)}
                   value={c.active}
@@ -98,7 +98,7 @@ export default function OwnerCouponsScreen() {
                   switchLabel={tr('mobile.owner.setup.coupons.toggleLabel', { code: c.code })}
                 />
               ) : (
-                <Row key={c.id} title={c.code} detail={couponLine(c, tr, i18n.language)} right={badge ?? <Badge tone={s.tone} label={tr(`owner.coupons.state.${s.key}`)} />} />
+                <Row key={c.id} title={c.code} detail={couponLine(c, tr, i18n.language, couponZone(venues, c.venueIds))} right={badge ?? <Badge tone={s.tone} label={tr(`owner.coupons.state.${s.key}`)} />} />
               );
             })}
           </Group>
@@ -129,8 +129,10 @@ function CouponForm({ coupon, onClose, onSaved }: { coupon: CouponJson | null; o
   const { t: tr } = useTranslation();
   const { ownerId, owner, venues } = useOwner();
   const currency = coupon?.currency ?? owner.defaultCurrency;
+  // Whole days count at the venue, not on this phone; fixed for the form so a venue toggle never shifts the dates.
+  const [timeZone] = useState(() => couponZone(venues, coupon?.venueIds));
   // Fields the app doesn't show (cap, min spend, per-player limit) stay as loaded, so the PATCH diff leaves them alone.
-  const [d, setD] = useState<CouponDraft>(coupon ? draftFromCoupon(coupon) : EMPTY_COUPON_DRAFT);
+  const [d, setD] = useState<CouponDraft>(coupon ? draftFromCoupon(coupon, timeZone) : EMPTY_COUPON_DRAFT);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -140,7 +142,7 @@ function CouponForm({ coupon, onClose, onSaved }: { coupon: CouponJson | null; o
   const submit = async () => {
     if (busy) return;
     setError(null);
-    const res = couponBody(d, coupon, currency);
+    const res = couponBody(d, coupon, currency, timeZone);
     if (!res.ok) {
       setErrors(res.errors);
       return;
@@ -238,11 +240,12 @@ function CouponForm({ coupon, onClose, onSaved }: { coupon: CouponJson | null; o
           />
         </View>
       </View>
-      <DateStepper label={tr('mobile.owner.setup.coupons.starts')} value={d.validFrom} onChange={(validFrom) => set({ validFrom })} emptyLabel={tr('mobile.owner.setup.coupons.now')} />
+      <DateStepper label={tr('mobile.owner.setup.coupons.starts')} value={d.validFrom} onChange={(validFrom) => set({ validFrom })} emptyLabel={tr('mobile.owner.setup.coupons.now')} timeZone={timeZone} />
       <DateStepper
         label={tr('mobile.owner.setup.coupons.ends')}
         value={d.validUntil}
         onChange={(validUntil) => set({ validUntil })}
+        timeZone={timeZone}
         emptyLabel={tr('mobile.owner.setup.coupons.noEnd')}
         error={err('validUntil')}
       />

@@ -1,5 +1,5 @@
 // Ported from apps/web/src/owner/coupons/couponForm.ts: same validation and the same POST / PATCH-diff bodies.
-import { COUPON_CODE_PATTERN, currencyExponent, normalizeCouponCode, parseMoney, type CouponJson, type CouponType } from '@booking/shared';
+import { addDays, COUPON_CODE_PATTERN, currencyExponent, localParts, localToUtc, normalizeCouponCode, parseMoney, type CouponJson, type CouponType } from '@booking/shared';
 
 /** Minor units as a fixed-decimals input value ("300.00"), as the web add-on and coupon forms show them. */
 export function minorToInput(minor: number, currency: string): string {
@@ -44,33 +44,39 @@ export const EMPTY_COUPON_DRAFT: CouponDraft = {
   active: true,
 };
 
-const pad = (n: number) => String(n).padStart(2, '0');
+/**
+ * The zone a promo's whole days are counted in: the venues', since that is where players use the code.
+ * Owners run venues in one market, so the first venue stands for all; with none yet, the device's zone.
+ */
+export function couponZone(venues: { id: string; timezone: string }[], venueIds: string[] = []): string {
+  const chosen = venues.find((v) => venueIds.includes(v.id)) ?? venues[0];
+  return chosen?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
 
-/** The calendar date of an instant in the browser's zone, as a date field value. */
-export function isoToDateInput(iso: string | null): string {
+/** The calendar date of an instant in `timeZone`, as a date field value. */
+export function isoToDateInput(iso: string | null, timeZone: string): string {
   if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return localParts(new Date(iso), timeZone).date;
 }
 
 /**
- * A date field value as an instant: the start of that day (`from`) or its last millisecond (`until`), in the
- * browser's zone. Owners pick whole days, so "until Nov 30" keeps the code usable all of Nov 30; the browser's
- * zone is the owner's own clock, which is close enough for a promo window.
+ * A date field value as an instant: the start of that day (`from`) or its last millisecond (`until`), in
+ * `timeZone`. Owners pick whole days, so "until Nov 30" keeps the code usable all of Nov 30 at the venue.
  */
-export function dateInputToIso(date: string, edge: 'from' | 'until'): string {
-  return new Date(`${date}T${edge === 'from' ? '00:00:00.000' : '23:59:59.999'}`).toISOString();
+export function dateInputToIso(date: string, edge: 'from' | 'until', timeZone: string): string {
+  if (edge === 'from') return localToUtc(date, 0, timeZone).toISOString();
+  return new Date(localToUtc(addDays(date, 1), 0, timeZone).getTime() - 1).toISOString();
 }
 
-export function draftFromCoupon(c: CouponJson): CouponDraft {
+export function draftFromCoupon(c: CouponJson, timeZone: string): CouponDraft {
   return {
     code: c.code,
     type: c.type,
     value: c.type === 'percent' ? String(c.value) : minorToInput(c.value, c.currency),
     maxDiscount: c.maxDiscount === null ? '' : minorToInput(c.maxDiscount, c.currency),
     minSubtotal: c.minSubtotal === 0 ? '' : minorToInput(c.minSubtotal, c.currency),
-    validFrom: isoToDateInput(c.validFrom),
-    validUntil: isoToDateInput(c.validUntil),
+    validFrom: isoToDateInput(c.validFrom, timeZone),
+    validUntil: isoToDateInput(c.validUntil, timeZone),
     maxUses: c.maxUses === null ? '' : String(c.maxUses),
     maxUsesPerCustomer: c.maxUsesPerCustomer === null ? '' : String(c.maxUsesPerCustomer),
     allVenues: c.venueIds.length === 0,
@@ -112,7 +118,7 @@ function optionalMoney(text: string, currency: string): number | null {
   }
 }
 
-function fullBody(d: CouponDraft, currency: string): { ok: true; body: Body } | { ok: false; errors: Record<string, string> } {
+function fullBody(d: CouponDraft, currency: string, timeZone: string): { ok: true; body: Body } | { ok: false; errors: Record<string, string> } {
   const errors: Record<string, string> = {};
   const code = normalizeCouponCode(d.code);
   if (!COUPON_CODE_PATTERN.test(code)) errors.code = 'owner.coupons.err.code';
@@ -133,8 +139,8 @@ function fullBody(d: CouponDraft, currency: string): { ok: true; body: Body } | 
   const minSubtotal = optionalMoney(d.minSubtotal, currency) ?? 0;
   if (Number.isNaN(minSubtotal)) errors.minSubtotal = 'owner.coupons.err.amountOrBlank';
 
-  const validFrom = DATE_RE.test(d.validFrom) ? dateInputToIso(d.validFrom, 'from') : null;
-  const validUntil = DATE_RE.test(d.validUntil) ? dateInputToIso(d.validUntil, 'until') : null;
+  const validFrom = DATE_RE.test(d.validFrom) ? dateInputToIso(d.validFrom, 'from', timeZone) : null;
+  const validUntil = DATE_RE.test(d.validUntil) ? dateInputToIso(d.validUntil, 'until', timeZone) : null;
   if (validFrom && validUntil && validUntil <= validFrom) errors.validUntil = 'owner.coupons.err.dates';
 
   const maxUses = optionalInt(d.maxUses, 1, 1_000_000);
@@ -172,10 +178,11 @@ export function couponBody(
   d: CouponDraft,
   original: CouponJson | null,
   currency: string,
+  timeZone: string,
 ): { ok: true; body: object } | { ok: false; errors: Record<string, string> } {
-  const next = fullBody(d, currency);
+  const next = fullBody(d, currency, timeZone);
   if (!next.ok || original === null) return next;
-  const prev = fullBody(draftFromCoupon(original), currency);
+  const prev = fullBody(draftFromCoupon(original, timeZone), currency, timeZone);
   if (!prev.ok) return next;
   const body: Record<string, unknown> = {};
   for (const k of Object.keys(next.body) as (keyof Body)[]) {

@@ -1,7 +1,10 @@
+import { localParts } from '@booking/shared';
+
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** Today on the device's clock as YYYY-MM-DD. */
-export function todayIso(now = new Date()): string {
+/** Today as YYYY-MM-DD: at the venue when its zone is given, else on the device's clock. */
+export function todayIso(now = new Date(), timeZone?: string): string {
+  if (timeZone) return localParts(now, timeZone).date;
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 

@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { Icon } from '../components/ui/Icon';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '../components/ui/Alert';
@@ -147,9 +148,7 @@ export function ProfilePage() {
       {isMember && (
         <Link to="/owner" className={styles.portal} aria-label={t('owner.portalLink')} aria-describedby={portalHint}>
           <span className={styles.portalIcon} aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
-            </svg>
+            <Icon name="venue" />
           </span>
           <span className={styles.portalText}>
             <span className={styles.portalTitle}>{t('profile.ownerPortal')}</span>
@@ -157,18 +156,14 @@ export function ProfilePage() {
               {t('profile.ownerPortalHint')}
             </span>
           </span>
-          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m9 6 6 6-6 6" />
-          </svg>
+          <Icon name="chevronRight" className={styles.chevron} />
         </Link>
       )}
 
       {noTeams && !user.platformAdmin && (
         <Link to="/list-your-venue" className={styles.portal} aria-describedby={applyHint}>
           <span className={styles.portalIcon} aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
+            <Icon name="plus" />
           </span>
           <span className={styles.portalText}>
             <span className={styles.portalTitle}>{t('profile.listVenue')}</span>
@@ -176,18 +171,14 @@ export function ProfilePage() {
               {t('profile.listVenueHint')}
             </span>
           </span>
-          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m9 6 6 6-6 6" />
-          </svg>
+          <Icon name="chevronRight" className={styles.chevron} />
         </Link>
       )}
 
       {user.platformAdmin && (
         <Link to="/admin" className={styles.portal} aria-describedby={adminHint}>
           <span className={styles.portalIcon} aria-hidden="true">
-            <svg viewBox="0 0 24 24" focusable="false">
-              <path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" />
-            </svg>
+            <Icon name="shield" />
           </span>
           <span className={styles.portalText}>
             <span className={styles.portalTitle}>{t('profile.adminPortal')}</span>
@@ -195,17 +186,13 @@ export function ProfilePage() {
               {t('profile.adminPortalHint')}
             </span>
           </span>
-          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m9 6 6 6-6 6" />
-          </svg>
+          <Icon name="chevronRight" className={styles.chevron} />
         </Link>
       )}
 
       <div className={styles.footer}>
         <Button variant="secondary" size="lg" onClick={() => setConfirmOut(true)}>
-          <svg className={styles.icon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10" />
-          </svg>
+          <Icon name="logout" className={styles.icon} />
           {t('profile.signOut')}
         </Button>
       </div>

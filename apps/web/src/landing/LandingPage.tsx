@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { Icon } from '../components/ui/Icon';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { MAX_SEARCH_TEXT, type Sport } from '@booking/shared';
@@ -47,9 +48,7 @@ function useInView<T extends Element>() {
 
 function Check() {
   return (
-    <svg className={styles.checkIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
+    <Icon name="check" className={styles.checkIcon} />
   );
 }
 
@@ -111,9 +110,7 @@ function HeroSearch() {
               </option>
             ))}
           </select>
-          <svg className={styles.chevron} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="m6 9 6 6 6-6" />
-          </svg>
+          <Icon name="chevronDown" className={styles.chevron} />
         </span>
       </div>
       <div className={styles.field}>
@@ -188,9 +185,7 @@ function useDemoStep() {
 
 function SearchGlyph() {
   return (
-    <svg className={styles.demoIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="m21 21-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" />
-    </svg>
+    <Icon name="search" className={styles.demoIcon} />
   );
 }
 

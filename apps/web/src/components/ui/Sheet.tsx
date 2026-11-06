@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Icon } from './Icon';
 import { useTranslation } from 'react-i18next';
 import { useModal, type DialogProps } from './Dialog';
 import styles from './Sheet.module.css';
@@ -16,9 +17,7 @@ export function Sheet({ open, onClose, title, children }: DialogProps) {
           {title}
         </h2>
         <button type="button" className={styles.close} aria-label={t('common.close')} onClick={onClose}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <Icon name="close" />
         </button>
       </div>
       <div className={styles.body}>{children}</div>

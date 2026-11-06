@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '../components/ui/Icon';
 import { useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { localParts } from '@booking/shared';
@@ -35,9 +36,7 @@ const POLL_BUDGET_MS = 60_000;
 
 function DownloadGlyph() {
   return (
-    <svg className={styles.glyph} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
-    </svg>
+    <Icon name="download" className={styles.glyph} />
   );
 }
 

@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { Icon } from './Icon';
 import { useTranslation } from 'react-i18next';
 import styles from './Pagination.module.css';
 
@@ -75,9 +76,7 @@ export function Pagination({ page, pageSize, total, onPage, more = false, loadin
       <p className={styles.range}>{t(more ? 'pagination.rangeMore' : 'pagination.range', { from, to, total })}</p>
       <div className={styles.controls}>
         <button type="button" className={styles.step} aria-label={t('pagination.previous')} disabled={page <= 1} onClick={() => go(page - 1)}>
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M15 6l-6 6 6 6" />
-          </svg>
+          <Icon name="chevronLeft" />
         </button>
         <ol className={styles.pages}>
           {pageList(page, count).map((n, i) =>
@@ -110,9 +109,7 @@ export function Pagination({ page, pageSize, total, onPage, more = false, loadin
           disabled={loading || (page >= count && !more)}
           onClick={() => go(page + 1)}
         >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M9 6l6 6-6 6" />
-          </svg>
+          <Icon name="chevronRight" />
         </button>
       </div>
     </nav>

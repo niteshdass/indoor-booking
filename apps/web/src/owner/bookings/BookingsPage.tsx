@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { Icon } from '../../components/ui/Icon';
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { amountDue, BOOKING_STATUSES } from '@booking/shared';
@@ -143,9 +144,7 @@ function BookingsVenue() {
           <label htmlFor={`${id}-q`} className={styles.srOnly}>
             {t('owner.bookings.search')}
           </label>
-          <svg className={styles.searchIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.3-4.3" />
-          </svg>
+          <Icon name="search" className={styles.searchIcon} />
           <input
             id={`${id}-q`}
             type="search"
@@ -166,9 +165,7 @@ function BookingsVenue() {
             aria-controls={`${id}-panel`}
             onClick={() => setFiltersOpen((o) => !o)}
           >
-            <svg className={styles.filterIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M3 5h18l-7 8.5V19l-4 2v-7.5L3 5z" />
-            </svg>
+            <Icon name="filter" className={styles.filterIcon} />
             {active > 0 && (
               <span className={styles.filterCount} aria-hidden="true">
                 {active}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { Icon } from '../../components/ui/Icon';
 import { useTranslation } from 'react-i18next';
 import { Spinner } from '../../components/ui/Spinner';
 import { apiUpload } from '../../lib/apiClient';
@@ -120,9 +121,7 @@ export function PhotoUploader({ photos, readOnly, error, onAdd, onRemove, onAlt,
               />
               {!readOnly && (
                 <button type="button" className={styles.photoRemove} aria-label={t('owner.venues.removePhoto', { n: i + 1 })} onClick={() => onRemove(i)}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M6 6l12 12M18 6L6 18" />
-                  </svg>
+                  <Icon name="close" />
                 </button>
               )}
             </li>
@@ -144,9 +143,7 @@ export function PhotoUploader({ photos, readOnly, error, onAdd, onRemove, onAlt,
               )}
               {p.status === 'failed' && (
                 <button type="button" className={styles.photoRemove} aria-label={t('owner.venues.dismissPhoto')} onClick={() => drop(p.key)}>
-                  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M6 6l12 12M18 6L6 18" />
-                  </svg>
+                  <Icon name="close" />
                 </button>
               )}
             </li>
@@ -176,9 +173,7 @@ export function PhotoUploader({ photos, readOnly, error, onAdd, onRemove, onAlt,
               e.target.value = '';
             }}
           />
-          <svg className={styles.dropIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
-          </svg>
+          <Icon name="upload" className={styles.dropIcon} />
           <span className={styles.dropTitle}>{t('owner.venues.uploadPhotos')}</span>
           <span className={styles.dropHint}>{t('owner.venues.uploadHint', { count: free })}</span>
         </label>

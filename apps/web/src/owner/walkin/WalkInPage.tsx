@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Icon } from '../../components/ui/Icon';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { addDays, localParts, MAX_BOOKINGS_PER_GROUP, parseMoney, type AddonLine, type AddonSelection } from '@booking/shared';
@@ -511,9 +512,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
                       ))}
                   </span>
                   <button type="button" className={styles.pickRemove} aria-label={t('slots.clearDay', { date: label })} onClick={() => setDay(p.turfId, p.date, [])}>
-                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                      <path d="M6 6l12 12M18 6L6 18" />
-                    </svg>
+                    <Icon name="close" />
                   </button>
                 </li>
               );

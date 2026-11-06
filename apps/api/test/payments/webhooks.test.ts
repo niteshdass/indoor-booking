@@ -237,6 +237,23 @@ describe('POST /webhooks/stripe/:ownerId', () => {
     }
   });
 
+  describe('mode and stale events', () => {
+    it('a live-mode success never settles a test-mode payment', async () => {
+      const { bookingId, payment } = await paidHold();
+      expect((await post({ ...piSucceeded(payment), livemode: true })).status).toBe(200);
+      expect((await bookingOf(bookingId)).status).toBe('awaiting_payment');
+      expect((await paymentOf(payment._id)).status).toBe('pending');
+      expect((await events())[0]!.outcome).toBe('unmatched');
+    });
+
+    it('the close of an earlier, replaced intent leaves the current payment open', async () => {
+      const { payment } = await paidHold();
+      expect((await post(piCanceled({ ...payment.toObject(), gatewayRef: 'pi_replaced_earlier' }))).status).toBe(200);
+      expect((await paymentOf(payment._id)).status).toBe('pending');
+      expect((await events())[0]!.outcome).toBe('ignored');
+    });
+  });
+
   describe('bad input', () => {
     it('fails the payment and leaves the booking alone when the amount or currency differ', async () => {
       const { bookingId, payment } = await paidHold();

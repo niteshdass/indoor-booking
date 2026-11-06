@@ -44,6 +44,8 @@ export async function applyEvent(
       ? await Payment.findOne({ ownerId, _id: event.paymentId }).session(session)
       : null;
   if (!payment) return done('unmatched');
+  // A test-mode event never settles a live payment, nor the other way round (the owner may have both keys).
+  if (payment.gatewayMode != null && payment.gatewayMode !== (event.livemode ? 'live' : 'test')) return done('unmatched');
   const pending = { ownerId, _id: payment._id, status: 'pending' };
 
   if (event.kind === 'attempt_failed') {
@@ -53,6 +55,11 @@ export async function applyEvent(
   // A multi-day group's rows share the intent, so they close together.
   const together = payment.groupId ? { ownerId, groupId: payment.groupId, method: 'card', status: 'pending' } : pending;
   if (event.kind === 'closed') {
+    // The close of an earlier, replaced intent or session leaves the current one open.
+    const stale =
+      (event.gatewayRef != null && payment.gatewayRef != null && event.gatewayRef !== payment.gatewayRef) ||
+      (event.linkRef != null && payment.linkRef != null && event.linkRef !== payment.linkRef);
+    if (stale) return done('ignored');
     const res = await Payment.updateMany(together, { $set: { status: 'failed' } }, { session });
     return done(res.matchedCount > 0 ? 'applied' : 'ignored');
   }

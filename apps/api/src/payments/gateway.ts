@@ -31,7 +31,8 @@ export type GatewayEvent = {
   | { kind: 'succeeded'; paymentId: string | null; gatewayRef: string; amount: number; currency: string }
   /** `gatewayRef`: the PaymentIntent, when the event is about one. */
   | { kind: 'attempt_failed'; paymentId: string | null; gatewayRef: string | null; failureCode: string | null }
-  | { kind: 'closed'; paymentId: string | null; gatewayRef: string | null }
+  /** `linkRef`: the hosted session that closed, when the event is about one. */
+  | { kind: 'closed'; paymentId: string | null; gatewayRef: string | null; linkRef?: string | null }
   | { kind: 'refund_updated'; refundRef: string; status: GatewayRefund['status']; failureCode: string | null }
   /** The charge behind PaymentIntent `gatewayRef` now has `amountRefunded` refunded in all, ours and any made at the gateway. */
   | { kind: 'charge_refunded'; gatewayRef: string | null; amountRefunded: number; currency: string }

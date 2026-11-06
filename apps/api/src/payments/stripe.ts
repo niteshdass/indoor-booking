@@ -165,7 +165,7 @@ export function stripeGateway(factory: StripeFactory): PaymentGateway {
         case 'payment_intent.canceled':
           return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object), gatewayRef: event.data.object.id };
         case 'checkout.session.expired':
-          return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object), gatewayRef: null };
+          return { ...base, kind: 'closed', paymentId: paymentIdOf(event.data.object), gatewayRef: null, linkRef: event.data.object.id };
         case 'refund.updated':
         case 'refund.failed': {
           const r = toGatewayRefund(event.data.object);

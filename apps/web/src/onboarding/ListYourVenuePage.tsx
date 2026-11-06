@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../auth/useAuth';
 import { LOCALES, type BusinessSetup, type Locale, type SetupResult } from '@booking/shared';
 import { apiPost } from '../lib/apiClient';
 import { defaultZoneFor } from '../lib/regions';
@@ -15,13 +16,15 @@ import styles from './onboarding.module.css';
 export function ListYourVenuePage() {
   const { t, i18n } = useTranslation();
   useDocumentTitle(t('apply.title'));
+  const { user } = useAuth();
   const locale: Locale = (LOCALES as readonly string[]).includes(i18n.language) ? (i18n.language as Locale) : 'en';
 
   return (
     <main className={styles.page}>
       <SetupWizard
         mode="business"
-        draftKey="setup-draft"
+        // Per user, so another account signed in on this browser never sees this one's draft.
+        draftKey={`setup-draft:user:${user?.id ?? ''}`}
         initial={defaultAnswers()}
         mapLinkPath="/onboarding/map-link"
         submit={(a) =>

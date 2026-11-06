@@ -29,6 +29,7 @@ import { useResource } from '../useResource';
 import { walkInEstimate, type WalkInEstimate } from './walkInEstimate';
 import common from '../ownerForm.module.css';
 import styles from './WalkInPage.module.css';
+import { useRetryKey } from '../../lib/useRetryKey';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Errors that mean the slot grid on screen is stale. */
@@ -322,6 +323,7 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     }
   }
 
+  const retry = useRetryKey();
   const submit = async () => {
     if (busy.current || !ready) return;
     setTried(true);
@@ -335,14 +337,19 @@ function WalkInForm({ venue, turfs }: { venue: OwnerVenue; turfs: OwnerTurf[] })
     const [first, ...more] = runs as [Run, ...Run[]];
     const sent = addons.filter((s) => pickedTurfs.some((id) => selectionOn(id).includes(s)));
     try {
-      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(`${turfPath(first.turfId)}/bookings`, {
+      const path = `${turfPath(first.turfId)}/bookings`;
+      const body = {
         date: first.date,
         startAts: first.slots.map((s) => s.startAt),
         addons: sent,
         ...(more.length > 0 ? { more: more.map((r) => ({ turfId: r.turfId, date: r.date, startAts: r.slots.map((s) => s.startAt) })) } : {}),
         customer: customerBody(customer),
         payment,
+      };
+      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(path, body, {
+        'Idempotency-Key': retry.keyFor(`${path} ${JSON.stringify(body)}`),
       });
+      retry.done();
       // Several bookings open their group page; one opens the booking itself.
       const to = res.bookings && res.booking.groupId
         ? `/owner/${encodeURIComponent(ownerId)}/booking-groups/${encodeURIComponent(res.booking.groupId)}`

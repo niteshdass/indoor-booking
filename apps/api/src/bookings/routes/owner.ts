@@ -28,7 +28,7 @@ import { createBooking, createBookingGroup } from '../create';
 import { bookingSearchFilter, searchCustomers } from '../customers';
 import { Payment, type PaymentDoc } from '../payment.model';
 import { invalidTransition, scopedBooking, transition } from '../transition';
-import { addonsSchema, groupItems, moreSchema, startAtsSchema } from './public';
+import { addonsSchema, bookingsForKey, groupItems, idempotencyKeySchema, moreSchema, startAtsSchema } from './public';
 import { rescheduleBooking } from '../reschedule';
 
 const MAX_RANGE_DAYS = 31;
@@ -104,6 +104,12 @@ const rejectSchema = z.object({ reason: z.string().trim().max(300).optional() })
 const cancelSchema = z.object({ reason: z.string().trim().max(300).optional() }).strict();
 /** Omitting turfId keeps the booking on its court. */
 const rescheduleSchema = z.object({ turfId: idQuery.optional(), date: isoDateSchema, startAts: startAtsSchema }).strict();
+/** The Idempotency-Key header scoped to this member of this owner; undefined when the client sent none. */
+function staffKeyOf(header: string | undefined, t: TenantContext): string | undefined {
+  if (header === undefined) return undefined;
+  return `staff:${t.ownerId}:${t.userId}:${idempotencyKeySchema.parse(header)}`;
+}
+
 const cashSchema = z.object({ amount: z.number().int().optional() }).strict();
 const verifySchema = z
   .object({ amountReceived: z.number().int().min(1).optional(), acceptShort: z.boolean().optional() })
@@ -380,7 +386,28 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
         );
       }
     };
-    const bookings = many
+    const requestKey = staffKeyOf(req.get('Idempotency-Key'), t);
+    const respond = async (bookings: BookingDoc[]) => {
+      const booking = bookings[0]!;
+      const group = bookings.length > 1 || booking.groupId !== null;
+      const json = group
+        ? { booking: await ownerBookingJson(booking), bookings: await ownerBookingsJson(bookings) }
+        : { booking: await ownerBookingJson(booking) };
+      // The group's rows share one link; the first booking's row leads it.
+      const linkPayment = await Payment.findOne({ ownerId: t.ownerId, bookingId: booking._id, method: 'card', kind: 'link', status: 'pending' });
+      if (!linkPayment) {
+        res.status(201).json(json);
+        return;
+      }
+      // After commit: a Stripe failure leaves the hold in place for the re-issue route. A retry
+      // replays the same Checkout Session by its idempotency key.
+      const { url, amount } = await startLink(booking, linkPayment, { config, services });
+      res.status(201).json({ ...json, payment: linkJson(linkPayment, url, amount) });
+    };
+    // A retry (the first response was lost) gets what the first request made, not a second booking.
+    const earlier = await bookingsForKey(requestKey, turf);
+    if (earlier) return respond(earlier);
+    const create = async () => many
       ? await createBookingGroup({
           venue,
           items: await groupItems(venue, turf, input),
@@ -391,20 +418,20 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
           who,
           cash: cash && { recordedBy: cash.recordedBy },
           card: card && { gateway: card.gateway, gatewayAccountId: card.gatewayAccountId, gatewayMode: card.gatewayMode },
+          requestKey,
           afterInsert,
         })
-      : [await createBooking({ ...base, who, cash, card, afterInsert })];
-    const booking = bookings[0]!;
-    const json = many ? { booking: await ownerBookingJson(booking), bookings: await ownerBookingsJson(bookings) } : { booking: await ownerBookingJson(booking) };
-    // The group's rows share one link; the first booking's row leads it.
-    const linkPayment = card ? await Payment.findOne({ ownerId: t.ownerId, bookingId: booking._id, method: 'card', kind: 'link', status: 'pending' }) : null;
-    if (!linkPayment) {
-      res.status(201).json(json);
-      return;
+      : [await createBooking({ ...base, who, cash, card, requestKey, afterInsert })];
+    let bookings: BookingDoc[];
+    try {
+      bookings = await create();
+    } catch (err) {
+      // Two copies of the same request raced: the loser answers with the winner's bookings.
+      const won = await bookingsForKey(requestKey, turf);
+      if (!won) throw err;
+      bookings = won;
     }
-    // After commit: a Stripe failure leaves the hold in place for the re-issue route.
-    const { url, amount } = await startLink(booking, linkPayment, { config, services });
-    res.status(201).json({ ...json, payment: linkJson(linkPayment, url, amount) });
+    await respond(bookings);
   });
 
   router.post('/bookings/:bookingId/payments/link', requirePermission('booking.create'), async (req, res) => {
@@ -501,6 +528,20 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const t = tenantOf(req);
     const input = cashSchema.parse(req.body ?? {});
     const booking = await scopedBooking(t, req.params.bookingId as string);
+    const requestKey = staffKeyOf(req.get('Idempotency-Key'), t);
+    // A retry (the first response was lost) answers with the cash already recorded, not a second entry.
+    const recorded = async () => {
+      if (requestKey === undefined) return false;
+      const payment = await Payment.findOne({ ownerId: t.ownerId, requestKey });
+      if (!payment) return false;
+      if (String(payment.bookingId) !== String(booking._id)) {
+        throw new AppError(422, 'idempotency_key_reused', 'This Idempotency-Key was used for a different payment');
+      }
+      const current = await scopedBooking(t, req.params.bookingId as string);
+      res.status(201).json({ booking: await ownerBookingJson(current), payment: paymentJson(payment) });
+      return true;
+    };
+    if (await recorded()) return;
     const status = booking.status as BookingStatus;
     if (!CASH_STATUSES.includes(status)) throw new AppError(409, 'invalid_transition', `This booking is ${status}`);
     const remaining = booking.total - booking.amountPaid;
@@ -508,7 +549,15 @@ export function ownerBookingsRouter(config: Config, services: AppServices): Rout
     const amount = input.amount ?? remaining;
     if (amount < 1 || amount > remaining) throw invalidAmount(remaining);
 
-    const { updated, payment } = await runInTransaction((session) => recordCash(t, booking, amount, services.now(), session));
+    let out;
+    try {
+      out = await runInTransaction((session) => recordCash(t, booking, amount, services.now(), session, requestKey));
+    } catch (err) {
+      // A concurrent copy of this request won the amountPaid guard or the requestKey index.
+      if (await recorded()) return;
+      throw err;
+    }
+    const { updated, payment } = out;
     res.status(201).json({ booking: await ownerBookingJson(updated), payment: paymentJson(payment) });
   });
 
@@ -525,7 +574,14 @@ async function groupOf(t: TenantContext, groupId: string): Promise<BookingDoc[]>
 }
 
 /** Records `amount` of cash against a booking and logs it, inside the caller's transaction. */
-async function recordCash(t: TenantContext, booking: BookingDoc, amount: number, now: Date, session: mongoose.ClientSession) {
+async function recordCash(
+  t: TenantContext,
+  booking: BookingDoc,
+  amount: number,
+  now: Date,
+  session: mongoose.ClientSession,
+  requestKey?: string,
+) {
   const status = booking.status;
   // Guarded by the amountPaid we read: a concurrent payment matches nothing and loses.
   const updated = await Booking.findOneAndUpdate(
@@ -548,6 +604,7 @@ async function recordCash(t: TenantContext, booking: BookingDoc, amount: number,
         currency: booking.currency,
         status: 'succeeded',
         recordedBy: t.userId,
+        requestKey,
       },
     ],
     { session },

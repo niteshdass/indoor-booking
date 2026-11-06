@@ -30,6 +30,8 @@ const payoutSchema = new mongoose.Schema(
     rejectReason: { type: String, default: null },
     reviewedAt: { type: Date, default: null },
     reviewedBy: { type: ObjectId, ref: 'User', default: null },
+    /** Stripe payouts: the client's Idempotency-Key, scoped to owner and member; a retry gets this payout back. */
+    requestKey: { type: String, default: undefined },
   },
   { timestamps: true },
 );
@@ -37,6 +39,8 @@ payoutSchema.index({ ownerId: 1, currency: 1, status: 1 });
 payoutSchema.index({ status: 1, createdAt: 1 });
 /** A TrxID is used once per method by a pending or confirmed payout (a rejected one's has moved to rejectedTrxId). */
 payoutSchema.index({ method: 1, trxId: 1 }, { unique: true, partialFilterExpression: { trxId: { $type: 'string' } } });
+/** One pending payout per key: a retry reuses it, while a key whose payout failed can start again. */
+payoutSchema.index({ requestKey: 1 }, { unique: true, partialFilterExpression: { requestKey: { $type: 'string' }, status: 'pending' } });
 payoutSchema.plugin(tenantScoped);
 
 export type PlatformPayoutDoc = HydratedDocument<InferSchemaType<typeof payoutSchema>>;

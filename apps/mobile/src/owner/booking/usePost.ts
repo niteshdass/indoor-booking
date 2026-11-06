@@ -12,13 +12,13 @@ export function usePost(onConflict?: () => void) {
   const conflict = useRef(onConflict);
   conflict.current = onConflict;
 
-  const post = useCallback(async <T,>(path: string, body: object): Promise<T | null> => {
+  const post = useCallback(async <T,>(path: string, body: object, headers?: Record<string, string>): Promise<T | null> => {
     if (inflight.current) return null;
     inflight.current = true;
     setBusy(true);
     setError(null);
     try {
-      return await apiPost<T>(path, body);
+      return await (headers ? apiPost<T>(path, body, headers) : apiPost<T>(path, body));
     } catch (e) {
       setError(e);
       if (e instanceof ApiError && e.status === 409) conflict.current?.();

@@ -145,7 +145,7 @@ async function assertGuestRoom(phone: string, now: Date) {
 }
 
 /** A client-made id for one checkout, sent again on every retry of it. */
-const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/, 'Use 8 to 100 letters, digits, - or _');
+export const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9_-]{8,100}$/, 'Use 8 to 100 letters, digits, - or _');
 
 /** The Idempotency-Key header scoped to the booker, so one client's key can never reach another's bookings. */
 function requestKeyOf(header: string | undefined, who: { playerId: string } | { phone: string }): string | undefined {
@@ -155,7 +155,7 @@ function requestKeyOf(header: string | undefined, who: { playerId: string } | { 
 }
 
 /** The bookings an earlier request with this key made (the whole group for a group), or null. */
-async function bookingsForKey(requestKey: string | undefined, turf: TurfDoc): Promise<BookingDoc[] | null> {
+export async function bookingsForKey(requestKey: string | undefined, turf: TurfDoc): Promise<BookingDoc[] | null> {
   if (requestKey === undefined) return null;
   const lead = await Booking.findOne({ requestKey }).setOptions({ crossTenant: true });
   if (!lead) return null;

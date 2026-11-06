@@ -28,6 +28,7 @@ import { CustomerFields, customerBody, customerErrors, type Customer } from './C
 import { PaymentLinkSheet } from './PaymentLinkSheet';
 import { cell, combine, gridDayOf, runsFor, withDay, type Picks, type Run } from './picks';
 import { walkInEstimate, type WalkInEstimate } from './walkInEstimate';
+import { useRetryKey } from '../../lib/useRetryKey';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** Errors that mean the slot grid on screen is stale. */
@@ -353,6 +354,7 @@ function WalkInForm({ venue, turfs, prefill, venuePicker }: { venue: OwnerVenue;
     }
   }
 
+  const retry = useRetryKey();
   const submit = async () => {
     if (busy.current || !ready) return;
     setTried(true);
@@ -366,14 +368,19 @@ function WalkInForm({ venue, turfs, prefill, venuePicker }: { venue: OwnerVenue;
     const [first, ...more] = runs as [Run, ...Run[]];
     const sent = addons.filter((s) => pickedTurfs.some((id) => selectionOn(id).includes(s)));
     try {
-      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(`${turfPath(first.turfId)}/bookings`, {
+      const path = `${turfPath(first.turfId)}/bookings`;
+      const body = {
         date: first.date,
         startAts: first.slots.map((s) => s.startAt),
         addons: sent,
         ...(more.length > 0 ? { more: more.map((r) => ({ turfId: r.turfId, date: r.date, startAts: r.slots.map((s) => s.startAt) })) } : {}),
         customer: customerBody(customer),
         payment,
+      };
+      const res = await apiPost<{ booking: OwnerBooking; bookings?: OwnerBooking[]; payment?: PaymentLink }>(path, body, {
+        'Idempotency-Key': retry.keyFor(`${path} ${JSON.stringify(body)}`),
       });
+      retry.done();
       // The booking screen shows the others booked with it.
       if (res.payment) setLink({ link: res.payment, bookingId: res.booking.id });
       else router.replace(ownerHref(ownerId, `/booking/${encodeURIComponent(res.booking.id)}`));

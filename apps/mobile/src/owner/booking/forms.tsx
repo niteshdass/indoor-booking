@@ -26,6 +26,7 @@ import { PaymentLinkCard } from '../PaymentLinkCard';
 import type { OwnerBooking, OwnerSlotDay, OwnerTurf, PaymentLink, RefundJson } from '../types';
 import { dateTime, dayLabel, forInput } from './model';
 import { usePost } from './usePost';
+import { useRetryKey } from '../../lib/useRetryKey';
 
 export type FormProps = {
   booking: OwnerBooking;
@@ -206,6 +207,7 @@ export function CashForm({ booking, onDone, onBack }: FormProps) {
   const [text, setText] = useState(forInput(remaining, booking.currency));
   const [invalid, setInvalid] = useState(false);
   const { post, busy, error } = usePost(() => onDone());
+  const retry = useRetryKey();
   const amount = parsed(text, booking.currency);
   const valid = amount !== null && amount <= remaining;
   const unit = 10 ** currencyExponent(booking.currency);
@@ -214,8 +216,13 @@ export function CashForm({ booking, onDone, onBack }: FormProps) {
   const save = async () => {
     if (!valid) return setInvalid(true);
     setInvalid(false);
-    const res = await post<{ booking: OwnerBooking }>(bookingPath(ownerId, booking.id, '/payments/cash'), amount === remaining ? {} : { amount });
-    if (res) onDone(res.booking);
+    const path = bookingPath(ownerId, booking.id, '/payments/cash');
+    const body = amount === remaining ? {} : { amount };
+    const res = await post<{ booking: OwnerBooking }>(path, body, { 'Idempotency-Key': retry.keyFor(`${path} ${JSON.stringify(body)}`) });
+    if (res) {
+      retry.done();
+      onDone(res.booking);
+    }
   };
 
   return (

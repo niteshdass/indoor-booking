@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Dialog } from '../../components/ui/Dialog';
 import { TextField } from '../../components/ui/TextField';
 import { ApiError, apiPost } from '../../lib/apiClient';
+import { useRetryKey } from '../../lib/useRetryKey';
 import { errorMessage } from '../../lib/errors';
 import { forInput, money } from '../../lib/format';
 import { useOwner } from '../OwnerProvider';
@@ -31,6 +32,7 @@ export function CashDialog({ open, booking, onClose, onRecorded, onConflict }: P
   const [invalid, setInvalid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const retry = useRetryKey();
   const busy = useRef(false);
 
   useEffect(() => {
@@ -59,10 +61,12 @@ export function CashDialog({ open, booking, onClose, onRecorded, onConflict }: P
     setInvalid(false);
     setError(null);
     try {
-      const res = await apiPost<{ booking: OwnerBooking }>(
-        ownerPath(ownerId, `/bookings/${encodeURIComponent(booking.id)}/payments/cash`),
-        amount === remaining ? {} : { amount },
-      );
+      const path = ownerPath(ownerId, `/bookings/${encodeURIComponent(booking.id)}/payments/cash`);
+      const body = amount === remaining ? {} : { amount };
+      const res = await apiPost<{ booking: OwnerBooking }>(path, body, {
+        'Idempotency-Key': retry.keyFor(`${path} ${JSON.stringify(body)}`),
+      });
+      retry.done();
       onRecorded(res.booking);
     } catch (e) {
       setError(e);

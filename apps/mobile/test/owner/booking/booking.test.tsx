@@ -6,6 +6,7 @@ import { OwnerWrap, ownerValue } from '../ownerFixture';
 import { makeBooking } from './fixtures';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
+jest.mock('expo-crypto', () => ({ randomUUID: () => 'key-1' }));
 jest.mock('expo-router', () => ({ get router() { return mockRouter; }, useRouter: () => mockRouter, useLocalSearchParams: () => ({ id: 'b1', ownerId: 'o1' }) }));
 
 const mockGet = jest.fn();
@@ -66,7 +67,7 @@ describe('booking detail', () => {
     const save = await screen.findByRole('button', { name: /Save .*500/ });
     await fireEvent.press(save);
     await act(async () => {});
-    expect(mockPost).toHaveBeenCalledWith('/owners/o1/bookings/b1/payments/cash', { amount: 50000 });
+    expect(mockPost).toHaveBeenCalledWith('/owners/o1/bookings/b1/payments/cash', { amount: 50000 }, { 'Idempotency-Key': 'key-1' });
   });
 
   it('marks a wallet refund as sent with its trxId', async () => {

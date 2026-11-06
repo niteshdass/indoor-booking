@@ -50,6 +50,8 @@ const paymentSchema = new mongoose.Schema(
     /** The member who checked a manual payment, and when. */
     verifiedBy: { type: ObjectId, ref: 'User', default: null },
     verifiedAt: { type: Date, default: null },
+    /** The staff client's Idempotency-Key for a cash entry, scoped to owner and member: a retry finds it instead of recording twice. */
+    requestKey: { type: String, default: undefined },
   },
   { timestamps: true },
 );
@@ -76,6 +78,7 @@ paymentSchema.index(
 paymentSchema.index({ linkOpenedAt: 1 }, { partialFilterExpression: { gateway: 'sslcommerz', status: 'pending' } });
 // Wallet payments waiting for staff, for the bookings list's "Payment to check" view.
 paymentSchema.index({ ownerId: 1, venueId: 1 }, { partialFilterExpression: { kind: 'manual', status: 'pending' } });
+paymentSchema.index({ requestKey: 1 }, { unique: true, partialFilterExpression: { requestKey: { $type: 'string' } } });
 paymentSchema.plugin(tenantScoped);
 
 export const Payment = mongoose.model('Payment', paymentSchema);

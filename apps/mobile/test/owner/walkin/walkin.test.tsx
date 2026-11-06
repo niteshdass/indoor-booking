@@ -5,6 +5,7 @@ import { OwnerWrap, ownerValue } from '../ownerFixture';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
 let mockParams: Record<string, string> = {};
+jest.mock('expo-crypto', () => ({ randomUUID: () => 'key-1' }));
 jest.mock('expo-router', () => ({ get router() { return mockRouter; }, useRouter: () => mockRouter, useLocalSearchParams: () => mockParams }));
 
 const mockGet = jest.fn();
@@ -84,7 +85,7 @@ describe('walk-in', () => {
       addons: [],
       customer: { name: 'Rafi', phone: '+8801712345678' },
       payment: { method: 'unpaid' },
-    });
+    }, { 'Idempotency-Key': 'key-1' });
     expect(mockRouter.replace).toHaveBeenCalledWith('/owner/o1/booking/b1');
   });
 

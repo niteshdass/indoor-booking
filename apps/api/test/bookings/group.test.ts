@@ -303,6 +303,27 @@ describe('multi-day payment', () => {
     expect((await postEvent(ctx.app, owner.ownerId, secret, piCanceled(lead))).status).toBe(200);
     expect((await Payment.find({ ownerId: owner.ownerId })).map((p) => p.status)).toEqual(['failed', 'failed', 'failed']);
   });
+
+  it('a held day cancelled before paying leaves the other days payable for their own sum', async () => {
+    const { lead } = await heldGroup();
+    const [first, second, third] = await bookings();
+    const cancel = await post(`/api/v1/me/bookings/${String(second!._id)}/cancel`, {}, player.token);
+    expect(cancel.status).toBe(200);
+    // The shared intent covered the cancelled day, so it is closed for every day.
+    expect((await Payment.find({ ownerId: owner.ownerId }).sort({ _id: 1 })).map((p) => p.status)).toEqual(['failed', 'failed', 'failed']);
+    expect((await bookings()).map((b) => b.status)).toEqual(['awaiting_payment', 'cancelled', 'awaiting_payment']);
+
+    const again = await post(`/api/v1/bookings/${String(third!._id)}/payment`, {}, player.token);
+    expect(again.status).toBe(200);
+    expect(again.body.payment.amount).toBe(600);
+    expect(again.body.payment.id).not.toBe(String(lead._id));
+    const fresh = await Payment.find({ ownerId: owner.ownerId, status: 'pending' });
+    expect(fresh.map((p) => String(p.bookingId)).sort()).toEqual([String(first!._id), String(third!._id)].sort());
+
+    const fresher = fresh.find((p) => String(p._id) === again.body.payment.id)!;
+    expect((await postEvent(ctx.app, owner.ownerId, secret, piSucceeded({ ...fresher.toObject(), amount: 600 }))).status).toBe(200);
+    expect((await bookings()).map((b) => b.status)).toEqual(['confirmed', 'cancelled', 'confirmed']);
+  });
 });
 
 describe('several courts in one checkout', () => {

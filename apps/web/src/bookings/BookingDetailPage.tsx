@@ -183,6 +183,28 @@ export function BookingDetailPage() {
     setEpoch((n) => n + 1);
   }, []);
 
+  // When the payment hold runs out with the page open, hide "Pay now" and fetch the booking's new state.
+  const holdExpiresAt = booking?.status === 'awaiting_payment' ? booking.holdExpiresAt : null;
+  const [, setHoldTick] = useState(0);
+  useEffect(() => {
+    if (!holdExpiresAt) return;
+    const wait = Date.parse(holdExpiresAt) - Date.now();
+    if (wait <= 0 || wait > 2 ** 31 - 1) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      setHoldTick((n) => n + 1);
+      // Quietly, without the loading state: the page stays as it is until the new state arrives.
+      apiGet<{ booking: BookingJson }>(path).then(
+        (res) => live && setState({ status: 'ready', booking: res.booking }),
+        () => undefined,
+      );
+    }, wait + 1000);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [holdExpiresAt, path]);
+
   if (state.status === 'not_found') return <NotFoundPage />;
 
   const holdLive = !booking?.holdExpiresAt || Date.parse(booking.holdExpiresAt) > Date.now();

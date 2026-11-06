@@ -3061,7 +3061,12 @@
           "offerLabel": "Offer {{name}}"
         },
         "save": "Save",
-        "dateNote": "Pick a date"
+        "dateNote": "Pick a date",
+        "calendar": {
+          "open": "Choose from calendar",
+          "prevMonth": "Previous month",
+          "nextMonth": "Next month"
+        }
       },
       "insights": {
         "noAccess": "Your role cannot see insights.",

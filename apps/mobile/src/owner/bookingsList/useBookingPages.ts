@@ -33,9 +33,9 @@ export function useBookingPages(ownerId: string, filters: BookingFilters) {
   filtersRef.current = filters;
 
   const loadFirst = useCallback(
-    (asRefresh: boolean) => {
+    (asRefresh: boolean, spin = true) => {
       const k = live.current;
-      if (asRefresh) setRefreshing(true);
+      if (asRefresh && spin) setRefreshing(true);
       else setState({ key: k, status: 'loading', error: null, bookings: [], total: 0, page: 0 });
       setMoreError(null);
       apiGet<ListPage>(apiPathFor(ownerId, filtersRef.current, 1))
@@ -92,6 +92,8 @@ export function useBookingPages(ownerId: string, filters: BookingFilters) {
     refreshing,
     loadMore,
     refresh: () => loadFirst(true),
+    /** Reloads page 1 like `refresh`, without the pull-to-refresh spinner. */
+    refreshQuietly: () => loadFirst(true, false),
     retry: () => loadFirst(false),
   };
 }

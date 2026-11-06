@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { formatMoney, localParts } from '@booking/shared';
 import { usePoll } from '../../lib/usePoll';
+import { useRefocus } from '../../lib/useRefocus';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Badge, Button, Card, Empty, ErrorState, Group, Icon, Loading, Row, Screen, Segmented, Sheet, Text } from '../../ui';
 import { StatusBadge } from '../../bookings/StatusBadge';
@@ -94,6 +95,8 @@ function TodayVenue({ venue }: { venue: OwnerVenue }) {
     }
   }, [refresh, reloadDay, reloadDayCourts, date, data.today]);
   usePoll(refreshAll);
+  // Back from a booking or another tab: show what changed there.
+  useRefocus(refreshAll);
 
   const state = data.bookings.state;
   const all = state.status === 'ready' ? state.data.bookings : [];

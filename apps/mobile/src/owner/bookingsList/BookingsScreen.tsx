@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { formatMoney } from '@booking/shared';
 import { errorMessage } from '../../lib/errors';
+import { useRefocus } from '../../lib/useRefocus';
 import { useResource } from '../../lib/useResource';
 import { fontFamily } from '../../theme/fonts';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -63,6 +64,8 @@ export function BookingsScreen() {
   const q = useDebounced(filters.q, SEARCH_DEBOUNCE_MS);
   const invalid = rangeError(filters);
   const list = useBookingPages(ownerId, { ...filters, q, ...(invalid ? { from: null, to: null } : {}) });
+  // Back from a booking or another tab: show what changed there.
+  useRefocus(list.refreshQuietly);
 
   const update = (patch: Partial<BookingFilters>) => setFilters((f) => ({ ...f, ...patch }));
   const active = activeCount(filters);

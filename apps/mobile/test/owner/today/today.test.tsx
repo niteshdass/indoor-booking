@@ -6,7 +6,17 @@ import { makeBooking } from '../booking/fixtures';
 import { OwnerWrap, ownerValue } from '../ownerFixture';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
-jest.mock('expo-router', () => ({ get router() { return mockRouter; }, useRouter: () => mockRouter, useLocalSearchParams: () => ({ ownerId: 'o1' }) }));
+jest.mock('expo-router', () => ({ get router() { return mockRouter; }, useRouter: () => mockRouter, useLocalSearchParams: () => ({ ownerId: 'o1' }) , useFocusEffect: (cb: () => void) => mockUseFocus(cb) }));
+
+// Runs the focus callback once on mount, like a screen gaining focus; `mockRefocus()` runs it again.
+const mockFocused: (() => void)[] = [];
+function mockUseFocus(cb: () => void) {
+  const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  mockFocused.push(cb);
+  useEffect(() => cb(), [cb]);
+}
+const mockRefocus = () => new Set(mockFocused).forEach((cb) => cb());
+
 
 const mockGet = jest.fn();
 const mockPost = jest.fn();
@@ -20,6 +30,7 @@ let toSend: { id: string }[] = [];
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockFocused.length = 0;
   mockGet.mockImplementation(async (path: string) => {
     if (path.endsWith('/turfs')) return { turfs: [] };
     if (path.startsWith('/owners/o1/series?')) return { series: [] };
@@ -39,6 +50,18 @@ const renderToday = (over?: Parameters<typeof ownerValue>[0]) =>
   );
 
 describe('today tab', () => {
+  it('reloads when the tab comes back into focus', async () => {
+    today = [makeBooking('b2', 'Mina', {}, 3)];
+    await renderToday();
+    expect(await screen.findAllByText('Mina')).toBeTruthy();
+    const loads = () => mockGet.mock.calls.filter(([p]) => p === '/owners/o1/bookings?venueId=v1').length;
+    expect(loads()).toBe(1);
+    today = [makeBooking('b2', 'Mina', {}, 3), makeBooking('b3', 'Tanvir', {}, 4)];
+    await act(async () => mockRefocus());
+    expect(loads()).toBe(2);
+    expect((await screen.findAllByText('Tanvir')).length).toBeGreaterThan(0);
+  });
+
   it('shows stats, what needs attention and what is coming up', async () => {
     today = [makeBooking('b1', 'Rafi', { status: 'pending' }, 2), makeBooking('b2', 'Mina', {}, 3)];
     await renderToday();

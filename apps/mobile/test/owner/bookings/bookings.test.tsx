@@ -4,7 +4,17 @@ import type { OwnerBooking } from '../../../src/owner/types';
 import { OwnerWrap, ownerValue, venue } from '../ownerFixture';
 
 const mockRouter = { push: jest.fn(), replace: jest.fn(), back: jest.fn() };
-jest.mock('expo-router', () => ({ get router() { return mockRouter; }, useRouter: () => mockRouter, useLocalSearchParams: () => mockParams }));
+jest.mock('expo-router', () => ({ get router() { return mockRouter; }, useRouter: () => mockRouter, useLocalSearchParams: () => mockParams , useFocusEffect: (cb: () => void) => mockUseFocus(cb) }));
+
+// Runs the focus callback once on mount, like a screen gaining focus; `mockRefocus()` runs it again.
+const mockFocused: (() => void)[] = [];
+function mockUseFocus(cb: () => void) {
+  const { useEffect } = jest.requireActual<typeof import('react')>('react');
+  mockFocused.push(cb);
+  useEffect(() => cb(), [cb]);
+}
+const mockRefocus = () => new Set(mockFocused).forEach((cb) => cb());
+
 let mockParams: Record<string, string> = {};
 
 const mockGet = jest.fn();
@@ -57,6 +67,7 @@ const page1 = Array.from({ length: 25 }, (_, i) => booking(`b${i + 1}`, `Player 
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockFocused.length = 0;
   mockParams = {};
   mockGet.mockImplementation(async (path: string) => {
     if (path.endsWith('/turfs')) return { turfs: [] };
@@ -76,6 +87,16 @@ const renderBookings = (over?: Parameters<typeof ownerValue>[0]) =>
   );
 
 describe('bookings tab', () => {
+  it('reloads the first page when the tab comes back into focus', async () => {
+    await renderBookings();
+    expect(await screen.findByText('Player 1')).toBeTruthy();
+    const firstPage = '/owners/o1/bookings?scope=all&sort=created-desc&page=1&pageSize=25';
+    expect(mockGet.mock.calls.filter(([p]) => p === firstPage)).toHaveLength(1);
+    await act(async () => mockRefocus());
+    expect(mockGet.mock.calls.filter(([p]) => p === firstPage)).toHaveLength(2);
+    expect(screen.getByText('Player 1')).toBeTruthy();
+  });
+
   it('lists bookings with customer, court, amount and status', async () => {
     await renderBookings();
     expect(await screen.findByText('Player 1')).toBeTruthy();

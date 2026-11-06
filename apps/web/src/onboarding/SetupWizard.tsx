@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { MAX_SETUP_TURFS, WALLET_PROVIDERS, WEEKDAYS, type SetupResult, type Sport, type Weekday } from '@booking/shared';
@@ -13,7 +13,7 @@ import { SportCourt } from '../landing/SportCourt';
 import { ApiError } from '../lib/apiClient';
 import { errorMessage } from '../lib/errors';
 import { money } from '../lib/format';
-import { countryOptions, currencyOptions } from '../lib/regions';
+import { countryOptions, currencyOptions, defaultZoneFor, timeZoneOptions } from '../lib/regions';
 import { useSports } from '../lib/sports';
 import { PROVIDER_NAMES } from '../lib/wallets';
 import { weekdayNames } from '../owner/settings/HoursEditor';
@@ -251,6 +251,9 @@ function NameStep({ a, update, err, mode }: StepProps & { mode: SetupWizardProps
 
 function PlaceStep({ a, update, err, mapLinkPath }: StepProps & { mapLinkPath: string }) {
   const { t } = useTranslation();
+  // Drafts saved before the field existed have no timezone.
+  const zone = a.timezone || defaultZoneFor(a.country);
+  const zones = useMemo(() => timeZoneOptions(zone), [zone]);
   return (
     <>
       <div className={styles.fields}>
@@ -264,6 +267,15 @@ function PlaceStep({ a, update, err, mapLinkPath }: StepProps & { mapLinkPath: s
           value={a.address}
           error={err('address')}
           onChange={(e) => update({ address: e.target.value })}
+        />
+        <Select
+          icon="timezone"
+          layout="stacked"
+          label={t('onboarding.place.timezone')}
+          hint={t('onboarding.place.timezoneHint')}
+          value={zone}
+          options={zones}
+          onChange={(e) => update({ timezone: e.target.value })}
         />
       </div>
       <div className={styles.group}>

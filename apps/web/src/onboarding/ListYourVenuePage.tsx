@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { LOCALES, type BusinessSetup, type Locale, type SetupResult } from '@booking/shared';
 import { apiPost } from '../lib/apiClient';
-import { localTimeZone } from '../lib/regions';
+import { defaultZoneFor } from '../lib/regions';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { defaultAnswers, toBusinessSetup } from './answers';
 import { SetupDone } from './SetupDone';
@@ -27,7 +27,7 @@ export function ListYourVenuePage() {
         submit={(a) =>
           apiPost<SetupResult>(
             '/onboarding',
-            toBusinessSetup(a, localTimeZone() || 'Asia/Dhaka', locale, (n) => t('onboarding.turfs.numbered', { n })) satisfies BusinessSetup,
+            toBusinessSetup(a, a.timezone || defaultZoneFor(a.country), locale, (n) => t('onboarding.turfs.numbered', { n })) satisfies BusinessSetup,
           )
         }
         done={(result) => <SetupDone result={result} />}

@@ -2776,7 +2776,9 @@
       "address": "Address",
       "addressHint": "Road, house or nearby landmark",
       "map": "Place the pin on your turf",
-      "mapHint": "Standing at the turf? Tap My location. Or search, then tap the map."
+      "mapHint": "Standing at the turf? Tap My location. Or search, then tap the map.",
+      "timezone": "Time zone",
+      "timezoneHint": "Slot times and prices follow this clock."
     },
     "turfs": {
       "question": "Tell us about your turfs",

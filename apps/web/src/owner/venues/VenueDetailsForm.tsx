@@ -9,7 +9,7 @@ import { Select } from '../../components/ui/Select';
 import { TextField } from '../../components/ui/TextField';
 import { apiPatch, apiPost } from '../../lib/apiClient';
 import { errorMessage } from '../../lib/errors';
-import { countryOptions, currencyOptions, localTimeZone, timeZoneOptions } from '../../lib/regions';
+import { countryOptions, currencyOptions, defaultZoneFor, timeZoneOptions } from '../../lib/regions';
 import { useOwner } from '../OwnerProvider';
 import { ownerPath } from '../ownerApi';
 import type { OwnerVenue } from '../types';
@@ -36,7 +36,7 @@ export function VenueForm({ venue, readOnly }: { venue: OwnerVenue | null; readO
           address: '',
           city: '',
           country: owner.country,
-          timezone: localTimeZone(),
+          timezone: defaultZoneFor(owner.country),
           currency: owner.defaultCurrency,
           lat: '',
           lng: '',
